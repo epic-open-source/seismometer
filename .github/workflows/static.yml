@@ -33,10 +33,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
-      - name: Install Pandoc
+      - name: Install Graphviz / Pandoc
         run: |
-          wget https://github.com/jgm/pandoc/releases/download/3.1.11/pandoc-3.1.11-1-amd64.deb
-          sudo dpkg -i pandoc-3.1.11-1-amd64.deb
+          sudo apt-get install graphviz libgraphviz-dev pandoc
       - name: Install Seismometer
         run: |
           pip install --upgrade pip
