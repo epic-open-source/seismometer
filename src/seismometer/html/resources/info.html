@@ -1,0 +1,32 @@
+<style>
+    td, th {
+        text-align: left !important;
+    }
+</style>
+
+<h3>Summary</h3>
+The preloaded data covers {{ num_predictions }} predictions over {{ num_entities }} entities from the dates {{ start_date }} to {{ end_date }}.
+<table>
+    <tr>
+    <th>Dataframe Name</th>
+    <th>Rows</th>
+    <th>Columns</th>
+    <th>Content</th>
+    </tr>
+    {% for table in tables %}
+    <tr>
+    <td><code>{{ table["name"] }}</code></td>
+    <td>{{ table["num_rows"] }}</td>
+    <td>{{ table["num_cols"] }}</td>
+    <td>{{ table["description"] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% if plot_help %}
+<h4>Plot Functions</h4>
+<ul>
+    <li><code>sm.model_evaluation()</code> - Overall performance across thresholds</li>
+    <li><code>sm.cohort_evaluation(cohort_group)</code> - Performance split by specified cohort</li>
+    <li><code>sm.plot_outcome(outcome, intervention, cohort)</code> - Compare trends of interventions to outcomes</li>
+</ul> 
+{% endif %}

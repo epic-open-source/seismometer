@@ -1,0 +1,22 @@
+other_info:
+  # Name of the template to use during generation
+  template: "binary"
+
+  # Configuration files: relative to this configuration file
+  # Path to the file containing how to interpret data during run
+  usage_config: "usage_config.yml"
+  # These two configuration files definitions define all the columns available
+  event_definition: "dictionary.yml"
+  prediction_definition: "dictionary.yml"
+
+  # Directory to the location of markdown and tool outputs
+  # Use seismometer extract to pre-populate these files and to write outputs like reports
+  info_dir: "outputs"
+  
+  # Data files: paths to the data itself
+  # Aside from metadata, these are currently expected to have data appropriately typed in parquet
+  data_dir: "/path/to/data/files"
+  event_path: "events.parquet"
+  prediction_path: "predictions.parquet"
+  metadata_path: "metadata.json"
+  

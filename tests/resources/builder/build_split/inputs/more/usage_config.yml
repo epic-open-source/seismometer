@@ -1,0 +1,31 @@
+data_usage:
+  entity_id: ID
+  context_id: CSN
+  primary_output: Score
+  primary_target: My Target
+  predict_time: PredictTime
+  features:
+    - BMI
+    - Pulse
+  cohorts:
+    - source: Age
+      splits:
+        - 18
+        - 35
+        - 50
+        - 65
+    - source: Has_ECG
+  event_table:
+    type: Type
+    time: EventTime
+    value: Value
+  events:
+    - source: Target_1
+      display_name: My Target
+      window_hr: 8
+      offset_hr: 0
+      usage: target
+    - source: ANTIBIOTICS
+      usage: intervention
+    - source: 30D_READMISSION
+      usage: outcome

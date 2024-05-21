@@ -1,0 +1,202 @@
+### LINES
+# See http://matplotlib.org/api/artist_api.html#module-matplotlib.lines for more
+# information on line properties.
+#lines.linewidth   : 1.5     # line width in points
+#lines.linestyle   : -       # solid line
+#lines.color       : C0      # has no affect on plot(); see axes.prop_cycle
+#lines.marker      : None    # the default marker
+#lines.markeredgewidth  : 1.0     # the line width around the marker symbol
+#lines.markersize  : 6            # markersize, in points
+lines.dash_joinstyle : round        # miter|round|bevel
+lines.dash_capstyle : round          # butt|round|projecting
+lines.solid_joinstyle : round       # miter|round|bevel
+lines.solid_capstyle : round   # butt|round|projecting
+
+### PATCHES
+# Patches are graphical objects that fill 2D space, like polygons or
+# circles.  See
+# http://matplotlib.org/api/artist_api.html#module-matplotlib.patches
+# information on patch properties
+patch.linewidth        : 0.2        # edge width in points.
+patch.edgecolor        : 5f7c8a   # if forced, or patch is not filled
+patch.force_edgecolor  : True   # True to always use edgecolor
+#patch.facecolor        : C0
+
+### HATCHES
+hatch.color     : 5f7c8a
+hatch.linewidth : 0.5
+
+### Boxplot
+#boxplot.notch       : False
+#boxplot.vertical    : True
+#boxplot.whiskers    : 1.5
+#boxplot.bootstrap   : None
+#boxplot.patchartist : False
+#boxplot.showmeans   : False
+#boxplot.showcaps    : True
+#boxplot.showbox     : True
+#boxplot.showfliers  : True
+#boxplot.meanline    : False
+
+#boxplot.flierprops.color           : 5f7c8a
+#boxplot.flierprops.marker          : 'o'
+#boxplot.flierprops.markerfacecolor : 'none'
+#boxplot.flierprops.markeredgecolor : 5f7c8a
+#boxplot.flierprops.markersize      : 6
+#boxplot.flierprops.linestyle       : 'none'
+#boxplot.flierprops.linewidth       : 1.0
+
+#boxplot.boxprops.color     : 5f7c8a
+#boxplot.boxprops.linewidth : 1.0
+#boxplot.boxprops.linestyle : '-'
+
+#boxplot.whiskerprops.color     : 5f7c8a
+#boxplot.whiskerprops.linewidth : 1.0
+#boxplot.whiskerprops.linestyle : '-'
+
+#boxplot.capprops.color     : 5f7c8a
+#boxplot.capprops.linewidth : 1.0
+#boxplot.capprops.linestyle : '-'
+
+#boxplot.medianprops.color     : 'C1'
+#boxplot.medianprops.linewidth : 1.0
+#boxplot.medianprops.linestyle : '-'
+
+#boxplot.meanprops.color           : 'C2'
+#boxplot.meanprops.marker          : '^'
+#boxplot.meanprops.markerfacecolor : 'C2'
+#boxplot.meanprops.markeredgecolor : 'C2'
+#boxplot.meanprops.markersize      :  6
+#boxplot.meanprops.linestyle       : 'none'
+#boxplot.meanprops.linewidth       : 1.0
+
+### FONT
+#
+# font properties used by text.Text.  See
+# http://matplotlib.org/api/font_manager_api.html for more
+# information on font properties.  The 6 font properties used for font
+# matching are given below with their default values.
+#
+# The font.family property has five values: 'serif' (e.g., Times),
+# 'sans-serif' (e.g., Helvetica), 'cursive' (e.g., Zapf-Chancery),
+# 'fantasy' (e.g., Western), and 'monospace' (e.g., Courier).  Each of
+# these font families has a default list of font names in decreasing
+# order of priority associated with them.  When text.usetex is False,
+# font.family may also be one or more concrete font names.
+#
+# The font.style property has three values: normal (or roman), italic
+# or oblique.  The oblique style will be used for italic, if it is not
+# present.
+#
+# The font.variant property has two values: normal or small-caps.  For
+# TrueType fonts, which are scalable fonts, small-caps is equivalent
+# to using a font size of 'smaller', or about 83%% of the current font
+# size.
+#
+# The font.weight property has effectively 13 values: normal, bold,
+# bolder, lighter, 100, 200, 300, ..., 900.  Normal is the same as
+# 400, and bold is 700.  bolder and lighter are relative values with
+# respect to the current weight.
+#
+# The font.stretch property has 11 values: ultra-condensed,
+# extra-condensed, condensed, semi-condensed, normal, semi-expanded,
+# expanded, extra-expanded, ultra-expanded, wider, and narrower.  This
+# property is not currently implemented.
+#
+# The font.size property is the default font size for text, given in pts.
+# 10 pt is the standard value.
+
+# note that font.size controls default text sizes.  To configure
+# special text sizes tick labels, axes, labels, title, etc, see the rc
+# settings for axes and ticks. Special text sizes can be defined
+# relative to font.size, using the following values: xx-small, x-small,
+# small, medium, large, x-large, xx-large, larger, or smaller
+
+font.size           : 12.0
+font.family: sans-serif
+font.sans-serif: Segoe UI, DejaVu Sans, Arial, sans-serif
+
+#font.style          : normal
+#font.variant        : normal
+#font.weight         : medium
+#font.stretch        : normal
+text.color: 221632
+
+### AXES
+# default face and edge color, default tick sizes,
+# default fontsizes for ticklabels, and so on.  See
+# http://matplotlib.org/api/axes_api.html#module-matplotlib.axes
+axes.facecolor      : white   # axes background color
+axes.edgecolor      : white   # axes edge color
+axes.linewidth      : 0.8     # edge linewidth
+axes.grid           : True   # display grid or not
+#axes.titlesize      : large   # fontsize of the axes title
+#axes.titlepad       : 6.0     # pad between axes and title in points
+#axes.labelsize      : medium  # fontsize of the x any y labels
+#axes.labelpad       : 4.0     # space between label and axis
+#axes.labelweight    : normal  # weight of the x and y labels
+axes.labelcolor     : 221632
+axes.axisbelow      : True  # draw axis gridlines and ticks below
+                               # patches (True); above patches but below
+                               # lines ('line'); or above all (False)
+
+# axes.spines.left   : True   # display axis spines
+# axes.spines.bottom : True
+# axes.spines.top    : True
+# axes.spines.right  : True
+
+# color cycle for plot lines
+# as list of string colorspecs:
+# single letter, long name, or
+# web-style hex
+axes.prop_cycle    : cycler('color', ['006bdf', 'fd00ab', '229d00', 'a500fa', '00a1c2', 'ec7000', '7645ff', '009f7a', 'ff4651', '108fd9', 'c3404d'])
+
+### TICKS
+# see http://matplotlib.org/api/axis_api.html#matplotlib.axis.Tick
+
+xtick.color          : 221632      # color of the tick labels
+xtick.direction      : out    # direction: in, out, or inout
+xtick.labelsize      : medium # fontsize of the tick labels
+#xtick.top            : False   # draw ticks on the top side
+#xtick.bottom         : True   # draw ticks on the bottom side
+#xtick.major.size     : 3.5      # major tick size in points
+#xtick.minor.size     : 2      # minor tick size in points
+xtick.major.width    : 0    # major tick width in points
+xtick.minor.width    : 0    # minor tick width in points
+xtick.major.pad      : 2.5      # distance to major tick label in points
+xtick.minor.pad      : 2      # distance to the minor tick label in points
+
+ytick.color          : 221632      # color of the tick labels
+ytick.direction      : out    # direction: in, out, or inout
+ytick.labelsize      : medium # fontsize of the tick labels
+#ytick.left           : True   # draw ticks on the left side
+#ytick.right          : False  # draw ticks on the right side
+#ytick.major.size     : 3.5      # major tick size in points
+#ytick.minor.size     : 2      # minor tick size in points
+ytick.major.width    : 0    # major tick width in points
+ytick.minor.width    : 0    # minor tick width in points
+ytick.major.pad      : 2.5      # distance to major tick label in points
+ytick.minor.pad      : 2      # distance to the minor tick label in points
+
+
+### GRIDS
+grid.color       :   e6e7e8    # light grid color
+grid.linestyle   :   -         # solid (-- for dashed)
+grid.linewidth   :   0.5       # in points
+grid.alpha       :   1.0       # transparency, between 0.0 and 1.0
+
+### FIGURE
+# See http://matplotlib.org/api/figure_api.html#matplotlib.figure.Figure
+#figure.titlesize : large      # size of the figure title (Figure.suptitle())
+#figure.titleweight : normal   # weight of the figure title
+figure.figsize   : 5, 5   # figure size in inches
+#figure.facecolor : white   # figure facecolor; 0.75 is scalar gray
+#figure.edgecolor : white   # figure edgecolor
+
+### HISTOGRAM PLOTS
+hist.bins : 10                   # The default number of histogram bins.
+                                 # If Numpy 1.11 or later is
+                                 # installed, may also be `auto`
+
+### SCATTER PLOTS
+scatter.marker : o               # The default marker type for scatter plots.

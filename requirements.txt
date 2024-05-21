@@ -1,0 +1,2 @@
+# When installing as an application, assume the dev extra is wanted
+-e .[dev]

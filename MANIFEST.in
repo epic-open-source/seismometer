@@ -1,0 +1,10 @@
+include LICENSE.txt
+include README.md
+include notebooks/*.ipynb
+include src/seismometer/builder/resources/*.ipynb
+include src/seismometer/builder/resources/*.y*ml
+include src/seismometer/report/*.y*ml 
+include src/seismometer/plot/mpl/ux.mplstyle
+include src/seismometer/html/resources/*
+
+global-exclude .ipynb_checkpoints/*

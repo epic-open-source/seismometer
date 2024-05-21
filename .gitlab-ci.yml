@@ -1,0 +1,73 @@
+image: artifactory.epic.com/eccp/seismometer/seismometer:latest
+
+stages:
+  - test
+  - pages
+
+#--------------------------------------------------
+# Unit/Integration Tests CI/CD Jobs (Always Runs)
+#--------------------------------------------------
+test_python:
+  stage: test
+  extends: .skip_noncode_changes
+  script:
+    - export PATH="$PATH:/home/seismo/.local/bin"
+    - export JUPYTER_PLATFORM_DIRS=1
+    - pip install --editable .[dev]
+    - pytest
+  artifacts:
+    paths:
+      - coverage/html-report
+  only:
+    refs:
+      - merge_requests
+      - main
+  tags:
+    - k8s
+
+#-------------------------------------------
+# Build Sphinx docs and push to GitLab pages
+#-------------------------------------------
+docs:
+  image:
+    name: artifactory.epic.com/eccp/seismometer/seismometer:latest
+    docker:
+      user: root
+  stage: pages
+  script:
+    - export PATH="$PATH:/home/seismo/.local/bin"
+    - pip install --editable .[all]
+    - make doc
+  artifacts:
+    paths:
+      - public
+  tags:
+    - k8s
+  environment:
+    name: review/${CI_COMMIT_REF_NAME}
+    url: "https://${CI_PROJECT_NAMESPACE}.gitpages.epic.com/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/public/index.html"
+  variables:
+    PUBLIC_URL: "/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/public"
+  only:
+    refs:
+      - merge_requests
+
+# In GitLab, a branch named "pages" automatically gets pushed to GitLab Pages
+pages:
+  extends: docs
+  only:
+    refs:
+      - main
+
+#--------------------------------------------------
+# CI/CD Job Templates
+#--------------------------------------------------
+.skip_noncode_changes:
+  only:
+    changes:
+      - "seismometer/**/*"
+      - "docs/**/*"
+      - "tests/**/*"
+      - "*.py"
+      - "*.cfg"
+      - ".gitlab-ci.yml"
