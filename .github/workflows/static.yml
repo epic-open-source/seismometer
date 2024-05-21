@@ -42,10 +42,8 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install .[audit,docs]
-          python -c "import seismometer._api as ap; print(dir(ap))"
       - name: Build Docs
         run: |
-          python -c "import seismometer._api as ap; print(dir(ap))"
           make doc
       - name: Setup Pages
         uses: actions/configure-pages@v5
