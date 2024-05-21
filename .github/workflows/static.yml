@@ -39,7 +39,7 @@ jobs:
       - name: Install Seismometer
         run: |
           pip install --upgrade pip
-          pip install .[audit,docs]
+          pip install -e .[all]
           python -c "import seismometer; print(seismometer.__version__)"
       - name: Build Docs
         run: |
