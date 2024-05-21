@@ -14,7 +14,6 @@ clean:
 clean_doc:
 	-rm -rf ./public
 	-rm -rf ./docs/reference/api
-	-rm -rf ./docs/example_notebooks/notebooks
 
 # Remove any notebooks from docs
 clean_notebooks:
