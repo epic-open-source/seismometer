@@ -62,6 +62,7 @@ sphinx/savefig
 docs/**/*.ipynb
 docs/**/*.yml
 docs/**/outputs
+docs/example_notebooks/notebooks
 
 # IPython Notebook
 .ipynb_checkpoints
