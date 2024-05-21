@@ -93,3 +93,7 @@ html_theme_options = asdict(
 html_css_files = [
     "css/theme.css",
 ]
+
+nbsphinx_thumbnails = {
+    'example_notebooks/notebooks/binary-classifier/classifier_bin': '_static/images/jupyter.png'
+}

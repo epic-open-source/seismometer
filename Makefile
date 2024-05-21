@@ -3,7 +3,7 @@ file_dir := $(dir $(file_path))
 source_dir := $(file_dir)docs
 build_dir := $(file_dir)public
 
-.PHONY : doc clean clean_doc
+.PHONY : doc clean clean_doc clean_notebooks copy_notebooks generate_docs copy_binary_outputs
 
 # Remove all python generated files
 clean:
@@ -15,7 +15,23 @@ clean_doc:
 	-rm -rf ./public
 	-rm -rf ./docs/reference/api
 
-# Generate the documentation
-doc: clean clean_doc
+# Remove any notebooks from docs
+clean_notebooks:
+	-rm -rf ./docs/example_notebooks/notebooks
+
+# Copy notebooks
+copy_notebooks: 
+	-mkdir ./docs/example_notebooks/notebooks
+	-cp -R ./example-notebooks/* ./docs/example_notebooks/notebooks
+
+# Generate documentation
+generate_docs:
 	cd docs; \
 	sphinx-build -W -b html $(source_dir) $(build_dir)
+
+copy_binary_outputs:
+	-mkdir ./public/example_notebooks/notebooks/binary-classifier/outputs
+	-cp ./docs/example_notebooks/notebooks/binary-classifier/outputs/* ./public/example_notebooks/notebooks/binary-classifier/outputs
+
+# Put it all together
+doc: clean clean_doc clean_notebooks copy_notebooks generate_docs copy_binary_outputs

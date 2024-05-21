@@ -83,6 +83,7 @@ Seismometer Documentation
 
    getting_started/index
    user_guide/index
+   example_notebooks/index
    reference/index
    cli/index
    development/index
