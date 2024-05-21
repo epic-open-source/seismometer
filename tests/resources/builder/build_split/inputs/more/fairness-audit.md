@@ -1,0 +1,1 @@
+In the past, seismographs consisted of large pendulums and mechanical drums that recorded ground motion on a rotating cylinder covered in soot or smoked paper. However, with advancements in technology, modern seismographs now employ highly sensitive electronic sensors and digital recording systems.

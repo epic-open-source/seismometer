@@ -1,0 +1,13 @@
+Id	Enc	Type	Value	Time
+1	1	outcome	old	1/1/2024 12:00
+1	1	outcome	two	2/2/2024 12:00
+3	1	old		1/1/2024 12:00
+3	1	two		2/5/2024 12:00
+10	1	eventA	old	1/1/2024 12:00
+10	1	eventA	near	2/1/2024 8:00
+10	1	eventA	soon	2/1/2024 20:00
+10	1	eventA	future	3/1/2024 0:00
+10	1	eventB	a	1/1/2024 12:01
+10	1	eventB	b	2/1/2024 8:01
+10	1	eventB	c	2/1/2024 19:59
+10	1	eventB	d	3/1/2024 0:01

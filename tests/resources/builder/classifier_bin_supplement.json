@@ -1,0 +1,12 @@
+{
+    "title": "# <span style=\"background-color: yellow; color: black\">Seismogram Title</span>",
+    "title-detail": "\u2728\u2728<span style=\"background-color: yellow; color: black\">This is a short blurb on what model is being analyzed</span>\u2728\u2728",
+    "overview-summary": "\u2728\u2728<span style=\"background-color: yellow; color: black\">**Model Overview:** Is a more thorough description of the model, intended usage, and expected output</span>\u2728\u2728",
+    "overview-selection": "\u2728\u2728<span style=\"background-color: yellow; color: black\">An explanation of cohorts and their definitions can be inserted here</span>\u2728\u2728",
+    "feature-summary": "\u2728\u2728<span style=\"background-color: yellow; color: black\">Add guidance here on what features are most useful to always look at and which might be ok even when there are normal levels for alerting.  Rare labs or other documentation could be very indicative of the target but have unusually high missingness.</span>\u2728\u2728",
+    "feature-target": "\u2728\u2728<span style=\"background-color: yellow; color: black\">Describe the default target being used for ground truth and any differences between it and how the model predictions might be used in practice.</span>\u2728\u2728",
+    "performance-overall": "\u2728\u2728<span style=\"background-color: yellow; color: black\">Add reference points for what performance has been seen in literature or other baselines for comparison; Explain what counts as good/bad.  The plots themselves have been described in a prior markdown cell</span>\u2728\u2728",
+    "performance-cohorts": "\u2728\u2728<span style=\"background-color: yellow; color: black\">Add reference points for what performance has been seen in literature. Similar to model performance but focused on a selected cohortThe plots themselves have been described in a prior markdown cell</span>\u2728\u2728",
+    "outcomes-trend": "\u2728\u2728<span style=\"background-color: yellow; color: black\">Add information on the available interventions and outcomes, what a successful workflow is expected to look like and what would need further review</span>\u2728\u2728",
+    "outcomes-leadtime": "\u2728\u2728<span style=\"background-color: yellow; color: black\">Add information on what leadtime means in the context of your model; Re-emphasize any windowing done for the target that filters the perspective .</span>\u2728\u2728"
+}

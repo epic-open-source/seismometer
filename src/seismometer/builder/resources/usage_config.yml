@@ -1,0 +1,39 @@
+data_usage:
+  # Define the keys used to identify an output; 
+  # entity_id is required while a secondary context grouping is optional
+  entity_id: id
+  context_id: encounter_id
+  # Each use case must define a primary output and target
+  # Output should be in the predictions table but target may be a display name of a windowed event
+  primary_output: Score
+  primary_target: TargetLabel
+  # Predict time indicates the column for timestamp associated with the row
+  predict_time: ScoringTime
+  # Features, when present, will reduce the data loaded from predictions. 
+  # It does NOT need to include cohorts or outputs specified elsewhere
+  features:
+    - Input
+  # This list defines availabel cohort options for the default selectors
+  cohorts:
+    - source: Age
+      splits:
+        - 18
+        - 35
+        - 50
+        - 65
+  # The event_table allows mapping of event columns to those expected by the tool
+  # The table must have the entity_id column and may have context_id column if being used
+  event_table:
+    type: Type
+    time: EventTime
+    value: Value
+  # Events define what types of events to merge into analyses
+  # Windowing defines the range of time prior to the event where predictions are considered
+  events:
+    - source: TargetLabel
+      display_name: Our Target
+      window_hr: 12
+      offset_hr: 0
+      usage: target
+  # Minimum group size to be included in the analysis
+  censor_min_count: 15

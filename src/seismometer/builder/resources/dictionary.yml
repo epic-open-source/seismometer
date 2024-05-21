@@ -1,0 +1,32 @@
+# Can be separated into two files, this has both predictions and events
+# This should describe the data available, but not necessarily used
+predictions:
+  - name: id
+    dtype: str
+    definition: The patient identifier.
+  - name: encounter_id
+    dtype: str
+    definition: The contact identifier.
+  - name: Score
+    dtype: int
+    display_name: "Risk Score"
+    definition: |
+      The Score of the model.
+  - name: ScoringTime
+    dtype: datetime
+    display_name: "Prediction Time"
+    definition: |
+      The time at which the prediction was made.
+  - name: Age
+    dtype: float
+    display_name: "Age"
+    definition: The age of the patient in years as of the ScoringTime
+  - name: Input
+    dtype: str
+    definition: Generic input to the model
+events:
+  - name: TargetLabel
+    display_name: "Our Target"
+    definition: |
+      A binary indicator of whether the patient experienced the predicted event
+    dtype: bool

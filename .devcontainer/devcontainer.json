@@ -1,0 +1,55 @@
+// If you want to run as a non-root user in the container, see .devcontainer/docker-compose.yml.
+{
+    "name": "seismometer",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "seismometer-dev",
+    "workspaceFolder": "/home/seismo/workspace",
+     // Use 'settings' to set *default* container specific settings.json values on container create.
+    // You can edit these settings after create using File > Preferences > Settings > Remote.
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.inheritEnv": true,
+                "autoDocstring.docstringFormat": "numpy",
+                "python.venvPath": "/env/python"
+            },
+          // Add the IDs of extensions you want installed when the container is created in the array below.
+            "extensions": [
+                // language servers
+                "ms-python.python",
+                "ms-toolsai.jupyter",
+                "njpwerner.autodocstring",
+                // unit test support
+                "ryanluker.vscode-coverage-gutters",
+                //language services for common file types
+                "redhat.vscode-yaml",
+                "davidanson.vscode-markdownlint",
+                //dev tooling + quality of life
+                "eamodio.gitlens",
+                "ms-azuretools.vscode-docker",
+                "editorconfig.editorconfig",
+                "ibm.output-colorizer",
+                "gruntfuggly.todo-tree",
+                "johnpapa.vscode-peacock",
+                //copilot
+                "github.copilot",
+                "github.copilot-chat"
+            ]
+        }
+    },
+    // Uncomment the next line if you want start specific services in your Docker Compose config.
+    // "runServices": [],
+    // Uncomment the next line if you want to keep your containers running after VS Code shuts down.
+    // "shutdownAction": "none",
+    // The next line to run commands after the container is created, making pytest work in this case
+    // Not needed if using gneiss
+    "postCreateCommand": "echo \"\\nif [ -f /home/seismo/workspace/.devcontainer/.bashrc ]; then\\n  . /home/seismo/workspace/.devcontainer/.bashrc;\\nfi\" >> $HOME/.bashrc",
+    // Uncomment the next line to have VS Code connect as an existing non-root user in the container. See
+    // https://aka.ms/vscode-remote/containers/non-root for details on adding a non-root user if none exist.
+    //"remoteUser": "seismo"
+    // This fails in images without git; and isn't needed if user is root
+    //"updateRemoteUserUID": true,
+    //"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+    // Runs bash command on startup
+}

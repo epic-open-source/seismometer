@@ -1,0 +1,29 @@
+<style>
+    td, th {
+        text-align: left !important;
+    }
+
+    div {
+        .top {
+            display: inline-block;
+
+        }
+
+        .inner {
+            display: inline-block;
+            vertical-align: top;
+            margin-right: 25px;
+        }
+    }
+</style>
+
+<h3>Cohort Summaries</h3>
+{% for cohort, df_list in dfs.items() %}
+<div class="top">
+    {% for df in df_list %}
+    <div class="inner">
+        {{ df }}
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}

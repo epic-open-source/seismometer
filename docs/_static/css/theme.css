@@ -1,0 +1,8 @@
+
+section h1 {
+    overflow-wrap: anywhere;
+}
+
+#right-sidebar div {
+    overflow: visible;
+}
