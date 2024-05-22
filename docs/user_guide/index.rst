@@ -501,3 +501,20 @@ defined in a single YAML file.
       event_path: "events.parquet"
       prediction_path: "predictions.parquet"
       metadata_path: "metadata.json"
+
+
+Create Metadata Configuration
+-----------------------------
+
+The metadata configuration is used to define two pieces of metadata about the model:
+the model's name and any configured thresholds. It is typically defined in a 
+``metadata.json`` file and can be referenced in ``config.yml`` using the 
+``metadata_path`` field.
+
+.. code-block:: json
+   
+   {
+      "modelname": "Risk of Readmission for Patients with Diabetes",
+      "thresholds": [0.65, 0.3]
+   }
+
