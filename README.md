@@ -15,7 +15,13 @@ We expect these templates to continually evolve as new validation and analysis t
 
 ## Installation
 
+Install the base package with:
+
 `pip install seismometer`
+
+Install the packages required for fairness audit visualizations with:
+
+`pip install seismometer[audit]`
 
 ## Getting Help
 
