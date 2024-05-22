@@ -292,9 +292,9 @@ model.
 Performance by Cohort
 ~~~~~~~~~~~~~~~~~~~~~
 
-Select a cohort and one or more subgroups to see a breakdown of
-the same model performance plots described in the Model Performance
-topic stratified by the different subgroups.
+Select a cohort and one or more subgroups to see a breakdown of common model
+performance statistics across thresholds and cohort attributes. The plots show
+sensitivity, specificity, proportion of flagged entities, PPV, and NPV.
 
 Outcomes
 --------
