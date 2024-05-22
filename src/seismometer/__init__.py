@@ -1,7 +1,7 @@
-__version__ = "0.1.0"
 import logging
 from pathlib import Path
 
+from seismometer._version import __version__
 from seismometer.core.logger import add_log_formatter, set_default_logger_config
 
 
