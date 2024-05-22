@@ -87,7 +87,7 @@ def generate_data_dict_from_parquet(inpath: Path | str, outpath: Path | str, sec
     outpath : Path | str
         The path to the output YAML file.
     section : str, optional
-        The section name to be used in the YAML file, by default "predictions"
+        The section name to be used in the YAML file, by default "predictions".
     """
     import pandas as pd
     import yaml
