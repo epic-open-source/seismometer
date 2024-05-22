@@ -7,6 +7,8 @@ This is a list of changes that have been made between releases of the ``seismome
 
 Breaking changes may occur between minor versions prior to the v1 release; afterwhich API changes will be restricted to major version updates.
 
+.. towncrier release notes start
+
 v0.1.0
 ------
 
