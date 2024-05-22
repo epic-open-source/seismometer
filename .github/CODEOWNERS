@@ -1,0 +1,6 @@
+# Restrict all files related to deploying to require maintainer approval.
+
+.github/workflows/            @epic-open-source/ai-trust-and-assurance-core
+src/seisomemeter/_version.py  @epic-open-source/ai-trust-and-assurance-core
+pyproject.toml                @epic-open-source/ai-trust-and-assurance-core
+setup.cfg                     @epic-open-source/ai-trust-and-assurance-core
