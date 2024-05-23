@@ -1,0 +1,33 @@
+name: Enforce changelog fragment creation
+
+on:
+  pull_request: {}
+
+permissions: "read-all"
+
+jobs:
+  check-changelog-entry:
+    name: changelog entry
+    runs-on: ubuntu-latest
+    # skip job if label is present
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip changelog')"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # `towncrier check` needs full history to compare 
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install towncrier
+        run: |
+          pip install --upgrade pip
+          pip install towncrier
+      - name: Validate changelog
+        run: |
+          if ! towncrier check --compare-with origin/${{ github.base_ref }}; then
+          echo "Please add a change fragment; see https://github.com/epic-open-source/seismometer/blob/main/changelog/README.rst for details."
+            false
+          fi
