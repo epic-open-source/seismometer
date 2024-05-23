@@ -16,7 +16,7 @@ The following configuraion files are required to be in the same directory as the
 
 - ``config.yml``, 
 - ``usage_config.yml``,
-- ``data/metada.json``.
+- ``data/metadata.json``.
 
 .. seealso::
     :ref:`config-files` for more information on configuration files.
