@@ -12,7 +12,7 @@ directory as the notebook: configuration files and the data directory.
 Configuration Files
 ~~~~~~~~~~~~~~~~~~~
 
-The following configuraion files are required to be in the same directory as the notebook: 
+The following configuration files are required to be in the same directory as the notebook: 
 
 - ``config.yml``, 
 - ``usage_config.yml``,
