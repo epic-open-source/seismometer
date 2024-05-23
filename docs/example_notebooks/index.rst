@@ -7,7 +7,7 @@ Directory Structure
 -------------------
 
 To run the notebook, we assume the existence of the following files in the same 
-directory as the notebook: configuration files and data.
+directory as the notebook: configuration files and the data directory.
 
 Configuration Files
 ~~~~~~~~~~~~~~~~~~~
