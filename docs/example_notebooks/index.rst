@@ -25,7 +25,7 @@ The following configuraion files are required to be in the same directory as the
 Data
 ~~~~
 
-The first code cell in the notebook downloads the required data from 
+The first code cell in the notebook downloads the required data and data dictionary from 
 `seismometer-data <https://github.com/epic-open-source/seismometer-data>`_
 repository and creates the following files in the notebook directory:
 
