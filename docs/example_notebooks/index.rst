@@ -6,7 +6,7 @@ Example Notebooks
 Directory Structure
 -------------------
 
-To run the notebook, we assume the existence of the fllowing files in the same 
+To run the notebook, we assume the existence of the following files in the same 
 directory as the notebook: configuration files and data.
 
 Configuration Files
