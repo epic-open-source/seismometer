@@ -14,18 +14,6 @@ on:
       - pyproject.toml
       - setup.cfg
   
-  # Runs on PR but doesn't deploy
-  pull_request: 
-    paths:
-      - .github/workflows/pages.yml
-      - changelog/*
-      - docs/*
-      - example-notebooks/*
-      - src/seismometer/*
-      - Makefile
-      - pyproject.toml
-      - setup.cfg
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -42,37 +30,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
   deploy:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10' 
-      - name: Install Graphviz / Pandoc
-        run: |
-          sudo apt-get install graphviz libgraphviz-dev pandoc
-      - name: Install Seismometer
-        run: |
-          pip install --upgrade pip
-          pip install .[audit,docs]
-      - name: Build Docs
-        run: |
-          make doc
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './public'
       - name: Setup Pages
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: actions/configure-pages@v5
       - name: Deploy to GitHub Pages
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         id: deployment
         uses: actions/deploy-pages@v4
