@@ -1,4 +1,4 @@
-name: Deploy Sphinx Doc to Pages
+name: Build Sphinx Doc
 
 on:
   # Runs on pushes targeting the default branch
@@ -32,12 +32,6 @@ on:
 permissions:
   contents: read
   id-token: write
-
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
 
 jobs:
   build:
