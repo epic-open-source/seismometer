@@ -1,3 +1,12 @@
 [build-system]
 requires = ["setuptools >= 65.6.0", "wheel >= 0.36.0"]
 build-backend = 'setuptools.build_meta'
+
+[tool.towncrier]
+package = "seismometer"
+package_dir = "src"
+filename = "docs/release_notes/index.rst"
+directory = "changelog"
+issue_format = "`#{issue} <https://github.com/epic-open-source/seismometer/issues/{issue}>`__"
+title_format = "{version}"
+underlines = ["-","~"]

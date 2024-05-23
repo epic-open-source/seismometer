@@ -1,0 +1,52 @@
+name: CI
+
+on: 
+  push: {}
+  pull_request: {}
+  workflow_dispatch: {}
+
+permissions: "read-all"
+
+jobs:
+  run-linting:
+    name: linting via pre-commit 
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install pre-commit
+        run: |
+          pip install --upgrade pip 
+          pip install pre-commit
+      - name: Run pre-commit steps
+        run: |
+          pre-commit run --all-files
+  run-tests:
+    name: tests via pytest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip 
+          pip install -e .[dev,audit]
+      - name: Run tests
+        run: |
+          pytest .
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data
+          path: coverage/coverage.xml
+          if-no-files-found: error
