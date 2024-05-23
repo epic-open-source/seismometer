@@ -4,6 +4,27 @@ on:
   # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
+    paths:
+      - .github/workflows/pages.yml
+      - changelog/*
+      - docs/*
+      - example-notebooks/*
+      - src/seismometer/*
+      - Makefile
+      - pyproject.toml
+      - setup.cfg
+  
+  # Runs on PR but doesn't deploy
+  pull_request: 
+    paths:
+      - .github/workflows/pages.yml
+      - changelog/*
+      - docs/*
+      - example-notebooks/*
+      - src/seismometer/*
+      - Makefile
+      - pyproject.toml
+      - setup.cfg
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -44,12 +65,14 @@ jobs:
       - name: Build Docs
         run: |
           make doc
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './public'
+      - name: Setup Pages
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/configure-pages@v5
       - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         id: deployment
         uses: actions/deploy-pages@v4
