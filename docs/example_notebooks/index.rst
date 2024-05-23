@@ -3,16 +3,20 @@
 Example Notebooks
 =================
 
+Example notebooks and corresponding :ref:`notebook-config` are available at `Example Notebooks <https://github.com/epic-open-source/seismometer/tree/main/example-notebooks>`_.
+
 Directory Structure
 -------------------
 
 To run the notebook, we assume the existence of the following files in the same 
 directory as the notebook: configuration files and the data directory.
 
+.. _notebook-config:
+
 Configuration Files
 ~~~~~~~~~~~~~~~~~~~
 
-The following configuration files are required to be in the same directory as the notebook: 
+The following configuration files are required to be in the same directory as the notebook:
 
 - ``config.yml``, 
 - ``usage_config.yml``,
