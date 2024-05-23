@@ -76,19 +76,19 @@ def _dump_markdown(notemap: dict, output_dir: Path, overwrite: bool = False):
         write_markdown(value, output_dir / f"{key}.md", overwrite=overwrite)
 
 
-def generate_data_dict_from_parquet(inpath: Path | str, outpath: Path | str, section: str = 'predictions'):
+def generate_data_dict_from_parquet(inpath: Path | str, outpath: Path | str, section: str = "predictions"):
     """
-    Generate a data dictionary yaml file from a Parquet file.
+    Generate a data dictionary YAML file from a Parquet file.
 
-    Parameters:
-    - inpath (Path or str): The path to the input Parquet file.
-    - outpath (Path or str): The path to the output YAML file.
-    - section (str): The section name to be used in the YAML file (default: 'predictions').
-
-    Returns:
-    None
+    Parameters
+    ----------
+    inpath : Path | str
+        The path to the input Parquet file.
+    outpath : Path | str
+        The path to the output YAML file.
+    section : str, optional
+        The section name to be used in the YAML file, by default "predictions".
     """
-
     import pandas as pd
     import yaml
 
@@ -97,7 +97,7 @@ def generate_data_dict_from_parquet(inpath: Path | str, outpath: Path | str, sec
     items = []
 
     for c in df.columns:
-        items.append({'name': c, 'dtype': str(df[c].dtype), 'definition': f'Placeholder description for {c}'})
-    
-    with open(outpath, 'w') as f:
+        items.append({"name": c, "dtype": str(df[c].dtype), "definition": f"Placeholder description for {c}"})
+
+    with open(outpath, "w") as f:
         f.write(yaml.dump({section: items}))

@@ -15,6 +15,7 @@ Extract
     :toctree: api/
 
     extract_supplement
+    generate_data_dict_from_parquet
 
 Build
 ~~~~~
