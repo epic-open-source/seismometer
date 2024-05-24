@@ -8,7 +8,7 @@ on:
 permissions: "read-all"
 
 jobs:
-  run-linting:
+  linting:
     name: linting via pre-commit 
     runs-on: ubuntu-latest
 
@@ -18,7 +18,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
       - name: Install pre-commit
         run: |
           pip install --upgrade pip 
@@ -26,8 +26,8 @@ jobs:
       - name: Run pre-commit steps
         run: |
           pre-commit run --all-files
-  run-tests:
-    name: tests via pytest
+  test-coverage:
+    name: Test base configuration with coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -36,17 +36,44 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
       - name: Install dependencies
         run: |
           pip install --upgrade pip 
           pip install -e .[dev,audit]
       - name: Run tests
         run: |
-          pytest .
+          coverage run -m pytest
+      - name: Generate coverage report
+        run: |
+          coverage xml
+      - name: Generate htmp report for inspection
+        if: failure()
+        run: |
+          coverage html
       - name: Upload coverage
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-data
           path: coverage/coverage.xml
           if-no-files-found: error
+  test-packaging:
+    name: Test packaging
+    runs-on: ubuntu-latest
+  
+    steps: 
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip 
+          pip install build twine
+      - name: Build package
+        run: |
+          python -m build
+          python -m twine check dist/*
