@@ -2,6 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/seismometer)](https://pypi.org/project/seismometer/)
 ![GitHub License](https://img.shields.io/github/license/epic-open-source/seismometer)
+![CodeQL](https://github.com/epic-open-source/seismometer/workflows/CodeQL/badge.svg)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/seismometer)
 
 Healthcare organizations are seeing a proliferation of artificial intelligence (AI) features that have the potential to improve patient outcomes and clinician efficiency. These organizations need convenient, effective tools and processes to evaluate AI models’ accuracy and ensure they support equitable care for diverse patient populations.
