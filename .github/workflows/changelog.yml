@@ -1,4 +1,4 @@
-name: Enforce changelog fragment creation
+name: Changelog
 
 on:
   pull_request: {}

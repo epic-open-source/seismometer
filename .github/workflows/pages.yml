@@ -1,4 +1,4 @@
-name: Deploy Sphinx Doc to Pages
+name: Sphinx Doc
 
 on:
   # Runs on pushes targeting the default branch
