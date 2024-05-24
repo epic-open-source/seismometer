@@ -4,7 +4,25 @@ on:
   # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
+    paths:
+      - .github/workflows/pages.yml
+      - docs/*
+      - example-notebooks/*
+      - src/seismometer/*
+      - Makefile
+      - pyproject.toml
+      - setup.cfg
+  
+  pull_request:
+    paths:
+      - .github/workflows/pages.yml
+      - docs/*
+      - example-notebooks/*
+      - src/seismometer/*
+      - Makefile
+      - pyproject.toml
+      - setup.cfg
+  
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -21,11 +39,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,12 +58,21 @@ jobs:
       - name: Build Docs
         run: |
           make doc
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './public'
+  
+  deploy:
+    needs: build
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
