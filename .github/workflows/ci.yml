@@ -44,9 +44,10 @@ jobs:
       - name: Run tests
         run: |
           coverage run -m pytest
-      - name: Generate xml
+      - name: Generate report
         run: |
           coverage xml
+          coverage report
       - name: Generate html
         if: failure()
         run: |
