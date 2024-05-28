@@ -9,7 +9,7 @@ permissions: "read-all"
 
 jobs:
   linting:
-    name: linting via pre-commit 
+    name: Linting
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +27,7 @@ jobs:
         run: |
           pre-commit run --all-files
   test-coverage:
-    name: Test base configuration with coverage
+    name: Coverage py3.10
     runs-on: ubuntu-latest
 
     steps:
@@ -44,19 +44,19 @@ jobs:
       - name: Run tests
         run: |
           coverage run -m pytest
-      - name: Generate coverage report
+      - name: Generate xml
         run: |
           coverage xml
-      - name: Generate htmp report for inspection
+      - name: Generate html
         if: failure()
         run: |
           coverage html
-      - name: Upload coverage
+      - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-data
-          path: coverage/coverage.xml
+          path: coverage/*
           if-no-files-found: error
   test-packaging:
     name: Test packaging
