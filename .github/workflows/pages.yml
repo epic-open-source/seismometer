@@ -57,7 +57,7 @@ jobs:
           pip install .[audit,docs]
       - name: Build Docs
         run: |
-          make doc
+          make docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -11,7 +11,8 @@ apt-get install --no-install-recommends --yes --quiet \
     vim-tiny \
     less \
     graphviz \
-    libgraphviz-dev 
+    libgraphviz-dev \
+    pandoc
 
 # Make vim tiny default
 ln -sfn /usr/bin/vi /usr/bin/vim
