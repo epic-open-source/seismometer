@@ -3,7 +3,7 @@ file_dir := $(dir $(file_path))
 source_dir := $(file_dir)docs
 build_dir := $(file_dir)public
 
-.PHONY : doc clean clean_doc clean_notebooks copy_notebooks generate_docs copy_binary_outputs
+.PHONY : docs clean clean_docs clean_notebooks copy_notebooks generate_docs copy_binary_outputs
 
 # Remove all python generated files
 clean:
@@ -11,7 +11,7 @@ clean:
 	-find . -name '__pycache__' -exec rm -rf {} +
 	
 # Remove all sphinx generated files
-clean_doc:
+clean_docs:
 	-rm -rf ./public
 	-rm -rf ./docs/reference/api
 
@@ -34,4 +34,4 @@ copy_binary_outputs:
 	-cp ./docs/example_notebooks/notebooks/binary-classifier/outputs/* ./public/example_notebooks/notebooks/binary-classifier/outputs
 
 # Put it all together
-doc: clean clean_doc clean_notebooks copy_notebooks generate_docs copy_binary_outputs
+docs: clean clean_docs clean_notebooks copy_notebooks generate_docs copy_binary_outputs
