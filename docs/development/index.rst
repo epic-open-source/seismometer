@@ -15,9 +15,12 @@ other open-source repositories.
 
 -  Enhancements to ``seismometer`` undergo thorough scrutiny by maintainers.
 
-Contributors must agree to our contributor licensing agreement, and your
+Contributors must agree to our contributor license agreement, and your
 request will undergo internal review to determine if the request is
 palatable and high-quality.
+
+Contributors must also adhere to our code of conduct which can be reviewed at 
+`Code of Conduct`_.
 
 Contributors must fork our repository and make pull requests to it with
 their changes. These pull requests will go through an internal review by
@@ -133,3 +136,5 @@ Contributions.
 8. You agree to notify Epic of any facts or circumstances of which you
    become aware that would make these representations inaccurate in any
    respect.
+
+   .. _Code of Conduct: https://github.com/epic-open-source/seismometer/blob/main/CODE_OF_CONDUCT.md 
