@@ -26,7 +26,6 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinxawesome_theme",
-    "sphinxawesome_theme.highlighting",
     "sphinxcontrib.autodoc_pydantic",
     "sphinx.ext.intersphinx",
     "sphinx_design",
