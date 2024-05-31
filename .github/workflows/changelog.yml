@@ -10,7 +10,7 @@ jobs:
     name: changelog entry
     runs-on: ubuntu-latest
     # skip job if label is present
-    if: ! contains(github.event.pull_request.labels.*.name, 'skip changelog')
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip changelog')"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
