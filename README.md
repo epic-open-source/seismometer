@@ -1,7 +1,8 @@
 # Seismometer
 
+[![Docs](https://img.shields.io/badge/docs-stable-blue)](https://epic-open-source.github.io/seismometer/)
 [![PyPI](https://img.shields.io/pypi/v/seismometer)](https://pypi.org/project/seismometer/)
-![GitHub License](https://img.shields.io/github/license/epic-open-source/seismometer)
+[![GitHub License](https://img.shields.io/github/license/epic-open-source/seismometer)](https://github.com/epic-open-source/seismometer/blob/main/LICENSE.txt)
 ![CodeQL](https://github.com/epic-open-source/seismometer/workflows/CodeQL/badge.svg)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/seismometer)
 
