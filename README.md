@@ -31,9 +31,9 @@ Install the packages required for fairness audit visualizations with:
 
 ## Getting Help
 
-For general usage questions, refer to our User Guide.
+For general usage questions, refer to our [User Guide](https://epic-open-source.github.io/seismometer/user_guide/index.html#user-guide).
 
-Report any bugs or enhancement suggestions using our Issues page.  
+Report any bugs or enhancement suggestions using our [Issues page](https://github.com/epic-open-source/seismometer/issues).  
 
 If you have questions or feedback, e-mail <OpenSourceContributions-Python@epic.com>.
 
@@ -41,4 +41,4 @@ If you have questions or feedback, e-mail <OpenSourceContributions-Python@epic.c
 
 We welcome contributions, bug reports, bug fixes, documentation improvements, enhancements, and ideas.
 
-Refer to the Contribution Guide for more details.
+Refer to the [Contribution Guide](https://epic-open-source.github.io/seismometer/development/index.html) for more details.
