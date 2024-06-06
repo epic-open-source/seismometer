@@ -6,11 +6,28 @@ on:
 permissions: "read-all"
 
 jobs:
+  # Check for label in its own job to allow skipping multiple steps with 'success'
+  check-changelog-needed:
+    name: changelog needed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Labels
+        id: check_labels
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          PR_ID: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          labels="$(gh api repos/$OWNER/$REPO_NAME/pulls/$PR_ID --jq '.labels.[].name')"
+          if [[ $labels != *"skip changelog"* ]]; then
+            echo "needs_entry=true" >> "$GITHUB_OUTPUT"
+          fi
+
   check-changelog-entry:
     name: changelog entry
     runs-on: ubuntu-latest
-    # skip job if label is present
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip changelog')"
+    if: ${{ steps.check_labels.outputs.needs_entry == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
