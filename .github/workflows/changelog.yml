@@ -3,7 +3,8 @@ name: Changelog
 on:
   pull_request: {}
 
-permissions: "read-all"
+permissions: 
+  pull-requests: read
 
 jobs:
   # Check for label in its own job to allow skipping multiple steps with 'success'
@@ -28,7 +29,7 @@ jobs:
       needs_entry: ${{ steps.check-labels.outputs.needs_entry }}
 
   check-changelog-entry:
-    name: has fragment
+    name: has changelog fragment
     runs-on: ubuntu-latest
     needs: check-labels
     if: ${{ needs.check-labels.outputs.needs_entry == 'true' }}
