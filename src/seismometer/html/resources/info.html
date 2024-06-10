@@ -7,12 +7,14 @@
 <h3>Summary</h3>
 The preloaded data covers {{ num_predictions }} predictions over {{ num_entities }} entities from the dates {{ start_date }} to {{ end_date }}.
 <table>
-    <tr>
-    <th>Dataframe Name</th>
-    <th>Rows</th>
-    <th>Columns</th>
-    <th>Content</th>
-    </tr>
+    <thead>
+        <tr>
+        <th>Dataframe Name</th>
+        <th>Rows</th>
+        <th>Columns</th>
+        <th>Content</th>
+        </tr>
+    </thead>
     {% for table in tables %}
     <tr>
     <td><code>{{ table["name"] }}</code></td>
