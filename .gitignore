@@ -94,3 +94,6 @@ scripted_testing/
 /output/
 /notebooks/output/
 /notebooks/data/
+example-notebooks/binary-classifier/dictionary.yml
+example-notebooks/binary-classifier/data/*
+example-notebooks/binary-classifier/outputs/*

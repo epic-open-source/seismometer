@@ -1,0 +1,1 @@
+Fixes the header of sm.show_info() to start the table zebra stripe on the right row.
