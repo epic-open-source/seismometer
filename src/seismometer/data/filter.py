@@ -76,9 +76,7 @@ class FilterRule(object):
             )
 
         if relation in ["all", "none"] and (right is not None or left is not None):
-            raise TypeError(
-                f"Universal relation '{relation}' does not accept left/right items"
-            )
+            raise TypeError(f"Universal relation '{relation}' does not accept left/right items")
 
         if relation in ["and", "or"]:
             if not isinstance(left, FilterRule):
@@ -117,11 +115,11 @@ class FilterRule(object):
         if not isinstance(self.right, str):
             return f"FilterRule('{self.left}', '{self.relation}', {self.right})"
         return f"FilterRule('{self.left}', '{self.relation}', '{self.right}')"
-    
+
     def __str__(self) -> str:
         """
         User readable string that represents a FilterRule.
-        
+
         >>> rule1 = FilterRule("Val", ">=", 20)
         >>> rule2 = FilterRule("T/F", "==", 0)
         >>> rule3 = FilterRule("Other", "<", 5)
@@ -160,7 +158,7 @@ class FilterRule(object):
                     return f"{left} and {right}"
                 else:  # The "or" case
                     return f"{left} or {right}"
-            case _: # relation is checked in __init__, this should never be reached
+            case _:  # relation is checked in __init__, this should never be reached
                 raise ValueError(f"Unknown relation {self.relation}")
 
     def filter(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -205,14 +203,14 @@ class FilterRule(object):
             return left
         if ~left == right:
             return FilterRule.all()
-        
+
         if left.relation == "all" or right.relation == "all":
             return FilterRule.all()
         if left.relation == "none":
             return right
         if right.relation == "none":
             return left
-        
+
         return FilterRule(left, "or", right)
 
     def __and__(left, right) -> "FilterRule":
@@ -220,14 +218,14 @@ class FilterRule(object):
             return left
         if ~left == right:
             return FilterRule.none()
-        
+
         if left.relation == "none" or right.relation == "none":
             return FilterRule.none()
         if left.relation == "all":
             return right
         if right.relation == "all":
             return left
-        
+
         return FilterRule(left, "and", right)
 
     def __invert__(self) -> "FilterRule":
@@ -348,32 +346,30 @@ class FilterRule(object):
         FilterRule where the column contains a value different from the key value.
         """
         return cls(column, "!=", value)
-    
+
     @classmethod
     def all(cls):
         """
         FilterRule that selects all rows.
         """
         return cls(None, "all")
-    
+
     @classmethod
     def none(cls):
         """
         FilterRule that selects no rows.
         """
         return cls(None, "none")
-    
 
 
-
-def filter_rule_from_cohort_dictionary(cohort:dict[str, tuple[any]] | None = None) -> FilterRule:
+def filter_rule_from_cohort_dictionary(cohort: dict[str, tuple[any]] | None = None) -> FilterRule:
     """
     For a given dictionary, generate a matching FilterRule
 
     Parameters
     ----------
     cohort : dict[str,tuplep[any]], optional
-        A dictionary of column names and cohort category labels, 
+        A dictionary of column names and cohort category labels,
         by default None, in which case FilterRule.all() is returned.
 
     Returns
@@ -385,7 +381,7 @@ def filter_rule_from_cohort_dictionary(cohort:dict[str, tuple[any]] | None = Non
     rule = FilterRule.all()
     if not cohort:
         return rule
-    
+
     for key in cohort:
         if not cohort[key]:
             continue

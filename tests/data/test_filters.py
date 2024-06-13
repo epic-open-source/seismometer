@@ -33,7 +33,7 @@ class TestFilterRules:
 
     def test_filter_universal_rule_equals(self, test_dataframe):
         FilterRule.MIN_ROWS = None
-        pd.testing.assert_frame_equal(FilterRule.all().filter(test_dataframe),test_dataframe)
+        pd.testing.assert_frame_equal(FilterRule.all().filter(test_dataframe), test_dataframe)
         assert len(FilterRule.none().filter(test_dataframe)) == 0
         assert all(FilterRule.none().filter(test_dataframe).columns == test_dataframe.columns)
 
@@ -120,30 +120,30 @@ class TestFilterRules:
             FilterRule("ShouldBeNone", "all", None)
 
     def test_universal_idenpotence(self):
-        assert (FilterRule.all()  | FilterRule.none()) == FilterRule.all()
-        assert (FilterRule.none() | FilterRule.all())  == FilterRule.all()
-        assert (FilterRule.none() & FilterRule.all())  == FilterRule.none()
-        assert (FilterRule.all()  & FilterRule.none()) == FilterRule.none()
+        assert (FilterRule.all() | FilterRule.none()) == FilterRule.all()
+        assert (FilterRule.none() | FilterRule.all()) == FilterRule.all()
+        assert (FilterRule.none() & FilterRule.all()) == FilterRule.none()
+        assert (FilterRule.all() & FilterRule.none()) == FilterRule.none()
 
     def test_universal_conjunction(self):
         assert (FilterRule.none() & FilterRule.eq("Column", "Value")) == FilterRule.none()
-        assert (FilterRule.all()  & FilterRule.eq("Column", "Value")) == FilterRule.eq("Column", "Value")
+        assert (FilterRule.all() & FilterRule.eq("Column", "Value")) == FilterRule.eq("Column", "Value")
 
         assert (FilterRule.eq("Column", "Value") & FilterRule.none()) == FilterRule.none()
-        assert (FilterRule.eq("Column", "Value") & FilterRule.all())  == FilterRule.eq("Column", "Value")
+        assert (FilterRule.eq("Column", "Value") & FilterRule.all()) == FilterRule.eq("Column", "Value")
 
     def test_universal_disjunction(self):
         assert (FilterRule.none() | FilterRule.eq("Column", "Value")) == FilterRule.eq("Column", "Value")
-        assert (FilterRule.all()  | FilterRule.eq("Column", "Value")) == FilterRule.all()
+        assert (FilterRule.all() | FilterRule.eq("Column", "Value")) == FilterRule.all()
         # reverse order
         assert (FilterRule.eq("Column", "Value") | FilterRule.none()) == FilterRule.eq("Column", "Value")
-        assert (FilterRule.eq("Column", "Value") | FilterRule.all())  == FilterRule.all()
+        assert (FilterRule.eq("Column", "Value") | FilterRule.all()) == FilterRule.all()
 
     def test_conjuction_idenpotence(self):
         rule1 = FilterRule("Val", ">=", 20)
         assert rule1 == rule1 & rule1
         assert rule1 == rule1 | rule1
-    
+
     def test_disjunction_idenpotence(self):
         rule1 = FilterRule("Val", ">=", 20)
         assert rule1 == rule1 | rule1
@@ -160,7 +160,6 @@ class TestFilterRules:
         rule2 = FilterRule("T/F", "==", 0)
         rule3 = rule1 | rule2
         assert rule3.mask(test_dataframe).equals((rule1.mask(test_dataframe) | rule2.mask(test_dataframe)))
-
 
     def test_negation_logic(self):
         assert FilterRule("Val", ">=", 20) == ~FilterRule("Val", "<", 20)
@@ -207,13 +206,12 @@ class TestFilterRules:
 
 
 class TestFilterRuleDisplay:
-    
     def test_repr_universal(self):
         assert repr(FilterRule.all()) == "FilterRule.all()"
         assert repr(FilterRule.none()) == "FilterRule.none()"
         assert repr(FilterRule(None, "all", None)) == "FilterRule.all()"
         assert repr(FilterRule(None, "none", None)) == "FilterRule.none()"
-        
+
     def test_str_universal(self):
         assert str(FilterRule.all()) == "Include all"
         assert str(FilterRule.none()) == "Exclude all"
@@ -227,7 +225,7 @@ class TestFilterRuleDisplay:
     def test_str_unary(self):
         assert str(FilterRule.isna("cat")) == "cat is missing"
         assert str(FilterRule.notna("cat")) == "cat has a value"
-    
+
     def test_repr_binary(self):
         assert repr(FilterRule("Val", ">=", 20)) == "FilterRule('Val', '>=', 20)"
         assert repr(FilterRule("Cat", "!=", "A")) == "FilterRule('Cat', '!=', 'A')"
