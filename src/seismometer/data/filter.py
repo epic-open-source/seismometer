@@ -373,7 +373,8 @@ def filter_rule_from_cohort_dictionary(cohort:dict[str, tuple[any]] | None = Non
     Parameters
     ----------
     cohort : dict[str,tuplep[any]], optional
-        A dictionary of column names and cohort category labels, by default None, in which case an empty FilterRule is returned.
+        A dictionary of column names and cohort category labels, 
+        by default None, in which case FilterRule.all() is returned.
 
     Returns
     -------

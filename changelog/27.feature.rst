@@ -1,0 +1,1 @@
+* Added `FilterRule.all()` and `FilterRule.none()` class methods for matching all or no rows of a dataframe.
