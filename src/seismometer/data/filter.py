@@ -12,7 +12,7 @@ class FilterRule(object):
     """
 
     MIN_ROWS: Optional[int] = 10
-    left: Union["FilterRule", str]
+    left: Union["FilterRule", str, None]
     relation: str
     right: Any
 
