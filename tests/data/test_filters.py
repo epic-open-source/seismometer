@@ -31,6 +31,12 @@ class TestFilterRules:
         assert len(FilterRule("Filtered", "==", 1).filter(test_dataframe)) == 0
         assert len(FilterRule("Filtered", "==", 0).filter(test_dataframe)) == 45
 
+    def test_filter_universal_rule_equals(self, test_dataframe):
+        FilterRule.MIN_ROWS = None
+        pd.testing.assert_frame_equal(FilterRule.all().filter(test_dataframe),test_dataframe)
+        assert len(FilterRule.none().filter(test_dataframe)) == 0
+        assert all(FilterRule.none().filter(test_dataframe).columns == test_dataframe.columns)
+
     def test_filter_base_rule_equals(self, test_dataframe):
         FilterRule.MIN_ROWS = None
         assert FilterRule("T/F", "==", 0).mask(test_dataframe).equals(test_dataframe["T/F"] == 0)
@@ -108,6 +114,40 @@ class TestFilterRules:
             FilterRule("NeedsNone", "notna", "a_string")
         with pytest.raises(TypeError):
             FilterRule("NeedsNone", "isna", "a_string")
+        with pytest.raises(TypeError):
+            FilterRule(None, "none", "a_string")
+        with pytest.raises(TypeError):
+            FilterRule("ShouldBeNone", "all", None)
+
+    def test_universal_idenpotence(self):
+        assert (FilterRule.all()  | FilterRule.none()) == FilterRule.all()
+        assert (FilterRule.none() | FilterRule.all())  == FilterRule.all()
+        assert (FilterRule.none() & FilterRule.all())  == FilterRule.none()
+        assert (FilterRule.all()  & FilterRule.none()) == FilterRule.none()
+
+    def test_universal_conjunction(self):
+        assert (FilterRule.none() & FilterRule.eq("Column", "Value")) == FilterRule.none()
+        assert (FilterRule.all()  & FilterRule.eq("Column", "Value")) == FilterRule.eq("Column", "Value")
+
+        assert (FilterRule.eq("Column", "Value") & FilterRule.none()) == FilterRule.none()
+        assert (FilterRule.eq("Column", "Value") & FilterRule.all())  == FilterRule.eq("Column", "Value")
+
+    def test_universal_disjunction(self):
+        assert (FilterRule.none() | FilterRule.eq("Column", "Value")) == FilterRule.eq("Column", "Value")
+        assert (FilterRule.all()  | FilterRule.eq("Column", "Value")) == FilterRule.all()
+        # reverse order
+        assert (FilterRule.eq("Column", "Value") | FilterRule.none()) == FilterRule.eq("Column", "Value")
+        assert (FilterRule.eq("Column", "Value") | FilterRule.all())  == FilterRule.all()
+
+    def test_conjuction_idenpotence(self):
+        rule1 = FilterRule("Val", ">=", 20)
+        assert rule1 == rule1 & rule1
+        assert rule1 == rule1 | rule1
+    
+    def test_disjunction_idenpotence(self):
+        rule1 = FilterRule("Val", ">=", 20)
+        assert rule1 == rule1 | rule1
+        assert rule1 == rule1 & rule1
 
     def test_filter_conjunction_and(self, test_dataframe):
         rule1 = FilterRule("Val", ">=", 20)
@@ -121,24 +161,6 @@ class TestFilterRules:
         rule3 = rule1 | rule2
         assert rule3.mask(test_dataframe).equals((rule1.mask(test_dataframe) | rule2.mask(test_dataframe)))
 
-    def test_repr_respects_and_or_logic(self):
-        rule1 = FilterRule("Val", ">=", 20)
-        rule2 = FilterRule("T/F", "==", 0)
-        rule3 = FilterRule("Other", "<", 5)
-        assert repr(rule1 | rule2) == f"{rule1} | {rule2}"
-        assert repr(rule1 & rule2) == f"{rule1} & {rule2}"
-        rule5 = rule1 | rule2 & rule3
-        rule6 = rule1 & rule2 | rule3
-        assert repr(rule5) == f"{rule1} | ({rule2} & {rule3})"
-        assert repr(rule6) == f"({rule1} & {rule2}) | {rule3}"
-
-    def test_repr_simple(self):
-        rule1 = FilterRule("Val", ">=", 20)
-        rule2 = FilterRule("Cat", "isin", ["A", "B"])
-        rule3 = FilterRule("Cat", "!=", "A")
-        assert repr(rule1) == "FilterRule('Val', '>=', 20)"
-        assert repr(rule2) == "FilterRule('Cat', 'isin', ['A', 'B'])"
-        assert repr(rule3) == "FilterRule('Cat', '!=', 'A')"
 
     def test_negation_logic(self):
         assert FilterRule("Val", ">=", 20) == ~FilterRule("Val", "<", 20)
@@ -156,7 +178,7 @@ class TestFilterRules:
         rule2 = ~FilterRule("Val", "<", 15) | ~FilterRule("Val", ">=", 30)
         assert ~rule1 == rule2
 
-    def test_do_Morgans_laws_or(self):
+    def test_de_Morgans_laws_or(self):
         rule3 = FilterRule("Val", "<", 15) | FilterRule("Val", ">=", 30)
         rule4 = ~FilterRule("Val", "<", 15) & ~FilterRule("Val", ">=", 30)
         assert ~rule3 == rule4
@@ -184,7 +206,76 @@ class TestFilterRules:
             FilterRule.between("Col")
 
 
+class TestFilterRuleDisplay:
+    
+    def test_repr_universal(self):
+        assert repr(FilterRule.all()) == "FilterRule.all()"
+        assert repr(FilterRule.none()) == "FilterRule.none()"
+        assert repr(FilterRule(None, "all", None)) == "FilterRule.all()"
+        assert repr(FilterRule(None, "none", None)) == "FilterRule.none()"
+        
+    def test_str_universal(self):
+        assert str(FilterRule.all()) == "Include all"
+        assert str(FilterRule.none()) == "Exclude all"
+
+    def test_repr_unary(self):
+        assert repr(FilterRule.isna("cat")) == "FilterRule.isna('cat')"
+        assert repr(FilterRule.notna("cat")) == "FilterRule.notna('cat')"
+        assert repr(FilterRule("cat", "isna", None)) == "FilterRule.isna('cat')"
+        assert repr(FilterRule("cat", "notna", None)) == "FilterRule.notna('cat')"
+
+    def test_str_unary(self):
+        assert str(FilterRule.isna("cat")) == "cat is missing"
+        assert str(FilterRule.notna("cat")) == "cat has a value"
+    
+    def test_repr_binary(self):
+        assert repr(FilterRule("Val", ">=", 20)) == "FilterRule('Val', '>=', 20)"
+        assert repr(FilterRule("Cat", "!=", "A")) == "FilterRule('Cat', '!=', 'A')"
+        assert repr(FilterRule("Cat", "==", "A")) == "FilterRule('Cat', '==', 'A')"
+        assert repr(FilterRule("Cat", "isin", ["A", "B"])) == "FilterRule('Cat', 'isin', ['A', 'B'])"
+        assert repr(FilterRule("Cat", "notin", ["A", "B"])) == "FilterRule('Cat', 'notin', ['A', 'B'])"
+
+    def test_str_binary(self):
+        assert str(FilterRule("Val", ">=", 20)) == "Val >= 20"
+        assert str(FilterRule("Cat", "!=", "A")) == "Cat is not A"
+        assert str(FilterRule("Cat", "==", "A")) == "Cat is A"
+        assert str(FilterRule("Cat", "isin", ["A", "B"])) == "Cat is in: A, B"
+        assert str(FilterRule("Cat", "notin", ["A", "B"])) == "Cat not in: A, B"
+
+    def test_repr_respects_and_or_logic(self):
+        rule1 = FilterRule("Val", ">=", 20)
+        rule2 = FilterRule("T/F", "==", 0)
+        rule3 = FilterRule("Other", "<", 5)
+        assert repr(rule1 | rule2) == f"{repr(rule1)} | {repr(rule2)}"
+        assert repr(rule1 & rule2) == f"{repr(rule1)} & {repr(rule2)}"
+        rule4 = rule1 | rule2 & rule3
+        rule5 = rule1 & rule2 | rule3
+        assert repr(rule4) == f"{repr(rule1)} | ({repr(rule2)} & {repr(rule3)})"
+        assert repr(rule5) == f"({repr(rule1)} & {repr(rule2)}) | {repr(rule3)}"
+
+    def test_str_respects_and_or_logic(self):
+        rule1 = FilterRule("Val", ">=", 20)
+        rule2 = FilterRule("T/F", "==", 0)
+        rule3 = FilterRule("Other", "<", 5)
+        assert str(rule1 | rule2) == f"{str(rule1)} or {str(rule2)}"
+        assert str(rule1 & rule2) == f"{str(rule1)} and {str(rule2)}"
+        rule4 = rule1 | rule2 & rule3
+        rule5 = rule1 & rule2 | rule3
+        assert str(rule4) == f"{str(rule1)} or ({str(rule2)} and {str(rule3)})"
+        assert str(rule5) == f"({str(rule1)} and {str(rule2)}) or {str(rule3)}"
+
+    def test_corruped_rule(self):
+        rule = FilterRule("Val", ">=", 20)
+        rule.relation = "NotARealRelation"
+        with pytest.raises(ValueError):
+            str(rule)
+
+
 class TestFilterRuleFromCohortDictionary:
     def test_matches_cohort(self):
         rule = filter_rule_from_cohort_dictionary(cohort={"-1": (), "One": (1, 2), "two": ("a",), "3": ()})
         assert rule == FilterRule.isin("One", (1, 2)) & FilterRule.isin("two", ("a",))
+
+    def test_matches_default_cohort(self):
+        rule = filter_rule_from_cohort_dictionary()
+        assert rule == FilterRule.all()
