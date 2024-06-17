@@ -32,7 +32,6 @@ Properties
     Seismogram.feature_count
     Seismogram.start_time
     Seismogram.end_time
-    Seismogram.event_count
     Seismogram.event_types_count
     Seismogram.cohort_attribute_count
     Seismogram.score_bins

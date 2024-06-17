@@ -6,6 +6,8 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 from seismometer.configuration import ConfigProvider
+from seismometer.data import pandas_helpers as pdh
+
 logger = logging.getLogger("seismometer")
 
 
@@ -48,6 +50,7 @@ class SeismogramParquetLoader:
 
     def load_events(self, dataframe) -> pd.DataFrame:
         events = self._load_events()
+        events = self._event_post_load(events)
         return self.merge_events(dataframe, events)
 
     def _load_predictions(self) -> pd.DataFrame:
@@ -84,9 +87,6 @@ class SeismogramParquetLoader:
             )
             dataframe = dataframe.rename({self.config.target: self.target}, axis=1)
 
-        # TODO: time to ns
-        # TODO: prep (score handling)
-
         return dataframe
 
     def _load_events(self) -> pd.DataFrame:
@@ -106,29 +106,20 @@ class SeismogramParquetLoader:
 
     def _prediction_post_load(self, dataframe) -> pd.DataFrame:
         # datetime precisions don't play nicely - fix to pands default
-        pred_times = self.dataframe.select_dtypes(include="datetime").columns
-        self.dataframe[pred_times] = self.dataframe[pred_times].astype({col: "<M8[ns]" for col in pred_times})
-
-        # TODO event loader
-        # Time column in events is known
-        self._events["Time"] = self._events["Time"].astype("<M8[ns]")
-
-    def prep_data(self):
-        """Preprocesses the prediction data for use in analysis."""
-        # TODO prediction loader
-        # Do not infer events
-        self.dataframe = self._infer_datetime(self.dataframe)
+        pred_times = dataframe.select_dtypes(include="datetime").columns
+        dataframe = self._infer_datetime(dataframe)
+        dataframe[pred_times] = dataframe[pred_times].astype({col: "<M8[ns]" for col in pred_times})
 
         # Expand this to robust score prep
-        for score in self.output_list:
-            if score not in self.dataframe:
+        for score in self.config.output_list:
+            if score not in dataframe:
                 continue
-            if 50 < self.dataframe[score].max() <= 100:  # Assume out of 100, readjust
-                self.dataframe[score] /= 100
+            if 50 < dataframe[score].max() <= 100:  # Assume out of 100, readjust
+                dataframe[score] /= 100
 
         # Need to remove pd.FloatXxDtype as sklearn and numpy get confused
-        float_cols = self.dataframe.select_dtypes(include=[float]).columns
-        self.dataframe[float_cols] = self.dataframe[float_cols].astype(np.float32)
+        float_cols = dataframe.select_dtypes(include=[float]).columns
+        dataframe[float_cols] = dataframe[float_cols].astype(np.float32)
 
         return dataframe
 
@@ -141,40 +132,41 @@ class SeismogramParquetLoader:
     def merge_events(self, dataframe, event_frame) -> pd.DataFrame:
         """Merges a value and time column into dataframe for each configured event."""
         # -> should specify a specific outcome
-        self.dataframe = (
-            self.dataframe.sort_values(self.predict_time)
-            .drop_duplicates(subset=self.entity_keys + [self.predict_time])
-            .dropna(subset=[self.predict_time])
+        dataframe = (
+            dataframe.sort_values(self.config.predict_time)
+            .drop_duplicates(subset=self.config.entity_keys + [self.config.predict_time])
+            .dropna(subset=[self.config.predict_time])
         )
-        self.events = self.events.sort_values("Time")
+        event_frame = event_frame.sort_values("Time")
 
-        for event in self.config.events:
+        for one_event in self.config.events:
             # Merge
-            if event.window_hr:
+            if one_event.window_hr:
                 logger.debug(
                     f"Windowing event {one_event.display_name} to lookback {one_event.window_hr} "
                     + f"offset by {one_event.offset_hr}"
                 )
-                self.dataframe = self._merge_event(
-                    event.source,
-                    frozenset(self.dataframe.columns),
-                    window_hrs=event.window_hr,
-                    offset_hrs=event.offset_hr,
-                    display=event.display_name,
+                dataframe = self._merge_event(
+                    one_event.source,
+                    dataframe,
+                    event_frame,
+                    window_hrs=one_event.window_hr,
+                    offset_hrs=one_event.offset_hr,
+                    display=one_event.display_name,
                     sort=False,
                 )
-                self.target_cols.append(event.display_name)
+                self.config.target_cols.append(one_event.display_name)
             else:  # No lookback
-                logger.debug(f"Merging event {event.display_name}")
-                self.dataframe = self._merge_event(
-                    event.source, frozenset(self.dataframe.columns), display=event.display_name, sort=False
+                logger.debug(f"Merging event {one_event.display_name}")
+                dataframe = self._merge_event(
+                    one_event.source, dataframe, event_frame, display=one_event.display_name, sort=False
                 )
 
             # Impute
-            if event.impute_val or event.usage == "target":
-                event_val = pdh.event_value(event.display_name)
-                impute = event.impute_val or 0  # Enforce binary type target
-                self.dataframe[event_val] = self.dataframe[event_val].fillna(impute)
+            if one_event.impute_val or one_event.usage == "target":
+                event_val = pdh.event_value(one_event.display_name)
+                impute = one_event.impute_val or 0  # Enforce binary type target
+                dataframe[event_val] = dataframe[event_val].fillna(impute)
 
         return dataframe
 
@@ -185,11 +177,11 @@ class SeismogramParquetLoader:
         translate_event = event_col if display else ""
 
         return pdh.merge_windowed_event(
-            self.dataframe,
-            self.predict_time,
-            self.events.replace({"Type": translate_event}, disp_event),
+            dataframe,
+            self.config.predict_time,
+            event_frame.replace({"Type": translate_event}, disp_event),
             disp_event,
-            self.entity_keys,
+            self.config.entity_keys,
             min_leadtime_hrs=offset_hrs,
             window_hrs=window_hrs,
             event_base_time_col="Time",

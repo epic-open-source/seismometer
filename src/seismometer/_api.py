@@ -856,16 +856,6 @@ def _get_info_dict(plot_help: bool) -> dict[str, str | list[str]]:
         "plot_help": plot_help,
     }
 
-    if sg.event_count > 0:
-        info_vals["tables"].append(
-            {
-                "name": "events",
-                "description": "Outcomes and interventions associated with each entity",
-                "num_rows": sg.event_count,
-                "num_cols": sg.event_types_count,
-            }
-        )
-
     return info_vals
 
 

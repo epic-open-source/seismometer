@@ -79,12 +79,12 @@ class Seismogram(object, metaclass=Singleton):
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
         self.dataloader = seismogram_loader_factory(self.config)
 
-    def load(self, predictions=None, events=None):
+    def load_data(self, predictions=None, events=None):
         self._load_metadata()
         self.dataframe = self.dataloader.load(predictions, events)
 
         self.create_cohorts()
-        self._set_df_counts()  # cache all stat counts before we clean up memory
+        self._set_df_counts()
 
         # UI Controls
         if self.cohort_cols:
@@ -225,11 +225,6 @@ class Seismogram(object, metaclass=Singleton):
         return self._end_time
 
     @property
-    def event_count(self) -> int:
-        """Number of outcomes in the data."""
-        return self._event_count
-
-    @property
     def event_types_count(self) -> int:
         """Number of unique outcome KPIs in the data."""
         return self._event_types_count
@@ -251,8 +246,7 @@ class Seismogram(object, metaclass=Singleton):
 
         self._start_time = self.dataframe[self.predict_time].min()
         self._end_time = self.dataframe[self.predict_time].max()
-        self._event_count = len(self.events.index)
-        self._event_types_count = self.events["Type"].nunique()
+        self._event_types_count = len(self.config.events)
         self._cohort_attribute_count = len(self.config.cohorts)
 
     # endregion

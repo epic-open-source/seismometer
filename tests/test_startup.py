@@ -10,20 +10,25 @@ from seismometer.configuration import ConfigProvider
 from seismometer.seismogram import Seismogram
 
 
-def fake_load(self, *args):
+def fake_load_config(self, *args):
     mock_config = Mock(autospec=ConfigProvider)
     mock_config.output_dir.return_value
     self.config = mock_config
-    self.dataframe = pd.DataFrame()
 
     self.template = "TestTemplate"
 
 
+# TODO: update this to create testing Loader and have factory return it
+def fake_load_data(self, *args):
+    self.dataframe = pd.DataFrame()
+
+
 @pytest.fixture
 def fake_seismo(tmp_path):
-    with patch.object(Seismogram, "load_config", fake_load):
-        Seismogram(config_path=tmp_path / "config", output_path=tmp_path / "output")
-    yield
+    with patch.object(Seismogram, "load_data", fake_load_data):
+        with patch.object(Seismogram, "load_config", fake_load_config):
+            Seismogram(config_path=tmp_path / "config", output_path=tmp_path / "output")
+        yield
     Seismogram.kill()
 
 
