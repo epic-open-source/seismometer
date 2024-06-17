@@ -54,6 +54,7 @@ class ConfigProvider:
         self._events: EventDictionary = None
         self._output_dir: Path = None
         self._output_notebook: str = ""
+        self.target_cols: list = []
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir)

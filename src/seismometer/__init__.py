@@ -32,6 +32,7 @@ def run_startup(*, config_path: str | Path = None, output_path: str | Path = Non
     logger.info(f"seismometer version {__version__} starting")
 
     sg = Seismogram(config_path, output_path)
+    sg.load()
 
     # Surface api into namespace
     s_module = importlib.import_module("seismometer._api")
