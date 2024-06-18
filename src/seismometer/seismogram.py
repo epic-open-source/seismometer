@@ -11,7 +11,7 @@ from seismometer.configuration import ConfigProvider
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
-from seismometer.data.loader import seismogram_loader_factory
+from seismometer.data.loader import loader_factory
 from seismometer.report.alerting import AlertConfigProvider
 
 MAXIMUM_NUM_COHORTS = 25
@@ -77,11 +77,12 @@ class Seismogram(object, metaclass=Singleton):
 
         self.config.set_output(output_path)
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
-        self.dataloader = seismogram_loader_factory(self.config)
+        self.dataloader = loader_factory(self.config)
 
     def load_data(self, predictions=None, events=None):
         self._load_metadata()
-        self.dataframe = self.dataloader.load(predictions, events)
+
+        self.dataframe = self.dataloader.load_data(predictions, events)
 
         self.create_cohorts()
         self._set_df_counts()
