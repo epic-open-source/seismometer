@@ -9,12 +9,20 @@ Examples::
 
 """
 import logging
+from io import StringIO
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from IPython.display import SVG
 from ipywidgets import Checkbox
 from matplotlib.patches import Rectangle
+
+
+def to_svg() -> SVG:
+    buffer = StringIO()
+    plt.savefig(buffer, format="svg")
+    return SVG(buffer.getvalue())
 
 
 def save_figure(filename, **kwargs):

@@ -3,7 +3,6 @@ from importlib.resources import files as _files
 from itertools import cycle
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 from cycler import cycler
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -200,11 +199,11 @@ def _register_colormaps() -> None:
     text_cmap = LinearSegmentedColormap.from_list("Text", text_colors, N=len(text_colors))
     alert_cmap = LinearSegmentedColormap.from_list("Alert", alert_colors, N=len(alert_colors))
     neutral_cmap = LinearSegmentedColormap.from_list("Neutral", neutral_colors, N=len(neutral_colors))
-    plt.register_cmap(cmap=area_cmap)
-    plt.register_cmap(cmap=line_cmap)
-    plt.register_cmap(cmap=text_cmap)
-    plt.register_cmap(cmap=alert_cmap)
-    plt.register_cmap(cmap=neutral_cmap)
+    mpl.colormaps.register(cmap=area_cmap)
+    mpl.colormaps.register(cmap=line_cmap)
+    mpl.colormaps.register(cmap=text_cmap)
+    mpl.colormaps.register(cmap=alert_cmap)
+    mpl.colormaps.register(cmap=neutral_cmap)
 
 
 def set_line_colors() -> None:

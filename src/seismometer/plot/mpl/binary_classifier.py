@@ -26,7 +26,7 @@ def evaluation(
     output: Optional[pd.Series] = None,
     show_thresholds: Optional[bool] = True,
     highlight: Optional[list] = None,
-    filename: Optional[str] = None,
+    filepath: Optional[str] = None,
     title: Optional[str] = None,
 ) -> plt.Figure:
     """
@@ -46,8 +46,8 @@ def evaluation(
         A series of the true labels, needed for calibration plot, by default None.
     output : Optional[pd.Series], optional
         A series of the model output, needed for calibration plot, by default None.
-    filename : Optional[str], optional
-        A filename. When present, saves the plot to the given location, by default None.
+    filepath : Optional[str], optional
+        A . When present, saves the plot to the given location, by default None.
     show_thresholds : Optional[bool], optional
         If True, shows thresholds on the ROC and PPV vs Sensitivity plots, by default None.
     highlight : Optional[bool], optional
@@ -59,10 +59,9 @@ def evaluation(
     -------
     The matplotlib figure.
     """
-    title = title or "Model Performance Plots"
-
     fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3, figsize=(15, 10))
-    fig.suptitle(title, fontsize=17)
+    if title:
+        fig.suptitle(title, fontsize=17)
 
     prevalence = stats.loc[0, ["TP", "FN"]].sum()
     if prevalence != 0:
@@ -121,8 +120,8 @@ def singleROC(
     annotate: bool = False,
     highlight: Optional[list[Number]] = None,
     axis: Optional[plt.Axes] = None,
-    filename: Optional[str] = None,
-) -> None:
+    filepath: Optional[str] = None,
+) -> plt.Figure:
     """
     Creates an ROC plot.
 
@@ -147,8 +146,8 @@ def singleROC(
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filename : Optional[str], optional
-        The filename to save the plot, by default None; does not save.
+    filepath : Optional[str], optional
+        The  to save the plot, by default None; does not save.
     """
     if conf_interval is None:
         modelLabel = f"AUROC = {metrics.auc(fpr, tpr):0.2f}"
@@ -163,6 +162,7 @@ def singleROC(
 
     if annotate:
         lines.add_radial_score_labels(axis, fpr, tpr, thresholds, highlight=highlight)
+    return axis.get_figure()
 
 
 @export
@@ -177,8 +177,8 @@ def recall_condition(
     annotate: bool = False,
     highlight: Optional[list[Number]] = None,
     axis: Optional[plt.Axes] = None,
-    filename: Optional[str] = None,
-) -> None:
+    filepath: Optional[str] = None,
+) -> plt.Figure:
     """
     Plots the recall of a model against the predicted condition rate.
 
@@ -200,13 +200,14 @@ def recall_condition(
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filename : Optional[str], optional
-        The filename to save the plot, by default None; does not save.
+    filepath : Optional[str], optional
+        The  to save the plot, by default None; does not save.
     """
     lines.recall_condition_plot(axis, ppcr, recall, prevalence, show_reference)
 
     if annotate:
         lines.add_radial_score_labels(axis, ppcr, recall, thresholds, highlight=highlight)
+    return axis.get_figure()
 
 
 @export
@@ -217,8 +218,8 @@ def calibration(
     *,
     highlight: Optional[list[Number]] = None,
     axis: Optional[plt.Axes] = None,
-    filename: Optional[str] = None,
-) -> None:
+    filepath: Optional[str] = None,
+) -> plt.Figure:
     """
     Plots the calibration curve for the model.
 
@@ -232,8 +233,8 @@ def calibration(
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filename : Optional[str], optional
-        The filename to save the plot, by default None; does not save.
+    filepath : Optional[str], optional
+        The  to save the plot, by default None; does not save.
     """
     from sklearn.calibration import calibration_curve
 
@@ -241,6 +242,7 @@ def calibration(
     lines.reliability_plot(axis, mean_predicted, fraction_positive)
     if highlight is not None:
         lines.vertical_threshold_lines(axis, highlight, color_alerts=True, legend_position="upper right")
+    return axis.get_figure()
 
 
 @export
@@ -252,9 +254,9 @@ def histogram_stacked(
     highlight: Optional[list[Number]] = None,
     bins: int | Iterable = 20,
     axis: Optional[plt.Axes] = None,
-    filename: Optional[str] = None,
+    filepath: Optional[str] = None,
     show_legend: bool = True,
-) -> None:
+) -> plt.Figure:
     """
     Plots a stacked histogram of the model output by class.
 
@@ -268,8 +270,8 @@ def histogram_stacked(
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filename : Optional[str], optional
-        The filename to save the plot, by default None; does not save.
+    filepath : Optional[str], optional
+        The  to save the plot, by default None; does not save.
     show_legend : bool, optional
         A flag to show the legend, by default True.
 
@@ -287,6 +289,7 @@ def histogram_stacked(
     lines.hist_stacked(axis, samples, labels, show_legend, bins=bins)
     if highlight is not None:
         lines.vertical_threshold_lines(axis, highlight, color_alerts=True)
+    return axis.get_figure()
 
 
 @export
@@ -300,8 +303,8 @@ def ppv_vs_sensitivity(
     conf_interval: Optional["ValueWithCI"] = None,
     highlight: Optional[list[Number]] = None,
     axis: Optional[plt.Axes] = None,
-    filename: Optional[str] = None,
-) -> None:
+    filepath: Optional[str] = None,
+) -> plt.Figure:
     """
     Plots the PPV vs Sensitivity (precision-recall curve).
 
@@ -321,8 +324,8 @@ def ppv_vs_sensitivity(
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filename : Optional[str], optional
-        The filename to save the plot, by default None; does not save.
+    filepath : Optional[str], optional
+        The  to save the plot, by default None; does not save.
     """
     aucpr = f"AUCPR = {metrics.auc(sensitivity, ppv):0.2f}"
 
@@ -337,6 +340,7 @@ def ppv_vs_sensitivity(
 
     if highlight is not None:
         lines.add_radial_score_thresholds(axis, sensitivity, ppv, thresholds, thresholds=highlight, Q=4)
+    return axis.get_figure()
 
 
 @export
@@ -349,8 +353,8 @@ def metric_vs_threshold(
     conf: Number = 0.95,
     highlight: Optional[list[Number]] = None,
     axis: Optional[plt.Axes] = None,
-    filename: Optional[str] = None,
-) -> None:
+    filepath: Optional[str] = None,
+) -> plt.Figure:
     """
     Plots a metric vs threshold curve.
 
@@ -366,8 +370,8 @@ def metric_vs_threshold(
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filename : Optional[str], optional
-        The filename to save the plot, by default None; does not save.
+    filepath : Optional[str], optional
+        The  to save the plot, by default None; does not save.
     """
     lines.metric_vs_threshold_curve(axis, stats[metric], stats["Threshold"], label=metric)
 
@@ -376,6 +380,7 @@ def metric_vs_threshold(
 
     if highlight is not None:
         lines.vertical_threshold_lines(axis, highlight, color_alerts=True)
+    return axis.get_figure()
 
 
 @export
@@ -386,8 +391,8 @@ def performance_metrics(
     conf: Number = 0.95,
     highlight: Optional[list[Number]] = None,
     axis: Optional[plt.Axes] = None,
-    filename: Optional[str] = None,
-) -> None:
+    filepath: Optional[str] = None,
+) -> plt.Figure:
     """
     Single plot of sensitivity, specificity, and PPV.
 
@@ -401,9 +406,8 @@ def performance_metrics(
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filename : Optional[str], optional
-        The filename to save the plot, by default None; does not save.
-
+    filepath : Optional[str], optional
+        The  to save the plot, by default None; does not save.
     """
 
     lines.performance_metrics_plot(axis, stats.Sensitivity, stats.Specificity, stats.PPV, stats.Threshold)
@@ -416,3 +420,4 @@ def performance_metrics(
 
     if highlight is not None:
         lines.vertical_threshold_lines(axis, highlight, color_alerts=True)
+    return axis.get_figure()

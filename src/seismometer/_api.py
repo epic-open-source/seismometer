@@ -3,13 +3,12 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from IPython.display import display
+from IPython.display import HTML, SVG, display
 from pandas.io.formats.style import Styler
 
 import seismometer.plot as plot
 
-from .controls.decorators import display_cached_widget
-from .core.io import resolve_filename
+from .controls.decorators import cached_html_segment, display_cached_widget
 from .data import (
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
@@ -29,9 +28,9 @@ from .report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from .seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
+
+
 # region Reports
-
-
 @export
 def feature_alerts(exclude_cols: list[str] = None):
     """
@@ -282,11 +281,11 @@ def plot_cohort_hist():
         return
 
     bins = np.histogram_bin_edges(cData["pred"], bins=20)
-    plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
+    return plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
 
 
 @export
-def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
+def plot_leadtime_enc(score=None, ref_time=None, target_event=None, max_hours=8):
     """Displays the amount of time that a high prediction gives before an event of interest.
 
     Parameters
@@ -353,7 +352,7 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
     # Truncate to minute but plot hour
     summary_data[x_label] = (summary_data[ref_time] - summary_data[target_zero]).dt.total_seconds() // 60 / 60
 
-    plot.leadtime_whiskers(summary_data, x_label, cohort_col, title=title, xmax=8)
+    return plot.leadtime_whiskers(summary_data, x_label, cohort_col, title=title, xmax=max_hours)
 
 
 @export
@@ -388,7 +387,7 @@ def cohort_evaluation(per_context_id=False):
         logger.error(f"Insufficient data; likely censoring all cohorts with threshold of {censor_threshold}.")
         return
 
-    plot.cohort_evaluation_vs_threshold(plot_data, cohort_feature=cohort_col, highlight=sg.thresholds)
+    return plot.cohort_evaluation_vs_threshold(plot_data, cohort_feature=cohort_col, highlight=sg.thresholds)
 
 
 @export
@@ -420,7 +419,7 @@ def model_evaluation(per_context_id=False):
     stats = calculate_bin_stats(data[sg.target], data[sg.output])
     ci_data = calculate_eval_ci(stats, data[sg.target], data[sg.output], conf=0.95)
     title = f"Overall Performance for {sg.target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
-    _ = plot.evaluation(
+    return plot.evaluation(
         stats,
         ci_data=ci_data,
         truth=data[sg.target],
@@ -431,7 +430,7 @@ def model_evaluation(per_context_id=False):
     )
 
 
-def plot_trend_intervention_outcome():
+def plot_trend_intervention_outcome() -> HTML:
     """
     Plots two timeseries based on selectors; an outcome and then an intervention.
 
@@ -439,18 +438,35 @@ def plot_trend_intervention_outcome():
     Uses the configuration for comparison_time as the reference time for both plots.
     """
     sg = Seismogram()
-    dataframe = sg.dataframe
-    entity_keys = sg.entity_keys
-    cohort_col = sg.selected_cohort[0]
-    subgroups = sg.selected_cohort[1]
-    reftime = sg.comparison_time or sg.predict_time
-    censor_threshold = sg.censor_threshold
-    time_bounds = (sg.dataframe[reftime].min(), sg.dataframe[reftime].max())  # Use the full time range
+    return _plot_trend_intervention_outcome(
+        sg.dataframe,
+        sg.entity_keys,
+        sg.selected_cohort[0],
+        sg.selected_cohort[1],
+        sg.outcome,
+        sg.intervention,
+        sg.comparison_time or sg.predict_time,
+        sg.censor_threshold,
+    )
+
+
+@cached_html_segment
+def _plot_trend_intervention_outcome(
+    dataframe: pd.DataFrame,
+    entity_keys: list[str],
+    cohort_col: str,
+    subgroups: list[str],
+    outcome: str,
+    intervention: str,
+    reftime: str,
+    censor_threshold: int = 10,
+) -> HTML:
+    time_bounds = (dataframe[reftime].min(), dataframe[reftime].max())  # Use the full time range
     show_legend = True
 
     try:
-        outcome_col = pdh.event_value(sg.outcome)
-        plot_ts_cohort(
+        outcome_col = pdh.event_value(outcome)
+        svg1 = _plot_ts_cohort(
             dataframe,
             entity_keys,
             outcome_col,
@@ -466,8 +482,8 @@ def plot_trend_intervention_outcome():
         logger.warning("No outcome timeseries plotted; needs one event with configured usage of `outcome`.")
 
     try:
-        intervention_col = pdh.event_value(sg.intervention)
-        plot_ts_cohort(
+        intervention_col = pdh.event_value(intervention)
+        svg2 = _plot_ts_cohort(
             dataframe,
             entity_keys,
             intervention_col,
@@ -483,9 +499,10 @@ def plot_trend_intervention_outcome():
         logger.warning(
             "No intervention timeseries plotted; " "needs one event with configured usage of `intervention`."
         )
+    return HTML(f"""<h3>Outcome</h3>{svg1.data}<h3>Intervention</h3>{svg2.data}""")
 
 
-def plot_ts_cohort(
+def _plot_ts_cohort(
     dataframe: pd.DataFrame,
     entity_keys: list[str],
     event_col: str,
@@ -497,10 +514,9 @@ def plot_ts_cohort(
     boolean_event: bool = False,
     plot_counts: bool = False,
     show_legend: bool = False,
-    save: bool = False,
     ylabel: str = None,
     censor_threshold: int = 10,
-) -> None:
+) -> SVG:
     """
     Plot a single timeseries given a full dataframe and parameters.
 
@@ -540,16 +556,6 @@ def plot_ts_cohort(
 
     keep_columns = [cohort_col, reftime, event_col]
 
-    basepath = f"trend_{event_col}.svg"
-    filepath = resolve_filename(basepath, cohort_col, subgroups)
-
-    if not save and filepath.is_file():
-        plot.disp_svg(filepath)
-        return
-
-    if not save:
-        filepath = None
-
     cohort_msk = dataframe[cohort_col].isin(subgroups)
     plotdata = create_metric_timeseries(
         dataframe[cohort_msk][entity_keys + keep_columns],
@@ -577,7 +583,7 @@ def plot_ts_cohort(
     plotdata = plotdata.rename(columns={event_col: ylabel})
 
     # plot
-    plot.compare_series(
+    return plot.compare_series(
         plotdata,
         cohort_col=cohort_col,
         ref_str=reftime,
@@ -585,7 +591,6 @@ def plot_ts_cohort(
         ylabel=ylabel,
         counts=counts,
         show_legend=show_legend,
-        filepath=filepath,
     )
 
 
