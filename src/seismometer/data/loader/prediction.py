@@ -12,6 +12,21 @@ logger = logging.getLogger("seismometer")
 
 
 def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Load the predictions frame from a parquet file based on config.prediction_path.
+
+    Will restrict the loaded columns to those specified in config.features, if present.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        The predictions dataframe.
+    """
     if config.features:  # no features == all features
         desired_columns = set(config.prediction_columns)
 
@@ -44,6 +59,23 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
 
 # post loaders
 def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convert the loaded predictions dataframe to the expected types.
+
+    Scope is currently restricted to time and output columns as parquet is expected to include datatypes.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+    dataframe : pd.DataFrame
+        The loaded predictions dataframe.
+
+    Returns
+    -------
+    pd.DataFrame
+        The predictions dataframe with adjusted types.
+    """
     # datetime precisions don't play nicely - fix to pands default
     pred_times = dataframe.select_dtypes(include="datetime").columns
     dataframe = _infer_datetime(dataframe)
@@ -65,7 +97,7 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
 # other
 def _infer_datetime(dataframe, cols=None, override_categories=None):
-    # override_categories - allow configured dtypes to force decision
+    """Infers datetime columns based on column name and casts to pandas.datatime."""
     if cols is None:
         cols = dataframe.columns
     for col in cols:

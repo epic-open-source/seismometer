@@ -9,6 +9,22 @@ logger = logging.getLogger("seismometer")
 
 
 def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Loads the events frame from a parquet file based on config.event_path.
+
+    Maps the non-key columns to the standard names "Type", "Time", "Value".
+    Will log debug message and return an empty dataframe if read_parquet fails.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        the events dataframe with standarized column names.
+    """
     try:
         events = pd.read_parquet(config.event_path).rename(
             columns={config.ev_type: "Type", config.ev_time: "Time", config.ev_value: "Value"},
@@ -22,6 +38,21 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
 
 
 def post_transform_fn(config: ConfigProvider, events: pd.DataFrame) -> pd.DataFrame:
+    """
+    Converts the Time column in events to a datetime64[ns] type, to be compatible with other operations.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+    events : pd.DataFrame
+        The events dataframe.
+
+    Returns
+    -------
+    pd.DataFrame
+        The transformed events dataframe.
+    """
     # Time column in events is known
     events["Time"] = events["Time"].astype("<M8[ns]")
 
@@ -30,6 +61,25 @@ def post_transform_fn(config: ConfigProvider, events: pd.DataFrame) -> pd.DataFr
 
 # data merges
 def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, dataframe: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merges each configured event onto the predictions dataframe.
+
+    Will create event columns (_Value + _Time) for each configured event.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+    event_frame : pd.DataFrame
+        The events dataframe.
+    dataframe : pd.DataFrame
+        The target predictions dataframe.
+
+    Returns
+    -------
+    pd.DataFrame
+        The merged dataframe of predictions plus new event columns.
+    """
     dataframe = (
         dataframe.sort_values(config.predict_time)
         .drop_duplicates(subset=config.entity_keys + [config.predict_time])
@@ -73,6 +123,7 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
 def _merge_event(
     config, event_col, dataframe, event_frame, offset_hrs=0, window_hrs=None, display="", sort=True
 ) -> pd.DataFrame:
+    """Wrapper for calling merge_windowed_event with the correct event column names."""
     disp_event = display if display else event_col
     translate_event = event_col if display else ""
 

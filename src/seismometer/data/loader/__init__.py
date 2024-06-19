@@ -2,7 +2,7 @@ import seismometer.data.loader.event as event
 import seismometer.data.loader.prediction as prediction
 from seismometer.configuration import ConfigProvider
 
-from .pipeline import ConfigOnlyHook, SeismogramLoader
+from .pipeline import ConfigFrameHook, ConfigOnlyHook, MergeHook, SeismogramLoader
 
 
 def loader_factory(config: ConfigProvider) -> SeismogramLoader:

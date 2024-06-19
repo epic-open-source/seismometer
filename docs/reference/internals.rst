@@ -104,6 +104,23 @@ Performance
    performance.calculate_bin_stats
    performance.calculate_eval_ci
 
+Seismogram Loaders
+~~~~~~~~~~~~~~~~~~
+.. autosummary::
+   :toctree: api/
+
+   loader.ConfigOnlyHook
+   loader.ConfigFrameHook
+   loader.MergeHook
+   loader.SeismogramLoader
+   loader.SeismogramLoader.load_data
+   loader.loader_factory
+   loader.event.parquet_loader
+   loader.event.post_transform_fn
+   loader.event.merge_onto_predictions
+   loader.prediction.parquet_loader
+   loader.prediction.assumed_types
+
 Summaries
 ~~~~~~~~~
 .. autosummary::
