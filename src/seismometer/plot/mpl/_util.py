@@ -20,6 +20,7 @@ from matplotlib.patches import Rectangle
 
 
 def to_svg() -> SVG:
+    """matplot lib, write current plot to svg string"""
     buffer = StringIO()
     plt.savefig(buffer, format="svg")
     return SVG(buffer.getvalue())

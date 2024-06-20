@@ -3,13 +3,13 @@
 This module adds the plot decorator to wrap axis and saving for different plots.
 
 Examples:
-Given a plot function which takes an axis and ::
+Given a plot function which takes an axis:
 
     @model_plot
-    new_model_plot(some, variables, for, plot, axis=None, =None, show=True, **kwargs)
+    new_model_plot(some, variables, for, plot, axis=None, **kwargs)
 
-The wrapped new_model_plot will handle axis instantiation and figure saving in a
-uniform way.
+The wrapped new_model_plot will handle axis instantiation and figure creation in a uniform way.
+Results will be ether an svg string or a figure (if used by another plot)
 """
 
 from functools import wraps
@@ -47,13 +47,10 @@ def can_draw_empty_perf(plot_fn: Callable) -> Any:
     return plot_wrapper
 
 
-def model_plot(plot_fn: Callable) -> Any:
+def model_plot(plot_fn: Callable) -> Callable[..., plt.Figure | str]:
     """
-    A model_plot is any function that should include axis and  parameters.
+    A model_plot is any function that potentially needs to create its own axis.
     If an axis is given, we will use it, or if not we will create one based on plt.subplots.
-
-    If we are given a , and we have created our own axis for plotting, we will also save
-    the image as expected.
 
     Parameters
     ----------
@@ -73,7 +70,7 @@ def model_plot(plot_fn: Callable) -> Any:
 
     sig = signature(plot_fn)
     if sig.return_annotation != plt.Figure:
-        raise TypeError("The function must return a matplotlib figure object.")
+        raise TypeError("The source function must return a matplotlib figure object.")
     named_vars = sig.parameters
 
     @wraps(plot_fn)

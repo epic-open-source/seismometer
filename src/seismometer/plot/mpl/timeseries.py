@@ -40,8 +40,6 @@ def compare_series(
         Optional data to plot in a second axis, by default None.
     show_legend : bool, optional
         A flag when set will show the legend on the plot, by default True.
-    filename : Optional[Path], optional
-        A path, when specified, will save the plot to disk, by default None.
     """
     n_vert = 1 if counts is None else 2
     fig, axes = plt.subplots(n_vert, 1, figsize=(9, 2 * n_vert))
