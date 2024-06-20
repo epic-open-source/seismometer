@@ -1,3 +1,4 @@
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -164,3 +165,67 @@ class Test_DiskCachedFunction:
         assert disk_cached_str.cache_dir.exists() is False
         treat.unobserved = "treat!"
         assert foo(treat) == "treat!"
+
+
+class Test_DiskCachedFunction_With_Pandas:
+    def test_supports_dataframe_cachable(self, disk_cached_str):
+        import pandas as pd
+
+        global count
+        count = 0
+
+        @disk_cached_str
+        def foo(x: pd.DataFrame) -> str:
+            global count
+            buffer = StringIO()
+            count += 1
+            x.to_csv(buffer)
+            return buffer.getvalue()
+
+        df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+        assert foo(df) == ",a,b\n0,1,4\n1,2,5\n2,3,6\n"
+        assert count == 1
+        assert foo(df) == ",a,b\n0,1,4\n1,2,5\n2,3,6\n"
+        assert count == 1
+
+    def test_supports_dataframe_reordered_as_cachable(self, disk_cached_str):
+        import pandas as pd
+
+        global count
+        count = 0
+
+        @disk_cached_str
+        def foo(x: pd.DataFrame) -> str:
+            global count
+            buffer = StringIO()
+            count += 1
+            x.to_csv(buffer)
+            return buffer.getvalue()
+
+        df1 = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]}, index=[2, 1, 0])
+        assert foo(df1) == ",a,b\n2,1,4\n1,2,5\n0,3,6\n"
+        assert count == 1
+        df2 = df1.reindex()  # reverses row order
+        assert foo(df2) == ",a,b\n2,1,4\n1,2,5\n0,3,6\n"
+        assert count == 1
+
+    def test_supports_dataframe_can_skip_cachable(self, disk_cached_str):
+        import pandas as pd
+
+        global count
+        count = 0
+
+        @disk_cached_str
+        def foo(x: pd.DataFrame) -> str:
+            global count
+            buffer = StringIO()
+            count += 1
+            x.to_csv(buffer)
+            return buffer.getvalue()
+
+        disk_cached_str.disable()
+        df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+        assert foo(df) == ",a,b\n0,1,4\n1,2,5\n2,3,6\n"
+        assert count == 1
+        assert foo(df) == ",a,b\n0,1,4\n1,2,5\n2,3,6\n"
+        assert count == 2
