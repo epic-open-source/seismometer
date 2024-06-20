@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, TypeAlias
+from typing import Callable, Optional, TypeAlias
 
 import pandas as pd
 
@@ -34,7 +34,12 @@ returning the combined dataframe.
 """
 
 
-def passthru_frame(*args, dataframe: pd.DataFrame) -> pd.DataFrame:
+def _passthru_framehook(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFrame:
+    """A generic pass-through used for hooks that don't need to modify the dataframe."""
+    return dataframe
+
+
+def _passthru_mergehook(config: ConfigProvider, eventframe: pd.DataFrame, dataframe: pd.DataFrame) -> pd.DataFrame:
     """A generic pass-through used for hooks that don't need to modify the dataframe."""
     return dataframe
 
@@ -55,11 +60,11 @@ class SeismogramLoader:
     def __init__(
         self,
         config: ConfigProvider,
-        prediction_fn: ConfigOnlyHook,
-        event_fn: ConfigOnlyHook = None,
-        post_predict_fn: ConfigFrameHook = None,
-        post_event_fn: ConfigFrameHook = None,
-        merge_fn: MergeHook = None,
+        prediction_fn: Optional[ConfigOnlyHook] = None,
+        event_fn: Optional[ConfigOnlyHook] = None,
+        post_predict_fn: Optional[ConfigFrameHook] = None,
+        post_event_fn: Optional[ConfigFrameHook] = None,
+        merge_fn: Optional[MergeHook] = None,
     ):
         """
         Initialize a data loading pipeline of functions returning a dataframe for a Seismogram session.
@@ -88,14 +93,14 @@ class SeismogramLoader:
         self.config = config
 
         self.prediction_fn = prediction_fn
-        self.post_predict_fn = post_predict_fn or passthru_frame
+        self.post_predict_fn = post_predict_fn or _passthru_framehook
 
         self.event_fn = event_fn
-        self.post_event_fn = post_event_fn or passthru_frame
-        self.merge_fn = merge_fn or passthru_frame
+        self.post_event_fn = post_event_fn or _passthru_framehook
+        self.merge_fn = merge_fn or _passthru_mergehook
 
-        self.prediction_from_memory: ConfigFrameHook = passthru_frame
-        self.event_from_memory: ConfigFrameHook = passthru_frame
+        self.prediction_from_memory: ConfigFrameHook = _passthru_framehook
+        self.event_from_memory: ConfigFrameHook = _passthru_framehook
 
     def load_data(self, prediction_obj: pd.DataFrame = None, event_obj: pd.DataFrame = None) -> pd.DataFrame:
         """
@@ -126,6 +131,8 @@ class SeismogramLoader:
 
     def _load_predictions(self, prediction_obj: pd.DataFrame = None):
         """Load predictions from config or memory."""
+        if (prediction_obj is None) and (self.prediction_fn is None):
+            return pd.DataFrame()
         if prediction_obj is None:
             return self.prediction_fn(self.config)
         return self.prediction_from_memory(self.config, prediction_obj)

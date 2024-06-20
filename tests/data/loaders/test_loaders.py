@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 import seismometer.data.loader as undertest
-from seismometer.data.loader.pipeline import passthru_frame
+from seismometer.data.loader.pipeline import _passthru_framehook
 
 
 def get_fake_config(prediction_path: Optional[str] = "predict.parquet", event_path: Optional[str] = "event.parquet"):
@@ -33,8 +33,8 @@ class TestLoaderFactory:
             ("post_event_fn", undertest.event.post_transform_fn),
             ("merge_fn", undertest.event.merge_onto_predictions),
             # Internal passthru_frame
-            ("prediction_from_memory", passthru_frame),
-            ("event_from_memory", passthru_frame),
+            ("prediction_from_memory", _passthru_framehook),
+            ("event_from_memory", _passthru_framehook),
         ],
     )
     def test_parquet_loader_functions(self, attr_name, expected):
