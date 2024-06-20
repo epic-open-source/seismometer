@@ -20,7 +20,7 @@ from typing import Any, Callable
 import matplotlib as matplotlib
 import matplotlib.pyplot as plt
 
-from seismometer.core._decorators import disk_cached_function, export
+from seismometer.core._decorators import export
 
 from ._util import to_svg
 

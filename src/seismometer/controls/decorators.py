@@ -14,66 +14,23 @@ from typing import Any, Callable
 from IPython.display import HTML
 from ipywidgets import Widget
 
+from seismometer.core._decorators import DiskCachedFunction
+
 logger = logging.getLogger("seismometer")
-SEISMOMETER_CACHE_DIR = Path("./.seismometer_cache")
+
+SEISMOMETER_CACHE_DIR = Path(".seismometer_cache")
 SEISMOMETER_CACHE_ENABLED = os.getenv("SEISMOMETER_CACHE_ENABLED", "") != ""
 
 
-def disk_cached_html_segment(func: Callable[..., HTML]) -> HTML:
-    """
-    Caching decorator for HTML data
-
-    Parameters
-    ----------
-    func : Callable[..., HTML]
-        function that generates an HTML component
-
-    Returns
-    -------
-    HTML
-        displayable HTML component
-
-    Raises
-    ------
-    TypeError
-        If called with a function that does not annotate its return type as HTML, or that returns a non-HTML object.
-    """
-    sig = signature(func)
-    if sig.return_annotation != HTML:
-        raise TypeError("The function must return {HTML} object.")
-
-    if not SEISMOMETER_CACHE_ENABLED:
-        return func
-
-    @wraps(func)
-    def wrapped_func(*args, **kwargs):
-        arg_str = str((args, frozenset(kwargs.items())))
-        hash_object = hashlib.md5(arg_str.encode())
-        arg_hash = hash_object.hexdigest()
-
-        file_dir = Path("./.seismometer_cache") / "html" / func.__name__
-
-        filepath = file_dir / f"{arg_hash}.html"
-        if filepath and filepath.is_file():
-            logger.debug(f"From cache: {filepath}")
-            return HTML(filepath.read_text())
-        else:
-            result = func(*args, **kwargs)
-            if not isinstance(result, HTML):
-                raise TypeError("The function must return {HTML} object.")
-            file_dir.mkdir(parents=True, exist_ok=True)
-            filepath.write_text(result.data)
-        return result
-
-    return wrapped_func
+def html_load(filepath) -> HTML:
+    return HTML(filepath.read_text())
 
 
-def _clear_cache_dir() -> None:
-    shutil.rmtree(SEISMOMETER_CACHE_DIR / "html", ignore_errors=True)
-    logger.debug(f"Cache cleared: {SEISMOMETER_CACHE_DIR}")
+def html_save(html, filepath) -> None:
+    filepath.write_text(html.data)
 
 
-disk_cached_html_segment.clear_cache = _clear_cache_dir
+disk_cached_html_segment = DiskCachedFunction("html", save_fn=html_save, load_fn=html_load, return_type=HTML)
 
 
 def display_cached_widget(func: Callable[[], Widget | list[Widget]]) -> Callable[[], any]:

@@ -4,14 +4,19 @@ As for all of the utils subpackage, no other custom subpackages should be refere
 """
 import builtins
 import hashlib
+import logging
 import os
-import pickle
+import shutil
 import sys
-import time
 from functools import wraps
-from typing import Any, Callable
+from inspect import signature
+from pathlib import Path
+from typing import Any, Callable, Optional
 
 import numpy as np
+import pandas as pd
+
+logger = logging.getLogger("seismometer")
 
 
 def export(orig_fn):
@@ -38,12 +43,12 @@ def export(orig_fn):
     return orig_fn
 
 
-def indented_function(func: Callable[..., any]) -> Callable[..., any]:
+def indented_function(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator that will add an indentation to any print() calls made inside the function.
 
     Returns
     -------
-    Callable[..., any]
+    Callable[..., Any]
         A wrapper function that calls the decorated function.
     """
 
@@ -58,87 +63,178 @@ def indented_function(func: Callable[..., any]) -> Callable[..., any]:
     return wrapped_func
 
 
-CACHE_POLICY = ["load", "reload", "skip"]
-CACHE_TYPE = ["pkl", "npz"]
+class DiskCachedFunction(object):
+    SEISMOMETER_CACHE_DIR = Path(".seismometer_cache")
+    SEISMOMETER_CACHE_ENABLED = os.getenv("SEISMOMETER_CACHE_ENABLED", "") != ""
 
+    def __init__(
+        self,
+        cache_name: str,
+        save_fn: Callable[[Any], None],
+        load_fn: Callable[[Path], Any],
+        return_type: tuple[type] = None,
+    ) -> None:
+        """
+        Creates a new decorator that will store data to a cache folder on disk.
 
-def disk_cached_function(
-    cache_name: str, *, cache_type: str = "pkl"
-) -> Callable[[Callable[..., any]], Callable[..., any]]:
-    """Creates a decorator function that will store data to a cache folder on disk.
+        Parameters
+        ----------
+        cache_name : str
+            subdirectory of the cache folder where the new cache will be stored.
+        save_fn : Callable[[Any], None]
+            function that saves the cached type to disk.
+        load_fun : Callable[[Path], Any]
+            function that loads the cached type to disk
+        return_type : Optional[type |  str], optional
+            required return type to enable caching, by default None
+        """
+        self.cache_name = cache_name
+        self.save_fn = save_fn
+        self.load_fn = load_fn
+        self.return_type = return_type
 
-    Notes:
+    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
+        """
+        Method that does the wrapping, treated as a callable to make it easy to use as a decorator.
 
-    1.  The cache uses a hash based on function __name__ and inputs.
-        If you have two different functions with the same name and inputs, it will hit the SAME cache.
-    2.  The cache is a DISK cache, so different processes or runs of the same code will hit the SAME cache,
-        this means changing return values requires you to delete the cache folder.
+        Parameters
+        ----------
+        func : Callable[..., Any]
+            function to use when caching.
 
-    Parameters
-    ----------
-    cache_name : str
-        Local path to cache directory.
-    cache_type : str, optional
-        Type of cache method to use, pickle of numpy save, by default 'pkl'.
+        Returns
+        -------
+        Callable[..., Any]
+            wrapped function that caches the results.
 
-    Returns
-    -------
-    Decorator that does the actual work.
-    """
-
-    def cached_decorator(func):
-        func = indented_function(func)
+        Raises
+        ------
+        ValueError
+            If the annotated return type is not the same as the required return type, or
+            if the runtime return type does not match teh annoated type.
+        """
+        sig = signature(func)
+        if self.return_type and (sig.return_annotation != self.return_type):
+            raise TypeError(f"The function '{func.__name__}' must return '{self.return_type.__name__}' object.")
 
         @wraps(func)
         def wrapped_func(*args, **kwargs):
-            policy = kwargs.pop("cache_policy", "load")
-            if policy not in CACHE_POLICY:
-                raise ValueError("{func.__name_} only accepts cache options in: {CACHE_POLICY}")
+            if not self.SEISMOMETER_CACHE_ENABLED:
+                # Skip any caching logic, pure pass through
+                return func(*args, **kwargs)
 
-            if cache_type not in CACHE_TYPE:
-                raise ValueError("{func.__name_} @cached decorator only accepts cache_type option in: {CACHE_TYPE}")
-
-            arg_str = str((args, frozenset(kwargs.items())))
-            hash_object = hashlib.md5(arg_str.encode())
-            arg_hash = hash_object.hexdigest()
-
-            cache_path = os.path.join(cache_name, func.__name__)
-
-            os.makedirs(cache_path, exist_ok=True)
-
-            cached_path = os.path.join(cache_path, f"{arg_hash}.{cache_type}")
-            res = None
-            if policy == "load" and os.path.exists(cached_path):
-                try:
-                    print(f"Loading result from cache: {cached_path}")
-                    file = open(cached_path, "rb")
-                    if cache_type == "pkl":
-                        res = pickle.load(file)
-                    elif cache_type == "npz":
-                        res = np.load(file)["res"]
-                except EOFError:
-                    print("Failed to load cache: EOFError")
-                    policy = "reload"
+            arg_hash = _hash_function_args(*args, **kwargs)
+            file_dir = self.cache_dir / func.__name__
+            filepath = file_dir / arg_hash
+            if filepath and filepath.is_file():
+                logger.debug(f"From cache: {filepath}")
+                return self.load_fn(filepath)
             else:
-                print("Failed to load cache: FileNotFound")
-                policy = "reload"
-
-            if policy != "load":
-                print("Calculating value directly...")
-                res = func(*args, **kwargs)
-
-            if not os.path.exists(cached_path) or policy == "reload":
-                try:
-                    print(f"Saving to cache: {cached_path}")
-                    file = open(cached_path, "wb")
-                    if cache_type == "pkl":
-                        pickle.dump(res, file)
-                    if cache_type == "npz":
-                        np.savez_compressed(file, res=res)
-                except OverflowError:
-                    print(f"Could not save to cache: {cached_path}")
-            return res
+                logger.debug(f"Cache not found: {filepath}")
+                result = func(*args, **kwargs)
+                if self.return_type and not isinstance(result, self.return_type):
+                    raise ValueError(
+                        f"The function '{func.__name__}' did not return the expected"
+                        + f" type '{self.return_type.__name__}'"
+                    )
+                file_dir.mkdir(parents=True, exist_ok=True)
+                self.save_fn(result, filepath)
+                logger.debug(f"Saved to cahe: {filepath}")
+                return result
 
         return wrapped_func
 
-    return cached_decorator
+    @property
+    def cache_dir(self):
+        """
+        Method to return the cache directory.
+        """
+        return self.SEISMOMETER_CACHE_DIR / self.cache_name
+
+    def clear(self):
+        """
+        Method to clear the cache directory.
+        """
+        shutil.rmtree(self.cache_dir, ignore_errors=True)
+        logger.debug(f"Cache cleared: {self.cache_name}")
+
+    @classmethod
+    def disable(cls):
+        """
+        Method to disable the cache.
+        """
+        cls.SEISMOMETER_CACHE_ENABLED = False
+        logger.debug("Cache disabled")
+
+    @classmethod
+    def enable(cls):
+        """
+        Method to disable the cache.
+        """
+        cls.SEISMOMETER_CACHE_ENABLED = True
+        logger.debug("Cache enabled")
+
+    @classmethod
+    def is_enabled(cls):
+        """
+        Method to check if the cache is enabled.
+        """
+        return cls.SEISMOMETER_CACHE_ENABLED
+
+    @classmethod
+    def clear_all(cls):
+        """
+        Method to clear all cache directories.
+        """
+        shutil.rmtree(cls.SEISMOMETER_CACHE_DIR, ignore_errors=True)
+        logger.debug(f"Cache cleared: {cls.SEISMOMETER_CACHE_DIR}")
+
+
+def _hash_function_args(*args, **kwargs):
+    """
+    Function to hash the arguments and keyword arguments of a function.
+
+    Parameters
+    ----------
+    *args : Any
+        arguments to hash
+    *kwargs : Any
+        keyword arguments to hash
+
+    Returns
+    -------
+    str
+        hash of the arguments and keyword arguments
+    """
+    hash_object = hashlib.md5()
+    for arg in args:
+        try:
+            to_hash = _pandas_safe_hash(arg)
+            hash_object.update(str(to_hash).encode())
+        except TypeError:
+            print(f"Could not hash {to_hash} for {arg}")
+    for key, arg in kwargs.items():
+        hash_object.update(key.encode())
+        try:
+            to_hash = _pandas_safe_hash(arg)
+            hash_object.update(str(to_hash).encode())
+        except TypeError:
+            print(f"Could not hash {to_hash} for {arg}")
+    return hash_object.hexdigest()
+
+
+def _pandas_safe_hash(value):
+    """
+    Function to get a hash value for a pandas object.
+    """
+    if isinstance(value, pd.DataFrame):
+        logger.debug("Hashing DataFrame")
+        value = pd.util.hash_pandas_object(value.sort_index().sort_index(axis=1))
+    if isinstance(value, pd.Series):
+        logger.debug("Hashing Series")
+        value = str(hash(tuple(zip(value, value.index))))
+    if isinstance(value, pd.Index):
+        logger.debug("Hashing Index")
+        value = str(hash(tuple(value)))
+    logger.debug(f"Hashing {value}")
+    return value

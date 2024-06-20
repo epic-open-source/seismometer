@@ -199,11 +199,11 @@ def _register_colormaps() -> None:
     text_cmap = LinearSegmentedColormap.from_list("Text", text_colors, N=len(text_colors))
     alert_cmap = LinearSegmentedColormap.from_list("Alert", alert_colors, N=len(alert_colors))
     neutral_cmap = LinearSegmentedColormap.from_list("Neutral", neutral_colors, N=len(neutral_colors))
-    mpl.colormaps.register(cmap=area_cmap)
-    mpl.colormaps.register(cmap=line_cmap)
-    mpl.colormaps.register(cmap=text_cmap)
-    mpl.colormaps.register(cmap=alert_cmap)
-    mpl.colormaps.register(cmap=neutral_cmap)
+    mpl.colormaps.register(cmap=area_cmap, force=True)
+    mpl.colormaps.register(cmap=line_cmap, force=True)
+    mpl.colormaps.register(cmap=text_cmap, force=True)
+    mpl.colormaps.register(cmap=alert_cmap, force=True)
+    mpl.colormaps.register(cmap=neutral_cmap, force=True)
 
 
 def set_line_colors() -> None:
