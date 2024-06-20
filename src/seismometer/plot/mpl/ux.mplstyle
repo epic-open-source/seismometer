@@ -201,12 +201,12 @@ figure.titleweight : normal   # weight of the figure title
 figure.figsize   : 4, 4   # figure size in inches
 figure.constrained_layout.hspace: 0.02
 figure.constrained_layout.wspace: 0.02
-figure.subplot.hspace : 0.5
-figure.subplot.wspace : 0.5
-figure.subplot.left:   0.1    # the left side of the subplots of the figure
-figure.subplot.right:  0.9    # the right side of the subplots of the figure
-figure.subplot.bottom: 0.1    # the bottom of the subplots of the figure
-figure.subplot.top:    0.9    # the top of the subplots of the figure
+figure.subplot.hspace : 0.3
+figure.subplot.wspace : 0.3
+figure.subplot.left:   0.12    # the left side of the subplots of the figure
+figure.subplot.right:  0.88    # the right side of the subplots of the figure
+figure.subplot.bottom: 0.12    # the bottom of the subplots of the figure
+figure.subplot.top:    0.88    # the top of the subplots of the figure
 
 ### HISTOGRAM PLOTS
 hist.bins : 10                   # The default number of histogram bins.

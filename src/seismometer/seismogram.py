@@ -292,9 +292,10 @@ class Seismogram(object, metaclass=Singleton):
         with open(self.config.metadata_path, "r") as file:
             self._metadata = json.load(file)
         try:
-            self.thresholds: str = self._metadata["thresholds"]
+            self.thresholds: list[float] = self._metadata["thresholds"]
         except KeyError:
             logger.warn("No thresholds set in metadata.json. Using [0.8, 0.5]")
+            self.thresholds = [0.8, 0.5]
 
         self.modelname: str = self._metadata.get("modelname", "UNDEFINED MODEL")
 

@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 from seismometer.core._decorators import disk_cached_function, export
 
-from ._util import save_figure, to_svg
+from ._util import to_svg
 
 
 def is_disp_axis(ax: plt.Axes) -> bool:
@@ -59,9 +59,6 @@ def model_plot(plot_fn: Callable) -> Any:
     ----------
     axis
         Optional matplotlib axis for the current plot; will create a new figure if none is passed in.
-    filepath
-        Optional Path to cache output; if no filepath is passed in nothing will be saved.
-        Assumes that the path exists.
     <arg_name>
         Any additional parameters needed by your plot must be named, kwargs will not be sent to wrapped function.
     kwargs
@@ -74,26 +71,19 @@ def model_plot(plot_fn: Callable) -> Any:
     matplotlib.pyplot.subplots. Important: If subplots does not accept your kwargs, it will crash!
     """
 
+    sig = signature(plot_fn)
+    if sig.return_annotation != plt.Figure:
+        raise TypeError("The function must return a matplotlib figure object.")
+    named_vars = sig.parameters
+
     @wraps(plot_fn)
     def plot_wrapper(*args, **kwargs):
         """
         This doc string will be overridden by the source function.
         """
-        sig = signature(plot_fn)
-        if sig.return_annotation != plt.Figure:
-            raise TypeError("The function must return a matplotlib figure object.")
-
-        named_vars = sig.parameters
-        filepath = kwargs.pop("filepath", None)
         is_primary_plot = True
 
         plotargs = {k: v for k, v in kwargs.items() if k in named_vars and k not in ("", "axis")}
-
-        if filepath and filepath.is_file():
-            image = plt.imread(filepath)
-            fig, ax = plt.subplots(figsize=kwargs.pop("figsize", (4, 4)))
-            ax.imshow(image)
-            return fig
 
         if "axis" in named_vars:
             axis = kwargs.pop("axis", named_vars["axis"].default)
@@ -111,9 +101,6 @@ def model_plot(plot_fn: Callable) -> Any:
 
         if not isinstance(source_value, plt.Figure):
             raise TypeError("The function must return a matplotlib figure object.")
-
-        if filepath is not None:
-            filepath.write_text(svg_format)
 
         if is_primary_plot:
             svg_format = to_svg()

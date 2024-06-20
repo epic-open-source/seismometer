@@ -28,7 +28,6 @@ def cohort_evaluation_vs_threshold(
     splits: Optional[list] = None,
     labels: Optional[list[str]] = None,
     highlight: Optional[list[float]] = None,
-    filepath: Optional[str] = None,
 ) -> plt.Figure:
     """
     Creates a 2x3 grid of individual performance metrics across cohorts.
@@ -48,9 +47,6 @@ def cohort_evaluation_vs_threshold(
         Optional list of display labels for cohorts, by default None; uses the cohort category value.
     highlight : Optional[list[float]], optional
         An optional list of thresholds to highlight on the plots, by default None.
-    filepath : Optional[str], optional
-         to save the plot, by default None.
-
     """
     cohort_col = "cohort"
 
@@ -95,7 +91,7 @@ def leadtime_whiskers(
     *,
     xmax: Optional[Number] = None,
     axis: Optional[plt.Axes] = None,
-    title: Optional[str] = None,
+    **kwargs,
 ) -> plt.Figure:
     """
     Box and whisker plot of leadtime across cohorts.
@@ -112,14 +108,9 @@ def leadtime_whiskers(
         An optional maximum leadtime to display, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
-    filepath : Optional[str], optional
-         to save the plot, by default None.
-    title : Optional[str], optional
-        An override title for the plot, by default None; uses the y_col display name to derive the title.
+    figsize : tuple[int,int], optional
+        Size of the figure, by defaults to 9x6.
     """
-    M = data[y_col].nunique()
-    if axis is None:
-        fig, axis = plt.subplots(figsize=(20, min(10, 2 * M)))
 
     sns.boxplot(
         data=data, x=x_col, y=data[y_col].cat.remove_unused_categories(), hue=data[y_col], ax=axis, saturation=1
@@ -127,8 +118,6 @@ def leadtime_whiskers(
 
     if xmax is not None:
         axis.set_xlim(-abs(xmax) - 0.01, 0)
-    if title:
-        axis.set_title(title)
     axis.set_ylabel(y_col.replace("_", " "))
     axis.set_xlabel(x_col.replace("_", " "))
 
@@ -149,7 +138,6 @@ def cohorts_overlay(
     labels: Optional[list[str]] = None,
     func_kws: Optional[dict] = None,
     censor_threshold: int = None,
-    filepath=None,
 ) -> plt.Figure:
     """
     Uses a passed plotting function to plot a line per given split.
@@ -170,9 +158,6 @@ def cohorts_overlay(
         A dictionary to pass to callable. Function must be able to handle all keywords.
     censor_threshold : int, default=None
         Minimum number of samples to plot a line, otherwise it will be censored.
-    filepath : Optional[str], optional
-         to save the plot, by default None.
-
     """
     if censor_threshold is None:
         censor_threshold = CENSOR_THRESHOLD
@@ -212,7 +197,6 @@ def cohorts_vertical(
     gs: Optional[gridspec.GridSpec] = None,
     labels: Optional[list[str]] = None,
     func_kws: Optional[dict] = None,
-    filepath=None,
 ) -> plt.Figure:
     """
     Uses a passed plotting function to plot a line per given split.
@@ -232,15 +216,13 @@ def cohorts_vertical(
         a kwarg of 'label'.
     func_kws : Optional[dict], default=None
         A dictionary to pass to callable. Function must be able to handle all keywords.
-    filepath : Optional[str], optional
-         to save the plot, by default None.
     """
     cohort_count = (df["cohort"].value_counts() > 0).sum()
     if cohort_count == 0:
         raise ValueError("No cohorts had data to plot")
 
     if gs is None:
-        fig = plt.figure(figsize=(5, 5))
+        fig = plt.figure(figsize=(9, 5))
         gs1 = gridspec.GridSpec(cohort_count, 1, fig)
     else:
         fig = plt.gcf()
@@ -265,6 +247,7 @@ def cohorts_vertical(
 
         active_ix += 1
 
+    plt.subplots_adjust(bottom=0.1, top=0.96, left=0.1, right=0.95, wspace=0.3, hspace=0.3)
     return fig
 
 
@@ -297,5 +280,5 @@ def _plot_one_vertical(
     plot_func(data.iloc[:, 0].astype(int), data.iloc[:, 1], axis=axis, **func_kws)
     axis.set_xlim(0, 1)
     if label:
-        axis.text(1.01, 0.5, s=label, transform=axis.transAxes)
+        axis.legend(title=label)
     return axis.get_figure()
