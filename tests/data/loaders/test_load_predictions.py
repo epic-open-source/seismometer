@@ -163,7 +163,7 @@ class TestAssumedTypes:
         dataframe = pd.DataFrame({time_col: np.datetime64("2022-01-01 13:27:56") + (np.arange(5) * 100_000)})
 
         expected = dataframe.copy()
-        expected[time_col] = pd.to_datetime(expected[time_col], unit="ns")
+        expected[time_col] = pd.to_datetime(expected[time_col]).astype("<M8[ns]")
 
         actual = undertest.assumed_types(config, dataframe)
         pdt.assert_frame_equal(actual, expected)
