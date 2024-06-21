@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from seismometer.core._decorators import DiskCachedFunction, export
+from seismometer.core.decorators import DiskCachedFunction, export
 
 
 def foo(arg1, kwarg1=None):

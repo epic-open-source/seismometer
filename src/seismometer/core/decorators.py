@@ -77,6 +77,8 @@ class DiskCachedFunction(object):
         """
         Creates a new decorator that will store data to a cache folder on disk.
 
+        Cache can be turned on using the SEISMOMETER_CACHE_ENABLED environment variable.
+
         Parameters
         ----------
         cache_name : str

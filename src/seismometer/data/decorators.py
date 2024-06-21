@@ -1,1 +1,1 @@
-from seismometer.core._decorators import export
+from seismometer.core.decorators import export

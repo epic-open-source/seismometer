@@ -14,7 +14,7 @@ from typing import Any, Callable
 from IPython.display import HTML
 from ipywidgets import Widget
 
-from seismometer.core._decorators import DiskCachedFunction
+from seismometer.core.decorators import DiskCachedFunction
 
 logger = logging.getLogger("seismometer")
 

@@ -123,4 +123,11 @@ Patterns
    :toctree: api/
 
    Singleton
+
+Decorators
+~~~~~~~~~~
+.. currentmodule:: seismometer.core.decorators
+.. autosummary::
+    :toctree: api/
+
    DiskCachedFunction
