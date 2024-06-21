@@ -38,22 +38,34 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
             desired_columns.add(config.target)
 
         actual_columns = desired_columns & present_columns
-        if len(desired_columns) != len(actual_columns):
-            logger.warning(
-                "Not all requested columns are present. "
-                + f"Missing columns are {', '.join(desired_columns-present_columns)}"
-            )
-            logger.debug(f"Requested columns are {', '.join(desired_columns)}")
-            logger.debug(f"Columns present are {', '.join(present_columns)}")
+        _log_column_mismatch(actual_columns, desired_columns, present_columns)
+
         dataframe = pd.read_parquet(config.prediction_path, columns=actual_columns)
     else:
         dataframe = pd.read_parquet(config.prediction_path)
 
+    dataframe = _rename_targets(config, dataframe)
+
+    return dataframe.sort_index(axis=1)  # parquet can shuffle column order
+
+
+def _log_column_mismatch(actual_columns: list[str], desired_columns: list[str], present_columns: list[str]) -> None:
+    """Logs warnings if the actual columns and desired columns are a mismatch."""
+    if len(actual_columns) == len(desired_columns):
+        return
+    logger.warning(
+        "Not all requested columns are present. " + f"Missing columns are {', '.join(desired_columns-present_columns)}"
+    )
+    logger.debug(f"Requested columns are {', '.join(desired_columns)}")
+    logger.debug(f"Columns present are {', '.join(present_columns)}")
+
+
+def _rename_targets(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Renames the target column if alread in dataframe, to match what a event merge would produce."""
     if config.target in dataframe:
         target_value = pdh.event_value(config.target)
         logger.debug(f"Using existing column in predictions dataframe as target: {config.target} -> {target_value}")
         dataframe = dataframe.rename({config.target: target_value}, axis=1)
-
     return dataframe
 
 
@@ -76,9 +88,10 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
     pd.DataFrame
         The predictions dataframe with adjusted types.
     """
+    dataframe = _infer_datetime(dataframe)
+
     # datetime precisions don't play nicely - fix to pands default
     pred_times = dataframe.select_dtypes(include="datetime").columns
-    dataframe = _infer_datetime(dataframe)
     dataframe[pred_times] = dataframe[pred_times].astype({col: "<M8[ns]" for col in pred_times})
 
     # Expand this to robust score prep
@@ -90,7 +103,7 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
     # Need to remove pd.FloatXxDtype as sklearn and numpy get confused
     float_cols = dataframe.select_dtypes(include=[float]).columns
-    dataframe[float_cols] = dataframe[float_cols].astype(np.float32)
+    dataframe[float_cols] = dataframe[float_cols].astype(np.float64)
 
     return dataframe
 
