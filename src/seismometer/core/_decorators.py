@@ -208,18 +208,12 @@ def _hash_function_args(*args, **kwargs):
     """
     hash_object = hashlib.md5()
     for arg in args:
-        try:
-            to_hash = _pandas_safe_hash(arg)
-            hash_object.update(str(to_hash).encode())
-        except TypeError:
-            print(f"Could not hash {to_hash} for {arg}")
+        to_hash = _pandas_safe_hash(arg)
+        hash_object.update(str(to_hash).encode())
     for key, arg in kwargs.items():
         hash_object.update(key.encode())
-        try:
-            to_hash = _pandas_safe_hash(arg)
-            hash_object.update(str(to_hash).encode())
-        except TypeError:
-            print(f"Could not hash {to_hash} for {arg}")
+        to_hash = _pandas_safe_hash(arg)
+        hash_object.update(str(to_hash).encode())
     return hash_object.hexdigest()
 
 
@@ -228,13 +222,9 @@ def _pandas_safe_hash(value):
     Function to get a hash value for a pandas object.
     """
     if isinstance(value, pd.DataFrame):
-        logger.debug("Hashing DataFrame")
         value = pd.util.hash_pandas_object(value.sort_index().sort_index(axis=1))
     if isinstance(value, pd.Series):
-        logger.debug("Hashing Series")
         value = str(hash(tuple(zip(value, value.index))))
     if isinstance(value, pd.Index):
-        logger.debug("Hashing Index")
         value = str(hash(tuple(value)))
-    logger.debug(f"Hashing {value}")
     return value

@@ -123,3 +123,4 @@ Patterns
    :toctree: api/
 
    Singleton
+   DiskCachedFunction
