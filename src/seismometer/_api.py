@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -562,6 +562,23 @@ def model_evaluation(per_context_id=False):
     sg = Seismogram()
     return _model_evaluation(
         sg.dataframe, sg.entity_keys, sg.target_event, sg.target, sg.output, sg.thresholds, per_context_id
+    )
+
+
+@disk_cached_html_segment
+@export
+def plot_model_evaluation(
+    cohort_dict: dict[str, tuple[Any]],
+    target_column: str,
+    score_column: str,
+    thresholds: list[float],
+    per_context: bool = False,
+) -> HTML:
+    sg = Seismogram()
+    cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
+    data = cohort_filter.filter(sg.dataframe)
+    return _model_evaluation(
+        data, sg.entity_keys, target_column, f"{target_column}_Value", score_column, thresholds, per_context
     )
 
 

@@ -361,6 +361,34 @@ class FilterRule(object):
         """
         return cls(None, "none")
 
+    @classmethod
+    def from_cohort_dictionary(cls, cohort_dict: dict[str, tuple[any]] | None = None) -> "FilterRule":
+        """
+        For a given dictionary, generate a matching FilterRule
+
+        Parameters
+        ----------
+        cohort_dict : dict[str,tuplep[any]], optional
+            A dictionary of column names and cohort category labels,
+            by default None, in which case FilterRule.all() is returned.
+
+        Returns
+        -------
+        FilterRule
+            A filter rule that verifyes that each column in the keys has a value in the set of selected categories.
+        """
+
+        rule = cls.all()
+        if not cohort_dict:
+            return rule
+
+        for key in cohort_dict:
+            if not cohort_dict[key]:
+                continue
+            else:
+                rule = rule & FilterRule.isin(key, cohort_dict[key])
+        return rule
+
 
 def filter_rule_from_cohort_dictionary(cohort: dict[str, tuple[any]] | None = None) -> FilterRule:
     """
@@ -377,14 +405,4 @@ def filter_rule_from_cohort_dictionary(cohort: dict[str, tuple[any]] | None = No
     FilterRule
         A filter rule that verifyes that each column in the keys has a value in the set of selected categories.
     """
-
-    rule = FilterRule.all()
-    if not cohort:
-        return rule
-
-    for key in cohort:
-        if not cohort[key]:
-            continue
-        else:
-            rule = rule & FilterRule.isin(key, cohort[key])
-    return rule
+    return FilterRule.from_cohort_dictionary(cohort)

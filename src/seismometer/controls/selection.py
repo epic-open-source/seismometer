@@ -1,7 +1,7 @@
 from typing import Optional
 
 import traitlets
-from ipywidgets import Accordion, Dropdown, HBox, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
+from ipywidgets import HTML, Box, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
 
 class SelectionListWidget(ValueWidget, VBox):
@@ -45,7 +45,7 @@ class SelectionListWidget(ValueWidget, VBox):
             self.buttons.append(sub_toggle)
             self.value_from_button[sub_toggle] = option
 
-        self.layout = Layout(width="max-content", min_width="100px")
+        self.layout = Layout(width="max-content", min_width="var(--jp-widgets-inline-label-width)")
         self.label = Label(title)
         if show_title:
             self.children = [self.label] + self.buttons
@@ -99,8 +99,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         options: dict[str, tuple],
         values: Optional[dict[str, tuple]] = None,
         *,
-        title: str = "",
-        ghost_text: str = "Select",
+        title: str = None,
+        ghost_text: str = None,
     ):
         """
         A table of buttons organized into columns by thier keys. Collapsable to save space.
@@ -126,18 +126,16 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             selection_widget = SelectionListWidget(title=key, options=options[key], value=values[key])
             self.selection_widgets[key] = selection_widget
             selection_widget.observe(self._on_subselection_change, "value")
-        self.accordion = Accordion(
-            children=[
-                HBox(
-                    children=[self.selection_widgets[key] for key in self.selection_widgets],
-                    layout=Layout(width="max-content"),
-                )
-            ],
-            selected_index=0,
-        )
-        self.children = [self.accordion]
-        self.layout = Layout(width="max-content")
-        self.accordion.set_title(0, title)
+        self.title_box = HTML()
+        self.children = [
+            self.title_box,
+            Box(
+                children=[self.selection_widgets[key] for key in self.selection_widgets],
+                layout=Layout(display="flex", flex_flow="row wrap", align_items="flex-start"),
+            ),
+        ]
+        # self.layout = Layout(width="max-content")
+        self.update_title_section(self.title, self.ghost_text)
         self._on_subselection_change()
 
     def _on_subselection_change(self, change=None):
@@ -165,6 +163,12 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             return "\n".join(selection_strings)
         else:
             return self.ghost_text
+
+    def update_title_section(self, title, subtitle):
+        if title:
+            self.title_box.value = f'<h4 style="text-align: left;  margin: 0px;">{title}</h4>'
+            if subtitle:
+                self.title_box.value += f"<span>{subtitle}</span>"
 
 
 class DisjointSelectionListsWidget(ValueWidget, VBox):
@@ -207,7 +211,9 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         else:
             value = (list(values.keys())[0], values[list(values.keys())[0]])
         self.dropdown = Dropdown(
-            options=[key for key in values], value=value[0], layout=Layout(width="max-content", min_width="150px")
+            options=[key for key in values],
+            value=value[0],
+            layout=Layout(width="max-content", min_width="var(--jp-widgets-inline-label-width)"),
         )
         self.dropdown.observe(self._on_selection_change, "value")
         self.selection_widgets = {}
