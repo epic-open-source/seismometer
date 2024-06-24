@@ -18,9 +18,6 @@ from seismometer.core.decorators import DiskCachedFunction
 
 logger = logging.getLogger("seismometer")
 
-SEISMOMETER_CACHE_DIR = Path(".seismometer_cache")
-SEISMOMETER_CACHE_ENABLED = os.getenv("SEISMOMETER_CACHE_ENABLED", "") != ""
-
 
 def html_load(filepath) -> HTML:
     return HTML(filepath.read_text())
