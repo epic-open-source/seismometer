@@ -152,6 +152,23 @@ class Test_DiskCachedFunction:
         treat.unobserved = "treat?"
         assert foo(treat) == "trick"
 
+    def test_caches_unordered_kwargs(self, disk_cached_str):
+        global count
+        count = 0
+
+        @disk_cached_str
+        def foo(x: str, *, y: str, z: int) -> str:
+            global count
+            count += 1
+            return f"{x}-{y}-{z}"
+
+        assert foo("a", y="b", z=1) == "a-b-1"
+        assert count == 1
+        assert foo("a", z=1, y="b") == "a-b-1"
+        assert count == 1  # same cache hit
+        assert foo("a", z=2, y="b") == "a-b-2"
+        assert count == 2  # new cache hit
+
     def test_can_clear_cached_results(self, disk_cached_str):
         @disk_cached_str
         def foo(x: BadHash) -> str:
@@ -248,6 +265,7 @@ class Test_DiskCachedFunction_With_Pandas:
             return buffer.getvalue().replace("\r", "")
 
         disk_cached_str.disable()
+        assert disk_cached_str.is_enabled() is False
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
         assert foo(df) == ",a,b\n0,1,4\n1,2,5\n2,3,6\n"
         assert count == 1
@@ -309,3 +327,41 @@ class Test_DiskCachedFunction_With_Pandas:
         assert foo(df2) == first1
         assert foo(df2) != first2
         assert count == 1
+
+    def test_can_match_pandas_index(self, disk_cached_str):
+        """Tests that we can differentiate between pandas Index objects"""
+
+        global count
+        count = 0
+
+        @disk_cached_str
+        def first_value(x: pd.Index) -> str:
+            global count
+            count += 1
+            return str(x[0])
+
+        assert first_value(pd.Index([1, 2, 3])) == "1"
+        assert count == 1
+        assert first_value(pd.RangeIndex(1, 4)) == "1"
+        assert count == 1
+        assert first_value(pd.Index([3, 2, 1])) == "3"
+        assert count == 2
+
+    def test_can_match_pandas_series(self, disk_cached_str):
+        """Tests that we can differentiate between pandas Index objects"""
+
+        global count
+        count = 0
+
+        @disk_cached_str
+        def first_value(x: pd.Series) -> str:
+            global count
+            count += 1
+            return str(x.loc[1])
+
+        assert first_value(pd.Series(["A", "B", "C"], index=pd.Index([1, 2, 3]))) == "A"
+        assert count == 1
+        assert first_value(pd.Series(["C", "B", "A"], index=pd.Index([3, 2, 1]))) == "A"
+        assert count == 1
+        assert first_value(pd.Series(["C", "B", "A"], index=pd.Index([1, 2, 3]))) == "C"
+        assert count == 2
