@@ -156,7 +156,7 @@ axes.prop_cycle    : cycler('color', ['006bdf', 'fd00ab', '229d00', 'a500fa', '0
 
 xtick.color          : 5E717A      # color of the tick labels
 xtick.direction      : out    # direction: in, out, or inout
-xtick.labelsize      : xx-small # fontsize of the tick labels
+xtick.labelsize      : x-small # fontsize of the tick labels
 xtick.labelcolor     : 5E717A
 xtick.major.width    : 0    # major tick width in points
 xtick.minor.width    : 0    # minor tick width in points
@@ -165,7 +165,7 @@ xtick.minor.pad      : 2      # distance to the minor tick label in points
 
 ytick.color          : 5E717A      # color of the tick labels
 ytick.direction      : out    # direction: in, out, or inout
-ytick.labelsize      : xx-small # fontsize of the tick labels
+ytick.labelsize      : x-small # fontsize of the tick labels
 ytick.labelcolor     : 5E717A
 ytick.major.width    : 0    # major tick width in points
 ytick.minor.width    : 0    # minor tick width in points
@@ -193,8 +193,8 @@ figure.titleweight : normal   # weight of the figure title
 figure.figsize   : 4, 4   # figure size in inches
 figure.constrained_layout.hspace: 0.02
 figure.constrained_layout.wspace: 0.02
-figure.subplot.hspace : 0.3
-figure.subplot.wspace : 0.3
+figure.subplot.hspace : 0.4
+figure.subplot.wspace : 0.4
 figure.subplot.left:   0.12    # the left side of the subplots of the figure
 figure.subplot.right:  0.88    # the right side of the subplots of the figure
 figure.subplot.bottom: 0.12    # the bottom of the subplots of the figure
