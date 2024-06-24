@@ -58,7 +58,7 @@ def cohort_evaluation_vs_threshold(
         stats = add_unseen(stats.loc[stats[cohort_col].isin(splits)], col=cohort_col)
 
     # Plot
-    fig = plt.figure(figsize=(15, 10))
+    fig = plt.figure(figsize=(12, 8))
     gs = gridspec.GridSpec(2, 3, fig)
 
     metrics = ["Sensitivity", "Flagged", "PPV", "Specificity", "NPV"]  # determines ordering of plots

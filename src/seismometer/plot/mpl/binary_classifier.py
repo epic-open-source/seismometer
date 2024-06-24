@@ -53,7 +53,7 @@ def evaluation(
     -------
     The matplotlib figure.
     """
-    fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3, figsize=(9, 6))
+    fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3, figsize=(12, 8))
 
     prevalence = stats.loc[0, ["TP", "FN"]].sum()
     if prevalence != 0:
