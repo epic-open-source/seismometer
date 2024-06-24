@@ -13,7 +13,7 @@ other open-source repositories.
    knowledge, which allows you to contribute new guidelines and processes
    for model validation.
 
--  Enhancements to ``seismometer`` undergo thorough scrutiny by maintainers.
+-  Substantial changes to ``seismometer`` follow an `RFC Process`_.
 
 Contributors must agree to our contributor license agreement, and your
 request will undergo internal review to determine if the request is
@@ -138,3 +138,4 @@ Contributions.
    respect.
 
    .. _Code of Conduct: https://github.com/epic-open-source/seismometer/blob/main/CODE_OF_CONDUCT.md 
+   .. _RFC Process: https://github.com/epic-open-source/seismometer-rfcs
