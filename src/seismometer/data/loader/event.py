@@ -111,8 +111,12 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 config, one_event.source, dataframe, event_frame, display=one_event.display_name, sort=False
             )
 
-        # Impute
-        if one_event.impute_val or one_event.usage == "target":
+        # Impute no event
+        if one_event.impute_val and one_event.impute_val != 0:
+            logger.warning(
+                f"Event {one_event.display_name} specified impute; "
+                + "currently missing event value is inferred based on timestamp existence."
+            )
             event_val = pdh.event_value(one_event.display_name)
             impute = one_event.impute_val or 0  # Enforce binary type target
             dataframe[event_val] = dataframe[event_val].fillna(impute)

@@ -9,6 +9,7 @@ import pytest
 
 import seismometer.data.loader.event as undertest
 from seismometer.configuration import ConfigProvider
+from seismometer.configuration.model import Event
 
 
 # region Fakes and Data Prep
@@ -28,14 +29,17 @@ def fake_config(event_file):
     return FakeConfigProvider()
 
 
+BASE_DATE = pd.Timestamp("2024-01-01")
+
+
 def event_frame(rename=False):
     # Create a mock predictions dataframe
     df = pd.DataFrame(
         {
-            "id": ["0", "1", "2"],
-            "origType": [1, 2, 3],
-            "origTime": [4, 5, 6],
-            "origValue": [7, 8, 9],
+            "id": ["0", "0", "1", "1", "2", "2"],
+            "origType": ["a", "b", "a", "a", "b", "a"],
+            "origTime": pd.date_range(start=BASE_DATE, periods=2, freq="D").tolist() * 3,
+            "origValue": [7, 8, 9, 10, 11, 12.0],
         }
     )
     if rename:
@@ -90,3 +94,78 @@ class TestPostTransformFn:
 
         actual = undertest.post_transform_fn(config, dataframe)
         pdt.assert_frame_equal(actual, expected)
+
+
+class TestMergeOntoPredictions:
+    def test_merge_event(self):
+        config = fake_config("unused_file")
+        config.events = [Event(source="a")]
+
+        event_df = event_frame(rename=True)
+        predictions = pd.DataFrame(
+            {
+                "id": ["0", "1", "2"],
+                # push backwards so all events are in the future
+                "Time": [BASE_DATE - pd.to_timedelta(10, unit="D")] * 3,
+                "Prediction": [4, 5, 6],
+            }
+        )
+
+        expected = predictions.copy()
+        expected[["a_Time", "a_Value"]] = event_df[["Time", "Value"]].values[[0, 2, 5]]
+        expected["a_Value"] = expected["a_Value"].astype(float)
+
+        actual = undertest.merge_onto_predictions(config, event_df, predictions)
+
+        pdt.assert_frame_equal(actual, expected)
+
+    @pytest.mark.parametrize(
+        "event,str_inclusions",
+        [
+            (Event(source="a"), ["Merging event a"]),
+            (Event(source="a", window_hr=1), ["Windowing event a", "lookback 1", "offset by 0"]),
+            pytest.param(Event(source="a", offset_hr=6), ["Merging event a"], id="only offset, doesnt window"),
+            (Event(source="a", window_hr=2, offset_hr=12), ["Windowing event a", "lookback 2", "offset by 12"]),
+        ],
+    )
+    def test_merge_info_logged(self, event, str_inclusions, caplog):
+        config = fake_config("unused_file")
+        config.events = [event]
+        config.target_cols = []
+
+        event_df = event_frame(rename=True)
+        predictions = pd.DataFrame(
+            {
+                "id": ["0", "1", "2"],
+                # push inbetween two events
+                "Time": [BASE_DATE + pd.to_timedelta(12, unit="h")] * 3,
+                "Prediction": [4, 5, 6],
+            }
+        )
+
+        with caplog.at_level(logging.DEBUG):
+            _ = undertest.merge_onto_predictions(config, event_df, predictions)
+
+        for pattern in str_inclusions:
+            assert pattern in caplog.text
+
+    def test_imputation_on_target(self, caplog):
+        config = fake_config("unused_file")
+        config.events = [Event(source="a", impute_val=10)]
+
+        event_df = event_frame(rename=True)
+        event_df = event_df[event_df["id"] == "0"]
+
+        predictions = pd.DataFrame(
+            {
+                "id": ["0", "1", "2"],
+                # push backwards so all events are in the future
+                "Time": [BASE_DATE - pd.to_timedelta(10, unit="D")] * 3,
+                "Prediction": [4, 5, 6],
+            }
+        )
+
+        with caplog.at_level(logging.WARNING):
+            _ = undertest.merge_onto_predictions(config, event_df, predictions)
+
+        assert "Event a specified impute" in caplog.text
