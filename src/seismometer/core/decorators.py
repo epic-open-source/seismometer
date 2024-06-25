@@ -212,7 +212,7 @@ def _hash_function_args(*args, **kwargs):
     for arg in args:
         to_hash = _pandas_safe_hash(arg)
         hash_object.update(str(to_hash).encode())
-    for key, arg in kwargs.items():
+    for key, arg in sorted(kwargs.items()):
         hash_object.update(key.encode())
         to_hash = _pandas_safe_hash(arg)
         hash_object.update(str(to_hash).encode())
@@ -224,9 +224,11 @@ def _pandas_safe_hash(value):
     Function to get a hash value for a pandas object.
     """
     if isinstance(value, pd.DataFrame):
-        value = pd.util.hash_pandas_object(value.sort_index().sort_index(axis=1))
+        value = value.sort_index().sort_index(axis=1)
+        value = pd.util.hash_pandas_object(value)
     if isinstance(value, pd.Series):
-        value = str(hash(tuple(zip(value, value.index))))
+        value = value.sort_index()
+        value = str(hash(tuple(value.items())))
     if isinstance(value, pd.Index):
         value = str(hash(tuple(value)))
     return value
