@@ -150,7 +150,7 @@ class Seismogram(object, metaclass=Singleton):
 
     @property
     def target_cols(self) -> list:
-        return self.config.target_cols
+        return self.config.targets
 
     @property
     def intervention(self):

@@ -107,7 +107,12 @@ class TestSeismogramLoader:
         def merge_fn(config, event_frame, dataframe):
             return event_frame
 
-        loader = undertest.SeismogramLoader(fake_config, event_fn=event_fn, merge_fn=merge_fn)
+        def empty_frame(config):
+            return pd.DataFrame()
+
+        loader = undertest.SeismogramLoader(
+            fake_config, prediction_fn=empty_frame, event_fn=event_fn, merge_fn=merge_fn
+        )
 
         # Transform dataframe to a comparable string
         actual = loader.load_data(None, input).iloc[0, 0]

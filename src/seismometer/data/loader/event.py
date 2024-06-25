@@ -104,7 +104,6 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 display=one_event.display_name,
                 sort=False,
             )
-            config.target_cols.append(one_event.display_name)
         else:  # No lookback
             logger.debug(f"Merging event {one_event.display_name}")
             dataframe = _merge_event(

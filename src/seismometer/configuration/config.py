@@ -54,7 +54,6 @@ class ConfigProvider:
         self._events: EventDictionary = None
         self._output_dir: Path = None
         self._output_notebook: str = ""
-        self.target_cols: list = []
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir)
@@ -294,6 +293,15 @@ class ConfigProvider:
     def comparison_time(self) -> str:
         """The timestamp to use as reference for comparison across events."""
         return self.usage.comparison_time
+
+    @property
+    def targets(self) -> list[str]:
+        """
+        List of events to use as targets.
+
+        Configured in usage_data as events with usage 'target'.
+        """
+        return [event.display_name for event in self.usage.events if event.usage == "target"]
 
     @property
     def outcomes(self) -> list[str]:

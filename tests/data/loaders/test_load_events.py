@@ -131,7 +131,6 @@ class TestMergeOntoPredictions:
     def test_merge_info_logged(self, event, str_inclusions, caplog):
         config = fake_config("unused_file")
         config.events = [event]
-        config.target_cols = []
 
         event_df = event_frame(rename=True)
         predictions = pd.DataFrame(
