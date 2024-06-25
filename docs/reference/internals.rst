@@ -112,14 +112,22 @@ Summaries
    summaries.default_cohort_summaries
    summaries.score_target_cohort_summaries
 
-.. currentmodule:: seismometer.core.patterns
 
 Low-level patterns
 ------------------
 
 Patterns
 ~~~~~~~~
+.. currentmodule:: seismometer.core.patterns
 .. autosummary::
    :toctree: api/
 
    Singleton
+
+Decorators
+~~~~~~~~~~
+.. currentmodule:: seismometer.core.decorators
+.. autosummary::
+   :toctree: api/
+
+   DiskCachedFunction

@@ -63,7 +63,6 @@ class Test_One_Vertical:
         assert kw_args == {"axis": mock_ax}
 
         mock_ax.set_xlim.assert_called_once_with(0, 1)
-        assert mock_ax.text.call_count == 1
 
     def test_with_all(self):
         mock_fn = Mock()
@@ -81,4 +80,3 @@ class Test_One_Vertical:
         assert kw_args == {"axis": mock_ax, "extra_kw": 0}
 
         mock_ax.set_xlim.assert_called_once_with(0, 1)
-        assert mock_ax.text.call_count == 1

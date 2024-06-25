@@ -1,0 +1,2 @@
+* Updated plots to use HTML and SVG over pngs from matplotlib
+* Added DiskCachedFunction to allow disk caching of HTML content

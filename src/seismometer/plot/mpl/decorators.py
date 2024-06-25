@@ -3,13 +3,13 @@
 This module adds the plot decorator to wrap axis and saving for different plots.
 
 Examples:
-Given a plot function which takes an axis and filename::
+Given a plot function which takes an axis:
 
     @model_plot
-    new_model_plot(some, variables, for, plot, axis=None, filename=None, **kwargs)
+    new_model_plot(some, variables, for, plot, axis=None, **kwargs)
 
-The wrapped new_model_plot will handle axis instantiation and figure saving in a
-uniform way.
+The wrapped new_model_plot will handle axis instantiation and figure creation in a uniform way.
+Results will be ether an svg string or a figure (if used by another plot)
 """
 
 from functools import wraps
@@ -20,9 +20,9 @@ from typing import Any, Callable
 import matplotlib as matplotlib
 import matplotlib.pyplot as plt
 
-from seismometer.core._decorators import disk_cached_function, export
+from seismometer.core.decorators import export
 
-from ._util import save_figure
+from ._util import to_svg
 
 
 def is_disp_axis(ax: plt.Axes) -> bool:
@@ -47,21 +47,15 @@ def can_draw_empty_perf(plot_fn: Callable) -> Any:
     return plot_wrapper
 
 
-def model_plot(plot_fn: Callable) -> Any:
+def model_plot(plot_fn: Callable) -> Callable[..., plt.Figure | str]:
     """
-    A model_plot is any function that should include axis and filename parameters.
+    A model_plot is any function that potentially needs to create its own axis.
     If an axis is given, we will use it, or if not we will create one based on plt.subplots.
-
-    If we are given a filename, and we have created our own axis for plotting, we will also save
-    the image as expected.
 
     Parameters
     ----------
     axis
         Optional matplotlib axis for the current plot; will create a new figure if none is passed in.
-    filename
-        Optional file name to save output; if no filename is passed in nothing will be saved.
-        Assumes that the path exists.
     <arg_name>
         Any additional parameters needed by your plot must be named, kwargs will not be sent to wrapped function.
     kwargs
@@ -74,34 +68,41 @@ def model_plot(plot_fn: Callable) -> Any:
     matplotlib.pyplot.subplots. Important: If subplots does not accept your kwargs, it will crash!
     """
 
+    sig = signature(plot_fn)
+    if sig.return_annotation != plt.Figure:
+        raise TypeError("The source function must return a matplotlib figure object.")
+    named_vars = sig.parameters
+
     @wraps(plot_fn)
     def plot_wrapper(*args, **kwargs):
         """
         This doc string will be overridden by the source function.
         """
-        named_vars = signature(plot_fn).parameters
-        filename = kwargs.pop("filename", None)
+        is_primary_plot = True
 
-        plotargs = {k: v for k, v in kwargs.items() if k in named_vars and k not in ("filename", "axis")}
+        plotargs = {k: v for k, v in kwargs.items() if k in named_vars and k not in ("", "axis")}
 
         if "axis" in named_vars:
             axis = kwargs.pop("axis", named_vars["axis"].default)
             if axis is None or axis == param.empty:
-                figsize = kwargs.pop("figsize", (5, 5))
+                # create the default axis
+                figsize = kwargs.pop("figsize", (4, 4))
                 subplotsargs = {k: v for k, v in kwargs.items() if k not in named_vars}
                 fig, ax = plt.subplots(figsize=figsize, **subplotsargs)
             else:
+                is_primary_plot = False
                 ax = axis
-            source_value = plot_fn(*args, axis=ax, filename=filename, **plotargs)
+            source_value = plot_fn(*args, axis=ax, **plotargs)
         else:
-            axis = None
-            source_value = plot_fn(*args, filename=filename, **plotargs)
+            source_value = plot_fn(*args, **plotargs)
 
-        if axis is None:
-            if filename is not None:
-                save_figure(filename)
-            plt.show()
+        if not isinstance(source_value, plt.Figure):
+            raise TypeError("The function must return a matplotlib figure object.")
 
+        if is_primary_plot:
+            svg_format = to_svg()
+            plt.close()
+            return svg_format
         return source_value
 
     return plot_wrapper
