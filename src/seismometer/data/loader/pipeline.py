@@ -132,7 +132,9 @@ class SeismogramLoader:
     def _load_predictions(self, prediction_obj: pd.DataFrame = None):
         """Load predictions from config or memory."""
         if (prediction_obj is None) and (self.prediction_fn is None):
-            return pd.DataFrame()
+            raise RuntimeError(
+                "No prediction_fn provided and no prediction_obj provided. A prediction frame must be provided."
+            )
         if prediction_obj is None:
             return self.prediction_fn(self.config)
         return self.prediction_from_memory(self.config, prediction_obj)
