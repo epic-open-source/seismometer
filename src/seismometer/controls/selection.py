@@ -39,18 +39,22 @@ class SelectionListWidget(ValueWidget, VBox):
                 tooltip=str(option),
                 disabled=False,
                 button_style="",
-                layout=Layout(width="90%"),
+                style={"flex-shrink": "0"},
             )
             sub_toggle.observe(self._on_button_change, "value")
             self.buttons.append(sub_toggle)
             self.value_from_button[sub_toggle] = option
 
         self.layout = Layout(width="max-content", min_width="var(--jp-widgets-inline-label-width)")
+        self.button_box = VBox(
+            children=self.buttons,
+            layout=Layout(max_height="calc(7* var(--jp-widgets-inline-height))", align_items="flex-start"),
+        )
         self.label = Label(title)
         if show_title:
-            self.children = [self.label] + self.buttons
+            self.children = [self.label] + [self.button_box]
         else:
-            self.children = self.buttons
+            self.children = [self.button_box]
         self._on_button_change()
 
     def _on_button_change(self, change=None):
