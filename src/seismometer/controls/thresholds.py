@@ -3,6 +3,8 @@ import logging
 import traitlets
 from ipywidgets import FloatSlider, Layout, ValueWidget, VBox
 
+from seismometer.plot.mpl._ux import alert_colors
+
 logger = logging.getLogger("seismometer")
 
 
@@ -63,7 +65,7 @@ class MonotonicPercentSliderListWidget(ValueWidget, VBox):
 
     value = traitlets.Tuple(help="The selected values for the slider list")
 
-    def __init__(self, names: tuple[str], value: tuple[int] = None):
+    def __init__(self, names: tuple[str], value: tuple[int] = None, increasing: bool = True):
         """A vertical list of sliders
 
         Parameters
@@ -74,7 +76,8 @@ class MonotonicPercentSliderListWidget(ValueWidget, VBox):
             Slider start values, by default None, starts all sliders at zero.
         """
         super().__init__()
-        self.names = tuple(names)  # make immutable
+        self.names = tuple(names) if names else []  # make immutable
+        self.increasing = increasing
         self.value = value or tuple(0 for _ in names)  # set initial value
         self.sliders = []
         for name, val in zip(self.names, self.value):
@@ -90,6 +93,12 @@ class MonotonicPercentSliderListWidget(ValueWidget, VBox):
                 readout=True,
                 readout_format=".2f",
             )
+            if increasing:
+                sub_slider.style.handle_color = alert_colors[
+                    (len(self.value) - len(self.sliders) - 1) % len(alert_colors)
+                ]
+            else:
+                sub_slider.style.handle_color = alert_colors[len(self.sliders) % len(alert_colors)]
             self.sliders.append(sub_slider)
             sub_slider.observe(self._on_slider_change, "value")
 
@@ -104,14 +113,24 @@ class MonotonicPercentSliderListWidget(ValueWidget, VBox):
             return
         new = change["new"]
         old = change["old"]
-        if new > old:  # increase in value, increase all sliders after this one
-            new_tuple = [slider.value for slider in self.sliders[:slider_index]] + [
-                max(new, slider.value) for slider in self.sliders[slider_index:]
-            ]
-        else:  # decrease in value, decrease all sliders before this one
-            new_tuple = [min(new, slider.value) for slider in self.sliders[:slider_index]] + [
-                slider.value for slider in self.sliders[slider_index:]
-            ]
+        if self.increasing:  # monotonic increasing
+            if new > old:  # increase in value, increase all sliders after this one
+                new_tuple = [slider.value for slider in self.sliders[:slider_index]] + [
+                    max(new, slider.value) for slider in self.sliders[slider_index:]
+                ]
+            else:  # decrease in value, decrease all sliders before this one
+                new_tuple = [min(new, slider.value) for slider in self.sliders[:slider_index]] + [
+                    slider.value for slider in self.sliders[slider_index:]
+                ]
+        else:  # monotonic decreasing
+            if new > old:  # increase in value, increase all sliders before this one
+                new_tuple = [max(new, slider.value) for slider in self.sliders[:slider_index]] + [
+                    slider.value for slider in self.sliders[slider_index:]
+                ]
+            else:  # decrease in value, decrease all sliders after this one
+                new_tuple = [slider.value for slider in self.sliders[:slider_index]] + [
+                    min(new, slider.value) for slider in self.sliders[slider_index:]
+                ]
         self.value = new_tuple
 
     def _on_value_change(self, change=None):

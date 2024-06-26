@@ -20,6 +20,7 @@ Axes = plt.Axes | plt.Subplot
 
 def vertical_threshold_lines(axis, highlight, color_alerts=True, legend_position=None, plot=True, show_marker=True):
     colors = [None]
+    highlight = sorted(highlight, reverse=True)
     if color_alerts:
         colors = [alert_colors[i % len(alert_colors)] for i in range(len(highlight))]
     handles = []
@@ -277,6 +278,7 @@ def add_radial_score_thresholds(
         )
 
     # searchsorted assumes value is above the minimum in list
+    thresholds = sorted(thresholds, reverse=True)
     val_ix = _find_thresholds(labels, thresholds)
 
     colors = []
