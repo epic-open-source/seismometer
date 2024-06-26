@@ -25,9 +25,10 @@ def fake_load_data(self, *args):
 
 @pytest.fixture
 def fake_seismo(tmp_path):
-    with patch.object(Seismogram, "load_data", fake_load_data):
-        with patch.object(Seismogram, "load_config", fake_load_config):
-            Seismogram(config_path=tmp_path / "config", output_path=tmp_path / "output")
+    with patch.object(Seismogram, "load_data", fake_load_data), patch.object(
+        Seismogram, "load_config", fake_load_config
+    ):
+        Seismogram(config_path=tmp_path / "config", output_path=tmp_path / "output")
         yield
     Seismogram.kill()
 

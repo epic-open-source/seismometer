@@ -29,7 +29,7 @@ def fake_config(event_file):
     return FakeConfigProvider()
 
 
-BASE_DATE = pd.Timestamp("2024-01-01")
+EVENT_DATES = [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")]
 
 
 def event_frame(rename=False):
@@ -38,7 +38,7 @@ def event_frame(rename=False):
         {
             "id": ["0", "0", "1", "1", "2", "2"],
             "origType": ["a", "b", "a", "a", "b", "a"],
-            "origTime": pd.date_range(start=BASE_DATE, periods=2, freq="D").tolist() * 3,
+            "origTime": EVENT_DATES * 3,
             "origValue": [7, 8, 9, 10, 11, 12.0],
         }
     )
@@ -50,6 +50,8 @@ def event_frame(rename=False):
 # endregion
 # region File-type setup functions
 def parquet_setup():
+    # Expects current directory to have been modified by the testcase,
+    # such as using tmp_as_current
     file = Path("events.parquet")
 
     data = event_frame()
@@ -106,7 +108,7 @@ class TestMergeOntoPredictions:
             {
                 "id": ["0", "1", "2"],
                 # push backwards so all events are in the future
-                "Time": [BASE_DATE - pd.to_timedelta(10, unit="D")] * 3,
+                "Time": [EVENT_DATES[0] - pd.to_timedelta(10, unit="D")] * 3,
                 "Prediction": [4, 5, 6],
             }
         )
@@ -137,7 +139,7 @@ class TestMergeOntoPredictions:
             {
                 "id": ["0", "1", "2"],
                 # push inbetween two events
-                "Time": [BASE_DATE + pd.to_timedelta(12, unit="h")] * 3,
+                "Time": [EVENT_DATES[0] + pd.to_timedelta(12, unit="h")] * 3,
                 "Prediction": [4, 5, 6],
             }
         )
@@ -159,7 +161,7 @@ class TestMergeOntoPredictions:
             {
                 "id": ["0", "1", "2"],
                 # push backwards so all events are in the future
-                "Time": [BASE_DATE - pd.to_timedelta(10, unit="D")] * 3,
+                "Time": [EVENT_DATES[0] - pd.to_timedelta(10, unit="D")] * 3,
                 "Prediction": [4, 5, 6],
             }
         )
