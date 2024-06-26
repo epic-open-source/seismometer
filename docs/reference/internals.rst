@@ -12,28 +12,28 @@ Extract
 ~~~~~~~
 .. currentmodule:: seismometer.builder.extract
 .. autosummary::
-    :toctree: api/
+   :toctree: api/
 
-    extract_supplement
-    generate_data_dict_from_parquet
+   extract_supplement
+   generate_data_dict_from_parquet
 
 Build
 ~~~~~
 .. currentmodule:: seismometer.builder.compile
 .. autosummary::
-    :toctree: api/
+   :toctree: api/
 
-    compile_notebook
+   compile_notebook
 
 Other
 ~~~~~
 .. currentmodule:: seismometer.builder
 .. autosummary::
-    :toctree: api/
+   :toctree: api/
 
-    jupyter.contrib_cells
-    jupyter.get_id
-    jupyter.get_text
+   jupyter.contrib_cells
+   jupyter.get_id
+   jupyter.get_text
 
 
 .. currentmodule:: seismometer.plot.mpl
@@ -59,7 +59,7 @@ Binary classification
    ppv_vs_sensitivity
    recall_condition
    singleROC
-   
+
 
 .. currentmodule:: seismometer.data
 
@@ -111,7 +111,7 @@ Seismogram Loaders
 
    loader.ConfigOnlyHook
    loader.ConfigFrameHook
-   loader.MergeHook
+   loader.MergeFramesHook
    loader.SeismogramLoader
    loader.SeismogramLoader.load_data
    loader.loader_factory

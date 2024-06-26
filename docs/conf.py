@@ -47,7 +47,7 @@ autodoc_typehints = "description"
 autodoc_type_aliases = {
     "ConfigFrameHook": "seismometer.data.loader.ConfigFrameHook",
     "ConfigOnlyHook": "seismometer.data.loader.ConfigFrameHook",
-    "MergeHook": "seismometer.data.loader.MergeHook",
+    "MergeFramesHook": "seismometer.data.loader.MergeFramesHook",
 }
 
 # -- Options for HTML output -------------------------------------------------

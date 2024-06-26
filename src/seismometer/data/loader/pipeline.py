@@ -24,8 +24,8 @@ provides some metadata that can then be applied to the dataframe returing the tr
 """
 
 
-MergeHook: TypeAlias = Callable[[ConfigProvider, pd.DataFrame, pd.DataFrame], pd.DataFrame]
-MergeHook.__doc__ = """
+MergeFramesHook: TypeAlias = Callable[[ConfigProvider, pd.DataFrame, pd.DataFrame], pd.DataFrame]
+MergeFramesHook.__doc__ = """
 TypeAlias for a callable taking a ConfigProvider and two DataFrames, which returns a DataFrame.
 
 An example is uses ConfigProvider to understand the relevant keys, then
@@ -52,7 +52,7 @@ class SeismogramLoader:
     * transform (type) the loaded predictions [ConfigFrameHook]
     * load events [ConfigOnlyHook]
     * transform (type) the loaded events [ConfigFrameHook]
-    * merge events onto predictions [MergeHook]
+    * merge events onto predictions [MergeFramesHook]
 
     Each step is expected to return a dataframe, chaining the steps to get the frame driving a loaded Seismogram.
     """
@@ -64,7 +64,7 @@ class SeismogramLoader:
         event_fn: Optional[ConfigOnlyHook] = None,
         post_predict_fn: Optional[ConfigFrameHook] = None,
         post_event_fn: Optional[ConfigFrameHook] = None,
-        merge_fn: Optional[MergeHook] = None,
+        merge_fn: Optional[MergeFramesHook] = None,
     ):
         """
         Initialize a data loading pipeline of functions returning a dataframe for a Seismogram session.
@@ -85,7 +85,7 @@ class SeismogramLoader:
         post_event_fn : ConfigFrameHook, optional
             A callable taking a ConfigProvider and a (events) dataframe and returning a dataframe.
             Used to do minor transforms of events such as type casting.
-        merge_fn : MergeHook, optional
+        merge_fn : MergeFramesHook, optional
             A callable taking a ConfigProvider, a (events) dataframe, and a (predictions) dataframe
             and returning a dataframe.
             Used to merge events onto predictions based on configuration.
@@ -157,4 +157,4 @@ class SeismogramLoader:
         return self.event_from_memory(self.config, event_obj)
 
 
-__all__ = ["SeismogramLoader", "ConfigOnlyHook", "ConfigFrameHook", "MergeHook"]
+__all__ = ["SeismogramLoader", "ConfigOnlyHook", "ConfigFrameHook", "MergeFramesHook"]
