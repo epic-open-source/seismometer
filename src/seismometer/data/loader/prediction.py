@@ -27,7 +27,9 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
     pd.DataFrame
         The predictions dataframe.
     """
-    if config.features:  # no features == all features
+    if not config.features:  # no features ==> all features
+        dataframe = pd.read_parquet(config.prediction_path)
+    else:
         desired_columns = set(config.prediction_columns)
 
         with warnings.catch_warnings():
@@ -41,8 +43,6 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
         _log_column_mismatch(actual_columns, desired_columns, present_columns)
 
         dataframe = pd.read_parquet(config.prediction_path, columns=actual_columns)
-    else:
-        dataframe = pd.read_parquet(config.prediction_path)
 
     dataframe = _rename_targets(config, dataframe)
 
@@ -61,7 +61,7 @@ def _log_column_mismatch(actual_columns: list[str], desired_columns: list[str], 
 
 
 def _rename_targets(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Renames the target column if alread in dataframe, to match what a event merge would produce."""
+    """Renames the target column if already in the dataframe, to match what a event merge would produce."""
     if config.target in dataframe:
         target_value = pdh.event_value(config.target)
         logger.debug(f"Using existing column in predictions dataframe as target: {config.target} -> {target_value}")
@@ -98,7 +98,7 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
     for score in config.output_list:
         if score not in dataframe:
             continue
-        if 50 < dataframe[score].max() <= 100:  # Assume out of 100, readjust
+        if 25 < dataframe[score].max() <= 100:  # Assume out of 100, readjust
             dataframe[score] /= 100
 
     # Need to remove pd.FloatXxDtype as sklearn and numpy get confused

@@ -143,6 +143,7 @@ class SeismogramLoader:
         """Load and merge events onto the predictions dataframe."""
         event_frame = self._load_events(event_obj)
         if event_frame.empty:  # No events to add
+            logger.debug("No events were loaded; nothing added to frame.")
             return dataframe
 
         event_frame = self.post_event_fn(self.config, event_frame)
