@@ -75,10 +75,11 @@ class SeismogramLoader:
             The loaded configuration object.
         prediction_fn : ConfigOnlyHook
             A callable taking a ConfigProvider and returning a dataframe.
-            Used to load a (predictions) dataframe based on configuration.
+            Used to load a (predictions) dataframe based on configuration;
+            skipped if prediction_obj is provided to load_data.
         event_fn : ConfigOnlyHook, optional
             A callable taking a ConfigProvider and returning a dataframe.
-            Used to load a (events) dataframe based on configuration.
+            Used to load a (events) dataframe based on configuration; skipped if event_obj is provided to load_data.
         post_predict_fn : ConfigFrameHook, optional
             A callable taking a ConfigProvider and a (predictions) dataframe and returning a dataframe.
             Used to do minor transforms of predictions such as type casting.
@@ -121,7 +122,7 @@ class SeismogramLoader:
             the loaded and merged dataframe for a Seismogram session.
         """
 
-        logger.info(f"Importing files from {self.config.config_dir}")
+        logger.info(f"Configuration speficies path {self.config.config_dir}")
 
         dataframe = self._load_predictions(prediction_obj)
         dataframe = self.post_predict_fn(self.config, dataframe)
@@ -130,7 +131,7 @@ class SeismogramLoader:
         return dataframe
 
     def _load_predictions(self, prediction_obj: pd.DataFrame = None):
-        """Load predictions from config or memory."""
+        """Load predictions from configuration if not passed in directly."""
         if (prediction_obj is None) and (self.prediction_fn is None):
             raise RuntimeError(
                 "No prediction_fn provided and no prediction_obj provided. A prediction frame must be provided."
@@ -140,7 +141,10 @@ class SeismogramLoader:
         return self.prediction_from_memory(self.config, prediction_obj)
 
     def _add_events(self, dataframe: pd.DataFrame, event_obj: pd.DataFrame = None):
-        """Load and merge events onto the predictions dataframe."""
+        """
+        Load and merge events onto the predictions dataframe.
+        Prioritizes event_obj if provided, else loads from configuration.
+        """
         event_frame = self._load_events(event_obj)
         if event_frame.empty:  # No events to add
             logger.debug("No events were loaded; nothing added to frame.")

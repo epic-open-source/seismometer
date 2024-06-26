@@ -74,7 +74,7 @@ class TestSeismogramLoader:
         with caplog.at_level("INFO"):
             _ = loader.load_data(input)
 
-        assert "Importing" in caplog.text
+        assert "Configuration speficies" in caplog.text
 
     @pytest.mark.parametrize(
         "input,expected",
