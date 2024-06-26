@@ -43,7 +43,12 @@ napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 docstring_signature = False
 autodoc_pydantic_model_erdantic_figure = True
-
+autodoc_typehints = "description"
+autodoc_type_aliases = {
+    "ConfigFrameHook": "seismometer.data.loader.ConfigFrameHook",
+    "ConfigOnlyHook": "seismometer.data.loader.ConfigFrameHook",
+    "MergeFramesHook": "seismometer.data.loader.MergeFramesHook",
+}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -94,5 +99,4 @@ html_css_files = [
 ]
 
 nbsphinx_thumbnails = {"example_notebooks/notebooks/binary-classifier/classifier_bin": "_static/images/jupyter.png"}
-
 nbsphinx_requirejs_path = ""

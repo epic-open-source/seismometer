@@ -87,10 +87,6 @@ ENV/
 /local/
 /scratch/
 /data/
-
-
-scripted_testing/
-.Trash-1000/*
 /output/
 /notebooks/output/
 /notebooks/data/

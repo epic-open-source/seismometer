@@ -23,7 +23,6 @@ class Test_Template_Apis:
         mock_sg.entity_count = 4
         mock_sg.start_time = datetime(2024, 1, 1, 1, 1, 1)
         mock_sg.end_time = datetime(2025, 1, 1, 1, 1, 1)
-        mock_sg.event_count = 5
         mock_sg.event_types_count = 6
 
         expected = {
@@ -33,13 +32,7 @@ class Test_Template_Apis:
                     "description": "Scores, features, configured demographics, and merged events for each prediction",
                     "num_rows": 1,
                     "num_cols": 2,
-                },
-                {
-                    "name": "events",
-                    "description": "Outcomes and interventions associated with each entity",
-                    "num_rows": 5,
-                    "num_cols": 6,
-                },
+                }
             ],
             "num_predictions": 1,
             "num_entities": 4,
