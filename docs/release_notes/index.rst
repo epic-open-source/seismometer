@@ -3,7 +3,7 @@
 Changelog
 =========
 
-This is a list of changes that have been made between releases of the ``seismometer`` library. See GitHub for full details.  
+This is a list of changes that have been made between releases of the ``seismometer`` library. See GitHub for full details.
 
 Breaking changes may occur between minor versions prior to the v1 release; afterwhich API changes will be restricted to major version updates.
 
@@ -15,9 +15,9 @@ Breaking changes may occur between minor versions prior to the v1 release; after
 Features
 ~~~~~~~~
 
-- * Added `FilterRule.all()` and `FilterRule.none()` class methods for matching all or no rows of a dataframe. (`#27 <https://github.com/epic-open-source/seismometer/issues/27>`__)
-- * Updated plots to use HTML and SVG over pngs from matplotlib
-  * Added DiskCachedFunction to allow disk caching of HTML content (`#43 <https://github.com/epic-open-source/seismometer/issues/43>`__)
+- Added `FilterRule.all()` and `FilterRule.none()` class methods for matching all or no rows of a dataframe. (`#27 <https://github.com/epic-open-source/seismometer/issues/27>`__)
+- Updated plots to use HTML and SVG over pngs from matplotlib (`#43 <https://github.com/epic-open-source/seismometer/issues/43>`__)
+- Added DiskCachedFunction to allow disk caching of HTML content (`#43 <https://github.com/epic-open-source/seismometer/issues/43>`__)
 
 
 Bugfixes
