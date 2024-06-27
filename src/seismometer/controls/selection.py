@@ -39,7 +39,7 @@ class SelectionListWidget(ValueWidget, VBox):
                 tooltip=str(option),
                 disabled=False,
                 button_style="",
-                style={"flex-shrink": "0"},
+                layout=Layout(flex="1 0"),
             )
             sub_toggle.observe(self._on_button_change, "value")
             self.buttons.append(sub_toggle)
