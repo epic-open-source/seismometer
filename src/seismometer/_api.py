@@ -350,22 +350,14 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None, max_hours=8)
     target_zero = pdh.event_time(target_event) or sg.time_zero
     threshold = sg.thresholds[0]
 
-    if target_event not in sg.dataframe:
-        logger.error(f"Target event ({target_event}) not found in dataset. Cannot plot leadtime.")
-        return
-
-    if target_zero not in sg.dataframe:
-        logger.error(f"Target event time-zero ({target_zero}) not found in dataset. Cannot plot leadtime.")
-        return
-
     return _plot_leadtime_enc(
         sg.dataframe,
+        sg.entity_keys,
         target_event,
         target_zero,
-        threshold,
         score,
+        threshold,
         ref_time,
-        sg.entity_keys,
         cohort_col,
         subgroups,
         max_hours,
@@ -375,20 +367,45 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None, max_hours=8)
 
 
 @disk_cached_html_segment
+@export
+def plot_cohort_lead_time(
+    cohort_col: str, subgroups: list[str], target_column: str, score_column: str, thresholds: list[float]
+) -> HTML:
+    sg = Seismogram()
+    x_label = "Lead Time (hours)"
+    target_event = pdh.event_value(target_column)
+    target_zero = pdh.event_time(target_column)
+
+    return _plot_leadtime_enc(
+        sg.dataframe,
+        sg.entity_keys,
+        target_event,
+        target_zero,
+        score_column,
+        min(thresholds),
+        sg.predict_time,
+        cohort_col,
+        subgroups,
+        8,
+        x_label,
+        sg.censor_threshold,
+    )
+
+
+@disk_cached_html_segment
 def _plot_leadtime_enc(
     dataframe: pd.DataFrame,
+    entity_keys: str,
     target_event: str,
     target_zero: str,
-    threshold: list[float],
     score: str,
+    threshold: list[float],
     ref_time: str,
-    entity_keys: str,
     cohort_col: str,
     subgroups: list[any],
     max_hours: int,
     x_label: str,
-    censor_threshold,
-    int=10,
+    censor_threshold: int = 10,
 ) -> HTML:
     """
     HTML Plot of time between prediction and target event.
@@ -425,6 +442,14 @@ def _plot_leadtime_enc(
     HTML
         Lead time plot
     """
+    if target_event not in dataframe:
+        logger.error(f"Target event ({target_event}) not found in dataset. Cannot plot leadtime.")
+        return
+
+    if target_zero not in dataframe:
+        logger.error(f"Target event time-zero ({target_zero}) not found in dataset. Cannot plot leadtime.")
+        return
+
     summary_data = dataframe[dataframe[target_event] == 1]
     if len(summary_data.index) == 0:
         logger.error(f"No positive events ({target_event}=1) were found")
@@ -489,6 +514,30 @@ def cohort_evaluation(per_context_id=False):
         subgroups,
         censor_threshold,
         per_context_id,
+    )
+
+
+@disk_cached_html_segment
+@export
+def plot_cohort_evaluation(
+    cohort_col: str,
+    subgroups: list[str],
+    target_column: str,
+    score_column: str,
+    thresholds: list[float],
+    per_context: bool = False,
+) -> HTML:
+    sg = Seismogram()
+    return _plot_cohort_evaluation(
+        sg.dataframe,
+        sg.entity_keys,
+        f"{target_column}_Value",
+        score_column,
+        thresholds,
+        cohort_col,
+        subgroups,
+        sg.censor_threshold,
+        per_context,
     )
 
 
@@ -650,12 +699,20 @@ def plot_trend_intervention_outcome() -> HTML:
     Uses the configuration for comparison_time as the reference time for both plots.
     """
     sg = Seismogram()
+    print(
+        sg.outcome,
+        sg.intervention,
+        sg.comparison_time or sg.predict_time,
+        sg.selected_cohort[0],
+        sg.selected_cohort[1],
+        sg.censor_threshold,
+    )
     return _plot_trend_intervention_outcome(
         sg.dataframe,
         sg.entity_keys,
-        sg.comparison_time or sg.predict_time,
         sg.outcome,
         sg.intervention,
+        sg.comparison_time or sg.predict_time,
         sg.selected_cohort[0],
         sg.selected_cohort[1],
         sg.censor_threshold,
@@ -663,12 +720,54 @@ def plot_trend_intervention_outcome() -> HTML:
 
 
 @disk_cached_html_segment
+@export
+def plot_intervention_outcome_timeseries(
+    score_col: str,
+    intervention: str,
+    reference_time_col: str,
+    cohort_col: str,
+    subgroups: list[str],
+    censor_threshold: int = 10,
+) -> HTML:
+    """
+    score_col : str
+        model score
+    intervention : str
+        intervention event time column
+    reference_time_col : str
+        reference time column for alignment
+    cohort_col : str
+        column name for the cohort to split on
+    subgroups : list[str]
+        values of interest in the cohort column
+    censor_threshold : int, optional
+        minimum rows to allow in a plot, by default 10
+
+    Returns
+    -------
+    HTML
+        Plot of two timeseries
+    """
+    sg = Seismogram()
+    return _plot_trend_intervention_outcome(
+        sg.dataframe,
+        sg.entity_keys,
+        score_col,
+        pdh.event_time(intervention),
+        reference_time_col,
+        cohort_col,
+        subgroups,
+        censor_threshold,
+    )
+
+
+@disk_cached_html_segment
 def _plot_trend_intervention_outcome(
     dataframe: pd.DataFrame,
     entity_keys: list[str],
-    reftime: str,
     outcome: str,
     intervention: str,
+    reftime: str,
     cohort_col: str,
     subgroups: list[str],
     censor_threshold: int = 10,
@@ -682,12 +781,12 @@ def _plot_trend_intervention_outcome(
         data source
     entity_keys : list[str]
         columns to use for aggregation
-    reftime : str
-        reference time column for alignment
     outcome : str
         model score
     intervention : str
         intervention event time column
+    reftime : str
+        reference time column for alignment
     cohort_col : str
         column name for the cohort to split on
     subgroups : list[str]

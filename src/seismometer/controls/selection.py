@@ -39,7 +39,7 @@ class SelectionListWidget(ValueWidget, VBox):
                 tooltip=str(option),
                 disabled=False,
                 button_style="",
-                layout=Layout(flex="1 0"),
+                layout=Layout(flex="1 0 auto"),
             )
             sub_toggle.observe(self._on_button_change, "value")
             self.buttons.append(sub_toggle)
@@ -135,7 +135,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             self.title_box,
             Box(
                 children=[self.selection_widgets[key] for key in self.selection_widgets],
-                layout=Layout(display="flex", flex_flow="row wrap", align_items="flex-start"),
+                layout=Layout(display="flex", flex_flow="row wrap", align_items="flex-start", grid_gap="20px"),
             ),
         ]
         # self.layout = Layout(width="max-content")
