@@ -387,8 +387,7 @@ def _plot_leadtime_enc(
     subgroups: list[any],
     max_hours: int,
     x_label: str,
-    censor_threshold,
-    int=10,
+    censor_threshold: int = 10,
 ) -> HTML:
     """
     HTML Plot of time between prediction and target event.
