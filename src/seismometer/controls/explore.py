@@ -350,7 +350,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        thresholds = {"Leadtime Threshold": min(sg.thresholds)}
+        thresholds = {"Score Threshold": min(sg.thresholds)}
         super().__init__(
             "Leadtime Analysis", sg.available_cohort_groups, sg.target_cols, sg.output_list, thresholds=thresholds
         )
@@ -358,8 +358,6 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
     def update_plot(self):
         from seismometer._api import plot_cohort_lead_time
 
-        if self.show_code.value:
-            display(self.plot_code())
         display(
             plot_cohort_lead_time(
                 self.cohort_list.value[0],
@@ -369,6 +367,8 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
                 self.model_options.thresholds,
             )
         )
+        if self.show_code.value:
+            display(self.plot_code())
 
     def plot_code(self):
         args = ", ".join(
@@ -519,7 +519,7 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
             reference_times.append(sg.comparison_time)
 
         super().__init__(
-            "Leadtime Analysis",
+            "Outcome / Intervention Analysis",
             sg.available_cohort_groups,
             sg.config.outcomes,
             sg.config.interventions,
@@ -529,8 +529,6 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
     def update_plot(self):
         from seismometer._api import plot_intervention_outcome_timeseries
 
-        if self.show_code.value:
-            display(self.plot_code())
         display(
             plot_intervention_outcome_timeseries(
                 self.model_options.outcome,
@@ -540,6 +538,8 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
                 self.cohort_list.value[1],
             )
         )
+        if self.show_code.value:
+            display(self.plot_code())
 
     def plot_code(self):
         args = ", ".join(
