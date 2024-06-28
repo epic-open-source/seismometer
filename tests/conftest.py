@@ -1,6 +1,7 @@
 import os
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 from pytest import fixture
 
@@ -19,7 +20,7 @@ def tmp_as_current(tmp_path):
 
 
 @contextmanager
-def working_dir_as(path: Path) -> None:
+def working_dir_as(path: Path) -> Generator:
     """
     Temporarily changes the current working directory
     Useful for testing when the model root is assumed

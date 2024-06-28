@@ -124,7 +124,7 @@ def _one_event(
 
 def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.DataFrame:
     """
-    Infers a 0-value for event columns that have no label or time value.
+    Infers boolean label for event columns that have no label, based on existence of time value.
     In the context of a merge_window event, a prediction-row does not have any documentation of an event and is assumed
     to have a negative (0) label.
 
@@ -145,7 +145,6 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.Da
     if label_col not in dataframe.columns or time_col not in dataframe.columns:
         return dataframe
 
-    # where KEEPS true, and replaces false with other
     try:  # Assume numeric labels: edgecase Float and Int incompatibilities
         dataframe[label_col] = dataframe[label_col].astype(float)
     except BaseException:  # Leave as nonnumeric
