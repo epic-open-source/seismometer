@@ -699,14 +699,6 @@ def plot_trend_intervention_outcome() -> HTML:
     Uses the configuration for comparison_time as the reference time for both plots.
     """
     sg = Seismogram()
-    print(
-        sg.outcome,
-        sg.intervention,
-        sg.comparison_time or sg.predict_time,
-        sg.selected_cohort[0],
-        sg.selected_cohort[1],
-        sg.censor_threshold,
-    )
     return _plot_trend_intervention_outcome(
         sg.dataframe,
         sg.entity_keys,
