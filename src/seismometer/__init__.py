@@ -16,6 +16,7 @@ def run_startup(
     events_frame: Optional[pd.DataFrame] = None,
     definitions: Optional[dict] = None,
     log_level: int = logging.WARN,
+    reset: bool = False,
 ):
     """
     Runs the required startup for instantiating seismometer.
@@ -38,6 +39,8 @@ def run_startup(
         By default, when not specified here, these data will be loaded based on conifguration.
     log_level : logging._Level, optional
         The log level to set. by default, logging.WARN.
+    reset : bool, optional
+        A flag to completely reset the Seismogram instance, by default False.
     """
     import importlib
 
@@ -51,6 +54,8 @@ def run_startup(
     logger.setLevel(log_level)
     logger.info(f"seismometer version {__version__} starting")
 
+    if reset:
+        Seismogram.kill()
     sg = Seismogram(config_path, output_path, definitions=definitions)
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
