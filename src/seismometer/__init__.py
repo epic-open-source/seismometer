@@ -40,7 +40,7 @@ def run_startup(
     log_level : logging._Level, optional
         The log level to set. by default, logging.WARN.
     reset : bool, optional
-        A flag to completely reset the Seismogram instance, by default False.
+        A flag when True, will reset the Seismogram instance before loading configuration and data, by default False.
     """
     import importlib
 

@@ -17,7 +17,8 @@ def remove_default_handler(logger: Optional[logging.Logger] = None) -> None:
     Parameters
     ----------
     logger : Optional[Logger], optional
-        descriptor of the logger do modify, by default None
+        Descriptor of the logger do modify, by default None.
+        When None, the root logger is modified.
     """
     logger = logger or logging.getLogger()
     while logger.hasHandlers():
