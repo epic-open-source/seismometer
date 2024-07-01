@@ -1,5 +1,6 @@
 import datetime
 import logging
+from typing import Optional
 
 
 def set_default_logger_config() -> None:
@@ -9,13 +10,18 @@ def set_default_logger_config() -> None:
     logging.basicConfig()
 
 
-def remove_default_log_handler() -> None:
+def remove_default_handler(logger: Optional[logging.Logger] = None) -> None:
     """
-    Removes the default logging handlers.
+    Removes the default logging handler.
+
+    Parameters
+    ----------
+    logger : Optional[Logger], optional
+        descriptor of the logger do modify, by default None
     """
-    root_log = logging.getLogger()
-    while root_log.hasHandlers():
-        root_log.removeHandler(root_log.handlers[0])
+    logger = logger or logging.getLogger()
+    while logger.hasHandlers():
+        logger.removeHandler(logger.handlers[0])
 
 
 def add_log_formatter(logger: logging.Logger):
@@ -27,7 +33,10 @@ def add_log_formatter(logger: logging.Logger):
     logger : logging.Logger
         The logger to add formatting to.
     """
-    remove_default_log_handler()
+    # Remove root-handler / default
+    remove_default_handler()
+    # Remove default handler for seismometer - make safe to call multiple times
+    remove_default_handler(logger)
 
     handler = logging.StreamHandler()
     formatter = TimeFormatter()
