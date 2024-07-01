@@ -458,7 +458,7 @@ def _plot_leadtime_enc(
 
     title = f'Lead Time from {score.replace("_", " ")} to {(target_zero).replace("_", " ")}'
     rows = summary_data[cohort_col].nunique()
-    svg1 = plot.leadtime_whiskers(summary_data, x_label, cohort_col, xmax=max_hours, figsize=(9, 1 + rows))
+    svg1 = plot.leadtime_violin(summary_data, x_label, cohort_col, xmax=max_hours, figsize=(9, 1 + rows))
 
     return HTML(f"""<div style="width: max-content;"><h3 style="text-align: center;">{title}</h3>{svg1.data}</div>""")
 
