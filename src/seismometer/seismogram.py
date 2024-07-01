@@ -39,8 +39,6 @@ class Seismogram(object, metaclass=Singleton):
 
     """
 
-    # entity_keys: list[str] = ['Entity Id', 'Entity Dat']
-
     entity_keys: list[str]
     """ The one or two columns used as identifiers for data. """
     predict_time: str
@@ -77,6 +75,7 @@ class Seismogram(object, metaclass=Singleton):
         else:
             config_path = Path(config_path)
 
+        self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
         self.config_path = config_path
 
@@ -106,7 +105,7 @@ class Seismogram(object, metaclass=Singleton):
         reset : bool, optional
             Flag when set to true will overwrite existing dataframe, by default False
         """
-        if self.dataframe and not reset:
+        if self.dataframe is not None and not reset:
             logger.debug("Data already loaded; pass reset=True to clear data and re-evaluate.")
             return
 
