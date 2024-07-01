@@ -71,7 +71,7 @@ class TestSeismogramLoader:
         input = "INPUT"
 
         loader = undertest.SeismogramLoader(fake_config)
-        with caplog.at_level("INFO"):
+        with caplog.at_level("INFO", logger="seismometer"):
             _ = loader.load_data(input)
 
         assert "Configuration speficies" in caplog.text

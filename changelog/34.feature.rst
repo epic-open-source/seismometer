@@ -1,0 +1,1 @@
+* seismometer.run_startup() can now accept preloaded prediction and event dataframes that take precendence over loading from configuration

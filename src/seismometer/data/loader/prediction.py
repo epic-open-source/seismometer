@@ -53,6 +53,7 @@ def _log_column_mismatch(actual_columns: list[str], desired_columns: list[str], 
     """Logs warnings if the actual columns and desired columns are a mismatch."""
     if len(actual_columns) == len(desired_columns):
         return
+
     logger.warning(
         "Not all requested columns are present. " + f"Missing columns are {', '.join(desired_columns-present_columns)}"
     )

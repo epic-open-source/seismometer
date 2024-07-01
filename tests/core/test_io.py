@@ -188,7 +188,7 @@ def test_write_new_file_in_nonexistent_directory(tmp_as_current):
 def test_write_logs_file_written(tmp_as_current, caplog):
     file = Path("new_file.txt")
 
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.INFO, logger="seismometer"):
         undertest._write(lambda content, fo: fo.write(content), "test content", file, overwrite=False)
 
     assert f"File written: {file.resolve()}" in caplog.text
@@ -227,7 +227,7 @@ class TestResolveFile:
         filename = "new_file"
         expected = Path("output/attr") / "age1_0-3_0-self+strip" / filename
 
-        with caplog.at_level(30):
+        with caplog.at_level(30, logger="seismometer"):
             _ = undertest.resolve_filename("new_file", attribute, subgroups)
 
         assert not caplog.text
@@ -239,7 +239,7 @@ class TestResolveFile:
         filename = "new_file"
         expected = Path("output/attr") / "age1_0-3_0-self+strip" / filename
 
-        with caplog.at_level(30):
+        with caplog.at_level(30, logger="seismometer"):
             _ = undertest.resolve_filename("new_file", attribute, subgroups, create=False)
 
         assert "No directory" in caplog.text
@@ -252,7 +252,7 @@ class TestResolveFile:
         expected = Path("output/attr") / "gg" / filename
 
         expected.parent.mkdir(parents=True, exist_ok=False)
-        with caplog.at_level(30):
+        with caplog.at_level(30, logger="seismometer"):
             _ = undertest.resolve_filename("new_file", attribute, subgroups, create=False)
 
         assert not caplog.text

@@ -140,7 +140,7 @@ class TestPredictionLoad:
         config = setup_fn()
         config.features = desired_columns
 
-        with caplog.at_level(log_level):
+        with caplog.at_level(log_level, logger="seismometer"):
             _ = load_fn(config)
 
         assert ("Not all requested columns are present" in caplog.text) == warning_present

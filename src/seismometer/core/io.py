@@ -12,6 +12,8 @@ import yaml
 
 Pathlike = str | Path
 
+logger = logging.getLogger("seismometer")
+
 
 def slugify(value: str) -> str:
     """
@@ -108,7 +110,7 @@ def resolve_filename(
     # Create pre-emptively
     if not basedir.is_dir():
         if not create:
-            logging.warning(f"No directory found for group: {basedir}")
+            logger.warning(f"No directory found for group: {basedir}")
         else:
             basedir.mkdir(parents=True, exist_ok=True)
     return basedir / filename
@@ -317,4 +319,4 @@ def _write(writer: Callable[[Any, "fileobject"], None], content: Any, file: Path
 
     with open(file, "w") as fo:
         writer(content, fo)
-    logging.info(f"File written: {file.resolve()}")
+    logger.info(f"File written: {file.resolve()}")

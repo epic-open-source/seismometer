@@ -39,8 +39,6 @@ class Seismogram(object, metaclass=Singleton):
 
     """
 
-    # entity_keys: list[str] = ['Entity Id', 'Entity Dat']
-
     entity_keys: list[str]
     """ The one or two columns used as identifiers for data. """
     predict_time: str
@@ -50,7 +48,12 @@ class Seismogram(object, metaclass=Singleton):
     output_list: list[str]
     """ The list of columns representing model outputs."""
 
-    def __init__(self, config_path: Optional[str | Path] = None, output_path: Optional[str | Path] = None):
+    def __init__(
+        self,
+        config_path: Optional[str | Path] = None,
+        output_path: Optional[str | Path] = None,
+        definitions: Optional[dict] = None,
+    ):
         """
         Constructor for Seismogram, which can only be instantiated once.
 
@@ -63,6 +66,8 @@ class Seismogram(object, metaclass=Singleton):
         output_path : str or Path, optional
             Override location to place resulting data and report files.
             Defaults to the config.yml info_dir, and then the notebook's output directory.
+        definitions : dict, optional
+            Additional definitions to be used instead of loading based on configuration, by default None.
 
         """
         if config_path is None:
@@ -70,16 +75,40 @@ class Seismogram(object, metaclass=Singleton):
         else:
             config_path = Path(config_path)
 
+        self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
         self.config_path = config_path
 
-        self.load_config(config_path)
+        self.load_config(config_path, definitions=definitions)
 
         self.config.set_output(output_path)
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
         self.dataloader = loader_factory(self.config)
 
-    def load_data(self, predictions=None, events=None):
+    def load_data(
+        self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
+    ):
+        """
+        Loads the seismogram data.
+
+        Uses the passed in frames if they are specified, otherwise uses configuration to load data.
+        If data is already loaded, does not change state unless reset is true.
+
+        Parameters
+        ----------
+        predictions : pd.DataFrame, optional
+            The fully prepared predictions dataframe, by default None.
+            Uses this when specified, otherwise loads based on configuration.
+        events : pd.DataFrame, optional
+            The pre-loaded events dataframe, by default None.
+            Uses this when specified, otherwise loads based on configuration.
+        reset : bool, optional
+            Flag when set to true will overwrite existing dataframe, by default False
+        """
+        if self.dataframe is not None and not reset:
+            logger.debug("Data already loaded; pass reset=True to clear data and re-evaluate.")
+            return
+
         self._load_metadata()
 
         self.dataframe = self.dataloader.load_data(predictions, events)
@@ -273,8 +302,19 @@ class Seismogram(object, metaclass=Singleton):
     # endregion
 
     # region initialization and preprocessing (this region knows about config)
-    def load_config(self, config_path: Path):
-        self.config = ConfigProvider(config_path)
+    def load_config(self, config_path: Path, definitions: Optional[dict] = None):
+        """
+        Loads the base configuration and alerting congfiguration
+
+        Parameters
+        ----------
+        config_path : Path
+            The location of the main configuration file.
+        definitions : Optional[dict], optional
+            An optional dictionary containing both events and predictions lists, by default None.
+            If not passed, these will be loaded based on configuration.
+        """
+        self.config = ConfigProvider(config_path, definitions=definitions)
         self.alert_config = AlertConfigProvider(config_path)
 
         if len(self.config.cohorts) == 0:

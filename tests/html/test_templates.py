@@ -29,7 +29,7 @@ def cohort_summaries_template(res):
 
 class Test_Templates:
     def test_nonexistent_template(self, caplog):
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
             undertest.render_into_template("unknown")
         assert "HTML template unknown not found" in caplog.text
 

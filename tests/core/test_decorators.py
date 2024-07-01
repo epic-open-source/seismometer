@@ -8,11 +8,14 @@ import pytest
 from seismometer.core.decorators import DiskCachedFunction, export
 
 
-def foo(arg1, kwarg1=None):
-    if kwarg1 is None:
-        return arg1 + 1
-    else:
-        return kwarg1 + 1
+def get_test_function():
+    def foo(arg1, kwarg1=None):
+        if kwarg1 is None:
+            return arg1 + 1
+        else:
+            return kwarg1 + 1
+
+    return foo
 
 
 class Test_Export:
@@ -26,14 +29,15 @@ class Test_Export:
         global __all__
         __all__ = []
 
-        new_fn = export(foo)
+        test_fn = get_test_function()
+        new_fn = export(test_fn)
 
         assert new_fn(1) == 2
         assert new_fn(1, 5) == 6
         assert __all__ == ["foo"]
 
         with pytest.raises(ImportError):
-            export(foo)
+            export(test_fn)
 
     def test_mod_none(self):
         """
@@ -45,8 +49,9 @@ class Test_Export:
         global __all__
         __all__ = []
 
-        foo.__module__ = None
-        new_fn = export(foo)
+        test_fn = get_test_function()
+        test_fn.__module__ = None
+        new_fn = export(test_fn)
 
         assert new_fn(1) == 2
         assert new_fn(1, 5) == 6

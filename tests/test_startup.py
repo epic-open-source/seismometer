@@ -10,7 +10,7 @@ from seismometer.configuration import ConfigProvider
 from seismometer.seismogram import Seismogram
 
 
-def fake_load_config(self, *args):
+def fake_load_config(self, *args, definitions=None):
     mock_config = Mock(autospec=ConfigProvider)
     mock_config.output_dir.return_value
     self.config = mock_config
@@ -19,7 +19,7 @@ def fake_load_config(self, *args):
 
 
 # TODO: update this to create testing Loader and have factory return it
-def fake_load_data(self, *args):
+def fake_load_data(self, predictions=None, events=None, reset=False):
     self.dataframe = pd.DataFrame()
 
 

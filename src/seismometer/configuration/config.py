@@ -37,6 +37,8 @@ class ConfigProvider:
         Specifies the template notebook name to use during building, by default None; it uses "template" from the
         primary config file.
         This is the template that will be used as a base for building the final notebook.
+    definitions : Optional[dict], optional
+        A dictionary of definitions to use instead of loading those specified by configuration, by default None.
 
     """
 
@@ -47,6 +49,7 @@ class ConfigProvider:
         info_dir: str | Path = None,
         data_dir: str | Path = None,
         template_notebook: Option = None,
+        definitions: dict = None,
     ):
         self._config: OtherInfo = None
         self._usage: DataUsage = None
@@ -54,6 +57,10 @@ class ConfigProvider:
         self._events: EventDictionary = None
         self._output_dir: Path = None
         self._output_notebook: str = ""
+
+        if definitions is not None:
+            self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
+            self._event_defs = EventDictionary(events=definitions.pop("events", None))
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir)
