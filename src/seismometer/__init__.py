@@ -33,6 +33,9 @@ def run_startup(
     events_frame : Optional[pd.DataFrame], optional
         An optional DataFrame containing the fully loaded events data, by default None.
         By default, when not specified here, these data will be loaded based on conifguration.
+    definitions : Optional[dict], optional
+        A dictionary of definitions to use instead of loading those specified by configuration, by default None.
+        By default, when not specified here, these data will be loaded based on conifguration.
     log_level : logging._Level, optional
         The log level to set. by default, logging.WARN.
     """
