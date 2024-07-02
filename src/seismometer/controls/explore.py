@@ -6,8 +6,12 @@ from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, Va
 
 from seismometer.controls.selection import DisjointSelectionListsWidget, MultiSelectionListWidget
 from seismometer.controls.thresholds import MonotonicPercentSliderListWidget
+from seismometer.core.decorators import export
 
 logger = logging.getLogger("seismometer")
+
+UPDATE_PLOTS = "Update Plots"
+UPDATING_PLOTS = "Updating ..."
 
 
 class ExplorationModelEvaluationWidget(VBox):
@@ -61,7 +65,7 @@ class ExplorationModelEvaluationWidget(VBox):
             indent=False,
             tooltip="Show the code used to generate the plot",
         )
-        self.plot_button = Button(description="Update Plots", button_style="primary", width="max-content")
+        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
         plot_controls = Box(layout=Layout(align_items="flex-start"), children=[self.plot_button, self.show_code])
         super().__init__(children=[title, controls, plot_controls, self.center], layout=layout)
 
@@ -70,9 +74,14 @@ class ExplorationModelEvaluationWidget(VBox):
         self._on_plot_button_click()
 
     def _on_plot_button_click(self, button=None):
+        self.plot_button.description = UPDATING_PLOTS
+        self.plot_button.disabled = True
         self.center.clear_output()
         with self.center:
             self.update_plot()
+
+        self.plot_button.description = UPDATE_PLOTS
+        self.plot_button.disabled = False
 
     def update_plot(self):
         raise NotImplementedError("Subclasses must implement this method")
@@ -131,7 +140,7 @@ class ExplorationCohortSubclassEvaluationWidget(VBox):
             indent=False,
             tooltip="Show the code used to generate the plot",
         )
-        self.plot_button = Button(description="Update Plots", button_style="primary", width="max-content")
+        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
         plot_controls = Box(layout=Layout(align_items="flex-start"), children=[self.plot_button, self.show_code])
         super().__init__(children=[title, controls, plot_controls, self.center], layout=layout)
 
@@ -140,9 +149,14 @@ class ExplorationCohortSubclassEvaluationWidget(VBox):
         self._on_plot_button_click()
 
     def _on_plot_button_click(self, button=None):
+        self.plot_button.description = UPDATING_PLOTS
+        self.plot_button.disabled = True
         self.center.clear_output()
         with self.center:
             self.update_plot()
+
+        self.plot_button.description = UPDATE_PLOTS
+        self.plot_button.disabled = False
 
     def update_plot(self):
         raise NotImplementedError("Subclasses must implement this method")
@@ -197,6 +211,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
             return self.per_context_checkbox.value
 
 
+@export
 class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
     """
     A widget for exploring the model performance of a cohort.
@@ -218,7 +233,7 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        thresholds = {f"Threshold {k}": v for k, v in enumerate(sg.thresholds, 1)}
+        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds), 1)}
         super().__init__(
             "Model Performance",
             sg.available_cohort_groups,
@@ -262,6 +277,7 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
         return help_text
 
 
+@export
 class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
     """
     A widget for exploring the model performance of a cohort.
@@ -283,7 +299,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        thresholds = {f"Threshold {k}": v for k, v in enumerate(sg.thresholds, 1)}
+        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds), 1)}
         super().__init__(
             "Cohort Group Performance",
             sg.available_cohort_groups,
@@ -323,12 +339,76 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
             ]
         )
         help_text = HTML(
-            f"Plot code: <code>sm.plot_model_evaluation({args}, per_context={self.model_options.group_scores})</code>"
+            f"Plot code: <code>sm.plot_cohort_evaluation({args}, per_context={self.model_options.group_scores})</code>"
         )
         help_text.add_class("jp-RenderedHTMLCommon")
         return help_text
 
 
+@export
+class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        A widget for exploring the results of a cohort.
+
+        Parameters
+        ----------
+        cohort : seismometer.data.cohort.Cohort
+            The cohort to explore.
+        plot_fn : Callable
+            A function that takes a cohort and returns a plot.
+        filter_fn : Optional[Callable], optional
+            A function that takes a cohort and returns a filter, by default None.
+        """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        thresholds = {}
+        super().__init__(
+            "Cohort Group Score Histograms",
+            sg.available_cohort_groups,
+            sg.target_cols,
+            sg.output_list,
+            thresholds=thresholds,
+            per_context=False,
+        )
+
+    def update_plot(self):
+        from seismometer._api import plot_cohort_group_histograms
+
+        display(
+            plot_cohort_group_histograms(
+                self.cohort_list.value[0],
+                self.cohort_list.value[1],
+                self.model_options.target,
+                self.model_options.score,
+            )
+        )
+        if self.show_code.value:
+            display(self.plot_code())
+
+    def plot_code(self):
+        args = ", ".join(
+            [
+                repr(x)
+                for x in [
+                    self.cohort_list.value[0],
+                    self.cohort_list.value[1],
+                    self.model_options.target,
+                    self.model_options.score,
+                ]
+            ]
+        )
+        help_text = HTML(f"Plot code: <code>sm.plot_cohort_group_histograms({args})</code>")
+        help_text.add_class("jp-RenderedHTMLCommon")
+        return help_text
+
+
+@export
 class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
     """
     A widget for exploring the model performance of a cohort.
@@ -364,7 +444,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
                 self.cohort_list.value[1],
                 self.model_options.target,
                 self.model_options.score,
-                self.model_options.thresholds,
+                self.model_options.thresholds[0],
             )
         )
         if self.show_code.value:
@@ -379,7 +459,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
                     self.cohort_list.value[1],
                     self.model_options.target,
                     self.model_options.score,
-                    self.model_options.thresholds,
+                    self.model_options.thresholds[0],
                 ]
             ]
         )
@@ -476,7 +556,7 @@ class ExplorationCohortInterventionEvaluationWidget(VBox):
             indent=False,
             tooltip="Show the code used to generate the plot",
         )
-        self.plot_button = Button(description="Update Plots", button_style="primary", width="max-content")
+        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
         plot_controls = Box(layout=Layout(align_items="flex-start"), children=[self.plot_button, self.show_code])
         super().__init__(children=[title, controls, plot_controls, self.center], layout=layout)
 
@@ -485,14 +565,20 @@ class ExplorationCohortInterventionEvaluationWidget(VBox):
         self._on_plot_button_click()
 
     def _on_plot_button_click(self, button=None):
+        self.plot_button.description = UPDATING_PLOTS
+        self.plot_button.disabled = True
         self.center.clear_output()
         with self.center:
             self.update_plot()
+
+        self.plot_button.description = UPDATE_PLOTS
+        self.plot_button.disabled = False
 
     def update_plot(self):
         raise NotImplementedError("Subclasses must implement this method")
 
 
+@export
 class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidget):
     """
     A widget for exploring the model performance of a cohort.

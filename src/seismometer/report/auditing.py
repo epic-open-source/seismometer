@@ -1,14 +1,22 @@
 import logging
 import warnings
+from io import StringIO
 
 import pandas as pd
+from IPython.display import HTML
 
 logger = logging.getLogger("seismometer")
 
 allowed_metrics = ["tpr", "tnr", "for", "fdr", "fpr", "fnr", "npv", "ppr", "precision", "pprev"]
 
 
-def display_fairness_audit(
+def to_html(summary_plot) -> HTML:
+    buffer = StringIO()
+    summary_plot.save(buffer, format="html")
+    return HTML(buffer.getvalue())
+
+
+def fairness_audit_as_html(
     df: pd.DataFrame,
     sensitive_groups: list[str],
     score_column: str,
@@ -16,7 +24,7 @@ def display_fairness_audit(
     score_threshold: float,
     metric_list: list[str],
     fairness_threshold: float,
-):
+) -> HTML:
     """
     Displays the Aequitas fairness audit for a set of sensitive groups and metrics
 
@@ -49,8 +57,6 @@ def display_fairness_audit(
         For example, a PPV of 0.5 for group A and a PPV of 0.75 (or 0.33) for group B would be considered a failure
         for any fairness_threshold < 1.5.
     """
-    from IPython.display import display
-
     try:
         from aequitas import Audit
         from aequitas.plot.commons.validators import METRICS_LIST
@@ -80,4 +86,4 @@ def display_fairness_audit(
     audit.audit()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
-        display(audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold))
+        return to_html(audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold))

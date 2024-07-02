@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from IPython.display import HTML, SVG, display
+from IPython.display import HTML, SVG
 from pandas.io.formats.style import Styler
 
 import seismometer.plot as plot
@@ -23,7 +23,7 @@ from .data.decorators import export
 from .data.filter import FilterRule
 from .data.timeseries import create_metric_timeseries
 from .html import template
-from .report.auditing import display_fairness_audit
+from .report.auditing import fairness_audit_as_html
 from .report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from .seismogram import Seismogram
 
@@ -147,8 +147,9 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     wrapper.display_report(inline)
 
 
+@disk_cached_html_segment
 @export
-def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1.25) -> None:
+def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1.25) -> HTML:
     """
     Displays the Aequitas fairness audit for a set of sensitive groups and metrics.
 
@@ -180,7 +181,7 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
         [sg.target, sg.output] + sensitive_groups
     ]
 
-    display_fairness_audit(
+    return fairness_audit_as_html(
         df, sensitive_groups, sg.output, sg.target, sg.thresholds[0], metric_list, fairness_threshold
     )
 
@@ -265,13 +266,28 @@ def plot_cohort_hist():
     cohort_col = sg.selected_cohort[0]
     subgroups = sg.selected_cohort[1]
     censor_threshold = sg.censor_threshold
-    return _plot_cohort_hist(sg.data(), sg.target_event, sg.target, sg.output, cohort_col, subgroups, censor_threshold)
+    return _plot_cohort_hist(sg.data(), sg.target, sg.output, cohort_col, subgroups, censor_threshold)
+
+
+@disk_cached_html_segment
+@export
+def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_column: str, score_column: str) -> HTML:
+    sg = Seismogram()
+    target_column = pdh.event_value(target_column)
+    target_data = FilterRule.isin(target_column, (0, 1)).filter(sg.dataframe)
+    return _plot_cohort_hist(
+        target_data,
+        target_column,
+        score_column,
+        cohort_col,
+        subgroups,
+        sg.censor_threshold,
+    )
 
 
 @disk_cached_html_segment
 def _plot_cohort_hist(
     dataframe: pd.DataFrame,
-    target_event: str,
     target: str,
     output: str,
     cohort_col: str,
@@ -285,8 +301,6 @@ def _plot_cohort_hist(
     ----------
     dataframe : pd.DataFrame
         data source
-    target_event : str
-        event time for the target
     target : str
         event value for the target
     output : str
@@ -306,6 +320,7 @@ def _plot_cohort_hist(
 
     cData = get_cohort_data(dataframe, cohort_col, proba=output, true=target, splits=subgroups)
 
+    target_event = pdh.event_value(target)
     # filter by group size
     cCount = cData["cohort"].value_counts()
     good_groups = cCount.loc[cCount > censor_threshold].index
@@ -349,9 +364,10 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None, max_hours=8)
     target_event = pdh.event_value(target_event) or sg.target
     target_zero = pdh.event_time(target_event) or sg.time_zero
     threshold = sg.thresholds[0]
+    target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)
 
     return _plot_leadtime_enc(
-        sg.dataframe,
+        target_data,
         sg.entity_keys,
         target_event,
         target_zero,
@@ -369,20 +385,21 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None, max_hours=8)
 @disk_cached_html_segment
 @export
 def plot_cohort_lead_time(
-    cohort_col: str, subgroups: list[str], target_column: str, score_column: str, thresholds: list[float]
+    cohort_col: str, subgroups: list[str], target_column: str, score_column: str, threshold: float
 ) -> HTML:
     sg = Seismogram()
     x_label = "Lead Time (hours)"
     target_event = pdh.event_value(target_column)
     target_zero = pdh.event_time(target_column)
+    target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)
 
     return _plot_leadtime_enc(
-        sg.dataframe,
+        target_data,
         sg.entity_keys,
         target_event,
         target_zero,
         score_column,
-        min(thresholds),
+        threshold,
         sg.predict_time,
         cohort_col,
         subgroups,
@@ -490,7 +507,7 @@ def _plot_leadtime_enc(
 
 
 @export
-def cohort_evaluation(per_context_id=False):
+def cohort_evaluation(per_context_id=False) -> HTML:
     """Displays model performance metrics on cohort attribute across thresholds.
 
     Parameters
@@ -528,10 +545,12 @@ def plot_cohort_evaluation(
     per_context: bool = False,
 ) -> HTML:
     sg = Seismogram()
+    target_event = pdh.event_value(target_column)
+    target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)
     return _plot_cohort_evaluation(
-        sg.dataframe,
+        target_data,
         sg.entity_keys,
-        f"{target_column}_Value",
+        target_event,
         score_column,
         thresholds,
         cohort_col,
@@ -626,8 +645,10 @@ def plot_model_evaluation(
     sg = Seismogram()
     cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
     data = cohort_filter.filter(sg.dataframe)
+    target_event = pdh.event_value(target_column)
+    target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
     return _model_evaluation(
-        data, sg.entity_keys, target_column, f"{target_column}_Value", score_column, thresholds, per_context
+        target_data, sg.entity_keys, target_column, target_event, score_column, thresholds, per_context
     )
 
 
@@ -669,7 +690,8 @@ def _model_evaluation(
     data = pdh.event_score(dataframe, entity_keys, score=output, summary_method="max") if per_context_id else dataframe
 
     # Validate
-    data = data.loc[data[target].notna() & data[output].notna()]
+    requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(output)
+    data = requirements.filter(data)
     if len(data.index) == 0:
         logger.error(f"No rows have {target_event} and {output}.")
         return
@@ -967,8 +989,9 @@ def _get_info_dict(plot_help: bool) -> dict[str, str | list[str]]:
     return info_vals
 
 
+@disk_cached_html_segment
 @export
-def show_info(plot_help: bool = False):
+def show_info(plot_help: bool = False) -> HTML:
     """
     Displays information about the dataset
 
@@ -980,7 +1003,7 @@ def show_info(plot_help: bool = False):
 
     info_vals = _get_info_dict(plot_help)
 
-    display(template.render_info_template(info_vals))
+    return template.render_info_template(info_vals)
 
 
 def _style_cohort_summaries(df: pd.DataFrame, attribute: str) -> Styler:
@@ -1112,8 +1135,9 @@ def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str,
     return dfs
 
 
+@disk_cached_html_segment
 @export
-def show_cohort_summaries(by_target: bool = False, by_score: bool = False):
+def show_cohort_summaries(by_target: bool = False, by_score: bool = False) -> HTML:
     """
     Displays a table of selectable attributes and their associated counts.
     Use `by_target` and `by_score` to add additional summary levels to the tables.
@@ -1127,7 +1151,7 @@ def show_cohort_summaries(by_target: bool = False, by_score: bool = False):
     """
     dfs = _get_cohort_summary_dataframes(by_target, by_score)
 
-    display(template.render_cohort_summary_template(dfs))
+    return template.render_cohort_summary_template(dfs)
 
 
 # endregion
