@@ -229,9 +229,7 @@ def cohort_list():
 
     options = sg.available_cohort_groups
 
-    comparison_selections = MultiSelectionListWidget(
-        options, ghost_text="Select cohort groups", title="Available Cohorts"
-    )
+    comparison_selections = MultiSelectionListWidget(options, title="Available Cohorts", border=True)
     output = Output()
 
     def on_widget_value_changed(*args):

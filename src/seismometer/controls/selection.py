@@ -104,7 +104,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         values: Optional[dict[str, tuple]] = None,
         *,
         title: str = None,
-        ghost_text: str = None,
+        border: bool = False,
     ):
         """
         A table of buttons organized into columns by thier keys. Collapsable to save space.
@@ -117,12 +117,9 @@ class MultiSelectionListWidget(ValueWidget, VBox):
            Values that should be pre-selected, by default None.
         title : str, optional
             Name of the control, by default "".
-        ghost_text : str, optional
-            What to display when no buttons are selected, by default "Select".
         """
         super().__init__()
         self.title = title
-        self.ghost_text = ghost_text
         self.selection_widgets = {}
         if values is None:
             values = {key: () for key in options}
@@ -135,11 +132,17 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             self.title_box,
             Box(
                 children=[self.selection_widgets[key] for key in self.selection_widgets],
-                layout=Layout(display="flex", flex_flow="row wrap", align_items="flex-start", grid_gap="20px"),
+                layout=Layout(
+                    display="flex",
+                    flex_flow="row wrap",
+                    align_items="flex-start",
+                    grid_gap="20px",
+                    border="solid 1px var(--jp-border-color1)" if border else None,
+                    padding="var(--jp-cell-padding)" if border else None,
+                ),
             ),
         ]
-        # self.layout = Layout(width="max-content")
-        self.update_title_section(self.title, self.ghost_text)
+        self.update_title_section(self.title)
         self._on_subselection_change()
 
     def _on_subselection_change(self, change=None):
@@ -168,11 +171,9 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         else:
             return self.ghost_text
 
-    def update_title_section(self, title, subtitle):
+    def update_title_section(self, title):
         if title:
             self.title_box.value = f'<h4 style="text-align: left;  margin: 0px;">{title}</h4>'
-            if subtitle:
-                self.title_box.value += f"<span>{subtitle}</span>"
 
 
 class DisjointSelectionListsWidget(ValueWidget, VBox):

@@ -3,7 +3,7 @@ from functools import partial
 from typing import Optional
 
 from IPython.display import display
-from ipywidgets import Button, HBox, Output, VBox
+from ipywidgets import Box, Button, Layout, Output, VBox
 
 from seismometer.controls.selection import MultiSelectionListWidget
 from seismometer.data.filter import filter_rule_from_cohort_dictionary
@@ -21,7 +21,7 @@ class ComparisonReportGenerator:
 
         for side in ["Left", "Right"]:
             options = selections
-            widget = MultiSelectionListWidget(options=options, title=f"Select {side} Cohort")
+            widget = MultiSelectionListWidget(options=options, title=f"Select {side} Cohort", border=True)
             self.selectors.append(widget)
 
         self.output = Output()
@@ -29,7 +29,15 @@ class ComparisonReportGenerator:
         self.button.on_click(partial(self._generate_comparison_report, self))
 
     def show(self):
-        display(VBox(children=[HBox(children=self.selectors), self.button, self.output]))
+        display(
+            VBox(
+                children=[
+                    Box(children=self.selectors, layout=Layout(grid_gap="20px", align_times="flex-start")),
+                    self.button,
+                    self.output,
+                ]
+            )
+        )
 
     def nth_cohort(self, n: int):
         return self.selectors[n].value
