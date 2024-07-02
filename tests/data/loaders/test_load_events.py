@@ -68,7 +68,7 @@ class TestPredictionLoad:
         config = setup_fn()
         config.event_path = "not_a_file.parquet"
 
-        with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.DEBUG, logger="seismometer"):
             actual = load_fn(config)
         print(caplog.text)
         assert "No events found" in caplog.text
@@ -144,7 +144,7 @@ class TestMergeOntoPredictions:
             }
         )
 
-        with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.DEBUG, logger="seismometer"):
             _ = undertest.merge_onto_predictions(config, event_df, predictions)
 
         for pattern in str_inclusions:
@@ -166,7 +166,7 @@ class TestMergeOntoPredictions:
             }
         )
 
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
             _ = undertest.merge_onto_predictions(config, event_df, predictions)
 
         assert "Event a specified impute" in caplog.text

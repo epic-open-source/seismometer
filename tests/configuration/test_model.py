@@ -78,7 +78,7 @@ class TestDataUsage:
             undertest.Event(source="event2", display_name="Event 2"),
             undertest.Event(source="different source", display_name="Event 1"),
         ]
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
             data_usage = undertest.DataUsage(events=events)
         assert "Duplicate" in caplog.text
 
@@ -93,7 +93,7 @@ class TestDataUsage:
             undertest.Event(source="event1"),
             undertest.Event(source="event2", display_name="event1"),
         ]
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
             data_usage = undertest.DataUsage(events=events)
         assert "Duplicate" in caplog.text
 
@@ -107,7 +107,7 @@ class TestDataUsage:
             undertest.Cohort(source="cohort2", display_name="Cohort 2"),
             undertest.Cohort(source="different source", display_name="Cohort 1"),
         ]
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
             data_usage = undertest.DataUsage(cohorts=cohorts)
         assert "Duplicate" in caplog.text
 
@@ -123,7 +123,7 @@ class TestDataUsage:
             undertest.Cohort(source="cohort2", display_name="cohort1"),
         ]
 
-        with caplog.at_level(logging.WARNING):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
             data_usage = undertest.DataUsage(cohorts=cohorts)
         assert "Duplicate" in caplog.text
 
