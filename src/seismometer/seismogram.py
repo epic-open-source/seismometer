@@ -272,7 +272,7 @@ class Seismogram(object, metaclass=Singleton):
         if feature_counts > 0:
             self._feature_counts = feature_counts
         else:
-            self._feature_counts = f"~{max(0, len(self.dataframe.columns) - self.config.prediction_columns)}"
+            self._feature_counts = f"~{max(0, len(self.dataframe.columns) - len(self.config.prediction_columns))}"
 
         self._start_time = self.dataframe[self.predict_time].min()
         self._end_time = self.dataframe[self.predict_time].max()
