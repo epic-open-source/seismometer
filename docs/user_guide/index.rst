@@ -55,12 +55,12 @@ from the template Notebook, you can run the following:
 
    seismometer extract --template binary
 
-If the command is not run from the same directory as your ``config.yml`` file, use 
+If the command is not run from the same directory as your ``config.yml`` file, use
 
 .. code-block:: bash
 
    seismometer extract --template binary --config_yaml {path_to_base_config_file}
-   
+
 In the above example, we are using the ``binary`` template. Run
 
 .. code-block:: bash
@@ -69,7 +69,7 @@ In the above example, we are using the ``binary`` template. Run
 
 for more details on available templates and arguments.
 
-Update the markdown files with content relevant to your model or replace them with model-specific markdown files 
+Update the markdown files with content relevant to your model or replace them with model-specific markdown files
 provided by the model developer.
 
 After updating the markdown files with content for the model, generate a Notebook by running
@@ -321,7 +321,7 @@ Lead Time Analysis
 View the amount of time that a prediction provides before an event of
 interest. These analyses implicitly restrict data to the positive
 cohort, as that is expected to be the time the event occurs. The
-visualization uses standard box-and-whisker plots where each quartile of
+visualization uses standard violin plots where each quartile of
 the subpopulation has a vertical line, the inner box representing the
 inner quartiles with mean. When the cohorts overlap significantly, this
 indicates the model is providing equal opportunity for action to be
@@ -361,7 +361,7 @@ Create Configuration Files
 ==========================
 
 Configuration files provide the instructions and details needed to build
-the Notebook for your dataset. It can be provided in one or several YAML 
+the Notebook for your dataset. It can be provided in one or several YAML
 files. The configuration includes several sections:
 
 -  Definitions for the columns included in the predictions table,
@@ -370,8 +370,8 @@ files. The configuration includes several sections:
 
 -  Definitions of the events included in the events table.
 
--  Data usage definitions, including primary and secondary IDs, primary targets 
-   and output, relevant features, cohorts to allow for selection, abd outcome 
+-  Data usage definitions, including primary and secondary IDs, primary targets
+   and output, relevant features, cohorts to allow for selection, abd outcome
    events to show in the Notebook.
 
 -  Other information to define which files contain the information needed for the Notebook
@@ -421,10 +421,10 @@ Create Usage Configuration
 --------------------------
 
 The usage configuration helps ``seismometer`` understand what different elements
-in your dataset are `used` for and is defined in a single YAML file. Here you will label 
-identifier columns, score columns, features to load and analyze, features to use as cohorts, 
-and how to merge in events. Events are typically stored in a separate dataset so they can be 
-flexibly merged multiple times based on different definitions. Events typically encompass 
+in your dataset are `used` for and is defined in a single YAML file. Here you will label
+identifier columns, score columns, features to load and analyze, features to use as cohorts,
+and how to merge in events. Events are typically stored in a separate dataset so they can be
+flexibly merged multiple times based on different definitions. Events typically encompass
 targets, interventions, and outcomes associated with an entity.
 
 .. code-block:: yaml
@@ -479,13 +479,13 @@ Create Resource Configuration
 -----------------------------
 
 The resource config is used to define the location of other configuration files
-and the underlying datasets that will be loaded into ``seismometer``, and is 
+and the underlying datasets that will be loaded into ``seismometer``, and is
 defined in a single YAML file.
 
 .. code-block:: yaml
-   
+
    # config.yml
-   other_info: 
+   other_info:
       # Path to the file containing how to interpret data during run
       usage_config: "usage_config.yml"
       # Name of the template to use during generation
@@ -507,14 +507,13 @@ Create Metadata Configuration
 -----------------------------
 
 The metadata configuration is used to define two pieces of metadata about the model:
-the model's name and any configured thresholds. It is typically defined in a 
-``metadata.json`` file and can be referenced in ``config.yml`` using the 
+the model's name and any configured thresholds. It is typically defined in a
+``metadata.json`` file and can be referenced in ``config.yml`` using the
 ``metadata_path`` field.
 
 .. code-block:: json
-   
+
    {
       "modelname": "Risk of Readmission for Patients with Diabetes",
       "thresholds": [0.65, 0.3]
    }
-
