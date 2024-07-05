@@ -321,10 +321,9 @@ Lead Time Analysis
 View the amount of time that a prediction provides before an event of
 interest. These analyses implicitly restrict data to the positive
 cohort, as that is expected to be the time the event occurs. The
-visualization uses standard violin plots where each quartile of
-the subpopulation has a vertical line, the inner box representing the
-inner quartiles with mean. When the cohorts overlap significantly, this
-indicates the model is providing equal opportunity for action to be
+visualization uses standard violin plots where a density estimate is shown as a filled
+region and quartile and whiskers inside that area. When the cohorts overlap significantly,
+this indicates the model is providing equal opportunity for action to be
 taken based on the outputs across the cohort groups.
 
 .. image:: media/time_lead_analysis.png
