@@ -113,7 +113,15 @@ def leadtime_violin(
     """
 
     sns.violinplot(
-        data=data, x=x_col, y=data[y_col].cat.remove_unused_categories(), hue=data[y_col], ax=axis, saturation=1
+        data=data,
+        x=x_col,
+        y=data[y_col].cat.remove_unused_categories(),
+        hue=data[y_col],
+        ax=axis,
+        fill=True,
+        linewidth=0.1,
+        inner_kws=dict(box_width=10, whis_width=2, color="0.8"),
+        saturation=1,
     )
 
     if xmax is not None:
