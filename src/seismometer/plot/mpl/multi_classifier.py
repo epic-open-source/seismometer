@@ -84,7 +84,7 @@ def cohort_evaluation_vs_threshold(
 
 @export
 @model_plot
-def leadtime_whiskers(
+def leadtime_violin(
     data: pd.DataFrame,
     x_col: str,
     y_col: str,
@@ -94,7 +94,7 @@ def leadtime_whiskers(
     **kwargs,
 ) -> plt.Figure:
     """
-    Box and whisker plot of leadtime across cohorts.
+    Violin plot of leadtime across cohorts.
 
     Parameters
     ----------
@@ -112,7 +112,7 @@ def leadtime_whiskers(
         Size of the figure, by defaults to 9x6.
     """
 
-    sns.boxplot(
+    sns.violinplot(
         data=data, x=x_col, y=data[y_col].cat.remove_unused_categories(), hue=data[y_col], ax=axis, saturation=1
     )
 

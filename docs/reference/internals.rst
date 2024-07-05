@@ -53,7 +53,7 @@ Binary classification
    cohorts_vertical
    evaluation
    histogram_stacked
-   leadtime_whiskers
+   leadtime_violin
    metric_vs_threshold
    performance_metrics
    ppv_vs_sensitivity
