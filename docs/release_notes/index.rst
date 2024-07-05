@@ -27,6 +27,7 @@ Bugfixes
 
 - Fixes the header of sm.show_info() to start the table zebra stripe on the right row. (`#24 <https://github.com/epic-open-source/seismometer/issues/24>`__)
 - Updated the defaulting for `censor_threshold`` in `_plot_leadtime_enc` (`#35 <https://github.com/epic-open-source/seismometer/issues/35>`__)
+- Take len of column list for count  (`#42 <https://github.com/epic-open-source/seismometer/issues/42>`__)
 
 
 Improved Documentation
