@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from IPython.display import HTML, SVG
+from IPython.display import HTML, SVG, display
 from pandas.io.formats.style import Styler
 
 import seismometer.plot as plot
@@ -216,41 +216,62 @@ def cohort_selector():
 
 
 @export
-@display_cached_widget
 def cohort_list():
     """
     Displays an exhaustive list of available cohorts for analysis.
     """
     sg = Seismogram()
-    from ipywidgets import HBox, Output
+    from ipywidgets import Output, VBox
 
     from .controls.selection import MultiSelectionListWidget
-    from .data.filter import filter_rule_from_cohort_dictionary
 
     options = sg.available_cohort_groups
 
-    comparison_selections = MultiSelectionListWidget(options, title="Available Cohorts", border=True)
+    comparison_selections = MultiSelectionListWidget(options, title="Cohort")
     output = Output()
 
     def on_widget_value_changed(*args):
-        output.clear_output()
         with output:
-            if comparison_selections.value:
-                rule = filter_rule_from_cohort_dictionary(comparison_selections.value)
-                cohort_count = sum(rule.mask(sg.dataframe))
-                if cohort_count < 10:
-                    print("Selected Cohort is empty, or has fewer than 10 predictions.")
-                else:
-                    print(f"Selected Cohort has {sum(rule.mask(sg.dataframe))} predictions.")
-            else:
-                print(f"No Cohort Selected: {len(sg.dataframe)} predictions total.")
+            html = _cohort_list_details(comparison_selections.value)
+            output.clear_output()
+            display(html)
 
     comparison_selections.observe(on_widget_value_changed, "value")
 
     # get intial value
     on_widget_value_changed()
 
-    return HBox(children=[comparison_selections, output])
+    return VBox(children=[comparison_selections, output])
+
+
+@disk_cached_html_segment
+def _cohort_list_details(cohort_dict: dict[str, tuple]) -> HTML:
+    from .data.filter import filter_rule_from_cohort_dictionary
+
+    sg = Seismogram()
+    rule = filter_rule_from_cohort_dictionary(cohort_dict)
+    data = rule.filter(sg.dataframe)
+    cohort_count = data[sg.entity_keys[0]].nunique()
+    if cohort_count < sg.censor_threshold:
+        title = "Filtered Cohort"
+        error_message = f"Selection has fewer than {sg.censor_threshold} predictions."
+        return HTML(f"""<div style="width: max-content;"><h3>{title}</h3>{error_message}</div>""")
+
+    cfg = sg.config
+    target_cols = [pdh.event_value(x) for x in cfg.targets]
+    intervention_cols = [pdh.event_value(x) for x in cfg.interventions]
+    outcome_cols = [pdh.event_value(x) for x in cfg.outcomes]
+    groups = data[cfg.entity_keys + cfg.output_list + intervention_cols + outcome_cols + target_cols].groupby(
+        target_cols
+    )
+    aggregation = {cfg.entity_id: ["count", "nunique"]}
+    if len(cfg.context_id):
+        aggregation[cfg.context_id] = "nunique"
+    # add in other keys for aggreagtion
+    aggregation.update({k: "mean" for k in cfg.output_list + intervention_cols + outcome_cols})
+    title = "Summary"
+    html_table = groups.agg(aggregation).to_html()
+    return HTML(f"""<div style="width: max-content;"><h3>{title}</h3>{html_table}</div>""")
 
 
 # endregion
