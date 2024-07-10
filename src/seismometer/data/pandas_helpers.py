@@ -256,6 +256,18 @@ def event_time(event: str) -> str:
     return f"{event}_Time"
 
 
+def event_name(event: str) -> str:
+    """Converts an event column name into the the event name."""
+    if event is None:
+        return None
+    if event.endswith("_Time"):
+        return event[:-5]
+
+    if event.endswith("_Value"):
+        return event[:-6]
+    return event
+
+
 def valid_event(dataframe: pd.DataFrame, event: str) -> pd.DataFrame:
     """Filters a dataframe to valid predictions, where the event value has not set to -1."""
     return dataframe[dataframe[event_value(event)] >= 0]

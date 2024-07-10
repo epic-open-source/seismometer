@@ -253,9 +253,7 @@ def _cohort_list_details(cohort_dict: dict[str, tuple]) -> HTML:
     data = rule.filter(sg.dataframe)
     cohort_count = data[sg.entity_keys[0]].nunique()
     if cohort_count < sg.censor_threshold:
-        title = "Filtered Cohort"
-        error_message = f"Selection has fewer than {sg.censor_threshold} predictions."
-        return HTML(f"""<div style="width: max-content;"><h3>{title}</h3>{error_message}</div>""")
+        return template.render_censored_plot_message(sg.censor_threshold)
 
     cfg = sg.config
     target_cols = [pdh.event_value(x) for x in cfg.targets]
@@ -271,7 +269,7 @@ def _cohort_list_details(cohort_dict: dict[str, tuple]) -> HTML:
     aggregation.update({k: "mean" for k in cfg.output_list + intervention_cols + outcome_cols})
     title = "Summary"
     html_table = groups.agg(aggregation).to_html()
-    return HTML(f"""<div style="width: max-content;"><h3>{title}</h3>{html_table}</div>""")
+    return template.render_title_message(title, html_table)
 
 
 # endregion
@@ -339,23 +337,21 @@ def _plot_cohort_hist(
 
     cData = get_cohort_data(dataframe, cohort_col, proba=output, true=target, splits=subgroups)
 
-    target_event = pdh.event_value(target)
-    # filter by group size
+    # filter by groups by size
     cCount = cData["cohort"].value_counts()
     good_groups = cCount.loc[cCount > censor_threshold].index
     cData = cData.loc[cData["cohort"].isin(good_groups)]
 
     if len(cData.index) == 0:
-        logger.error(
-            "No groups were left uncensored; timeframe is too small in combination with frequency of "
-            + f"{target_event} and the number of cohorts"
-        )
-        return
+        return template.render_censored_plot_message(censor_threshold)
 
     bins = np.histogram_bin_edges(cData["pred"], bins=20)
-    svg1 = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
-    title = f"Predicted Probabilities by {cohort_col}"
-    return HTML(f"""<div style="width: max-content;"><h3 style="text-align: center;">{title}</h3>{svg1.data}</div>""")
+    try:
+        svg = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
+        title = f"Predicted Probabilities by {cohort_col}"
+        return template.render_title_with_image(title, svg)
+    except Exception as error:
+        return template.render_title_message("Error", f"Error: {error}")
 
 
 @export
@@ -509,20 +505,15 @@ def _plot_leadtime_enc(
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
 
     if len(summary_data.index) == 0:
-        logger.error(
-            "No groups were left uncensored; timeframe is too small "
-            + f"in combination with frequency of {target_event} and the number of cohorts"
-        )
-        return
+        return template.render_censored_plot_message(censor_threshold)
 
     # Truncate to minute but plot hour
     summary_data[x_label] = (summary_data[ref_time] - summary_data[target_zero]).dt.total_seconds() // 60 / 60
 
     title = f'Lead Time from {score.replace("_", " ")} to {(target_zero).replace("_", " ")}'
     rows = summary_data[cohort_col].nunique()
-    svg1 = plot.leadtime_violin(summary_data, x_label, cohort_col, xmax=max_hours, figsize=(9, 1 + rows))
-
-    return HTML(f"""<div style="width: max-content;"><h3 style="text-align: center;">{title}</h3>{svg1.data}</div>""")
+    svg = plot.leadtime_violin(summary_data, x_label, cohort_col, xmax=max_hours, figsize=(9, 1 + rows))
+    return template.render_title_with_image(title, svg)
 
 
 @export
@@ -628,13 +619,10 @@ def _plot_cohort_evaluation(
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
-        # Log instead of raise so can continue
-        logger.error(f"Insufficient data; likely censoring all cohorts with threshold of {censor_threshold}.")
-        return
-
-    svg1 = plot.cohort_evaluation_vs_threshold(plot_data, cohort_feature=cohort_col, highlight=thresholds)
+        return template.render_censored_plot_message(censor_threshold)
+    svg = plot.cohort_evaluation_vs_threshold(plot_data, cohort_feature=cohort_col, highlight=thresholds)
     title = f"Model Performance Metrics on {cohort_col} across Thresholds"
-    return HTML(f"""<div style="width: max-content;"><h3 style="text-align: center;">{title}</h3>{svg1.data}</div>""")
+    return template.render_title_with_image(title, svg)
 
 
 @export
@@ -667,7 +655,14 @@ def plot_model_evaluation(
     target_event = pdh.event_value(target_column)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
     return _model_evaluation(
-        target_data, sg.entity_keys, target_column, target_event, score_column, thresholds, per_context
+        target_data,
+        sg.entity_keys,
+        target_column,
+        target_event,
+        score_column,
+        thresholds,
+        sg.censor_threshold,
+        per_context,
     )
 
 
@@ -677,8 +672,9 @@ def _model_evaluation(
     entity_keys: list[str],
     target_event: str,
     target: str,
-    output: str,
+    score_col: str,
     thresholds: Optional[list[float]],
+    censor_threshold: int = 10,
     per_context_id: bool = False,
 ) -> HTML:
     """
@@ -694,10 +690,12 @@ def _model_evaluation(
         target event name
     target : str
         target column
-    output : str
+    score_col : str
         score column
     thresholds : Optional[list[float]]
         model thresholds
+    censor_threshold : int, optional
+        minimum rows to allow in a plot, by default 10
     per_context_id : bool, optional
         report only the max score for a given entity context, by default False
 
@@ -706,30 +704,31 @@ def _model_evaluation(
     HTML
         Plot of model evaluation metrics
     """
-    data = pdh.event_score(dataframe, entity_keys, score=output, summary_method="max") if per_context_id else dataframe
+    data = (
+        pdh.event_score(dataframe, entity_keys, score=score_col, summary_method="max") if per_context_id else dataframe
+    )
 
     # Validate
-    requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(output)
+    requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
     data = requirements.filter(data)
-    if len(data.index) == 0:
-        logger.error(f"No rows have {target_event} and {output}.")
-        return
+    if len(data.index) < censor_threshold:
+        return template.render_censored_plot_message(censor_threshold)
     if (lcount := data[target].nunique()) != 2:
-        logger.error(f"Evaluation Issue: Expected exactly two classes but found {lcount}")
-        return
-    stats = calculate_bin_stats(data[target], data[output])
-    ci_data = calculate_eval_ci(stats, data[target], data[output], conf=0.95)
+        return template.render_title_message(
+            "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
+        )
+    stats = calculate_bin_stats(data[target], data[score_col])
+    ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95)
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
-    svg1 = plot.evaluation(
+    svg = plot.evaluation(
         stats,
         ci_data=ci_data,
         truth=data[target],
-        output=data[output].values,
+        output=data[score_col].values,
         show_thresholds=True,
         highlight=thresholds,
     )
-
-    return HTML(f"""<div style="width: max-content;"><h3 style="text-align: center;">{title}</h3>{svg1.data}</div>""")
+    return template.render_title_with_image(title, svg)
 
 
 def plot_trend_intervention_outcome() -> HTML:
@@ -740,6 +739,8 @@ def plot_trend_intervention_outcome() -> HTML:
     Uses the configuration for comparison_time as the reference time for both plots.
     """
     sg = Seismogram()
+    if not sg.outcome or not sg.intervention:
+        return HTML("No outcome or intervention configured.")
     return _plot_trend_intervention_outcome(
         sg.dataframe,
         sg.entity_keys,
@@ -755,7 +756,7 @@ def plot_trend_intervention_outcome() -> HTML:
 @disk_cached_html_segment
 @export
 def plot_intervention_outcome_timeseries(
-    score_col: str,
+    outcome: str,
     intervention: str,
     reference_time_col: str,
     cohort_col: str,
@@ -763,8 +764,8 @@ def plot_intervention_outcome_timeseries(
     censor_threshold: int = 10,
 ) -> HTML:
     """
-    score_col : str
-        model score
+    outcome : str
+        outcome event time column
     intervention : str
         intervention event time column
     reference_time_col : str
@@ -785,8 +786,8 @@ def plot_intervention_outcome_timeseries(
     return _plot_trend_intervention_outcome(
         sg.dataframe,
         sg.entity_keys,
-        score_col,
-        pdh.event_time(intervention),
+        outcome,
+        intervention,
         reference_time_col,
         cohort_col,
         subgroups,
@@ -834,27 +835,11 @@ def _plot_trend_intervention_outcome(
     """
     time_bounds = (dataframe[reftime].min(), dataframe[reftime].max())  # Use the full time range
     show_legend = True
-
-    try:
-        outcome_col = pdh.event_value(outcome)
-        svg1 = _plot_ts_cohort(
-            dataframe,
-            entity_keys,
-            outcome_col,
-            cohort_col,
-            subgroups,
-            reftime=reftime,
-            time_bounds=time_bounds,
-            show_legend=show_legend,
-            censor_threshold=censor_threshold,
-        )
-        show_legend = False
-    except IndexError:
-        logger.warning("No outcome timeseries plotted; needs one event with configured usage of `outcome`.")
+    outcome_plot, intervention_plot = None, None
 
     try:
         intervention_col = pdh.event_value(intervention)
-        svg2 = _plot_ts_cohort(
+        intervention_svg = _plot_ts_cohort(
             dataframe,
             entity_keys,
             intervention_col,
@@ -866,14 +851,37 @@ def _plot_trend_intervention_outcome(
             show_legend=show_legend,
             censor_threshold=censor_threshold,
         )
+        intervention_plot = template.render_title_with_image("Intervention: " + intervention, intervention_svg)
+        show_legend = False
     except IndexError:
-        logger.warning(
-            "No intervention timeseries plotted; " "needs one event with configured usage of `intervention`."
+        intervention_plot = template.render_title_message(
+            "Missing Intervention", f"No intervention timeseries plotted; No events with name {intervention}."
         )
-    return HTML(
-        f"""<div style="width: max-content;"><h3 style="text-align: center;">Outcome</h3>{svg1.data}
-        <h3 style="text-align: center;">Intervention</h3>{svg2.data}</div>"""
-    )
+    except plot.CensorException:
+        intervention_plot = template.render_censored_plot_message(censor_threshold)
+
+    try:
+        outcome_col = pdh.event_value(outcome)
+        outcome_svg = _plot_ts_cohort(
+            dataframe,
+            entity_keys,
+            outcome_col,
+            cohort_col,
+            subgroups,
+            reftime=reftime,
+            time_bounds=time_bounds,
+            show_legend=show_legend,
+            censor_threshold=censor_threshold,
+        )
+        outcome_plot = template.render_title_with_image("Outcome: " + outcome, outcome_svg)
+    except IndexError:
+        outcome_plot = template.render_title_message(
+            "Missing Outcome", f"No outcome timeseries plotted; No events with name {outcome}."
+        )
+    except plot.CensorException:
+        outcome_plot = template.render_censored_plot_message(censor_threshold)
+
+    return HTML(outcome_plot.data + intervention_plot.data)
 
 
 def _plot_ts_cohort(
@@ -943,17 +951,15 @@ def _plot_ts_cohort(
     )
 
     if plotdata.empty:
-        logger.error(
-            "Insufficient data to plot; " + f"likely censoring all cohorts with threshold of {censor_threshold}."
-        )
-        return
+        # all groups have been censored.
+        return template.render_censored_plot_message(censor_threshold)
 
     counts = None
     if plot_counts:
         counts = plotdata.groupby([reftime, cohort_col]).count()
 
     if ylabel is None:
-        ylabel = event_col[:-6] if event_col.endswith("_Value") else event_col
+        ylabel = pdh.event_name(event_col)
     plotdata = plotdata.rename(columns={event_col: ylabel})
 
     # plot

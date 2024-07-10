@@ -173,9 +173,7 @@ class Seismogram(object, metaclass=Singleton):
 
     @target_event.setter
     def target_event(self, event: str):
-        if event.endswith("_Value"):
-            event = event[:-6]
-        self._target = event
+        self._target = pdh.event_name(event)
 
     @property
     def target_cols(self) -> list:
@@ -387,3 +385,9 @@ class Seismogram(object, metaclass=Singleton):
         return self.dataframe[event_time].notna() | neg_mask
 
     # endregion
+
+
+class CensorException(Exception):
+    """Exception raised when a cohort is censored."""
+
+    pass
