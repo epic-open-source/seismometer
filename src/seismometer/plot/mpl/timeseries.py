@@ -52,10 +52,6 @@ def compare_series(
     except TypeError:
         ax0 = axes
 
-    # from IPython.display import display
-    # display(plotdata.groupby(cohort_col).size().reset_index().rename(columns={0: "count"}))
-    # display(plotdata)
-
     with np.errstate(divide="ignore"):
         sns.lineplot(x=ref_str, y=disp_event, hue=cohort_col, data=plotdata, ax=ax0, legend=show_legend)
         if show_legend:

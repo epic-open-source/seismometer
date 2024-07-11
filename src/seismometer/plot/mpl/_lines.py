@@ -85,7 +85,7 @@ def reliability_plot(axis, mean_predicted, fraction_positive, label=None) -> Non
 
 def hist_stacked(axis, probabilities, labels, show_legend=True, bins=20) -> None:
     """Actual plot call and axis definition. Specifies 0-1.01 xlim. Has optional flag for legend."""
-    y, x, bars = axis.hist(probabilities, bins=bins, label=labels, stacked=True)
+    axis.hist(probabilities, bins=bins, label=labels, stacked=True)
     if show_legend:
         axis.legend(loc="lower right")
 

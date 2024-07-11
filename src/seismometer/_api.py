@@ -856,8 +856,6 @@ def _plot_trend_intervention_outcome(
         intervention_plot = template.render_title_message(
             "Missing Intervention", f"No intervention timeseries plotted; No events with name {intervention}."
         )
-    except plot.CensorException:
-        intervention_plot = template.render_censored_plot_message(censor_threshold)
 
     try:
         outcome_col = pdh.event_value(outcome)
@@ -877,8 +875,6 @@ def _plot_trend_intervention_outcome(
         outcome_plot = template.render_title_message(
             "Missing Outcome", f"No outcome timeseries plotted; No events with name {outcome}."
         )
-    except plot.CensorException:
-        outcome_plot = template.render_censored_plot_message(censor_threshold)
 
     return HTML(outcome_plot.data + intervention_plot.data)
 

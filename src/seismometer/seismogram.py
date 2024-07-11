@@ -385,9 +385,3 @@ class Seismogram(object, metaclass=Singleton):
         return self.dataframe[event_time].notna() | neg_mask
 
     # endregion
-
-
-class CensorException(Exception):
-    """Exception raised when a cohort is censored."""
-
-    pass

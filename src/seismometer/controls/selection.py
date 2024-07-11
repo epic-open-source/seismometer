@@ -116,7 +116,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         values : Optional[dict[str,tuple]], optional
            Values that should be pre-selected, by default None.
         title : str, optional
-            Name of the control, by default "".
+            Name of the control, by default None.
         """
         super().__init__()
         self.title = title
@@ -218,7 +218,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         self.dropdown = Dropdown(
             options=[key for key in values],
             value=value[0],
-            layout=Layout(width="max-content", min_width="var(--jp-widgets-inline-label-width)"),
+            layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))"),
         )
         self.dropdown.observe(self._on_selection_change, "value")
         self.selection_widgets = {}

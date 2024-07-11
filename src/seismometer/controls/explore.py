@@ -6,17 +6,19 @@ import traitlets
 from IPython.display import display
 from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, ValueWidget, VBox
 
-from seismometer.controls.selection import DisjointSelectionListsWidget, MultiSelectionListWidget
-from seismometer.controls.thresholds import MonotonicPercentSliderListWidget
 from seismometer.core.decorators import export
+
+from .controls.selection import DisjointSelectionListsWidget, MultiSelectionListWidget
+from .controls.thresholds import MonotonicPercentSliderListWidget
+from .syles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 
 logger = logging.getLogger("seismometer")
 
-UPDATE_PLOTS = "Update Plots"
-UPDATING_PLOTS = "Updating ..."
-
 
 class UpdatePlotWidget(Box):
+    UPDATE_PLOTS = "Update Plots"
+    UPDATING_PLOTS = "Updating ..."
+
     def __init__(self):
         self.code_checkbox = Checkbox(
             value=False,
@@ -43,16 +45,16 @@ class UpdatePlotWidget(Box):
     @disabled.setter
     def disabled(self, disabled: bool):
         if not disabled:
-            self.plot_button.description = UPDATE_PLOTS
+            self.plot_button.description = self.UPDATE_PLOTS
         self.plot_button.disabled = disabled
 
     def on_click(self, callback):
         @wraps(callback)
         def callback_wrapper(button):
-            button.description = UPDATING_PLOTS
+            button.description = self.UPDATING_PLOTS
             button.disabled = True
             callback(button)
-            button.description = UPDATE_PLOTS
+            button.description = self.UPDATE_PLOTS
 
         self.plot_button.on_click(callback_wrapper)
 
@@ -118,10 +120,10 @@ class ModelOptionsWidget(VBox, ValueWidget):
             options=target_names,
             value=target_names[0],
             description="Target Column",
-            style={"description_width": "120px"},
+            style=WIDE_LABEL_STYLE,
         )
         self.score_list = Dropdown(
-            options=score_names, value=score_names[0], description="Score Column", style={"description_width": "120px"}
+            options=score_names, value=score_names[0], description="Score Column", style=WIDE_LABEL_STYLE
         )
 
         self.target_list.observe(self._on_value_change, "value")
@@ -143,7 +145,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
                 description="combine scores",
                 disabled=False,
                 tooltip="Combine scores by taking the maximum score in the target window",
-                style={"description_width": "120px"},
+                style=WIDE_LABEL_STYLE,
             )
             children.append(self.per_context_checkbox)
             self.per_context_checkbox.observe(self._on_value_change, "value")
@@ -198,9 +200,7 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
         self.cohort_list.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
 
-        super().__init__(
-            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
-        )
+        super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -245,9 +245,7 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
         self.cohort_list.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
 
-        super().__init__(
-            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
-        )
+        super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -410,7 +408,7 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
             ]
         )
         help_text = HTML(
-            f"Plot code: <code>sm.plot_model_evaluation({args}, per_context={self.model_options.group_scores})</code>"
+            f"Plot code: <code>sm.plot_model_evaluation({args}, per_context={self.option_widget.group_scores})</code>"
         )
         help_text.add_class("jp-RenderedHTMLCommon")
         return help_text
@@ -670,9 +668,7 @@ class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
         self.cohort_list.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
 
-        super().__init__(
-            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
-        )
+        super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
 
     def _on_value_change(self, change=None):
         self.value = {
