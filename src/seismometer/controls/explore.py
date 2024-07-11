@@ -1,6 +1,8 @@
 import logging
+from functools import wraps
 from typing import Any
 
+import traitlets
 from IPython.display import display
 from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, ValueWidget, VBox
 
@@ -14,7 +16,271 @@ UPDATE_PLOTS = "Update Plots"
 UPDATING_PLOTS = "Updating ..."
 
 
-class ExplorationModelEvaluationWidget(VBox):
+class UpdatePlotWidget(Box):
+    def __init__(self):
+        self.code_checkbox = Checkbox(
+            value=False,
+            description="show code",
+            disabled=False,
+            indent=False,
+            tooltip="Show the code used to generate the plot",
+            layout=Layout(margin="var(--jp-widgets-margin) var(--jp-widgets-margin) var(--jp-widgets-margin) 10px;"),
+        )
+
+        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
+        layout = Layout(align_items="flex-start")
+        children = [self.plot_button, self.code_checkbox]
+        super().__init__(layout=layout, children=children)
+
+    @property
+    def show_code(self):
+        return self.code_checkbox.value
+
+    @property
+    def disabled(self) -> bool:
+        return self.plot_button.disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        if not disabled:
+            self.plot_button.description = UPDATE_PLOTS
+        self.plot_button.disabled = disabled
+
+    def on_click(self, callback):
+        @wraps(callback)
+        def callback_wrapper(button):
+            button.description = UPDATING_PLOTS
+            button.disabled = True
+            callback(button)
+            button.description = UPDATE_PLOTS
+
+        self.plot_button.on_click(callback_wrapper)
+
+    def trigger(self):
+        self.plot_button.click()
+
+
+class ExlorationWidget(VBox):
+    def __init__(
+        self,
+        title: str,
+        option_widget: ValueWidget,
+    ):
+        layout = Layout(
+            width="100%",
+            height="min-content",
+            border="solid 1px var(--jp-border-color1)",
+            padding="var(--jp-cell-padding)",
+        )
+        title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
+        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
+        self.option_widget = option_widget
+        self.update_plot_widget = UpdatePlotWidget()
+        super().__init__(children=[title, self.option_widget, self.update_plot_widget, self.center], layout=layout)
+
+        # attach button handler and show initial plot
+        self.update_plot_widget.on_click(self._on_plot_button_click)
+        self.update_plot_widget.trigger()
+        self.option_widget.observe(self._on_option_change, "value")
+
+    @property
+    def disabled(self):
+        return False
+
+    @property
+    def show_code(self) -> bool:
+        return self.update_plot_widget.show_code
+
+    def _on_plot_button_click(self, button=None):
+        self.center.clear_output()
+        with self.center:
+            self.update_plot()
+
+    def _on_option_change(self, change=None):
+        self.update_plot_widget.disabled = self.disabled
+
+    def update_plot(self):
+        raise NotImplementedError("Subclasses must implement this method")
+
+
+class ModelOptionsWidget(VBox, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the slider list")
+
+    def __init__(
+        self,
+        target_names: tuple[Any],
+        score_names: tuple[Any],
+        thresholds: dict[str, float],
+        per_context: bool = False,
+    ):
+        self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
+        self.target_list = Dropdown(
+            options=target_names,
+            value=target_names[0],
+            description="Target Column",
+            style={"description_width": "120px"},
+        )
+        self.score_list = Dropdown(
+            options=score_names, value=score_names[0], description="Score Column", style={"description_width": "120px"}
+        )
+
+        self.target_list.observe(self._on_value_change, "value")
+        self.score_list.observe(self._on_value_change, "value")
+        children = [self.title, self.target_list, self.score_list]
+
+        if thresholds:
+            self.threshold_list = MonotonicPercentSliderListWidget(
+                names=tuple(thresholds.keys()), value=tuple(thresholds.values()), increasing=False
+            )
+            children.append(self.threshold_list)
+            self.threshold_list.observe(self._on_value_change, "value")
+        else:
+            self.threshold_list = None
+
+        if per_context:
+            self.per_context_checkbox = Checkbox(
+                value=False,
+                description="combine scores",
+                disabled=False,
+                tooltip="Combine scores by taking the maximum score in the target window",
+                style={"description_width": "120px"},
+            )
+            children.append(self.per_context_checkbox)
+            self.per_context_checkbox.observe(self._on_value_change, "value")
+        else:
+            self.per_context_checkbox = None
+
+        super().__init__(
+            children=children,
+            layout=Layout(align_items="flex-start", flex="0 0 auto"),
+        )
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "target": self.target,
+            "score": self.score,
+            "thresholds": self.thresholds,
+            "group_scores": self.group_scores,
+        }
+
+    @property
+    def target(self):
+        return self.target_list.value
+
+    @property
+    def score(self):
+        return self.score_list.value
+
+    @property
+    def thresholds(self):
+        if self.threshold_list:
+            return self.threshold_list.value
+
+    @property
+    def group_scores(self):
+        if self.per_context_checkbox:
+            return self.per_context_checkbox.value
+
+
+class ModelOptionsAndCohortsWidget(Box, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the cohorts and moedel options")
+
+    def __init__(
+        self,
+        cohort_groups: dict[str, tuple[Any]],
+        target_names: tuple[Any],
+        score_names: tuple[Any],
+        thresholds: dict[str, float],
+        per_context: bool = False,
+    ):
+        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
+        self.cohort_list.observe(self._on_value_change, "value")
+        self.model_options.observe(self._on_value_change, "value")
+
+        super().__init__(
+            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
+        )
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "cohorts": self.cohort_list.value,
+            "model_options": self.model_options.value,
+        }
+
+    @property
+    def cohorts(self):
+        return self.cohort_list.value
+
+    @property
+    def target(self):
+        return self.model_options.target
+
+    @property
+    def score(self):
+        return self.model_options.score
+
+    @property
+    def thresholds(self):
+        return self.model_options.thresholds
+
+    @property
+    def group_scores(self):
+        return self.model_options.group_scores
+
+
+class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the cohorts and moedel options")
+
+    def __init__(
+        self,
+        cohort_groups: dict[str, tuple[Any]],
+        target_names: tuple[Any],
+        score_names: tuple[Any],
+        thresholds: dict[str, float],
+        per_context: bool = False,
+    ):
+        self.cohort_list = DisjointSelectionListsWidget(options=cohort_groups, title="Cohort Filter", select_all=True)
+        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
+        self.cohort_list.observe(self._on_value_change, "value")
+        self.model_options.observe(self._on_value_change, "value")
+
+        super().__init__(
+            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
+        )
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "cohorts": self.cohort_list.value,
+            "model_options": self.model_options.value,
+        }
+
+    @property
+    def cohort(self):
+        return self.cohort_list.value[0]
+
+    @property
+    def cohort_groups(self):
+        return self.cohort_list.value[1]
+
+    @property
+    def target(self):
+        return self.model_options.target
+
+    @property
+    def score(self):
+        return self.model_options.score
+
+    @property
+    def thresholds(self):
+        return self.model_options.thresholds
+
+    @property
+    def group_scores(self):
+        return self.model_options.group_scores
+
+
+class ExplorationModelEvaluationWidget(ExlorationWidget):
     """
     A widget for exploring the model performance of a cohort.
     """
@@ -40,54 +306,15 @@ class ExplorationModelEvaluationWidget(VBox):
         filter_fn : Optional[Callable], optional
             A function that takes a cohort and returns a filter, by default None.
         """
-        layout = Layout(
-            width="100%",
-            height="min-content",
-            border="solid 1px var(--jp-border-color1)",
-            padding="var(--jp-cell-padding)",
-        )
-        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
-
-        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
-
-        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
-
-        title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
-
-        controls = Box(
-            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
+        super().__init__(
+            title=title,
+            option_widget=ModelOptionsAndCohortsWidget(
+                cohort_groups, target_names, score_names, thresholds, per_context
+            ),
         )
 
-        self.show_code = Checkbox(
-            value=False,
-            description="show code",
-            disabled=False,
-            indent=False,
-            tooltip="Show the code used to generate the plot",
-        )
-        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
-        plot_controls = Box(layout=Layout(align_items="flex-start"), children=[self.plot_button, self.show_code])
-        super().__init__(children=[title, controls, plot_controls, self.center], layout=layout)
 
-        self.plot_button.on_click(self._on_plot_button_click)
-        # show default plot
-        self._on_plot_button_click()
-
-    def _on_plot_button_click(self, button=None):
-        self.plot_button.description = UPDATING_PLOTS
-        self.plot_button.disabled = True
-        self.center.clear_output()
-        with self.center:
-            self.update_plot()
-
-        self.plot_button.description = UPDATE_PLOTS
-        self.plot_button.disabled = False
-
-    def update_plot(self):
-        raise NotImplementedError("Subclasses must implement this method")
-
-
-class ExplorationCohortSubclassEvaluationWidget(VBox):
+class ExplorationCohortSubclassEvaluationWidget(ExlorationWidget):
     """
     A widget for exploring the model performance based on the subgroups of a cohort column.
     """
@@ -113,102 +340,14 @@ class ExplorationCohortSubclassEvaluationWidget(VBox):
         filter_fn : Optional[Callable], optional
             A function that takes a cohort and returns a filter, by default None.
         """
-        layout = Layout(
-            width="100%",
-            height="min-content",
-            border="solid 1px var(--jp-border-color1)",
-            padding="var(--jp-cell-padding)",
+        option_widget = ModelOptionsAndCohortGroupWidget(
+            cohort_groups, target_names, score_names, thresholds, per_context
         )
-        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
-
-        self.cohort_list = DisjointSelectionListsWidget(
-            options=cohort_groups, title="Cohort Subgroups", select_all=True
-        )
-
-        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
-
-        title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
-
-        controls = Box(
-            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
-        )
-
-        self.show_code = Checkbox(
-            value=False,
-            description="show code",
-            disabled=False,
-            indent=False,
-            tooltip="Show the code used to generate the plot",
-        )
-        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
-        plot_controls = Box(layout=Layout(align_items="flex-start"), children=[self.plot_button, self.show_code])
-        super().__init__(children=[title, controls, plot_controls, self.center], layout=layout)
-
-        self.plot_button.on_click(self._on_plot_button_click)
-        # show default plot
-        self._on_plot_button_click()
-
-    def _on_plot_button_click(self, button=None):
-        self.plot_button.description = UPDATING_PLOTS
-        self.plot_button.disabled = True
-        self.center.clear_output()
-        with self.center:
-            self.update_plot()
-
-        self.plot_button.description = UPDATE_PLOTS
-        self.plot_button.disabled = False
-
-    def update_plot(self):
-        raise NotImplementedError("Subclasses must implement this method")
-
-
-class ModelOptionsWidget(VBox, ValueWidget):
-    def __init__(
-        self,
-        target_names: tuple[Any],
-        score_names: tuple[Any],
-        thresholds: dict[str, float],
-        per_context: bool = False,
-    ):
-        self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
-        self.target_list = Dropdown(options=target_names, value=target_names[0], description="Target Column")
-        self.score_list = Dropdown(options=score_names, value=score_names[0], description="Score Column")
-        self.threshold_list = MonotonicPercentSliderListWidget(
-            names=tuple(thresholds.keys()), value=tuple(thresholds.values())
-        )
-        children = [self.title, self.target_list, self.score_list, self.threshold_list]
-        if per_context:
-            self.per_context_checkbox = Checkbox(
-                value=False,
-                description="combine scores",
-                disabled=False,
-                tooltip="Combine scores by taking the maximum score in the target window",
-            )
-            children.append(self.per_context_checkbox)
-        else:
-            self.per_context_checkbox = None
-
-        super().__init__(
-            children=children,
-            layout=Layout(align_items="flex-start", flex="0 0 auto"),
-        )
+        super().__init__(title=title, option_widget=option_widget)
 
     @property
-    def target(self):
-        return self.target_list.value
-
-    @property
-    def score(self):
-        return self.score_list.value
-
-    @property
-    def thresholds(self):
-        return self.threshold_list.value
-
-    @property
-    def group_scores(self):
-        if self.per_context_checkbox:
-            return self.per_context_checkbox.value
+    def disabled(self):
+        return not self.option_widget.cohort_groups
 
 
 @export
@@ -248,14 +387,14 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
 
         display(
             plot_model_evaluation(
-                self.cohort_list.value,
-                self.model_options.target,
-                self.model_options.score,
-                self.model_options.thresholds,
-                per_context=self.model_options.group_scores,
+                self.option_widget.cohorts,
+                self.option_widget.target,
+                self.option_widget.score,
+                self.option_widget.thresholds,
+                per_context=self.option_widget.group_scores,
             )
         )
-        if self.show_code.value:
+        if self.show_code:
             display(self.plot_code())
 
     def plot_code(self):
@@ -263,10 +402,10 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
             [
                 repr(x)
                 for x in [
-                    self.cohort_list.value,
-                    self.model_options.target,
-                    self.model_options.score,
-                    self.model_options.thresholds,
+                    self.option_widget.cohorts,
+                    self.option_widget.target,
+                    self.option_widget.score,
+                    self.option_widget.thresholds,
                 ]
             ]
         )
@@ -314,15 +453,15 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
 
         display(
             plot_cohort_evaluation(
-                self.cohort_list.value[0],
-                self.cohort_list.value[1],
-                self.model_options.target,
-                self.model_options.score,
-                self.model_options.thresholds,
-                per_context=self.model_options.group_scores,
+                self.option_widget.cohort,
+                self.option_widget.cohort_groups,
+                self.option_widget.target,
+                self.option_widget.score,
+                self.option_widget.thresholds,
+                per_context=self.option_widget.group_scores,
             )
         )
-        if self.show_code.value:
+        if self.show_code:
             display(self.plot_code())
 
     def plot_code(self):
@@ -330,16 +469,16 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
             [
                 repr(x)
                 for x in [
-                    self.cohort_list.value[0],
-                    self.cohort_list.value[1],
-                    self.model_options.target,
-                    self.model_options.score,
-                    self.model_options.thresholds,
+                    self.option_widget.cohort,
+                    self.option_widget.cohort_groups,
+                    self.option_widget.target,
+                    self.option_widget.score,
+                    self.option_widget.thresholds,
                 ]
             ]
         )
         help_text = HTML(
-            f"Plot code: <code>sm.plot_cohort_evaluation({args}, per_context={self.model_options.group_scores})</code>"
+            f"Plot code: <code>sm.plot_cohort_evaluation({args}, per_context={self.option_widget.group_scores})</code>"
         )
         help_text.add_class("jp-RenderedHTMLCommon")
         return help_text
@@ -367,13 +506,12 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        thresholds = {}
         super().__init__(
             "Cohort Group Score Histograms",
             sg.available_cohort_groups,
             sg.target_cols,
             sg.output_list,
-            thresholds=thresholds,
+            thresholds=None,
             per_context=False,
         )
 
@@ -382,13 +520,13 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
 
         display(
             plot_cohort_group_histograms(
-                self.cohort_list.value[0],
-                self.cohort_list.value[1],
-                self.model_options.target,
-                self.model_options.score,
+                self.option_widget.cohort,
+                self.option_widget.cohort_groups,
+                self.option_widget.target,
+                self.option_widget.score,
             )
         )
-        if self.show_code.value:
+        if self.show_code:
             display(self.plot_code())
 
     def plot_code(self):
@@ -396,10 +534,10 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
             [
                 repr(x)
                 for x in [
-                    self.cohort_list.value[0],
-                    self.cohort_list.value[1],
-                    self.model_options.target,
-                    self.model_options.score,
+                    self.option_widget.cohort,
+                    self.option_widget.cohort_groups,
+                    self.option_widget.target,
+                    self.option_widget.score,
                 ]
             ]
         )
@@ -440,14 +578,14 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
 
         display(
             plot_cohort_lead_time(
-                self.cohort_list.value[0],
-                self.cohort_list.value[1],
-                self.model_options.target,
-                self.model_options.score,
-                self.model_options.thresholds[0],
+                self.option_widget.cohort,
+                self.option_widget.cohort_groups,
+                self.option_widget.target,
+                self.option_widget.score,
+                self.option_widget.thresholds[0],
             )
         )
-        if self.show_code.value:
+        if self.show_code:
             display(self.plot_code())
 
     def plot_code(self):
@@ -455,11 +593,11 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
             [
                 repr(x)
                 for x in [
-                    self.cohort_list.value[0],
-                    self.cohort_list.value[1],
-                    self.model_options.target,
-                    self.model_options.score,
-                    self.model_options.thresholds[0],
+                    self.option_widget.cohort,
+                    self.option_widget.cohort_groups,
+                    self.option_widget.target,
+                    self.option_widget.score,
+                    self.option_widget.thresholds[0],
                 ]
             ]
         )
@@ -468,7 +606,9 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
         return help_text
 
 
-class ModelInterventionOptionsWidget(VBox):
+class ModelInterventionOptionsWidget(VBox, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the slider list")
+
     def __init__(
         self,
         outcome_names: tuple[Any] = None,
@@ -491,6 +631,17 @@ class ModelInterventionOptionsWidget(VBox):
             layout=Layout(align_items="flex-start", flex="0 0 auto"),
         )
 
+        self.outcome_list.observe(self._on_value_change, "value")
+        self.intervention_list.observe(self._on_value_change, "value")
+        self.ref_time_list.observe(self._on_value_change, "value")
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "outcome": self.outcome,
+            "intervention": self.intervention,
+            "reference_time": self.reference_time,
+        }
+
     @property
     def outcome(self):
         return self.outcome_list.value
@@ -504,7 +655,53 @@ class ModelInterventionOptionsWidget(VBox):
         return self.ref_time_list.value
 
 
-class ExplorationCohortInterventionEvaluationWidget(VBox):
+class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the cohorts and moedel options")
+
+    def __init__(
+        self,
+        cohort_groups: dict[str, tuple[Any]],
+        outcome_names: tuple[Any] = None,
+        intervention_names: tuple[Any] = None,
+        reference_time_names: tuple[Any] = None,
+    ):
+        self.cohort_list = DisjointSelectionListsWidget(options=cohort_groups, title="Cohort Filter", select_all=True)
+        self.model_options = ModelInterventionOptionsWidget(outcome_names, intervention_names, reference_time_names)
+        self.cohort_list.observe(self._on_value_change, "value")
+        self.model_options.observe(self._on_value_change, "value")
+
+        super().__init__(
+            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
+        )
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "cohorts": self.cohort_list.value,
+            "model_options": self.model_options.value,
+        }
+
+    @property
+    def cohort(self):
+        return self.cohort_list.value[0]
+
+    @property
+    def cohort_groups(self):
+        return self.cohort_list.value[1]
+
+    @property
+    def outcome(self):
+        return self.model_options.outcome
+
+    @property
+    def intervention(self):
+        return self.model_options.intervention
+
+    @property
+    def reference_time(self):
+        return self.model_options.reference_time
+
+
+class ExplorationCohortInterventionEvaluationWidget(ExlorationWidget):
     """
     A widget for exploring the model performance based on the subgroups of a cohort column.
     """
@@ -529,53 +726,15 @@ class ExplorationCohortInterventionEvaluationWidget(VBox):
         filter_fn : Optional[Callable], optional
             A function that takes a cohort and returns a filter, by default None.
         """
-        layout = Layout(
-            width="100%",
-            height="min-content",
-            border="solid 1px var(--jp-border-color1)",
-            padding="var(--jp-cell-padding)",
+        super().__init__(
+            title,
+            option_widget=ModelInterventionAndCohortGroupWidget(
+                cohort_groups,
+                outcome_names,
+                intervention_names,
+                reference_time_names,
+            ),
         )
-        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
-
-        self.cohort_list = DisjointSelectionListsWidget(
-            options=cohort_groups, title="Cohort Subgroups", select_all=True
-        )
-
-        self.model_options = ModelInterventionOptionsWidget(outcome_names, intervention_names, reference_time_names)
-
-        title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
-
-        controls = Box(
-            children=[self.model_options, self.cohort_list], layout=Layout(align_items="flex-start", grid_gap="20px")
-        )
-
-        self.show_code = Checkbox(
-            value=False,
-            description="show code",
-            disabled=False,
-            indent=False,
-            tooltip="Show the code used to generate the plot",
-        )
-        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
-        plot_controls = Box(layout=Layout(align_items="flex-start"), children=[self.plot_button, self.show_code])
-        super().__init__(children=[title, controls, plot_controls, self.center], layout=layout)
-
-        self.plot_button.on_click(self._on_plot_button_click)
-        # show default plot
-        self._on_plot_button_click()
-
-    def _on_plot_button_click(self, button=None):
-        self.plot_button.description = UPDATING_PLOTS
-        self.plot_button.disabled = True
-        self.center.clear_output()
-        with self.center:
-            self.update_plot()
-
-        self.plot_button.description = UPDATE_PLOTS
-        self.plot_button.disabled = False
-
-    def update_plot(self):
-        raise NotImplementedError("Subclasses must implement this method")
 
 
 @export
@@ -617,14 +776,14 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
 
         display(
             plot_intervention_outcome_timeseries(
-                self.model_options.outcome,
-                self.model_options.intervention,
-                self.model_options.reference_time,
-                self.cohort_list.value[0],
-                self.cohort_list.value[1],
+                self.option_widget.outcome,
+                self.option_widget.intervention,
+                self.option_widget.reference_time,
+                self.option_widget.cohort,
+                self.option_widget.cohort_groups,
             )
         )
-        if self.show_code.value:
+        if self.show_code:
             display(self.plot_code())
 
     def plot_code(self):
@@ -632,11 +791,11 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
             [
                 repr(x)
                 for x in [
-                    self.model_options.outcome,
-                    self.model_options.intervention,
-                    self.model_options.reference_time,
-                    self.cohort_list.value[0],
-                    self.cohort_list.value[1],
+                    self.option_widget.outcome,
+                    self.option_widget.intervention,
+                    self.option_widget.reference_time,
+                    self.option_widget.cohort,
+                    self.option_widget.cohort_groups,
                 ]
             ]
         )

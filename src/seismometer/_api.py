@@ -334,7 +334,6 @@ def _plot_cohort_hist(
     HTML
         A stacked set of histograms for each selected subgroup in the cohort.
     """
-
     cData = get_cohort_data(dataframe, cohort_col, proba=output, true=target, splits=subgroups)
 
     # filter by groups by size

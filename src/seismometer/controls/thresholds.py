@@ -80,7 +80,7 @@ class MonotonicPercentSliderListWidget(ValueWidget, VBox):
         self.increasing = increasing
         self.value = value or tuple(0 for _ in names)  # set initial value
         self.sliders = []
-        for name, val in zip(self.names, self.value):
+        for name, val in sorted(zip(self.names, self.value), key=lambda x: x[1], reverse=not increasing):
             sub_slider = FloatSlider(
                 value=val,
                 min=0,
@@ -92,6 +92,7 @@ class MonotonicPercentSliderListWidget(ValueWidget, VBox):
                 orientation="horizontal",
                 readout=True,
                 readout_format=".2f",
+                style={"description_width": "120px"},
             )
             if increasing:
                 sub_slider.style.handle_color = alert_colors[

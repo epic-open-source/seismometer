@@ -62,3 +62,6 @@ def run_startup(
     # Surface api into namespace
     s_module = importlib.import_module("seismometer._api")
     globals().update(vars(s_module))
+    # Surface exported controls to api
+    s_module = importlib.import_module("seismometer.controls.explore")
+    globals().update(vars(s_module))

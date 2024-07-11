@@ -231,7 +231,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         self.stack = Stack(children=[self.selection_widgets[key] for key in self.selection_widgets], selected_index=0)
         self.children = [self.label, self.dropdown, self.stack]
         jslink((self.dropdown, "index"), (self.stack, "selected_index"))
-        self.layout = Layout(width="max-content")
+        self.layout = Layout(width="calc(100& - var(--jp-widgets-border-width)* 2)")
         self._on_selection_change()
 
     def _on_selection_change(self, *args):
