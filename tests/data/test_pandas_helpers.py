@@ -180,3 +180,36 @@ class TestEventTime:
         input = base + "_Value"
         expected = base + "_Time"
         assert expected == undertest.event_time(input)
+
+
+class TestEventName:
+    @pytest.mark.parametrize("suffix", ["", "_Time", "_Value"])
+    @pytest.mark.parametrize(
+        "base",
+        [
+            ("A"),
+            ("1"),
+            ("normal_column"),
+            ("4reallyl0ngc*lum\namewithsymbo|s"),
+        ],
+    )
+    def test_three_suffixes_align(self, base, suffix):
+        input = base + suffix
+        assert base == undertest.event_name(input)
+
+    @pytest.mark.parametrize(
+        "input, expected",
+        [
+            (None, None),
+            ("no underscore but ends in Time", "no underscore but ends in Time"),
+            ("no underscore but ends in Value", "no underscore but ends in Value"),
+            ("wrong case but ends in _time", "wrong case but ends in _time"),
+            ("wrong case but ends in _value", "wrong case but ends in _value"),
+            ("all caps ending in _TIME", "all caps ending in _TIME"),
+            ("all caps ending in _VALUE", "all caps ending in _VALUE"),
+            ("only one suffix gets stripped_Time_Value", "only one suffix gets stripped_Time"),
+            ("only one suffix gets stripped_Value_Time", "only one suffix gets stripped_Value"),
+        ],
+    )
+    def test_suffix_specific_handling(self, input, expected):
+        assert expected == undertest.event_name(input)
