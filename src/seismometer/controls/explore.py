@@ -58,6 +58,13 @@ class UpdatePlotWidget(Box):
 
         self.plot_button.on_click(callback_wrapper)
 
+    def on_toggle_code(self, callback):
+        @wraps(callback)
+        def callback_wrapper(change):
+            callback(self.code_checkbox.value)
+
+        self.code_checkbox.observe(callback_wrapper, "value")
+
     def trigger(self):
         self.plot_button.click()
 
@@ -76,12 +83,16 @@ class ExlorationWidget(VBox):
         )
         title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
         self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
+        self.bottom = Output(layout=Layout(height="max-content", max_width="2000px"))
         self.option_widget = option_widget
         self.update_plot_widget = UpdatePlotWidget()
-        super().__init__(children=[title, self.option_widget, self.update_plot_widget, self.center], layout=layout)
+        super().__init__(
+            children=[title, self.option_widget, self.update_plot_widget, self.center, self.bottom], layout=layout
+        )
 
         # attach button handler and show initial plot
         self.update_plot_widget.on_click(self._on_plot_button_click)
+        self.update_plot_widget.on_toggle_code(self._on_toggle_code)
         self.update_plot_widget.trigger()
         self.option_widget.observe(self._on_option_change, "value")
 
@@ -97,11 +108,21 @@ class ExlorationWidget(VBox):
         self.center.clear_output()
         with self.center:
             self.update_plot()
+        self._on_toggle_code(self.show_code)
+
+    def _on_toggle_code(self, show_code: bool):
+        self.bottom.clear_output()
+        if show_code:
+            with self.bottom:
+                display(self.plot_code())
 
     def _on_option_change(self, change=None):
         self.update_plot_widget.disabled = self.disabled
 
     def update_plot(self):
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def plot_code(self):
         raise NotImplementedError("Subclasses must implement this method")
 
 
@@ -392,8 +413,6 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
                 per_context=self.option_widget.group_scores,
             )
         )
-        if self.show_code:
-            display(self.plot_code())
 
     def plot_code(self):
         args = ", ".join(
@@ -459,8 +478,6 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
                 per_context=self.option_widget.group_scores,
             )
         )
-        if self.show_code:
-            display(self.plot_code())
 
     def plot_code(self):
         args = ", ".join(
@@ -524,8 +541,6 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
                 self.option_widget.score,
             )
         )
-        if self.show_code:
-            display(self.plot_code())
 
     def plot_code(self):
         args = ", ".join(
@@ -583,8 +598,6 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
                 self.option_widget.thresholds[0],
             )
         )
-        if self.show_code:
-            display(self.plot_code())
 
     def plot_code(self):
         args = ", ".join(
@@ -779,8 +792,6 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
                 self.option_widget.cohort_groups,
             )
         )
-        if self.show_code:
-            display(self.plot_code())
 
     def plot_code(self):
         args = ", ".join(
