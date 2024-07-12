@@ -177,7 +177,11 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
     metric_list = metric_list or ["tpr", "fpr", "pprev"]
 
     df = pdh.event_score(
-        sg.data(), sg.entity_keys, score=sg.output, summary_method=sg.event_combine_strategy(sg.target)
+        sg.data(),
+        sg.entity_keys,
+        score=sg.output,
+        ref_event=sg.predict_time,
+        summary_method=sg.event_combine_strategy(sg.target),
     )[[sg.target, sg.output] + sensitive_groups]
 
     display_fairness_audit(
@@ -489,6 +493,7 @@ def cohort_evaluation(per_context_id=False):
         censor_threshold,
         per_context_id,
         sg.event_combine_strategy(sg.target),
+        sg.predict_time,
     )
 
 
@@ -504,6 +509,7 @@ def _plot_cohort_evaluation(
     censor_threshold: int = 10,
     per_context_id: bool = False,
     summary_method: str = "max",
+    ref_time: str = None,
 ) -> HTML:
     """
     Plots model performance metrics split by on a cohort attribute.
@@ -531,6 +537,8 @@ def _plot_cohort_evaluation(
     summary_method : str, optional
         method to summarize multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
+    ref_time : str, optional
+        reference time column used for summarization when per_context_id is True and summary_method is time-based
 
     Returns
     -------
@@ -538,7 +546,7 @@ def _plot_cohort_evaluation(
         _description_
     """
     data = (
-        pdh.event_score(dataframe, entity_keys, score=output, summary_method=summary_method)
+        pdh.event_score(dataframe, entity_keys, score=output, ref_event=ref_time, summary_method=summary_method)
         if per_context_id
         else dataframe
     )
@@ -577,6 +585,7 @@ def model_evaluation(per_context_id=False):
         sg.thresholds,
         per_context_id,
         sg.event_combine_strategy(sg.target),
+        sg.predict_time,
     )
 
 
@@ -590,6 +599,7 @@ def _model_evaluation(
     thresholds: Optional[list[float]],
     per_context_id: bool = False,
     summary_method: str = "max",
+    ref_time: str = None,
 ) -> HTML:
     """
     plots common model evaluation metrics
@@ -613,6 +623,8 @@ def _model_evaluation(
     summary_method : str, optional
         method to summarize multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
+    ref_time : str, optional
+        reference time column used for summarization when per_context_id is True and summary_method is time-based
 
     Returns
     -------
@@ -620,7 +632,7 @@ def _model_evaluation(
         Plot of model evaluation metrics
     """
     data = (
-        pdh.event_score(dataframe, entity_keys, score=output, summary_method=summary_method)
+        pdh.event_score(dataframe, entity_keys, score=output, ref_event=ref_time, summary_method=summary_method)
         if per_context_id
         else dataframe
     )
