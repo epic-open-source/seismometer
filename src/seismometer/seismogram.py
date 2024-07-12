@@ -190,13 +190,13 @@ class Seismogram(object, metaclass=Singleton):
 
     @property
     def target_cols(self) -> list:
-        return self.config.targets
+        return list(self.config.targets)
 
     @property
     def intervention(self):
         """First event in configuration with usage 'intervention'."""
         try:
-            return self.config.interventions[0]
+            return list(self.config.interventions)[0]
         except IndexError as exc:
             raise IndexError("No interventions defined in configuration") from exc
 
@@ -204,13 +204,13 @@ class Seismogram(object, metaclass=Singleton):
     def outcome(self):
         """First event in configuration with usage 'outcome'."""
         try:
-            return self.config.outcomes[0]
+            return list(self.config.outcomes)[0]
         except IndexError as exc:
             raise IndexError("No outcomes defined in configuration") from exc
 
     @property
     def comparison_time(self):
-        """Time used for reference point to intervents and outcomes."""
+        """Time used for reference point to interventions and outcomes."""
         return self.config.comparison_time
 
     @property
