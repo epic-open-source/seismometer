@@ -1,9 +1,12 @@
+import logging
 import warnings
 from numbers import Number
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger("seismometer")
 
 
 def merge_windowed_event(
@@ -185,6 +188,7 @@ def event_score(
     pd.DataFrame
         The reduced dataframe with one row per combination of pks.
     """
+    logger.debug(f"Combining scores using {summary_method} for {score} on {ref_event}")
     # groupby.agg works on columns indivdually - this wants entire row where a condition is met
     # start with first/last/max/min
 
