@@ -32,6 +32,10 @@ def fake_seismo(tmp_path):
         yield
     Seismogram.kill()
 
+    log_dict = logging.Logger.manager.loggerDict
+    if "seismometer" in log_dict:
+        del log_dict["seismometer"]
+
 
 class TestStartup:
     def test_debug_logs_with_formatter(self, fake_seismo, tmp_path, capsys):

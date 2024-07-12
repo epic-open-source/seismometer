@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -155,6 +155,8 @@ class Event(DerivedFeature):
     """ The value to use if no event is present. """
     usage: Optional[str] = None
     """ The type of event being defined; can be target, intervention, or outcome. """
+    combine_strategy: Optional[Literal["min", "max", "first", "last"]] = "max"
+    """ The strategy for combining scores for an event. Supports min, max, first, and last; defaulting to max. """
 
 
 class EventTableMap(BaseModel):

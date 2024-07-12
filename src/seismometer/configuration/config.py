@@ -289,12 +289,12 @@ class ConfigProvider:
     @property
     def events(self) -> dict:
         """
-        List of event objects to use during analysis.
+        Dictionary of event objects indexed by column name.
 
         Configured in usage_data as events, contains target, outcome, and intervention events with any windowing
         information.
         """
-        return self.usage.events
+        return {ev.display_name: ev for ev in self.usage.events}
 
     @property
     def comparison_time(self) -> str:
@@ -326,7 +326,7 @@ class ConfigProvider:
 
         Configured in usage_data as events with usage 'intervention'.
         """
-        return [event.display_name for event in self.events if event.usage == "intervention"]
+        return [event.display_name for event in self.usage.events if event.usage == "intervention"]
 
     @property
     def prediction_columns(self) -> list:
