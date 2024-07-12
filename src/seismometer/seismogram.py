@@ -147,6 +147,17 @@ class Seismogram(object, metaclass=Singleton):
     def events_columns(self, mapping_dict: dict[str, str]):
         self._event_column_map = mapping_dict
 
+    def event_combine_strategy(self, event_col: str) -> str:
+        """
+        Gets the strategy for combining scores with respect to the specified event.
+
+        Raises:
+            ValueError: If the event is not found in the configuration.
+        """
+        if event := pdh.event_name(event_col) not in self.config.events:
+            raise ValueError(f"Event {event} not found in configuration")
+        return self.config.events[event].combine_strategy
+
     @property
     def target(self):
         """
