@@ -181,7 +181,7 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
         sg.entity_keys,
         score=sg.output,
         ref_event=sg.predict_time,
-        summary_method=sg.event_aggregation_method(sg.target),
+        aggregation_method=sg.event_aggregation_method(sg.target),
     )[[sg.target, sg.output] + sensitive_groups]
 
     display_fairness_audit(
@@ -442,7 +442,7 @@ def _plot_leadtime_enc(
         entity_keys,
         score=score,
         ref_event=target_zero,
-        summary_method="first",
+        aggregation_method="first",
     )[[target_zero, ref_time, cohort_col]]
 
     # filter by group size
@@ -508,7 +508,7 @@ def _plot_cohort_evaluation(
     subgroups: list[str],
     censor_threshold: int = 10,
     per_context_id: bool = False,
-    summary_method: str = "max",
+    aggregation_method: str = "max",
     ref_time: str = None,
 ) -> HTML:
     """
@@ -533,12 +533,12 @@ def _plot_cohort_evaluation(
     censor_threshold : int
         minimum rows to allow in a plot, by default 10
     per_context_id : bool, optional
-        if true, summarize scores for each context, by default False
-    summary_method : str, optional
-        method to summarize multiple scores into a single value before calculation of performance, by default "max"
+        if true, aggregate scores for each context, by default False
+    aggregation_method : str, optional
+        method to reduce multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
     ref_time : str, optional
-        reference time column used for summarization when per_context_id is True and summary_method is time-based
+        reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
 
     Returns
     -------
@@ -546,7 +546,9 @@ def _plot_cohort_evaluation(
         _description_
     """
     data = (
-        pdh.event_score(dataframe, entity_keys, score=output, ref_event=ref_time, summary_method=summary_method)
+        pdh.event_score(
+            dataframe, entity_keys, score=output, ref_event=ref_time, aggregation_method=aggregation_method
+        )
         if per_context_id
         else dataframe
     )
@@ -598,7 +600,7 @@ def _model_evaluation(
     output: str,
     thresholds: Optional[list[float]],
     per_context_id: bool = False,
-    summary_method: str = "max",
+    aggregation_method: str = "max",
     ref_time: str = None,
 ) -> HTML:
     """
@@ -620,11 +622,11 @@ def _model_evaluation(
         model thresholds
     per_context_id : bool, optional
         report only the max score for a given entity context, by default False
-    summary_method : str, optional
-        method to summarize multiple scores into a single value before calculation of performance, by default "max"
+    aggregation_method : str, optional
+        method to reduce multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
     ref_time : str, optional
-        reference time column used for summarization when per_context_id is True and summary_method is time-based
+        reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
 
     Returns
     -------
@@ -632,7 +634,9 @@ def _model_evaluation(
         Plot of model evaluation metrics
     """
     data = (
-        pdh.event_score(dataframe, entity_keys, score=output, ref_event=ref_time, summary_method=summary_method)
+        pdh.event_score(
+            dataframe, entity_keys, score=output, ref_event=ref_time, aggregation_method=aggregation_method
+        )
         if per_context_id
         else dataframe
     )
@@ -912,7 +916,7 @@ def show_info(plot_help: bool = False):
 
 def _style_cohort_summaries(df: pd.DataFrame, attribute: str) -> Styler:
     """
-    Adds required styling to a cohort summary dataframe.
+    Adds required styling to a cohort dataframe.
 
     Parameters
     ----------

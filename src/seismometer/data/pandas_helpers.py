@@ -163,7 +163,7 @@ def event_score(
     pks: list[str],
     score: str,
     ref_event: Optional[str] = None,
-    summary_method: str = "max",
+    aggregation_method: str = "max",
 ) -> pd.DataFrame:
     """
     Reduces a dataframe of all predictions to a single row of significance; such as the max or most recent value for
@@ -180,7 +180,7 @@ def event_score(
         The column name containing the score value.
     ref_event : Optional[str], optional
         The column name containing the time to consider, by default None.
-    summary_method : str, optional
+    aggregation_method : str, optional
         A string describing the method to select a value, by default 'max'.
 
     Returns
@@ -188,18 +188,18 @@ def event_score(
     pd.DataFrame
         The reduced dataframe with one row per combination of pks.
     """
-    logger.debug(f"Combining scores using {summary_method} for {score} on {ref_event}")
+    logger.debug(f"Combining scores using {aggregation_method} for {score} on {ref_event}")
     # groupby.agg works on columns indivdually - this wants entire row where a condition is met
     # start with first/last/max/min
 
     ref_score = _resolve_score_col(merged_frame, score)
-    if summary_method == "max":
+    if aggregation_method == "max":
         ref_col = ref_score
 
         def apply_fn(gf):
             return gf.idxmax()
 
-    elif summary_method == "min":
+    elif aggregation_method == "min":
         ref_col = ref_score
 
         def apply_fn(gf):
@@ -207,13 +207,13 @@ def event_score(
 
     # merged frame has time columns only for events in appropriate time window,
     # implicitly reduces to positive label (need method to re-add negative samples)
-    elif summary_method == "last":
+    elif aggregation_method == "last":
 
         def apply_fn(gf):
             return gf.idxmax()
 
         ref_col = _resolve_time_col(merged_frame, ref_event)
-    elif summary_method == "first":
+    elif aggregation_method == "first":
 
         def apply_fn(gf):
             return gf.idxmin()

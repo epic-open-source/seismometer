@@ -25,16 +25,16 @@ def event_data(res):
 
 class Test_Event_Score:
     @pytest.mark.parametrize("ref_event", ["Target", "PredictTime", "Reference_5_15_Time"])
-    @pytest.mark.parametrize("summary_method", ["min", "max", "first", "last"])
+    @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
     @pytest.mark.parametrize("id_, csn", [pytest.param(1, 0, id="monotonic-increasing")])
-    def test_bad_event(self, id_, csn, summary_method, ref_event, event_data):
+    def test_bad_event(self, id_, csn, aggregation_method, ref_event, event_data):
         input_frame, expected_frame = event_data
         expected_score = expected_frame.loc[
             (expected_frame["Id"] == id_)
             & (expected_frame["CSN"] == csn)
             & (expected_frame["ref_event"] == ref_event),
-            summary_method,
+            aggregation_method,
         ]
 
-        actual = undertest.event_score(input_frame, ["Id", "CSN"], "ModelScore", ref_event, summary_method)
+        actual = undertest.event_score(input_frame, ["Id", "CSN"], "ModelScore", ref_event, aggregation_method)
         assert actual["ModelScore"].tolist() == expected_score.tolist()
