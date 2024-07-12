@@ -1,3 +1,3 @@
-Add an optional combine_strategy to events object of usage_config.
-Modify the accessor of ConfigProvider.events to return a dictionary of events instead of a list.
-Update model and cohort performance plots to respect the combine_strategy: supports max (default), min, first and last.
+Add an optional aggregation_method to event objects of usage_config.
+Modify the accessors of ConfigProvider.events to return a dictionaries of events instead of a list.
+Update model and cohort performance plots to respect the aggregation_method: supports max (default), min, first and last.

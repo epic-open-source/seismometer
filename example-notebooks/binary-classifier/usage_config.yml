@@ -38,6 +38,6 @@ data_usage:
       offset_hr: 0
       usage: target
       # How to combine multiple *scores* for a context_id when analyzing this event
-      combine_strategy: max
+      aggregation_method: max
   # Minimum group size to be included in the analysis
   censor_min_count: 10

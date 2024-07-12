@@ -8,7 +8,7 @@ logger = logging.getLogger("seismometer")
 
 FileLike = str | Path
 DirLike = str | Path
-SupportedStrategies = Literal["min", "max", "first", "last"]
+AggregationStrategies = Literal["min", "max", "first", "last"]
 
 
 class OtherInfo(BaseModel):
@@ -156,8 +156,11 @@ class Event(DerivedFeature):
     """ The value to use if no event is present. """
     usage: Optional[str] = None
     """ The type of event being defined; can be target, intervention, or outcome. """
-    combine_strategy: Optional[SupportedStrategies] = "max"
-    """ The strategy for combining scores for an event. Supports min, max, first, and last; defaulting to max. """
+    aggregation_method: Optional[AggregationStrategies] = "max"
+    """
+    The strategy for aggregating (or selecting) scores for an event.
+    Supports min, max, first, and last; defaulting to max.
+    """
 
 
 class EventTableMap(BaseModel):

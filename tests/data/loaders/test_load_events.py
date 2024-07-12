@@ -32,7 +32,7 @@ def fake_config(event_file):
             return self._events
 
         @events.setter
-        def events(self, event_list):
+        def events(self, event_list: list[Event]):
             self._events = {event.display_name: event for event in event_list}
 
     return FakeConfigProvider()

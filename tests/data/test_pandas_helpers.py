@@ -201,6 +201,8 @@ class TestEventName:
         "input, expected",
         [
             (None, None),
+            ("eventname_Value", "eventname"),
+            ("eventname_Time", "eventname"),
             ("no underscore but ends in Time", "no underscore but ends in Time"),
             ("no underscore but ends in Value", "no underscore but ends in Value"),
             ("wrong case but ends in _time", "wrong case but ends in _time"),

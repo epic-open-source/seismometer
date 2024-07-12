@@ -162,7 +162,7 @@ class ConfigProvider:
         return data_model(**raw_defs.pop(def_key, {}))
 
     @property
-    def usage(self) -> str:
+    def usage(self) -> DataUsage:
         """
         The configuration on data usage.
 
@@ -172,7 +172,7 @@ class ConfigProvider:
             self._usage = self._load_usage()
         return self._usage
 
-    def _load_usage(self) -> None:
+    def _load_usage(self) -> DataUsage:
         raw_usage = load_yaml(self.config.usage_config, resource_dir=self.config_dir)
         return DataUsage(**raw_usage.pop("data_usage", {}))
 
@@ -288,11 +288,11 @@ class ConfigProvider:
 
     @property
     def comparison_time(self) -> str:
-        """The timestamp to use as reference for comparison across events."""
+        """The column name of the timestamp to use as reference for comparison across events."""
         return self.usage.comparison_time
 
     @property
-    def events(self) -> dict:
+    def events(self) -> dict[str, Event]:
         """
         Dictionary of all event objects indexed by column name.
 
@@ -310,7 +310,7 @@ class ConfigProvider:
         return {ev.display_name: ev for ev in self.usage.events if ev.usage == usage_group}
 
     @property
-    def targets(self) -> list[str]:
+    def targets(self) -> dict[str, Event]:
         """
         Dictionary of events to use as targets, keyed off of event name.
 
@@ -319,7 +319,7 @@ class ConfigProvider:
         return self.event_group("target")
 
     @property
-    def outcomes(self) -> list[str]:
+    def outcomes(self) -> dict[str, Event]:
         """
         Dictionary of events to use as outcomes, keyed off of event name.
 
@@ -328,7 +328,7 @@ class ConfigProvider:
         return self.event_group("outcome")
 
     @property
-    def interventions(self) -> dict:
+    def interventions(self) -> dict[str, Event]:
         """
         Dictionary of events to use as interventions, keyed off of event name.
 

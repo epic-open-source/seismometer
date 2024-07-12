@@ -181,7 +181,7 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
         sg.entity_keys,
         score=sg.output,
         ref_event=sg.predict_time,
-        summary_method=sg.event_combine_strategy(sg.target),
+        summary_method=sg.event_aggregation_method(sg.target),
     )[[sg.target, sg.output] + sensitive_groups]
 
     display_fairness_audit(
@@ -492,7 +492,7 @@ def cohort_evaluation(per_context_id=False):
         subgroups,
         censor_threshold,
         per_context_id,
-        sg.event_combine_strategy(sg.target),
+        sg.event_aggregation_method(sg.target),
         sg.predict_time,
     )
 
@@ -584,7 +584,7 @@ def model_evaluation(per_context_id=False):
         sg.output,
         sg.thresholds,
         per_context_id,
-        sg.event_combine_strategy(sg.target),
+        sg.event_aggregation_method(sg.target),
         sg.predict_time,
     )
 
