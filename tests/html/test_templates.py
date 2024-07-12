@@ -2,7 +2,7 @@ import logging
 
 import pytest
 from conftest import res  # noqa: F401
-from IPython.display import HTML
+from IPython.display import HTML, SVG
 
 import seismometer.html.template as undertest
 
@@ -78,3 +78,24 @@ class Test_Templates:
             ).data
             == cohort_summaries_template.data
         )
+
+    def test_title_message_template(self):
+        html_source = undertest.render_title_message("A Title", "The Message").data
+        assert "A Title" in html_source
+        assert "The Message" in html_source
+
+    def test_censored_data_template(self):
+        html_source = undertest.render_censored_plot_message(3).data
+        assert "censored" in html_source
+        assert "There are 3 or fewer rows." in html_source
+
+    def test_title_image_template(self):
+        svg_data = """
+            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
+                <text x="10" y="30" font-family="Arial" font-size="20" fill="black">
+                    svg string
+                </text>
+            </svg>"""
+        html_source = undertest.render_title_with_image("A Title", SVG(svg_data)).data
+        assert "A Title" in html_source
+        assert "svg string" in html_source

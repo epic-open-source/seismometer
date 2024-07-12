@@ -23,3 +23,14 @@ Public API
    show_info
    show_cohort_summaries
    target_feature_summary
+
+.. currentmodule:: seismometer.controls.explore
+
+.. autosummary::
+   :toctree: api/
+
+   ExploreModelEvaluation
+   ExploreCohortEvaluation
+   ExploreCohortHistograms
+   ExploreCohortLeadTime
+   ExploreCohortInterventionTimes
