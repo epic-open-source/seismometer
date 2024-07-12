@@ -8,9 +8,9 @@ from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, Va
 
 from seismometer.core.decorators import export
 
-from .controls.selection import DisjointSelectionListsWidget, MultiSelectionListWidget
-from .controls.thresholds import MonotonicPercentSliderListWidget
-from .syles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
+from .selection import DisjointSelectionListsWidget, MultiSelectionListWidget
+from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
+from .thresholds import MonotonicPercentSliderListWidget
 
 logger = logging.getLogger("seismometer")
 
@@ -29,7 +29,7 @@ class UpdatePlotWidget(Box):
             layout=Layout(margin="var(--jp-widgets-margin) var(--jp-widgets-margin) var(--jp-widgets-margin) 10px;"),
         )
 
-        self.plot_button = Button(description=UPDATE_PLOTS, button_style="primary", width="max-content")
+        self.plot_button = Button(description=self.UPDATE_PLOTS, button_style="primary", width="max-content")
         layout = Layout(align_items="flex-start")
         children = [self.plot_button, self.code_checkbox]
         super().__init__(layout=layout, children=children)
