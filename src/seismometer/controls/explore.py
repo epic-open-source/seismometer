@@ -16,6 +16,8 @@ logger = logging.getLogger("seismometer")
 
 
 class UpdatePlotWidget(Box):
+    """Widget for updating plots and showing code behind the plot call."""
+
     UPDATE_PLOTS = "Update Plots"
     UPDATING_PLOTS = "Updating ..."
 
@@ -35,7 +37,7 @@ class UpdatePlotWidget(Box):
         super().__init__(layout=layout, children=children)
 
     @property
-    def show_code(self):
+    def show_code(self) -> bool:
         return self.code_checkbox.value
 
     @property
@@ -70,11 +72,16 @@ class UpdatePlotWidget(Box):
 
 
 class ExlorationWidget(VBox):
-    def __init__(
-        self,
-        title: str,
-        option_widget: ValueWidget,
-    ):
+    def __init__(self, title: str, option_widget: ValueWidget):
+        """Parent class for a plot exploration widget.
+
+        Parameters
+        ----------
+        title : str
+            Widget title
+        option_widget : ValueWidget
+            widget that contains the options for the plot
+        """
         layout = Layout(
             width="100%",
             height="min-content",
@@ -97,32 +104,43 @@ class ExlorationWidget(VBox):
         self.option_widget.observe(self._on_option_change, "value")
 
     @property
-    def disabled(self):
+    def disabled(self) -> bool:
+        """
+        If the widget is disabled.
+        """
         return False
 
     @property
     def show_code(self) -> bool:
+        """
+        If the widget should show the plot's code
+        """
         return self.update_plot_widget.show_code
 
     def _on_plot_button_click(self, button=None):
+        """handle for the update plot button"""
         self.center.clear_output()
         with self.center:
-            self.update_plot()
+            display(self.generate_plot())
         self._on_toggle_code(self.show_code)
 
     def _on_toggle_code(self, show_code: bool):
+        """handle for the toggle code checkbox"""
         self.bottom.clear_output()
         if show_code:
             with self.bottom:
                 display(self.plot_code())
 
     def _on_option_change(self, change=None):
+        """enable the plot to be updated"""
         self.update_plot_widget.disabled = self.disabled
 
-    def update_plot(self):
+    def generate_plot(self) -> HTML:
+        """override this method with code to show a plot"""
         raise NotImplementedError("Subclasses must implement this method")
 
-    def plot_code(self):
+    def plot_code(self) -> HTML:
+        """override this method with code that generates the plot"""
         raise NotImplementedError("Subclasses must implement this method")
 
 
@@ -136,6 +154,19 @@ class ModelOptionsWidget(VBox, ValueWidget):
         thresholds: dict[str, float],
         per_context: bool = False,
     ):
+        """Widget for model based options
+
+        Parameters
+        ----------
+        target_names : tuple[Any]
+            list of target column names
+        score_names : tuple[Any]
+            list of model score names
+        thresholds : dict[str, float]
+            list of thresholds for the model scores
+        per_context : bool, optional
+            if scores should be grouped by contex, by default False
+        """
         self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
         self.target_list = Dropdown(
             options=target_names,
@@ -187,20 +218,24 @@ class ModelOptionsWidget(VBox, ValueWidget):
         }
 
     @property
-    def target(self):
+    def target(self) -> str:
+        """target column descriptor"""
         return self.target_list.value
 
     @property
-    def score(self):
+    def score(self) -> str:
+        """score column descriptor"""
         return self.score_list.value
 
     @property
-    def thresholds(self):
+    def thresholds(self) -> tuple[float]:
+        """thresholds for the score"""
         if self.threshold_list:
             return self.threshold_list.value
 
     @property
-    def group_scores(self):
+    def group_scores(self) -> bool:
+        """if the scores should be grouped"""
         if self.per_context_checkbox:
             return self.per_context_checkbox.value
 
@@ -216,6 +251,22 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
         thresholds: dict[str, float],
         per_context: bool = False,
     ):
+        """
+        Widget for model based options and cohort selection
+
+        Parameters
+        ----------
+        cohort_groups : dict[str, tuple[Any]]
+            cohort colums and groupings
+        target_names : tuple[Any]
+            model target columns
+        score_names : tuple[Any]
+            model score columns
+        thresholds : dict[str, float]
+            model thresholds
+        per_context : bool, optional
+            if scores should be grouped by context, by default False
+        """
         self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
         self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
         self.cohort_list.observe(self._on_value_change, "value")
@@ -230,23 +281,28 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
         }
 
     @property
-    def cohorts(self):
+    def cohorts(self) -> dict[str, tuple[str]]:
+        """selected cohorts"""
         return self.cohort_list.value
 
     @property
-    def target(self):
+    def target(self) -> str:
+        """trarget column descriptor"""
         return self.model_options.target
 
     @property
-    def score(self):
+    def score(self) -> str:
+        """Score column descriptor"""
         return self.model_options.score
 
     @property
-    def thresholds(self):
+    def thresholds(self) -> tuple[float]:
+        """Score thresholds"""
         return self.model_options.thresholds
 
     @property
-    def group_scores(self):
+    def group_scores(self) -> bool:
+        """If scores should be grouped by context"""
         return self.model_options.group_scores
 
 
@@ -261,6 +317,23 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
         thresholds: dict[str, float],
         per_context: bool = False,
     ):
+        """
+        Selection widget for model options and cohort groups, when displaying results for
+        individual values within a cohort attribute
+
+        Parameters
+        ----------
+        cohort_groups : dict[str, tuple[Any]]
+            groups of cohort columns and values
+        target_names : tuple[Any]
+            model target columns
+        score_names : tuple[Any]
+            model score columns
+        thresholds : dict[str, float]
+            tresholds for the model scores
+        per_context : bool, optional
+            if scores should be grouped by context, by default False
+        """
         self.cohort_list = DisjointSelectionListsWidget(options=cohort_groups, title="Cohort Filter", select_all=True)
         self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
         self.cohort_list.observe(self._on_value_change, "value")
@@ -275,27 +348,33 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
         }
 
     @property
-    def cohort(self):
+    def cohort(self) -> str:
+        """cohort column descriptor"""
         return self.cohort_list.value[0]
 
     @property
-    def cohort_groups(self):
+    def cohort_groups(self) -> tuple[Any]:
+        """cohort groups"""
         return self.cohort_list.value[1]
 
     @property
-    def target(self):
+    def target(self) -> str:
+        """target column descriptor"""
         return self.model_options.target
 
     @property
-    def score(self):
+    def score(self) -> str:
+        """score column descriptor"""
         return self.model_options.score
 
     @property
-    def thresholds(self):
+    def thresholds(self) -> tuple[float]:
+        """score thresholds"""
         return self.model_options.thresholds
 
     @property
-    def group_scores(self):
+    def group_scores(self) -> bool:
+        """if scores should be grouped by context"""
         return self.model_options.group_scores
 
 
@@ -314,16 +393,23 @@ class ExplorationModelEvaluationWidget(ExlorationWidget):
         per_context: bool = False,
     ):
         """
-        A widget for exploring the results of a cohort.
+        Exploration widget for model evaluation, showing a plot for a given target,
+        score, threshold, and cohort selection.
 
         Parameters
         ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+        title : str
+            title of the control
+        cohort_groups : dict[str, tuple[Any]]
+            available cohort groups
+        target_names : tuple[Any]
+            available target columns
+        score_names : tuple[Any]
+            available score columns
+        thresholds : dict[str, float]
+            default thresholds for the score columns
+        per_context : bool, optional
+            if control should allow grouping by context, by default False
         """
         super().__init__(
             title=title,
@@ -348,16 +434,22 @@ class ExplorationCohortSubclassEvaluationWidget(ExlorationWidget):
         per_context: bool = False,
     ):
         """
-        A widget for exploring the results of a cohort's subgroups.
+        Exploration widget for model evaluation, showing a plot broken down for a set of cohort column subclasses.,
 
         Parameters
         ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+        title : str
+            title of the control
+        cohort_groups : dict[str, tuple[Any]]
+            available cohort groups
+        target_names : tuple[Any]
+            available target columns
+        score_names : tuple[Any]
+            available score columns
+        thresholds : dict[str, float]
+            default thresholds for the score columns
+        per_context : bool, optional
+            if control should allow grouping by context, by default False
         """
         option_widget = ModelOptionsAndCohortGroupWidget(
             cohort_groups, target_names, score_names, thresholds, per_context
@@ -377,16 +469,10 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
 
     def __init__(self):
         """
-        A widget for exploring the results of a cohort.
+        Exploration widget for model evaluation.
 
-        Parameters
-        ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+        This includes the ROC, recall vs predicted condition prevalence, calibration,
+        PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
         """
         from seismometer.seismogram import Seismogram
 
@@ -401,20 +487,20 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
             per_context=True,
         )
 
-    def update_plot(self):
+    def generate_plot(self) -> HTML:
+        """Generates the 6 plots for model evaluation"""
         from seismometer._api import plot_model_evaluation
 
-        display(
-            plot_model_evaluation(
-                self.option_widget.cohorts,
-                self.option_widget.target,
-                self.option_widget.score,
-                self.option_widget.thresholds,
-                per_context=self.option_widget.group_scores,
-            )
+        return plot_model_evaluation(
+            self.option_widget.cohorts,
+            self.option_widget.target,
+            self.option_widget.score,
+            self.option_widget.thresholds,
+            per_context=self.option_widget.group_scores,
         )
 
-    def plot_code(self):
+    def plot_code(self) -> HTML:
+        """Generates the code for the model evaluation plot"""
         args = ", ".join(
             [
                 repr(x)
@@ -441,16 +527,13 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
 
     def __init__(self):
         """
-        A widget for exploring the results of a cohort.
+        Exploration widget for cohort evaluation.
 
-        Parameters
-        ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+
+        Creates a 2x3 grid of individual performance metrics across cohorts.
+
+        Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
+        Includes a legend with cohort size.
         """
         from seismometer.seismogram import Seismogram
 
@@ -465,21 +548,21 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
             per_context=True,
         )
 
-    def update_plot(self):
+    def generate_plot(self) -> HTML:
+        """Generates the cohort evaluation plot"""
         from seismometer._api import plot_cohort_evaluation
 
-        display(
-            plot_cohort_evaluation(
-                self.option_widget.cohort,
-                self.option_widget.cohort_groups,
-                self.option_widget.target,
-                self.option_widget.score,
-                self.option_widget.thresholds,
-                per_context=self.option_widget.group_scores,
-            )
+        return plot_cohort_evaluation(
+            self.option_widget.cohort,
+            self.option_widget.cohort_groups,
+            self.option_widget.target,
+            self.option_widget.score,
+            self.option_widget.thresholds,
+            per_context=self.option_widget.group_scores,
         )
 
-    def plot_code(self):
+    def plot_code(self) -> HTML:
+        """Generates the code for the cohort evaluation plot"""
         args = ", ".join(
             [
                 repr(x)
@@ -507,16 +590,8 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
 
     def __init__(self):
         """
-        A widget for exploring the results of a cohort.
-
-        Parameters
-        ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+        Exploration widget for cohort histograms.
+        Shows a distribution of scores for each category in a cohort group.
         """
         from seismometer.seismogram import Seismogram
 
@@ -530,19 +605,19 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
             per_context=False,
         )
 
-    def update_plot(self):
+    def generate_plot(self) -> HTML:
+        """Generates the cohort histogram plot"""
         from seismometer._api import plot_cohort_group_histograms
 
-        display(
-            plot_cohort_group_histograms(
-                self.option_widget.cohort,
-                self.option_widget.cohort_groups,
-                self.option_widget.target,
-                self.option_widget.score,
-            )
+        return plot_cohort_group_histograms(
+            self.option_widget.cohort,
+            self.option_widget.cohort_groups,
+            self.option_widget.target,
+            self.option_widget.score,
         )
 
-    def plot_code(self):
+    def plot_code(self) -> HTML:
+        """Generates the code for the cohort histogram plot"""
         args = ", ".join(
             [
                 repr(x)
@@ -567,16 +642,8 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
 
     def __init__(self):
         """
-        A widget for exploring the results of a cohort.
-
-        Parameters
-        ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+        Exploration widget for cohort lead time.
+        Shows the amount of lead time for each category in the cohort group.
         """
         from seismometer.seismogram import Seismogram
 
@@ -586,20 +653,20 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
             "Leadtime Analysis", sg.available_cohort_groups, sg.target_cols, sg.output_list, thresholds=thresholds
         )
 
-    def update_plot(self):
+    def generate_plot(self) -> HTML:
+        """Generates the cohort lead time plot"""
         from seismometer._api import plot_cohort_lead_time
 
-        display(
-            plot_cohort_lead_time(
-                self.option_widget.cohort,
-                self.option_widget.cohort_groups,
-                self.option_widget.target,
-                self.option_widget.score,
-                self.option_widget.thresholds[0],
-            )
+        return plot_cohort_lead_time(
+            self.option_widget.cohort,
+            self.option_widget.cohort_groups,
+            self.option_widget.target,
+            self.option_widget.score,
+            self.option_widget.thresholds[0],
         )
 
-    def plot_code(self):
+    def plot_code(self) -> HTML:
+        """Generates the code for the cohort lead time plot"""
         args = ", ".join(
             [
                 repr(x)
@@ -626,6 +693,18 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
         intervention_names: tuple[Any] = None,
         reference_time_names: tuple[Any] = None,
     ):
+        """
+        Widget for selecting an intervention and outcome for a model implementation
+
+        Parameters
+        ----------
+        outcome_names : tuple[Any], optional
+            names of coutcome columns, by default None
+        intervention_names : tuple[Any], optional
+            names of intervention columns, by default None
+        reference_time_names : tuple[Any], optional
+            name for the reference time to align patients, by default None
+        """
         self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
         self.outcome_list = Dropdown(options=outcome_names, value=outcome_names[0], description="Outcome")
         self.intervention_list = Dropdown(
@@ -654,15 +733,18 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
         }
 
     @property
-    def outcome(self):
+    def outcome(self) -> str:
+        """outcome column descriptor"""
         return self.outcome_list.value
 
     @property
-    def intervention(self):
+    def intervention(self) -> str:
+        """intervention column descriptor"""
         return self.intervention_list.value
 
     @property
-    def reference_time(self):
+    def reference_time(self) -> str:
+        """reference time column descriptor"""
         return self.ref_time_list.value
 
 
@@ -676,6 +758,20 @@ class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
         intervention_names: tuple[Any] = None,
         reference_time_names: tuple[Any] = None,
     ):
+        """
+        Widget for selecting interventions and outcomes accross categories in a cohort group.
+
+        Parameters
+        ----------
+        cohort_groups : dict[str, tuple[Any]]
+            cohort names and category values
+        outcome_names : tuple[Any], optional
+            outcome descriptors, by default None
+        intervention_names : tuple[Any], optional
+            intervention descriptors, by default None
+        reference_time_names : tuple[Any], optional
+            reference time descriptors, by default None
+        """
         self.cohort_list = DisjointSelectionListsWidget(options=cohort_groups, title="Cohort Filter", select_all=True)
         self.model_options = ModelInterventionOptionsWidget(outcome_names, intervention_names, reference_time_names)
         self.cohort_list.observe(self._on_value_change, "value")
@@ -690,23 +786,28 @@ class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
         }
 
     @property
-    def cohort(self):
+    def cohort(self) -> str:
+        """cohort column descriptor"""
         return self.cohort_list.value[0]
 
     @property
-    def cohort_groups(self):
+    def cohort_groups(self) -> tuple[Any]:
+        """cohort category values"""
         return self.cohort_list.value[1]
 
     @property
-    def outcome(self):
+    def outcome(self) -> str:
+        """outcome column descriptor"""
         return self.model_options.outcome
 
     @property
-    def intervention(self):
+    def intervention(self) -> str:
+        """intervention column descriptor"""
         return self.model_options.intervention
 
     @property
-    def reference_time(self):
+    def reference_time(self) -> str:
+        """reference time column descriptor"""
         return self.model_options.reference_time
 
 
@@ -724,16 +825,20 @@ class ExplorationCohortInterventionEvaluationWidget(ExlorationWidget):
         reference_time_names: tuple[Any],
     ):
         """
-        A widget for exploring the results of a cohort's subgroups based on scores and intervention.
+        Exploration widget for plotting of interventions and outcomes accross categories in a cohort group.
 
         Parameters
         ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+        title : str
+            title of the control
+        cohort_groups : dict[str, tuple[Any]]
+            cohort names and category values
+        outcome_names : tuple[Any], optional
+            outcome descriptors, by default None
+        intervention_names : tuple[Any], optional
+            intervention descriptors, by default None
+        reference_time_names : tuple[Any], optional
+            reference time descriptors, by default None
         """
         super().__init__(
             title,
@@ -754,16 +859,18 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
 
     def __init__(self):
         """
-        A widget for exploring the results of a cohort.
+        Exploration widget for viewing rates of interventions and outcomes accross categories in a cohort group.
 
         Parameters
         ----------
-        cohort : seismometer.data.cohort.Cohort
-            The cohort to explore.
-        plot_fn : Callable
-            A function that takes a cohort and returns a plot.
-        filter_fn : Optional[Callable], optional
-            A function that takes a cohort and returns a filter, by default None.
+        cohort_groups : dict[str, tuple[Any]]
+            cohort names and category values
+        outcome_names : tuple[Any], optional
+            outcome descriptors, by default None
+        intervention_names : tuple[Any], optional
+            intervention descriptors, by default None
+        reference_time_names : tuple[Any], optional
+            reference time descriptors, by default None
         """
         from seismometer.seismogram import Seismogram
 
@@ -780,20 +887,18 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
             reference_times,
         )
 
-    def update_plot(self):
+    def generate_plot(self) -> HTML:
         from seismometer._api import plot_intervention_outcome_timeseries
 
-        display(
-            plot_intervention_outcome_timeseries(
-                self.option_widget.outcome,
-                self.option_widget.intervention,
-                self.option_widget.reference_time,
-                self.option_widget.cohort,
-                self.option_widget.cohort_groups,
-            )
+        return plot_intervention_outcome_timeseries(
+            self.option_widget.outcome,
+            self.option_widget.intervention,
+            self.option_widget.reference_time,
+            self.option_widget.cohort,
+            self.option_widget.cohort_groups,
         )
 
-    def plot_code(self):
+    def plot_code(self) -> HTML:
         args = ", ".join(
             [
                 repr(x)
