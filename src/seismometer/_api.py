@@ -8,7 +8,7 @@ from pandas.io.formats.style import Styler
 
 import seismometer.plot as plot
 
-from .controls.decorators import disk_cached_html_segment, display_cached_widget
+from .controls.decorators import disk_cached_html_segment
 from .data import (
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
@@ -189,30 +189,6 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
 # endregion
 
 # region notebook IPWidgets # TODO - move to .controls submodule
-
-
-@export
-@display_cached_widget
-def cohort_selector():
-    """
-    Display an IPyWidget selector to control cohorts used in visualizations.
-    """
-    from seismometer.controls.selection import DisjointSelectionListsWidget
-
-    sg = Seismogram()
-    options = sg.available_cohort_groups
-    widget = DisjointSelectionListsWidget(
-        options=options, value=sg.selected_cohort, title="Select Subgroups of Interest", select_all=True
-    )
-
-    def on_widget_value_changed(*args):
-        sg.selected_cohort = widget.value
-
-    widget.observe(on_widget_value_changed, "value")
-
-    # get intial value
-    on_widget_value_changed()
-    return widget
 
 
 @export

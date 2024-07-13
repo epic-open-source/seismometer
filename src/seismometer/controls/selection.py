@@ -11,26 +11,25 @@ class SelectionListWidget(ValueWidget, VBox):
 
     value = traitlets.Tuple(help="The selected values for the button list")
 
-    def __init__(self, title: str, options: tuple[str], value: tuple[str] = None, show_title: bool = True):
+    def __init__(self, options: tuple[str], *, value: tuple[str] = None, title: Optional[str] = None):
         """A vertical list of buttons for selection
 
         Parameters
         ----------
-        title : str
-            Title to be displayed above the list of buttons.
         options : tuple[str]
             Selectable options.
         value : Optional[tuple[str]], optional
             Subset of options that should be selected by default, by default None.
-        show_title : bool, optional
-            If True, shows the title, by default True.
+        title : Optional[str[], optoinal
+            Title to be displayed above the list of buttons, it not set, title not included
         """
         super().__init__()
         self.options = tuple(options)  # make immutable
         selected_values = value or ()
         selected_values = tuple(value for value in selected_values)
-        self.buttons = []
-        self.value_from_button = {}
+        self.value = selected_values
+        self.button_from_option = {}
+        self.option_from_button = {}
         for option in self.options:
             sub_toggle = ToggleButton(
                 value=option in selected_values,
@@ -42,53 +41,41 @@ class SelectionListWidget(ValueWidget, VBox):
                 layout=Layout(flex="1 0 auto"),
             )
             sub_toggle.observe(self._on_button_change, "value")
-            self.buttons.append(sub_toggle)
-            self.value_from_button[sub_toggle] = option
+            self.button_from_option[option] = sub_toggle
+            self.option_from_button[sub_toggle] = option
 
         self.layout = Layout(width="max-content", min_width="var(--jp-widgets-inline-label-width)")
         self.button_box = VBox(
-            children=self.buttons,
+            children=[button for option, button in self.button_from_option.items()],
             layout=Layout(max_height="calc(7* var(--jp-widgets-inline-height))", align_items="flex-start"),
         )
-        self.label = Label(title)
-        if show_title:
-            self.children = [self.label] + [self.button_box]
+        if title:
+            self.title_label = Label(title)
+            self.children = [self.title_label] + [self.button_box]
         else:
+            self.title_label = None
             self.children = [self.button_box]
-        self._on_button_change()
+        self.observe(self._on_value_change, "value")
 
     def _on_button_change(self, change=None):
         """Bubble down control change."""
         if change:
             change["owner"].icon = "check" if change["owner"].value else ""
-        self.value = self.control_value
+        self.value = tuple(option for button, option in self.option_from_button.items() if button.value)
 
-    @property
-    def title(self) -> str:
-        """Selection title."""
-        return self.label.value
-
-    @title.setter
-    def title(self, title: str):
-        self.label.value = title
-
-    @property
-    def control_value(self) -> tuple:
-        """Value from child widgets."""
-        return tuple(self.value_from_button[x] for x in self.buttons if x.value)
-
-    @control_value.setter
-    def control_value(self, new_value: tuple[str]):
+    def _on_value_change(self, change=None):
         """Bubble up changes."""
-        for button in self.buttons:
-            button.value = button.description in (str(value) for value in new_value)
+        updated_values = {option: (option in self.value) for option in self.options}
+        for option, value in updated_values.items():
+            self.button_from_option[option].value = value
 
     def get_selection_text(self) -> str:
         """Descriptoin of the currently selected values."""
+        text == f"{self.title_label.value}: " if self.title_label else ""
         if self.control_value:
-            return f"{self.title}: {','.join([str(x) for x in self.control_value])}"
+            return text + f"{','.join([str(x) for x in self.control_value])}"
         else:
-            return ""
+            return text + ""
 
 
 class MultiSelectionListWidget(ValueWidget, VBox):
@@ -117,16 +104,24 @@ class MultiSelectionListWidget(ValueWidget, VBox):
            Values that should be pre-selected, by default None.
         title : str, optional
             Name of the control, by default None.
+        border : bool, optional
+            If True, display a border around the widget, by default False.
         """
         super().__init__()
         self.title = title
+        self.options = options
         self.selection_widgets = {}
         if values is None:
-            values = {key: () for key in options}
+            values = {}
+        else:
+            values = {k: tuple(v) for k, v in values.items()}
+        self.value = values
+
         for key in options:
-            selection_widget = SelectionListWidget(title=key, options=options[key], value=values[key])
+            selection_widget = SelectionListWidget(title=key, options=options[key], value=values.get(key, None))
             self.selection_widgets[key] = selection_widget
             selection_widget.observe(self._on_subselection_change, "value")
+        self.value_update_in_progress = False
         self.title_box = HTML()
         self.children = [
             self.title_box,
@@ -143,22 +138,22 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             ),
         ]
         self.update_title_section(self.title)
-        self._on_subselection_change()
+        self.observe(self._on_value_change, "value")
 
     def _on_subselection_change(self, change=None):
         """Sets the observable value."""
-        self.value = {k: v for k, v in self.control_value.items() if v}
+        if self.value_update_in_progress:
+            return
+        if change and change["owner"] in self.selection_widgets.values():
+            self.value = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
 
-    @property
-    def control_value(self) -> dict[str, tuple[str]]:
-        """Reads values from child widgets."""
-        return {key: self.selection_widgets[key].value for key in self.selection_widgets}
-
-    @control_value.setter
-    def control_value(self, new_value):
-        """Updates the actual control value."""
-        for key in self.selection_widgets:
-            self.selection_widgets[key].control_value = new_value.get(key, ())
+    def _on_value_change(self, change=None):
+        """Bubble up changes."""
+        self.value_update_in_progress = True
+        updated_values = {key: self.value.get(key, ()) for key in self.selection_widgets}
+        for key, value in updated_values.items():
+            self.selection_widgets[key].value = self.value.get(key, ())
+        self.value_update_in_progress = False
 
     def get_selection_text(self) -> str:
         """Return the header text for the widget."""
@@ -169,7 +164,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         if selection_strings:
             return "\n".join(selection_strings)
         else:
-            return self.ghost_text
+            return ""
 
     def update_title_section(self, title):
         if title:
@@ -190,7 +185,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         value: Optional[tuple[str | tuple]] = None,
         *,
         title: str = "",
-        select_all: bool = False,
+        select_all: bool = True,
     ):
         """
         A drop down selector where each selection has its own set of buttons.
@@ -205,7 +200,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         title : str, optional
             Dispaly above the dropdown, by default "".
         select_all : bool, optional
-            As an alternative to value - set all values to selected by default, by default False.
+            As an alternative to value - set all values to selected by default, by default True.
         """
         super().__init__()
         self.title = title
@@ -214,7 +209,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         if value is not None:
             values[value[0]] = value[1]
         else:
-            value = (list(values.keys())[0], values[list(values.keys())[0]])
+            value = (tuple(values.keys())[0], values[tuple(values.keys())[0]])
         self.dropdown = Dropdown(
             options=[key for key in values],
             value=value[0],
@@ -223,9 +218,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         self.dropdown.observe(self._on_selection_change, "value")
         self.selection_widgets = {}
         for key in options:
-            selection_widget = SelectionListWidget(
-                title=key, options=options[key], value=values[key], show_title=False
-            )
+            selection_widget = SelectionListWidget(options=options[key], value=values[key])
             self.selection_widgets[key] = selection_widget
             selection_widget.observe(self._on_selection_change, "value")
         self.stack = Stack(children=[self.selection_widgets[key] for key in self.selection_widgets], selected_index=0)
@@ -233,22 +226,16 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         jslink((self.dropdown, "index"), (self.stack, "selected_index"))
         self.layout = Layout(width="calc(100& - var(--jp-widgets-border-width)* 2)")
         self._on_selection_change()
+        self.observe(self._on_value_change, "value")
 
     def _on_selection_change(self, *args):
         """Update value from controls."""
-        self.value = self.control_value
-
-    @property
-    def control_value(self) -> dict[str, tuple[str]]:
-        """Read value from child widgets."""
         key = self.dropdown.value
         selections = self.selection_widgets[key].value
-        return (key, selections)
+        self.value = (key, tuple(selections))
 
-    @control_value.setter
-    def control_value(self, new_value):
-        """Update all the children based on the new value."""
-        key = new_value[0]
-        value = new_value[1]
-        self.selection_widgets[key].control_value = value
+    def _on_value_change(self, change=None):
+        """Buble up changes."""
+        key, value = self.value
         self.dropdown.value = key
+        self.selection_widgets[key].value = value
