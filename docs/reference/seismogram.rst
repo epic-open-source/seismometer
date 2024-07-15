@@ -13,13 +13,23 @@ Constructor
 
    Seismogram
 
-Properties
-~~~~~~~~~~
+Initialization
+~~~~~~~~~~~~~~
+.. autosummary::
+   :toctree: api/
+
+   Seismogram.create_cohorts
+   Seismogram.load_config
+   Seismogram.load_data
+
+Properties and Accessors
+~~~~~~~~~~~~~~~~~~~~~~~~
 .. autosummary::
    :toctree: api/
 
    Seismogram.events
    Seismogram.events_columns
+   Seismogram.event_aggregation_method
    Seismogram.target
    Seismogram.target_cols
    Seismogram.target_event
@@ -37,14 +47,3 @@ Properties
    Seismogram.cohort_attribute_count
    Seismogram.score_bins
    Seismogram.data
-
-   
-Initialization
-~~~~~~~~~~~~~~
-.. autosummary::
-   :toctree: api/
-
-   Seismogram.create_cohorts
-   Seismogram.load_config
-   Seismogram.load_data
-    
