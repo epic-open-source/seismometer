@@ -70,10 +70,10 @@ class SelectionListWidget(ValueWidget, VBox):
             self.button_from_option[option].value = value
 
     def get_selection_text(self) -> str:
-        """Descriptoin of the currently selected values."""
-        text == f"{self.title_label.value}: " if self.title_label else ""
-        if self.control_value:
-            return text + f"{','.join([str(x) for x in self.control_value])}"
+        """Description of the currently selected values."""
+        text = f"{self.title_label.value}: " if self.title_label else ""
+        if self.value:
+            return text + f"{','.join([str(x) for x in self.value])}"
         else:
             return text + ""
 
@@ -158,7 +158,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
     def get_selection_text(self) -> str:
         """Return the header text for the widget."""
         selection_strings = []
-        for key in self.selection_widgets:
+        for key in self.value:
             if selection_text := self.selection_widgets[key].get_selection_text():
                 selection_strings.append(selection_text)
         if selection_strings:
@@ -239,3 +239,8 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         key, value = self.value
         self.dropdown.value = key
         self.selection_widgets[key].value = value
+
+    def get_selection_text(self) -> str:
+        """Return the selection for the widget as a key value pair."""
+        key, value = self.value
+        return f"{key}: {self.selection_widgets[key].get_selection_text()}"

@@ -25,6 +25,14 @@ class TestSelectionListWidget:
         assert widget.button_from_option["b"].value is True
         assert widget.button_from_option["c"].value is False
 
+    def test_display_text(self):
+        widget = undertest.SelectionListWidget(options=["a", "b", "c"], title="test_title")
+        widget.value = (
+            "a",
+            "b",
+        )
+        assert widget.get_selection_text() == "test_title: a,b"
+
 
 class TestMultiSelectionListWidget:
     def test_init(self):
@@ -50,6 +58,14 @@ class TestMultiSelectionListWidget:
         assert widget.selection_widgets["a"].value == ("a", "b")
         assert widget.selection_widgets["b"].value == ("c",)
         assert widget.selection_widgets["d"].value == ()
+
+    def test_display_text(self):
+        widget = undertest.MultiSelectionListWidget(
+            options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
+        )
+        assert widget.value == {}
+        widget.value = {"a": ("a", "b"), "b": ("c",)}
+        assert widget.get_selection_text() == "a: a,b\nb: c"
 
 
 class TestDisjointSelectionListsWidget:
@@ -93,3 +109,11 @@ class TestDisjointSelectionListsWidget:
         assert widget.selection_widgets["a"].value == ("a", "b")
         assert widget.selection_widgets["b"].value == ("c",)
         assert widget.value == ("b", ("c",))
+
+    def test_display_text(self):
+        widget = undertest.DisjointSelectionListsWidget(
+            options={"a": ["a", "b", "c"], "b": ["a", "c"]},
+            value=("a", ["a", "b"]),
+            title="title",
+        )
+        assert widget.get_selection_text() == "a: a,b"

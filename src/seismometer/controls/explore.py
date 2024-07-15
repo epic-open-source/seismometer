@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from typing import Any
+from typing import Any, Optional
 
 import traitlets
 from IPython.display import display
@@ -31,7 +31,7 @@ class UpdatePlotWidget(Box):
             layout=Layout(margin="var(--jp-widgets-margin) var(--jp-widgets-margin) var(--jp-widgets-margin) 10px;"),
         )
 
-        self.plot_button = Button(description=self.UPDATE_PLOTS, button_style="primary", width="max-content")
+        self.plot_button = Button(description=self.UPDATE_PLOTS, button_style="primary")
         layout = Layout(align_items="flex-start")
         children = [self.plot_button, self.code_checkbox]
         super().__init__(layout=layout, children=children)
@@ -98,10 +98,10 @@ class ExlorationWidget(VBox):
         )
 
         # attach button handler and show initial plot
+        self.option_widget.observe(self._on_option_change, "value")
         self.update_plot_widget.on_click(self._on_plot_button_click)
         self.update_plot_widget.on_toggle_code(self._on_toggle_code)
         self.update_plot_widget.trigger()
-        self.option_widget.observe(self._on_option_change, "value")
 
     @property
     def disabled(self) -> bool:
@@ -119,16 +119,16 @@ class ExlorationWidget(VBox):
 
     def _on_plot_button_click(self, button=None):
         """handle for the update plot button"""
-        self.center.clear_output()
+        self._on_toggle_code(self.show_code)
+        self.center.clear_output(wait=True)
         with self.center:
             display(self.generate_plot())
-        self._on_toggle_code(self.show_code)
 
     def _on_toggle_code(self, show_code: bool):
         """handle for the toggle code checkbox"""
-        self.bottom.clear_output()
-        if show_code:
-            with self.bottom:
+        self.bottom.clear_output(wait=True)
+        with self.bottom:
+            if self.show_code:
                 display(self.plot_code())
 
     def _on_option_change(self, change=None):
@@ -151,7 +151,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
         self,
         target_names: tuple[Any],
         score_names: tuple[Any],
-        thresholds: dict[str, float],
+        thresholds: Optional[dict[str, float]] = None,
         per_context: bool = False,
     ):
         """Widget for model based options
