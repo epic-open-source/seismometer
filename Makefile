@@ -3,7 +3,7 @@ file_dir := $(dir $(file_path))
 source_dir := $(file_dir)docs
 build_dir := $(file_dir)public
 
-.PHONY : docs clean clean_docs clean_notebooks copy_notebooks generate_docs copy_binary_outputs
+.PHONY : docs clean clean_docs clean_notebooks copy_notebooks generate_docs
 
 # Remove all python generated files
 clean:
@@ -29,9 +29,5 @@ generate_docs:
 	cd docs; \
 	sphinx-build -W -b html $(source_dir) $(build_dir)
 
-copy_binary_outputs:
-	-mkdir ./public/example_notebooks/notebooks/binary-classifier/outputs
-	-cp ./docs/example_notebooks/notebooks/binary-classifier/outputs/* ./public/example_notebooks/notebooks/binary-classifier/outputs
-
 # Put it all together
-docs: clean clean_docs clean_notebooks copy_notebooks generate_docs copy_binary_outputs
+docs: clean clean_docs clean_notebooks copy_notebooks generate_docs
