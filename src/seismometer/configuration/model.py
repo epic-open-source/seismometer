@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -8,6 +8,7 @@ logger = logging.getLogger("seismometer")
 
 FileLike = str | Path
 DirLike = str | Path
+AggregationStrategies = Literal["min", "max", "first", "last"]
 
 
 class OtherInfo(BaseModel):
@@ -155,6 +156,11 @@ class Event(DerivedFeature):
     """ The value to use if no event is present. """
     usage: Optional[str] = None
     """ The type of event being defined; can be target, intervention, or outcome. """
+    aggregation_method: Optional[AggregationStrategies] = "max"
+    """
+    The strategy for aggregating (or selecting) scores for an event.
+    Supports min, max, first, and last; defaulting to max.
+    """
 
 
 class EventTableMap(BaseModel):

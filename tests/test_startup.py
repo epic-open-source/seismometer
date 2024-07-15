@@ -25,12 +25,17 @@ def fake_load_data(self, predictions=None, events=None, reset=False):
 
 @pytest.fixture
 def fake_seismo(tmp_path):
+    old_level = logging.getLogger("seismometer").getEffectiveLevel()
+
     with patch.object(Seismogram, "load_data", fake_load_data), patch.object(
         Seismogram, "load_config", fake_load_config
     ):
         Seismogram(config_path=tmp_path / "config", output_path=tmp_path / "output")
         yield
     Seismogram.kill()
+
+    # DO NOT delete logger: it unsynchs the module objects with test setup (and wouldn't happen during a real session)
+    logging.getLogger("seismometer").setLevel(old_level)
 
 
 class TestStartup:

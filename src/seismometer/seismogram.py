@@ -7,7 +7,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from seismometer.configuration import ConfigProvider
+from seismometer.configuration import AggregationStrategies, ConfigProvider
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -147,6 +147,17 @@ class Seismogram(object, metaclass=Singleton):
     def events_columns(self, mapping_dict: dict[str, str]):
         self._event_column_map = mapping_dict
 
+    def event_aggregation_method(self, event_col: str) -> AggregationStrategies:
+        """
+        Gets the strategy for aggregating scores with respect to the specified event.
+
+        Raises:
+            ValueError: If the event is not found in the configuration.
+        """
+        if (event := pdh.event_name(event_col)) not in self.config.events:
+            raise ValueError(f"Event {event} not found in configuration")
+        return self.config.events[event].aggregation_method
+
     @property
     def target(self):
         """
@@ -178,28 +189,29 @@ class Seismogram(object, metaclass=Singleton):
         self._target = event
 
     @property
-    def target_cols(self) -> list:
-        return self.config.targets
+    def target_cols(self) -> list[str]:
+        """List of target descriptors, the display name of the event type, for targets."""
+        return list(self.config.targets)
 
     @property
-    def intervention(self):
-        """First event in configuration with usage 'intervention'."""
+    def intervention(self) -> str:
+        """First event's name in configuration with usage 'intervention'."""
         try:
-            return self.config.interventions[0]
+            return list(self.config.interventions)[0]
         except IndexError as exc:
             raise IndexError("No interventions defined in configuration") from exc
 
     @property
-    def outcome(self):
-        """First event in configuration with usage 'outcome'."""
+    def outcome(self) -> str:
+        """First event's name in configuration with usage 'outcome'."""
         try:
-            return self.config.outcomes[0]
+            return list(self.config.outcomes)[0]
         except IndexError as exc:
             raise IndexError("No outcomes defined in configuration") from exc
 
     @property
-    def comparison_time(self):
-        """Time used for reference point to intervents and outcomes."""
+    def comparison_time(self) -> str:
+        """Column name specifying which time to use as reference when analyzing interventions and outcomes."""
         return self.config.comparison_time
 
     @property

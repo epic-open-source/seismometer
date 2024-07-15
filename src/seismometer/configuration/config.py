@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from seismometer.core.io import load_yaml
 
-from .model import DataUsage, EventDictionary, OtherInfo, PredictionDictionary
+from .model import DataUsage, Event, EventDictionary, OtherInfo, PredictionDictionary
 from .options import Option, template_options
 
 
@@ -162,7 +162,7 @@ class ConfigProvider:
         return data_model(**raw_defs.pop(def_key, {}))
 
     @property
-    def usage(self) -> str:
+    def usage(self) -> DataUsage:
         """
         The configuration on data usage.
 
@@ -172,7 +172,7 @@ class ConfigProvider:
             self._usage = self._load_usage()
         return self._usage
 
-    def _load_usage(self) -> None:
+    def _load_usage(self) -> DataUsage:
         raw_usage = load_yaml(self.config.usage_config, resource_dir=self.config_dir)
         return DataUsage(**raw_usage.pop("data_usage", {}))
 
@@ -287,46 +287,54 @@ class ConfigProvider:
         return self.usage.cohorts
 
     @property
-    def events(self) -> dict:
+    def comparison_time(self) -> str:
+        """The column name of the timestamp to use as reference for comparison across events."""
+        return self.usage.comparison_time
+
+    @property
+    def events(self) -> dict[str, Event]:
         """
-        List of event objects to use during analysis.
+        Dictionary of all event objects indexed by column name.
 
         Configured in usage_data as events, contains target, outcome, and intervention events with any windowing
         information.
         """
-        return self.usage.events
+        return {ev.display_name: ev for ev in self.usage.events}
 
-    @property
-    def comparison_time(self) -> str:
-        """The timestamp to use as reference for comparison across events."""
-        return self.usage.comparison_time
-
-    @property
-    def targets(self) -> list[str]:
+    def event_group(self, usage_group: str) -> dict[str, Event]:
         """
-        List of events to use as targets.
+        Returns a dictionary of events indexed by column name and restricted to the specified usage group
+
+        Configured in usage_data as events with usage 'group'.
+        """
+        return {ev.display_name: ev for ev in self.usage.events if ev.usage == usage_group}
+
+    @property
+    def targets(self) -> dict[str, Event]:
+        """
+        Dictionary of events to use as targets, keyed off of event name.
 
         Configured in usage_data as events with usage 'target'.
         """
-        return [event.display_name for event in self.usage.events if event.usage == "target"]
+        return self.event_group("target")
 
     @property
-    def outcomes(self) -> list[str]:
+    def outcomes(self) -> dict[str, Event]:
         """
-        List of events to use as outcomes.
+        Dictionary of events to use as outcomes, keyed off of event name.
 
         Configured in usage_data as events with usage 'outcome'.
         """
-        return [event.display_name for event in self.usage.events if event.usage == "outcome"]
+        return self.event_group("outcome")
 
     @property
-    def interventions(self) -> dict:
+    def interventions(self) -> dict[str, Event]:
         """
-        List of events to use as interventions.
+        Dictionary of events to use as interventions, keyed off of event name.
 
         Configured in usage_data as events with usage 'intervention'.
         """
-        return [event.display_name for event in self.events if event.usage == "intervention"]
+        return self.event_group("intervention")
 
     @property
     def prediction_columns(self) -> list:

@@ -87,7 +87,7 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
     )
     event_frame = event_frame.sort_values("Time")
 
-    for one_event in config.events:
+    for one_event in config.events.values():
         # Merge
         if one_event.window_hr:
             logger.debug(
