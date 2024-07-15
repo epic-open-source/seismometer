@@ -451,6 +451,8 @@ targets, interventions, and outcomes associated with an entity.
            window_hr: 6
            offset_hr: 0
            usage: target
+           # How to combine multiple *scores* for a context_id when analyzing this event
+           aggregation_method: max
       # Minimum group size to be included in the analysis
       censor_min_count: 10
 

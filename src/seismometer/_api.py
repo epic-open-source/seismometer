@@ -177,9 +177,13 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
     sensitive_groups = sg.cohort_cols
     metric_list = metric_list or ["tpr", "fpr", "pprev"]
 
-    df = pdh.event_score(sg.data(), sg.entity_keys, score=sg.output, summary_method="max")[
-        [sg.target, sg.output] + sensitive_groups
-    ]
+    df = pdh.event_score(
+        sg.data(),
+        sg.entity_keys,
+        score=sg.output,
+        ref_event=sg.predict_time,
+        aggregation_method=sg.event_aggregation_method(sg.target),
+    )[[sg.target, sg.output] + sensitive_groups]
 
     return fairness_audit_as_html(
         df, sensitive_groups, sg.output, sg.target, sg.thresholds[0], metric_list, fairness_threshold
@@ -471,7 +475,7 @@ def _plot_leadtime_enc(
         entity_keys,
         score=score,
         ref_event=target_zero,
-        summary_method="first",
+        aggregation_method="first",
     )[[target_zero, ref_time, cohort_col]]
 
     # filter by group size
@@ -516,6 +520,8 @@ def cohort_evaluation(per_context_id=False) -> HTML:
         subgroups,
         censor_threshold,
         per_context_id,
+        sg.event_aggregation_method(sg.target),
+        sg.predict_time,
     )
 
 
@@ -556,6 +562,8 @@ def _plot_cohort_evaluation(
     subgroups: list[str],
     censor_threshold: int = 10,
     per_context_id: bool = False,
+    aggregation_method: str = "max",
+    ref_time: str = None,
 ) -> HTML:
     """
     Plots model performance metrics split by on a cohort attribute.
@@ -579,14 +587,25 @@ def _plot_cohort_evaluation(
     censor_threshold : int
         minimum rows to allow in a plot, by default 10
     per_context_id : bool, optional
-        if true, only use the max score for each context, by default False
+        if true, aggregate scores for each context, by default False
+    aggregation_method : str, optional
+        method to reduce multiple scores into a single value before calculation of performance, by default "max"
+        ignored if per_context_id is False
+    ref_time : str, optional
+        reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
 
     Returns
     -------
     HTML
         _description_
     """
-    data = pdh.event_score(dataframe, entity_keys, score=output, summary_method="max") if per_context_id else dataframe
+    data = (
+        pdh.event_score(
+            dataframe, entity_keys, score=output, ref_event=ref_time, aggregation_method=aggregation_method
+        )
+        if per_context_id
+        else dataframe
+    )
 
     plot_data = get_cohort_performance_data(
         data, cohort_col, proba=output, true=target, splits=subgroups, censor_threshold=censor_threshold
@@ -611,7 +630,15 @@ def model_evaluation(per_context_id=False):
     """
     sg = Seismogram()
     return _model_evaluation(
-        sg.dataframe, sg.entity_keys, sg.target_event, sg.target, sg.output, sg.thresholds, per_context_id
+        sg.dataframe,
+        sg.entity_keys,
+        sg.target_event,
+        sg.target,
+        sg.output,
+        sg.thresholds,
+        per_context_id,
+        sg.event_aggregation_method(sg.target),
+        sg.predict_time,
     )
 
 
@@ -651,6 +678,8 @@ def _model_evaluation(
     thresholds: Optional[list[float]],
     censor_threshold: int = 10,
     per_context_id: bool = False,
+    aggregation_method: str = "max",
+    ref_time: str = None,
 ) -> HTML:
     """
     plots common model evaluation metrics
@@ -673,6 +702,11 @@ def _model_evaluation(
         minimum rows to allow in a plot, by default 10
     per_context_id : bool, optional
         report only the max score for a given entity context, by default False
+    aggregation_method : str, optional
+        method to reduce multiple scores into a single value before calculation of performance, by default "max"
+        ignored if per_context_id is False
+    ref_time : str, optional
+        reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
 
     Returns
     -------
@@ -680,7 +714,11 @@ def _model_evaluation(
         Plot of model evaluation metrics
     """
     data = (
-        pdh.event_score(dataframe, entity_keys, score=score_col, summary_method="max") if per_context_id else dataframe
+        pdh.event_score(
+            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
+        )
+        if per_context_id
+        else dataframe
     )
 
     # Validate
@@ -1004,7 +1042,7 @@ def show_info(plot_help: bool = False) -> HTML:
 
 def _style_cohort_summaries(df: pd.DataFrame, attribute: str) -> Styler:
     """
-    Adds required styling to a cohort summary dataframe.
+    Adds required styling to a cohort dataframe.
 
     Parameters
     ----------
