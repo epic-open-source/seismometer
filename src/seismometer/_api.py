@@ -665,6 +665,7 @@ def plot_model_evaluation(
         thresholds,
         sg.censor_threshold,
         per_context,
+        ref_time=sg.predict_time,
     )
 
 
