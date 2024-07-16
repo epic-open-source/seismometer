@@ -636,6 +636,7 @@ def model_evaluation(per_context_id=False):
         sg.target,
         sg.output,
         sg.thresholds,
+        sg.censor_threshold,
         per_context_id,
         sg.event_aggregation_method(sg.target),
         sg.predict_time,
@@ -665,7 +666,8 @@ def plot_model_evaluation(
         thresholds,
         sg.censor_threshold,
         per_context,
-        ref_time=sg.predict_time,
+        sg.event_aggregation_method(sg.target),
+        sg.predict_time,
     )
 
 
