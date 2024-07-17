@@ -107,7 +107,12 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
         else:  # No lookback
             logger.debug(f"Merging event {one_event.display_name}")
             dataframe = _merge_event(
-                config, one_event.source, dataframe, event_frame, display=one_event.display_name, sort=False
+                config, 
+                one_event.source, 
+                dataframe, 
+                event_frame, 
+                display=one_event.display_name, 
+                sort=False, 
             )
 
         # Impute no event
@@ -139,4 +144,5 @@ def _merge_event(
         window_hrs=window_hrs,
         event_base_time_col="Time",
         sort=sort,
+        merge_strategy=config.events[disp_event].merge_strategy,
     )

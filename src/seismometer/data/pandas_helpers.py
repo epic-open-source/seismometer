@@ -19,6 +19,7 @@ def merge_windowed_event(
     event_base_val_col: str = "Value",
     event_base_time_col: str = "Time",
     sort: bool = True,
+    merge_strategy: str = "forward",
 ) -> pd.DataFrame:
     """
     Merges a single windowed event into a predictions dataframe
@@ -65,6 +66,8 @@ def merge_windowed_event(
         The name of the column in the events frame to merge as the _Time, by default 'Time'.
     sort : bool
         Whether or not to sort the predictions/events dataframes, by default True.
+    merge_strategy : str
+        The method to use when merging the event data, by default 'forward'.
 
     Returns
     -------
@@ -97,9 +100,15 @@ def merge_windowed_event(
     event_time_col = event_time(event_label)
     event_val_col = event_value(event_label)
     one_event[r_ref] = one_event[event_time_col] - min_offset
-    predictions = _handle_merge(
-        predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref, event_display=event_label
+
+    if merge_strategy=="count":
+        return _merge_event_counts(predictions, one_event, pks, event_val_col, window_hrs=window_hrs, min_offset=min_offset, l_ref=predtime_col, r_ref=r_ref)
+
+    # merge next event for each prediction
+    predictions = _merge_with_strategy(
+        predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref,event_display=event_label, merge_strategy=merge_strategy
     )
+
 
     if window_hrs is not None:  # Clear out events outside window
         max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
@@ -109,8 +118,9 @@ def merge_windowed_event(
     predictions = infer_label(predictions, event_val_col, event_time_col)
 
     # refactor to generalize
-    predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
-
+    if merge_strategy=="forward": #For forward merges, don't count events that happen before the prediction
+        predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
+    
     return predictions.drop(columns=r_ref)
 
 
@@ -157,6 +167,37 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.Da
         dataframe.loc[dataframe[label_col].isna(), time_col].notna().astype(int)
     )
     return dataframe
+
+def _merge_event_counts(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    pks: list[str],
+    event_label: str,
+    window_hrs: Optional[Number] = None,
+    min_offset: Number = 0,
+    l_ref: str = "Time",
+    r_ref: str = "Time",
+) -> pd.DataFrame:
+
+    for event in right[event_label].unique():
+        right_filtered = right[right[event_label] == event]
+        left[str(event)+"_Count"] = left.apply(lambda x: _count_events(x, pks, right_filtered, r_ref, l_ref, window_hrs, min_offset), axis=1)
+    
+    return left
+        
+def _count_events(left, pk_cols: list[str], right: pd.DataFrame, r_ref: str, l_ref: str, window_hrs: Optional[Number] = None, min_offset: Number = 0) -> pd.DataFrame:
+    """
+    Counts the number of events that have occured for each unique combination of primary keys (pks).
+    """
+    pks = left[pk_cols].values
+
+    if window_hrs is not None:
+        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  #Keep window the specified size
+        right = right.loc[(right[r_ref] - max_lookback) < left[l_ref]] #Filter to only events that happened within the window
+
+    conditions = zip(pk_cols, pks) #Zip column names and expected values
+    f = '{0[0]} == "{0[1]}"'.format
+    return len(right.query(' & '.join(f(t) for t in conditions)))
 
 
 def event_score(
@@ -301,7 +342,7 @@ def _resolve_score_col(dataframe: pd.DataFrame, score: str) -> str:
     return score
 
 
-def _handle_merge(
+def _merge_with_strategy(
     predictions: pd.DataFrame,
     one_event: pd.DataFrame,
     pks: list[str],
@@ -309,12 +350,10 @@ def _handle_merge(
     pred_ref: str = "Time",
     event_ref: str = "Time",
     event_display: str = "an event",
+    merge_strategy: str = "forward",
 ) -> pd.DataFrame:
     """
-    Merges the right frame into the left based on a set of exact match primary keys, prioritizing the first row
-    in the right frame occurring after the row in the left.
-
-    Delegates initial distance logic to pandas.DataFrame.merge_asof looking forward to find the next event.
+    Merges the right frame into the left based on a set of exact match primary keys and merge strategy. 
 
     Parameters
     ----------
@@ -330,31 +369,40 @@ def _handle_merge(
         The column in the right (event) frame to use reference in the distance match, by default 'Time'.
     event_display : str, optional
         The name of the event to display in warning messages, by default "an event"
+    merge_strategy : str
+        The method to use when merging the event data, by default 'forward'.
 
     Returns
     -------
     pd.DataFrame
         The merged dataframe.
     """
+    if merge_strategy=="forward" or merge_strategy=="nearest":
+        ct_times = one_event[event_ref].notna().sum()
+        if ct_times == 0:
+            logger.warning(f"No times found for {event_display}, merging 'first'")
+            return pd.merge(predictions, one_event.groupby(pks).first(), how="left", on=pks)
 
-    ct_times = one_event[event_ref].notna().sum()
-    if ct_times == 0:
-        logger.warning(f"No times found for {event_display}, merging 'first'")
-        return pd.merge(predictions, one_event.groupby(pks).first(), how="left", on=pks)
-
-    if ct_times != len(one_event.index):
-        logger.warning(f"Inconsistent event times for {event_display}, only considering events with times.")
-        one_event = one_event.dropna(subset=[event_ref])
-
-    # merge next event for each prediction
-    return pd.merge_asof(
-        predictions,
-        one_event.dropna(subset=[event_ref]),
-        left_on=pred_ref,
-        right_on=event_ref,
-        by=pks,
-        direction="forward",
-    )
+        if ct_times != len(one_event.index):
+            logger.warning(f"Inconsistent event times for {event_display}, only considering events with times.")
+            one_event = one_event.dropna(subset=[event_ref])
+        return pd.merge_asof(
+            predictions,
+            one_event.dropna(subset=[event_ref]),
+            left_on=pred_ref,
+            right_on=event_ref,
+            by=pks,
+            direction=merge_strategy,
+        )
+     
+    #If there's multiple events with matching event_ref vals, idxmax and idxmin will return the first row.
+    #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
+    if merge_strategy=="first":
+        one_event_filtered = one_event.loc[one_event.sort_index().groupby(pks)[event_ref].idxmin()]
+    if merge_strategy=="last": 
+        one_event_filtered = one_event.loc[one_event.sort_index().groupby(pks)[event_ref].idxmax()]
+    
+    return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
 
 # endregion
