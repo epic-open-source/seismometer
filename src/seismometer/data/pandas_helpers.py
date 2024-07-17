@@ -20,6 +20,7 @@ def merge_windowed_event(
     event_base_val_col: str = "Value",
     event_base_time_col: str = "Time",
     sort: bool = True,
+    merge_strategy: str = "forward",
 ) -> pd.DataFrame:
     """
     Merges a single windowed event into a predictions dataframe
@@ -66,6 +67,8 @@ def merge_windowed_event(
         The name of the column in the events frame to merge as the _Time, by default 'Time'.
     sort : bool
         Whether or not to sort the predictions/events dataframes, by default True.
+    merge_strategy : str
+        The method to use when merging the event data, by default 'forward'.
 
     Returns
     -------
@@ -98,7 +101,7 @@ def merge_windowed_event(
 
     # merge next event for each prediction
     predictions = _merge_next(
-        predictions, one_event, pks, l_ref=predtime_col, r_ref=r_ref, merge_cols_without_times=event_val_col, sort=sort
+        predictions, one_event, pks, l_ref=predtime_col, r_ref=r_ref, merge_cols_without_times=event_val_col, sort=sort, merge_strategy=merge_strategy
     )
     predictions = infer_label(predictions, event_val_col, event_time_col)
 
@@ -107,7 +110,8 @@ def merge_windowed_event(
         predictions.loc[predictions[predtime_col] < (predictions[r_ref] - max_lookback), event_time_col] = pd.NaT
 
     # refactor to generalize
-    predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
+    if merge_strategy=="forward": #For forward merges, don't count events that happen before the prediction
+        predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
 
     return predictions.drop(columns=r_ref)
 
@@ -309,6 +313,7 @@ def _merge_next(
     r_ref: str = "Time",
     merge_cols_without_times: str = None,
     sort: bool = True,
+    merge_strategy: str = "forward"
 ) -> pd.DataFrame:
     """
     Merges the right frame into the left based on a set of exact match primary keys, prioritizing the first row
@@ -334,17 +339,19 @@ def _merge_next(
         filling in data where the distance merge did not find results, by default None.
     sort : bool
         Whether or not to sort the left/right dataframes, by default True.
+    merge_strategy : str
+        The method to use when merging the event data, by default 'forward'.
 
     Returns
     -------
     pd.DataFrame
         The merged dataframe.
     """
-    if sort:
+    if sort or merge_strategy=="forward":
         left = left.sort_values(l_ref).drop_duplicates(subset=pks + [l_ref]).dropna(subset=[l_ref])
         right = right.sort_values(r_ref)
 
-    rv = pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction="forward")
+    rv = _merge_with_strategy(left, right, pks, r_ref=r_ref, l_ref=l_ref, merge_strategy=merge_strategy)
 
     # Second pass to fill in values for no times or no right-event after the left one
     #   This isn't rare when most predictions have no event (have negative labels)..
@@ -360,6 +367,27 @@ def _merge_next(
             rv.iloc[needs_update] = direct_merge.sort_values(l_ref).iloc[np.where(needs_update)[0]]
 
     return rv
+
+def _merge_with_strategy(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    pks: list[str],
+    *,
+    r_ref: str,
+    l_ref: str,
+    merge_strategy: str,
+) -> pd.DataFrame:
+
+    
+    if merge_strategy=="forward" or merge_strategy=="nearest":
+        return pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction=merge_strategy)
+    
+    if merge_strategy=="first":
+        right = right.loc[right.groupby(pks)[r_ref].idxmin()]
+    if merge_strategy=="last":
+        right = right.loc[right.groupby(pks)[r_ref].idxmax()]    
+        
+    return pd.merge(left, right, on=pks, how="left")
 
 
 # endregion

@@ -6,7 +6,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from seismometer.configuration import AggregationStrategies, ConfigProvider
+from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStategies
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -154,6 +154,17 @@ class Seismogram(object, metaclass=Singleton):
         if (event := pdh.event_name(event_col)) not in self.config.events:
             raise ValueError(f"Event {event} not found in configuration")
         return self.config.events[event].window_hr
+    
+    def event_merge_strategy(self, event_col: str) -> MergeStategies:
+        """
+        Gets the strategy for merging scores with respect to the specified event.
+
+        Raises:
+            ValueError: If the event is not found in the configuration.
+        """
+        if (event := pdh.event_name(event_col)) not in self.config.events:
+            raise ValueError(f"Event {event} not found in configuration")
+        return self.config.events[event].merge_strategy
 
     @property
     def target(self):

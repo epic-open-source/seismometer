@@ -9,6 +9,7 @@ logger = logging.getLogger("seismometer")
 FileLike = str | Path
 DirLike = str | Path
 AggregationStrategies = Literal["min", "max", "first", "last"]
+MergeStategies = Literal["first", "last", "nearest", "forward"]
 
 
 class OtherInfo(BaseModel):
@@ -170,6 +171,11 @@ class Event(BaseModel):
     """
     The strategy for aggregating (or selecting) scores for an event.
     Supports min, max, first, and last; defaulting to max.
+    """
+    merge_strategy: Optional[MergeStategies] = "forward"
+    """
+    The strategy for merging events with predictions.
+    Supports first, last, nearest, and forward; defaulting to forward.
     """
 
     @field_validator("source", mode="before")
