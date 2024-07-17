@@ -173,7 +173,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
         score_names : tuple[Any]
             list of model score names
         thresholds : dict[str, float]
-            list of thresholds for the model scores
+            list of thresholds for the model scores, will be sorted into decreasing order
         per_context : bool, optional
             if scores should be grouped by contex, by default None, in which case this checkbox is not shown.
         """
@@ -193,6 +193,9 @@ class ModelOptionsWidget(VBox, ValueWidget):
         children = [self.title, self.target_list, self.score_list]
 
         if thresholds:
+            thresholds = {
+                k: v for k, v in sorted(thresholds.items(), key=lambda x: x[1], reverse=True)
+            }  # decreasing order
             self.threshold_list = MonotonicPercentSliderListWidget(
                 names=tuple(thresholds.keys()), value=tuple(thresholds.values()), increasing=False
             )
@@ -559,7 +562,7 @@ class ExploreFairnessAudit(ExlorationWidget):
             self.cohort_columns,
             self.option_widget.target,
             self.option_widget.score,
-            self.option_widget.thresholds[0],
+            self.option_widget.thresholds["Score Threshold"],
             self.option_widget.group_scores,
             list(self.option_widget.metrics),
             self.option_widget.fairness_threshold,
@@ -573,7 +576,7 @@ class ExploreFairnessAudit(ExlorationWidget):
                     self.cohort_columns,
                     self.option_widget.target,
                     self.option_widget.score,
-                    self.option_widget.thresholds[0],
+                    self.option_widget.thresholds["Score Threshold"],
                     self.option_widget.group_scores,
                     list(self.option_widget.metrics),
                     self.option_widget.fairness_threshold,
@@ -682,7 +685,7 @@ class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds), 1)}
+        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds, reverse=True), 1)}
         super().__init__(
             "Model Performance",
             sg.available_cohort_groups,
@@ -700,7 +703,7 @@ class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
             self.option_widget.cohorts,
             self.option_widget.target,
             self.option_widget.score,
-            self.option_widget.thresholds,
+            list(self.option_widget.thresholds.values()),
             per_context=self.option_widget.group_scores,
         )
 
@@ -713,7 +716,7 @@ class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
                     self.option_widget.cohorts,
                     self.option_widget.target,
                     self.option_widget.score,
-                    self.option_widget.thresholds,
+                    list(self.option_widget.thresholds.values()),
                 ]
             ]
         )
@@ -739,7 +742,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds), 1)}
+        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds, reverse=True), 1)}
         super().__init__(
             "Cohort Group Performance",
             sg.available_cohort_groups,
@@ -758,7 +761,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
             self.option_widget.cohort_groups,
             self.option_widget.target,
             self.option_widget.score,
-            self.option_widget.thresholds,
+            list(self.option_widget.thresholds.values()),
             per_context=self.option_widget.group_scores,
         )
 
@@ -772,7 +775,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
                     self.option_widget.cohort_groups,
                     self.option_widget.target,
                     self.option_widget.score,
-                    self.option_widget.thresholds,
+                    list(self.option_widget.thresholds.values()),
                 ]
             ]
         )
@@ -856,7 +859,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
             self.option_widget.cohort_groups,
             self.option_widget.target,
             self.option_widget.score,
-            self.option_widget.thresholds[0],
+            self.option_widget.thresholds["Score Threshold"],
         )
 
     def generate_plot_code(self) -> str:
@@ -869,7 +872,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
                     self.option_widget.cohort_groups,
                     self.option_widget.target,
                     self.option_widget.score,
-                    self.option_widget.thresholds[0],
+                    self.option_widget.thresholds["Score Threshold"],
                 ]
             ]
         )
@@ -1074,8 +1077,8 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
         super().__init__(
             "Outcome / Intervention Analysis",
             sg.available_cohort_groups,
-            sg.config.outcomes,
-            sg.config.interventions,
+            tuple(sg.config.outcomes.keys()),
+            tuple(sg.config.interventions.keys()),
             reference_times,
         )
 

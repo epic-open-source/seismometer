@@ -62,24 +62,24 @@ class TestExporationBaseClass:
 class TestModelOptionsWidget:
     def test_init_with_all_options(self):
         widget = undertest.ModelOptionsWidget(
-            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.1, "T2": 0.2}, per_context=True
+            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.2, "T2": 0.1}, per_context=True
         )
         assert len(widget.children) == 5
         assert "Model Options" in widget.title.value
         assert widget.target == "T1"
         assert widget.score == "S1"
-        assert widget.thresholds == (0.1, 0.2)
+        assert widget.thresholds == {"T1": 0.2, "T2": 0.1}
         assert widget.group_scores is True
 
     def test_init_with_all_options_grouping_off(self):
         widget = undertest.ModelOptionsWidget(
-            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.1, "T2": 0.2}, per_context=False
+            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.2, "T2": 0.1}, per_context=False
         )
         assert len(widget.children) == 5
         assert "Model Options" in widget.title.value
         assert widget.target == "T1"
         assert widget.score == "S1"
-        assert widget.thresholds == (0.1, 0.2)
+        assert widget.thresholds == {"T1": 0.2, "T2": 0.1}
         assert widget.group_scores is False
 
     def test_no_combine_scores_checkbox(self):
@@ -90,7 +90,7 @@ class TestModelOptionsWidget:
         assert "Model Options" in widget.title.value
         assert widget.target == "T1"
         assert widget.score == "S1"
-        assert widget.thresholds == (0.1, 0.2)
+        assert widget.thresholds == {"T1": 0.1, "T2": 0.2}
         assert widget.per_context_checkbox is None
 
     def test_no_score_thresholds(self):

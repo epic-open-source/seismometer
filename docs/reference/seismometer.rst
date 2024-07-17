@@ -33,3 +33,4 @@ Public API
    ExploreCohortHistograms
    ExploreCohortLeadTime
    ExploreCohortInterventionTimes
+   ExploreFairnessAudit

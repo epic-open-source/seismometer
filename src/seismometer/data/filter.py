@@ -368,7 +368,7 @@ class FilterRule(object):
 
         Parameters
         ----------
-        cohort_dict : dict[str,tuplep[any]], optional
+        cohort_dict : dict[str, tuple[any]], optional
             A dictionary of column names and cohort category labels,
             by default None, in which case FilterRule.all() is returned.
 
@@ -396,7 +396,7 @@ def filter_rule_from_cohort_dictionary(cohort: dict[str, tuple[any]] | None = No
 
     Parameters
     ----------
-    cohort : dict[str,tuplep[any]], optional
+    cohort : dict[str, tuple[any]], optional
         A dictionary of column names and cohort category labels,
         by default None, in which case FilterRule.all() is returned.
 

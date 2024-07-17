@@ -84,7 +84,7 @@ class SelectionListWidget(ValueWidget, VBox):
         """Description of the currently selected values."""
         text = f"{self.title_label.value}: " if self.title_label else ""
         if self.value:
-            return text + f"{','.join([str(x) for x in self.value])}"
+            return text + f"{', '.join([str(x) for x in self.value])}"
         else:
             return text + ""
 
@@ -269,7 +269,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         self.value = (key, tuple(selections))
 
     def _on_value_change(self, change=None):
-        """Buble up changes."""
+        """Bubble up changes."""
         key, value = self.value
         self.dropdown.value = key
         self.selection_widgets[key].value = value
