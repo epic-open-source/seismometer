@@ -3,10 +3,12 @@ from functools import partial
 from typing import Optional
 
 from IPython.display import display
-from ipywidgets import Box, Button, Layout, Output, VBox
+from ipywidgets import Box, Button, Output, VBox
 
-from seismometer.controls.selection import MultiSelectionListWidget
 from seismometer.data.filter import filter_rule_from_cohort_dictionary
+
+from .selection import MultiSelectionListWidget
+from .styles import BOX_GRID_LAYOUT
 
 logger = logging.getLogger("seismometer")
 
@@ -32,7 +34,7 @@ class ComparisonReportGenerator:
         display(
             VBox(
                 children=[
-                    Box(children=self.selectors, layout=Layout(grid_gap="20px", align_times="flex-start")),
+                    Box(children=self.selectors, layout=BOX_GRID_LAYOUT),
                     self.button,
                     self.output,
                 ]

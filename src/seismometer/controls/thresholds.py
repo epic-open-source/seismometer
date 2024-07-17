@@ -47,6 +47,17 @@ class PercentSliderListWidget(ValueWidget, VBox):
         self.layout = Layout(width="max-content", min_width="300px")
         self.children = self.sliders
         self.observe(self._on_value_change, "value")
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        for slider in self.sliders:
+            slider.disabled = disabled
 
     def _on_slider_change(self, change=None):
         """Slider has changed, update the value tuple"""
@@ -105,6 +116,17 @@ class MonotonicPercentSliderListWidget(ValueWidget, VBox):
 
         self.children = self.sliders
         self.observe(self._on_value_change, "value")
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        for slider in self.sliders:
+            slider.disabled = disabled
 
     def _on_slider_change(self, change=None):
         """Slider has changed, update the value tuple, making sure values are increating"""

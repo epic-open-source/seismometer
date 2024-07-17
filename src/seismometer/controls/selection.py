@@ -56,6 +56,17 @@ class SelectionListWidget(ValueWidget, VBox):
             self.title_label = None
             self.children = [self.button_box]
         self.observe(self._on_value_change, "value")
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        for widget in self.button_from_option.values():
+            widget.disabled = disabled
 
     def _on_button_change(self, change=None):
         """Bubble down control change."""
@@ -139,6 +150,17 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         ]
         self.update_title_section(self.title)
         self.observe(self._on_value_change, "value")
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        for widget in self.selection_widgets.values():
+            widget.disabled = disabled
 
     def _on_subselection_change(self, change=None):
         """Sets the observable value."""
@@ -227,6 +249,18 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         self.layout = Layout(width="calc(100& - var(--jp-widgets-border-width)* 2)")
         self._on_selection_change()
         self.observe(self._on_value_change, "value")
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.dropdown.disabled = disabled
+        for widget in self.selection_widgets.values():
+            widget.disabled = disabled
 
     def _on_selection_change(self, *args):
         """Update value from controls."""

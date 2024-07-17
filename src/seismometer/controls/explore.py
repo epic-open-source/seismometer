@@ -90,14 +90,15 @@ class ExlorationWidget(VBox):
         )
         title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
         self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
-        self.bottom = Output(layout=Layout(height="max-content", max_width="2000px"))
+        self.code_output = Output(layout=Layout(height="max-content", max_width="2000px"))
         self.option_widget = option_widget
         self.update_plot_widget = UpdatePlotWidget()
         super().__init__(
-            children=[title, self.option_widget, self.update_plot_widget, self.center, self.bottom], layout=layout
+            children=[title, self.option_widget, self.update_plot_widget, self.code_output, self.center], layout=layout
         )
 
         # attach button handler and show initial plot
+        self.current_plot_code = self.generate_plot_code()
         self.option_widget.observe(self._on_option_change, "value")
         self.update_plot_widget.on_click(self._on_plot_button_click)
         self.update_plot_widget.on_toggle_code(self._on_toggle_code)
@@ -119,19 +120,26 @@ class ExlorationWidget(VBox):
 
     def _on_plot_button_click(self, button=None):
         """handle for the update plot button"""
+        self.option_widget.disabled = True
         self._on_toggle_code(self.show_code)
         self.center.clear_output(wait=True)
         with self.center:
             display(self.generate_plot())
+        self.current_plot_code = self.generate_plot_code()
+        self._on_toggle_code(self.show_code)
+        self.option_widget.disabled = False
 
     def _on_toggle_code(self, show_code: bool):
         """handle for the toggle code checkbox"""
-        with self.bottom:
+
+        highlighted_code = HTML(f"Plot code: <code>{self.current_plot_code}</code>")
+        highlighted_code.add_class("jp-RenderedHTMLCommon")
+        with self.code_output:
             if self.show_code:
-                self.bottom.clear_output(wait=True)
-                display(self.plot_code())
+                self.code_output.clear_output(wait=True)
+                display(highlighted_code)
             else:
-                self.bottom.clear_output()
+                self.code_output.clear_output()
 
     def _on_option_change(self, change=None):
         """enable the plot to be updated"""
@@ -141,7 +149,7 @@ class ExlorationWidget(VBox):
         """override this method with code to show a plot"""
         raise NotImplementedError("Subclasses must implement this method")
 
-    def plot_code(self) -> HTML:
+    def generate_plot_code(self) -> str:
         """override this method with code that generates the plot"""
         raise NotImplementedError("Subclasses must implement this method")
 
@@ -210,6 +218,21 @@ class ModelOptionsWidget(VBox, ValueWidget):
             children=children,
             layout=Layout(align_items="flex-start", flex="0 0 auto"),
         )
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.target_list.disabled = disabled
+        self.score_list.disabled = disabled
+        if self.threshold_list:
+            self.threshold_list.disabled = disabled
+        if self.per_context_checkbox:
+            self.per_context_checkbox.disabled = disabled
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -275,6 +298,18 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
         self.model_options.observe(self._on_value_change, "value")
 
         super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
+
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.cohort_list.disabled = disabled
+        self.model_options.disabled = disabled
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -342,6 +377,17 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
         self.model_options.observe(self._on_value_change, "value")
 
         super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.cohort_list.disabled = disabled
+        self.model_options.disabled = disabled
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -430,6 +476,18 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
         super().__init__(
             children=[self.model_options, self.fairness_list, self.fairness_slider], layout=BOX_GRID_LAYOUT
         )
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.fairness_list.disabled = disabled
+        self.fairness_slider.disabled = disabled
+        self.model_options.disabled = disabled
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -507,7 +565,7 @@ class ExploreFairnessAudit(ExlorationWidget):
             self.option_widget.fairness_threshold,
         )
 
-    def plot_code(self) -> HTML:
+    def generate_plot_code(self) -> str:
         args = ", ".join(
             [
                 repr(x)
@@ -522,9 +580,7 @@ class ExploreFairnessAudit(ExlorationWidget):
                 ]
             ]
         )
-        help_text = HTML(f"Plot code: <code>sm.generate_fairness_audit({args})</code>")
-        help_text.add_class("jp-RenderedHTMLCommon")
-        return help_text
+        return f"sm.generate_fairness_audit({args})"
 
 
 class ExplorationModelSubgroupEvaluationWidget(ExlorationWidget):
@@ -648,7 +704,7 @@ class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
             per_context=self.option_widget.group_scores,
         )
 
-    def plot_code(self) -> HTML:
+    def generate_plot_code(self) -> str:
         """Generates the code for the model evaluation plot"""
         args = ", ".join(
             [
@@ -661,11 +717,7 @@ class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
                 ]
             ]
         )
-        help_text = HTML(
-            f"Plot code: <code>sm.plot_model_evaluation({args}, per_context={self.option_widget.group_scores})</code>"
-        )
-        help_text.add_class("jp-RenderedHTMLCommon")
-        return help_text
+        return f"sm.plot_model_evaluation({args}, per_context={self.option_widget.group_scores})"
 
 
 @export
@@ -710,7 +762,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
             per_context=self.option_widget.group_scores,
         )
 
-    def plot_code(self) -> HTML:
+    def generate_plot_code(self) -> str:
         """Generates the code for the cohort evaluation plot"""
         args = ", ".join(
             [
@@ -724,11 +776,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
                 ]
             ]
         )
-        help_text = HTML(
-            f"Plot code: <code>sm.plot_cohort_evaluation({args}, per_context={self.option_widget.group_scores})</code>"
-        )
-        help_text.add_class("jp-RenderedHTMLCommon")
-        return help_text
+        return f"sm.plot_cohort_evaluation({args}, per_context={self.option_widget.group_scores})"
 
 
 @export
@@ -764,7 +812,7 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
             self.option_widget.score,
         )
 
-    def plot_code(self) -> HTML:
+    def generate_plot_code(self) -> str:
         """Generates the code for the cohort histogram plot"""
         args = ", ".join(
             [
@@ -777,9 +825,7 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
                 ]
             ]
         )
-        help_text = HTML(f"Plot code: <code>sm.plot_cohort_group_histograms({args})</code>")
-        help_text.add_class("jp-RenderedHTMLCommon")
-        return help_text
+        return f"sm.plot_cohort_group_histograms({args})"
 
 
 @export
@@ -813,7 +859,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
             self.option_widget.thresholds[0],
         )
 
-    def plot_code(self) -> HTML:
+    def generate_plot_code(self) -> str:
         """Generates the code for the cohort lead time plot"""
         args = ", ".join(
             [
@@ -827,9 +873,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
                 ]
             ]
         )
-        help_text = HTML(f"Plot code: <code>sm.plot_cohort_lead_time({args})</code>")
-        help_text.add_class("jp-RenderedHTMLCommon")
-        return help_text
+        return f"sm.plot_cohort_lead_time({args})"
 
 
 class ModelInterventionOptionsWidget(VBox, ValueWidget):
@@ -1046,7 +1090,7 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
             self.option_widget.cohort_groups,
         )
 
-    def plot_code(self) -> HTML:
+    def generate_plot_code(self) -> str:
         args = ", ".join(
             [
                 repr(x)
@@ -1059,6 +1103,4 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
                 ]
             ]
         )
-        help_text = HTML(f"Plot code: <code>sm.plot_intervention_outcome_timeseries({args})</code>")
-        help_text.add_class("jp-RenderedHTMLCommon")
-        return help_text
+        return f"sm.plot_intervention_outcome_timeseries({args})"

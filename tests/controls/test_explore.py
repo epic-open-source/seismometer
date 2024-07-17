@@ -55,26 +55,8 @@ class TestExporationBaseClass:
     def test_base_class(self, caplog):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
 
-        # This doesnt throw an exception because the exception goes to the output widget
-        widget = undertest.ExlorationWidget("ExploreTest", option_widget)
-
-        # This captures the log of the exception
-        assert len(caplog.records) == 1
-        assert "Subclasses must implement this method" in caplog.records[0].exc_text
-
-        # Test the rest of init
-        assert widget.show_code is False
-        assert "ExploreTest" in widget.children[0].value
-        assert widget.children[1] == option_widget
-        assert not widget.disabled
-
-        # Test show code, this will raise an exception
         with pytest.raises(NotImplementedError):
-            widget.update_plot_widget.code_checkbox.value = True
-
-        # Test plot button doesnt disable for the base widget
-        option_widget.value = True
-        assert not widget.disabled
+            undertest.ExlorationWidget("ExploreTest", option_widget)
 
 
 class TestModelOptionsWidget:
