@@ -9,7 +9,7 @@ logger = logging.getLogger("seismometer")
 FileLike = str | Path
 DirLike = str | Path
 AggregationStrategies = Literal["min", "max", "first", "last"]
-MergeStategies = Literal["first", "last", "nearest", "forward"]
+MergeStategies = Literal["first", "last", "nearest", "forward","count"]
 
 
 class OtherInfo(BaseModel):
@@ -175,7 +175,8 @@ class Event(BaseModel):
     merge_strategy: Optional[MergeStategies] = "forward"
     """
     The strategy for merging events with predictions.
-    Supports first, last, nearest, and forward; defaulting to forward.
+    Supports first, last, nearest, forward, and count; defaulting to forward.
+    If count, a counts column for each event value will be added to the dataframe. Counts respect the window_hr.
     """
 
     @field_validator("source", mode="before")

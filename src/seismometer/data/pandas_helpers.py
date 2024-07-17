@@ -99,6 +99,9 @@ def merge_windowed_event(
     # one_event = infer_label(one_event, event_val_col, event_time_col)
     one_event[r_ref] = one_event[event_time_col] - min_offset
 
+    if merge_strategy=="count":
+        return _merge_event_counts(predictions, one_event, pks, event_val_col, window_hrs=window_hrs, min_offset=min_offset, l_ref=predtime_col, r_ref=r_ref)
+
     # merge next event for each prediction
     predictions = _merge_next(
         predictions, one_event, pks, l_ref=predtime_col, r_ref=r_ref, merge_cols_without_times=event_val_col, sort=sort, merge_strategy=merge_strategy
@@ -160,6 +163,37 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.Da
         dataframe.loc[dataframe[label_col].isna(), time_col].notna().astype(int)
     )
     return dataframe
+
+def _merge_event_counts(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    pks: list[str],
+    event_label: str,
+    window_hrs: Optional[Number] = None,
+    min_offset: Number = 0,
+    l_ref: str = "Time",
+    r_ref: str = "Time",
+) -> pd.DataFrame:
+
+    for event in right[event_label].unique():
+        right_filtered = right[right[event_label] == event]
+        left[event+"_Count"] = left.apply(lambda x: _count_events(x, pks, right_filtered, r_ref, l_ref, window_hrs, min_offset), axis=1)
+    
+    return left
+        
+def _count_events(left, pk_cols: list[str], right: pd.DataFrame, r_ref: str, l_ref: str, window_hrs: Optional[Number] = None, min_offset: Number = 0) -> pd.DataFrame:
+    """
+    Counts the number of events that have occured for each unique combination of primary keys (pks).
+    """
+    pks = left[pk_cols].values
+
+    if window_hrs is not None:
+        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
+        right = right.loc[(right[r_ref] - max_lookback) < left[l_ref]] #Filter to only events that happened within the window
+
+    conditions = zip(pk_cols, pks) #zip column names and expected values
+    f = '{0[0]} == {0[1]}'.format
+    return len(right.query(' & '.join(f(t) for t in conditions)))
 
 
 def event_score(
@@ -378,7 +412,6 @@ def _merge_with_strategy(
     merge_strategy: str,
 ) -> pd.DataFrame:
 
-    
     if merge_strategy=="forward" or merge_strategy=="nearest":
         return pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction=merge_strategy)
     
