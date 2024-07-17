@@ -147,7 +147,6 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     wrapper.display_report(inline)
 
 
-@disk_cached_html_segment
 @export
 def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1.25) -> HTML:
     """
@@ -155,8 +154,6 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
 
     Parameters
     ----------
-    sensitive_groups : list[str]
-        A list of columns that correspond to the cohorts to stratify by.
     metric_list : list[str]
         The list of metrics to use in Aequitas. Chosen from:
             "tpr",
@@ -177,16 +174,47 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
     sensitive_groups = sg.cohort_cols
     metric_list = metric_list or ["tpr", "fpr", "pprev"]
 
-    df = pdh.event_score(
-        sg.data(),
-        sg.entity_keys,
-        score=sg.output,
-        ref_event=sg.predict_time,
-        aggregation_method=sg.event_aggregation_method(sg.target),
-    )[[sg.target, sg.output] + sensitive_groups]
+    return generate_fairness_audit(
+        sensitive_groups,
+        sg.target,
+        sg.output,
+        sg.thresholds[0],
+        per_context=True,
+        metric_list=metric_list,
+        fairness_threshold=fairness_threshold,
+    )
 
+
+@disk_cached_html_segment
+@export
+def generate_fairness_audit(
+    cohort_columns: list[str],
+    target_column: str,
+    score_column: str,
+    score_threshold: float,
+    per_context: bool = False,
+    metric_list: Optional[list[str]] = None,
+    fairness_threshold: float = 1.25,
+) -> HTML:
+    sg = Seismogram()
+    target = pdh.event_value(target_column)
+    data = (
+        pdh.event_score(
+            sg.data(),
+            sg.entity_keys,
+            score=sg.output,
+            ref_event=sg.predict_time,
+            aggregation_method=sg.event_aggregation_method(sg.target),
+        )
+        if per_context
+        else sg.data()
+    )
+
+    data = data[[target, score_column] + cohort_columns]
+    if len(data.index) < sg.censor_threshold:
+        return template.render_censored_plot_message(sg.censor_threshold)
     return fairness_audit_as_html(
-        df, sensitive_groups, sg.output, sg.target, sg.thresholds[0], metric_list, fairness_threshold
+        data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
     )
 
 
@@ -334,7 +362,7 @@ def _plot_cohort_hist(
 
 
 @export
-def plot_leadtime_enc(score=None, ref_time=None, target_event=None, max_hours=8):
+def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
     """Displays the amount of time that a high prediction gives before an event of interest.
 
     Parameters
@@ -357,6 +385,7 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None, max_hours=8)
     ref_time = ref_time or sg.predict_time
     target_event = pdh.event_value(target_event) or sg.target
     target_zero = pdh.event_time(target_event) or sg.time_zero
+    max_hours = sg.event_aggregation_window_hours(target_event)
     threshold = sg.thresholds[0]
     target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)
 
@@ -386,6 +415,7 @@ def plot_cohort_lead_time(
     target_event = pdh.event_value(target_column)
     target_zero = pdh.event_time(target_column)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)
+    max_hours = sg.event_aggregation_window_hours(target_event)
 
     return _plot_leadtime_enc(
         target_data,
@@ -397,7 +427,7 @@ def plot_cohort_lead_time(
         sg.predict_time,
         cohort_col,
         subgroups,
-        8,
+        max_hours,
         x_label,
         sg.censor_threshold,
     )

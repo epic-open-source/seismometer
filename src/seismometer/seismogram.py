@@ -158,6 +158,17 @@ class Seismogram(object, metaclass=Singleton):
             raise ValueError(f"Event {event} not found in configuration")
         return self.config.events[event].aggregation_method
 
+    def event_aggregation_window_hours(self, event_col: str) -> tuple[int, int]:
+        """
+        Gets the window in hours for aggregating scores with respect to the specified event.
+
+        Raises:
+            ValueError: If the event is not found in the configuration.
+        """
+        if (event := pdh.event_name(event_col)) not in self.config.events:
+            raise ValueError(f"Event {event} not found in configuration")
+        return self.config.events[event].window_hr
+
     @property
     def target(self):
         """

@@ -12,7 +12,7 @@ allowed_metrics = ["tpr", "tnr", "for", "fdr", "fpr", "fnr", "npv", "ppr", "prec
 
 def to_html(summary_plot) -> HTML:
     buffer = StringIO()
-    summary_plot.save(buffer, format="html", inline=True)
+    summary_plot.save(buffer, format="svg")
     return HTML(buffer.getvalue())
 
 

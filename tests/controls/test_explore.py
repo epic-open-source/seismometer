@@ -87,11 +87,22 @@ class TestModelOptionsWidget:
         assert widget.target == "T1"
         assert widget.score == "S1"
         assert widget.thresholds == (0.1, 0.2)
-        assert not widget.group_scores
+        assert widget.group_scores is True
+
+    def test_init_with_all_options_grouping_off(self):
+        widget = undertest.ModelOptionsWidget(
+            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.1, "T2": 0.2}, per_context=False
+        )
+        assert len(widget.children) == 5
+        assert "Model Options" in widget.title.value
+        assert widget.target == "T1"
+        assert widget.score == "S1"
+        assert widget.thresholds == (0.1, 0.2)
+        assert widget.group_scores is False
 
     def test_no_combine_scores_checkbox(self):
         widget = undertest.ModelOptionsWidget(
-            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.1, "T2": 0.2}, per_context=False
+            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.1, "T2": 0.2}
         )
         assert len(widget.children) == 4
         assert "Model Options" in widget.title.value
@@ -101,7 +112,7 @@ class TestModelOptionsWidget:
         assert widget.per_context_checkbox is None
 
     def test_no_score_thresholds(self):
-        widget = undertest.ModelOptionsWidget(target_names=["T1", "T2"], score_names=["S1", "S2"], per_context=False)
+        widget = undertest.ModelOptionsWidget(target_names=["T1", "T2"], score_names=["S1", "S2"])
         assert len(widget.children) == 3
         assert "Model Options" in widget.title.value
         assert widget.target == "T1"
@@ -110,7 +121,7 @@ class TestModelOptionsWidget:
         assert widget.per_context_checkbox is None
 
     def test_per_context_checkbox(self):
-        widget = undertest.ModelOptionsWidget(target_names=["T1", "T2"], score_names=["S1", "S2"], per_context=True)
+        widget = undertest.ModelOptionsWidget(target_names=["T1", "T2"], score_names=["S1", "S2"], per_context=False)
 
         widget.per_context_checkbox.value = True
         assert widget.group_scores

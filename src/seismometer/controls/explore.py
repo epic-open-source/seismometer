@@ -4,11 +4,11 @@ from typing import Any, Optional
 
 import traitlets
 from IPython.display import display
-from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, ValueWidget, VBox
+from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, FloatSlider, Layout, Output, ValueWidget, VBox
 
 from seismometer.core.decorators import export
 
-from .selection import DisjointSelectionListsWidget, MultiSelectionListWidget
+from .selection import DisjointSelectionListsWidget, MultiSelectionListWidget, SelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 from .thresholds import MonotonicPercentSliderListWidget
 
@@ -126,10 +126,12 @@ class ExlorationWidget(VBox):
 
     def _on_toggle_code(self, show_code: bool):
         """handle for the toggle code checkbox"""
-        self.bottom.clear_output(wait=True)
         with self.bottom:
             if self.show_code:
+                self.bottom.clear_output(wait=True)
                 display(self.plot_code())
+            else:
+                self.bottom.clear_output()
 
     def _on_option_change(self, change=None):
         """enable the plot to be updated"""
@@ -152,7 +154,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
         target_names: tuple[Any],
         score_names: tuple[Any],
         thresholds: Optional[dict[str, float]] = None,
-        per_context: bool = False,
+        per_context: Optional[bool] = None,
     ):
         """Widget for model based options
 
@@ -165,7 +167,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
         thresholds : dict[str, float]
             list of thresholds for the model scores
         per_context : bool, optional
-            if scores should be grouped by contex, by default False
+            if scores should be grouped by contex, by default None, in which case this checkbox is not shown.
         """
         self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
         self.target_list = Dropdown(
@@ -191,9 +193,9 @@ class ModelOptionsWidget(VBox, ValueWidget):
         else:
             self.threshold_list = None
 
-        if per_context:
+        if per_context is not None:
             self.per_context_checkbox = Checkbox(
-                value=False,
+                value=per_context,
                 description="combine scores",
                 disabled=False,
                 tooltip="Combine scores by taking the maximum score in the target window",
@@ -241,7 +243,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
 
 
 class ModelOptionsAndCohortsWidget(Box, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the cohorts and moedel options")
+    value = traitlets.Dict(help="The selected values for the cohorts and model options")
 
     def __init__(
         self,
@@ -307,7 +309,7 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
 
 
 class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the cohorts and moedel options")
+    value = traitlets.Dict(help="The selected values for the cohorts and model options")
 
     def __init__(
         self,
@@ -378,7 +380,154 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
         return self.model_options.group_scores
 
 
-class ExplorationModelEvaluationWidget(ExlorationWidget):
+class ModelFairnessAuditOptions(Box, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the audit and model options")
+
+    def __init__(
+        self,
+        target_names: tuple[Any],
+        score_names: tuple[Any],
+        thresholds: dict[str, float],
+        per_context: bool = True,
+        fairness_metrics: tuple[str] = None,
+        fairness_threshold: float = 1.25,
+    ):
+        """
+        Widget for selecting interventions and outcomes accross categories in a cohort group.
+
+        Parameters
+        ----------
+        target_names : tuple[Any]
+            model target columns
+        score_names : tuple[Any]
+            model score columns
+        thresholds : dict[str, float]
+            tresholds for the model scores
+        per_context : bool, optional
+            if scores should be grouped by context, by default True
+        fairness_metrics : tuple[str], optional
+            list of fairness metrics to display, if None (default) will use ["tpr", "fpr", "pprev"]
+        fairness_threshold : float, optional
+            threshold for fairness metrics, by default 1.25
+        """
+        all_metrics = ["pprev", "tpr", "fpr", "fnr", "ppr", "precision"]
+        fairness_metrics = fairness_metrics or ["pprev", "tpr", "fpr"]
+        self.fairness_slider = FloatSlider(
+            description="Audit Threshold",
+            value=fairness_threshold,
+            min=1.0,
+            max=2.0,
+            step=0.01,
+            tooltip="Threshold for fairness metrics",
+            style=WIDE_LABEL_STYLE,
+        )
+        self.fairness_list = SelectionListWidget(options=all_metrics, value=fairness_metrics, title="Audit Metrics")
+        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
+        self.fairness_list.observe(self._on_value_change, "value")
+        self.fairness_slider.observe(self._on_value_change, "value")
+        self.model_options.observe(self._on_value_change, "value")
+
+        super().__init__(
+            children=[self.model_options, self.fairness_list, self.fairness_slider], layout=BOX_GRID_LAYOUT
+        )
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "fairness_metrics": self.fairness_list.value,
+            "fairness_threshold": self.fairness_slider.value,
+            "model_options": self.model_options.value,
+        }
+
+    @property
+    def metrics(self) -> tuple[str]:
+        """selected cohorts"""
+        return self.fairness_list.value
+
+    @property
+    def fairness_threshold(self) -> tuple[str]:
+        """selected cohorts"""
+        return self.fairness_slider.value
+
+    @property
+    def target(self) -> str:
+        """trarget column descriptor"""
+        return self.model_options.target
+
+    @property
+    def score(self) -> str:
+        """Score column descriptor"""
+        return self.model_options.score
+
+    @property
+    def thresholds(self) -> tuple[float]:
+        """Score thresholds"""
+        return self.model_options.thresholds
+
+    @property
+    def group_scores(self) -> bool:
+        """If scores should be grouped by context"""
+        return self.model_options.group_scores
+
+
+@export
+class ExploreFairnessAudit(ExlorationWidget):
+    """
+    A widget for exploring model fairness
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for model fairness, showing details for a given target, score, and threshold.
+        """
+        from seismometer.seismogram import Seismogram
+
+        title = "Fairness Audit"
+        sg = Seismogram()
+        self.cohort_columns = sg.cohort_cols
+        thresholds = {"Score Threshold": min(sg.thresholds)}
+
+        option_widget = ModelFairnessAuditOptions(
+            sg.target_cols,
+            sg.output_list,
+            thresholds=thresholds,
+            per_context=True,
+        )
+        super().__init__(title=title, option_widget=option_widget)
+
+    def generate_plot(self) -> HTML:
+        from seismometer._api import generate_fairness_audit
+
+        return generate_fairness_audit(
+            self.cohort_columns,
+            self.option_widget.target,
+            self.option_widget.score,
+            self.option_widget.thresholds[0],
+            self.option_widget.group_scores,
+            list(self.option_widget.metrics),
+            self.option_widget.fairness_threshold,
+        )
+
+    def plot_code(self) -> HTML:
+        args = ", ".join(
+            [
+                repr(x)
+                for x in [
+                    self.cohort_columns,
+                    self.option_widget.target,
+                    self.option_widget.score,
+                    self.option_widget.thresholds[0],
+                    self.option_widget.group_scores,
+                    list(self.option_widget.metrics),
+                    self.option_widget.fairness_threshold,
+                ]
+            ]
+        )
+        help_text = HTML(f"Plot code: <code>sm.generate_fairness_audit({args})</code>")
+        help_text.add_class("jp-RenderedHTMLCommon")
+        return help_text
+
+
+class ExplorationModelSubgroupEvaluationWidget(ExlorationWidget):
     """
     A widget for exploring the model performance of a cohort.
     """
@@ -462,7 +611,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExlorationWidget):
 
 
 @export
-class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
+class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
     """
     A widget for exploring the model performance of a cohort.
     """
@@ -484,7 +633,7 @@ class ExploreModelEvaluation(ExplorationModelEvaluationWidget):
             sg.target_cols,
             sg.output_list,
             thresholds=thresholds,
-            per_context=True,
+            per_context=False,
         )
 
     def generate_plot(self) -> HTML:
@@ -545,7 +694,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
             sg.target_cols,
             sg.output_list,
             thresholds=thresholds,
-            per_context=True,
+            per_context=False,
         )
 
     def generate_plot(self) -> HTML:
@@ -602,7 +751,6 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
             sg.target_cols,
             sg.output_list,
             thresholds=None,
-            per_context=False,
         )
 
     def generate_plot(self) -> HTML:
@@ -749,7 +897,7 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
 
 
 class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the cohorts and moedel options")
+    value = traitlets.Dict(help="The selected values for the cohorts and model options")
 
     def __init__(
         self,
