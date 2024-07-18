@@ -1,22 +1,16 @@
 import logging
 import warnings
-from io import StringIO
+from pathlib import Path
 
 import pandas as pd
-from IPython.display import HTML
 
 logger = logging.getLogger("seismometer")
 
 allowed_metrics = ["tpr", "tnr", "for", "fdr", "fpr", "fnr", "npv", "ppr", "precision", "pprev"]
 
 
-def to_html(summary_plot) -> HTML:
-    buffer = StringIO()
-    summary_plot.save(buffer, format="svg")
-    return HTML(buffer.getvalue())
-
-
-def fairness_audit_as_html(
+def fairness_audit_to_html(
+    path: Path,
     df: pd.DataFrame,
     sensitive_groups: list[str],
     score_column: str,
@@ -24,12 +18,14 @@ def fairness_audit_as_html(
     score_threshold: float,
     metric_list: list[str],
     fairness_threshold: float,
-) -> HTML:
+) -> None:
     """
-    Displays the Aequitas fairness audit for a set of sensitive groups and metrics
+    Generate an html file with the Aequitas fairness audit for a set of sensitive groups and metrics
 
     Parameters
     ----------
+    path : Path
+        The path to save the HTML file to.
     df : pd.DataFrame
         The dataframe containing scores, targets, and demographics.
     sensitive_groups : list[str]
@@ -86,4 +82,4 @@ def fairness_audit_as_html(
     audit.audit()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
-        return to_html(audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold))
+        audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold).save(path, format="html")

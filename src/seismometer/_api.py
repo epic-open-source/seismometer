@@ -3,12 +3,13 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from IPython.display import HTML, SVG, display
+from IPython.display import HTML, SVG, IFrame, display
 from pandas.io.formats.style import Styler
 
 import seismometer.plot as plot
 
 from .controls.decorators import disk_cached_html_segment
+from .core.io import slugify
 from .data import (
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
@@ -23,7 +24,8 @@ from .data.decorators import export
 from .data.filter import FilterRule
 from .data.timeseries import create_metric_timeseries
 from .html import template
-from .report.auditing import fairness_audit_as_html
+from .html.iframe import load_as_iframe
+from .report.auditing import fairness_audit_to_html
 from .report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from .seismogram import Seismogram
 
@@ -185,7 +187,6 @@ def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1
     )
 
 
-@disk_cached_html_segment
 @export
 def generate_fairness_audit(
     cohort_columns: list[str],
@@ -195,8 +196,24 @@ def generate_fairness_audit(
     per_context: bool = False,
     metric_list: Optional[list[str]] = None,
     fairness_threshold: float = 1.25,
-) -> HTML:
+) -> HTML | IFrame:
     sg = Seismogram()
+    path = "aequitas_{cohorts}_with_{target}_and_{score}_gt_{thresold}_metrics_{metrics}_ratio_{ratio}".format(
+        cohorts="_".join(cohort_columns),
+        target=target_column,
+        score=score_column,
+        thresold=score_threshold,
+        metrics="_".join(metric_list),
+        ratio=fairness_threshold,
+    )
+    if per_context:
+        path += "_grouped"
+    fairness_path = sg.config.output_dir / (slugify(path) + ".html")
+    height = 100 + 100 * len(metric_list)
+
+    if fairness_path.exists():
+        return load_as_iframe(fairness_path, height=height)
+
     target = pdh.event_value(target_column)
     data = (
         pdh.event_score(
@@ -213,9 +230,10 @@ def generate_fairness_audit(
     data = data[[target, score_column] + cohort_columns]
     if len(data.index) < sg.censor_threshold:
         return template.render_censored_plot_message(sg.censor_threshold)
-    return fairness_audit_as_html(
-        data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
+    fairness_audit_to_html(
+        fairness_path, data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
     )
+    return load_as_iframe(fairness_path, height=height)
 
 
 # endregion
