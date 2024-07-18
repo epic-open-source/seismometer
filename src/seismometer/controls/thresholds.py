@@ -11,15 +11,15 @@ from .styles import WIDE_LABEL_STYLE
 logger = logging.getLogger("seismometer")
 
 
-class PercentSliderListWidget(ValueWidget, VBox):
+class ProbabilitySliderListWidget(ValueWidget, VBox):
     """
-    Vertical list of sliders
+    Vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
     """
 
     value = traitlets.Dict(help="The names and values for the slider list")
 
     def __init__(self, names: Iterable[str], value: Iterable[int] = None):
-        """A vertical list of sliders
+        """A vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
 
         Parameters
         ----------
@@ -86,13 +86,14 @@ class PercentSliderListWidget(ValueWidget, VBox):
         self.value_update_in_progress = False
 
 
-class MonotonicPercentSliderListWidget(PercentSliderListWidget):
+class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
     """
-    Vertical list of sliders, with increasing values
+    Vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
+    Monotonicity is maintained between the sliders so they are always ascending or decending in value.
     """
 
-    def __init__(self, names: tuple[str], value: tuple[int] = None, increasing: bool = True):
-        """A vertical list of sliders
+    def __init__(self, names: tuple[str], value: tuple[int] = None, ascending: bool = True):
+        """A vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
 
         Parameters
         ----------
@@ -100,19 +101,23 @@ class MonotonicPercentSliderListWidget(PercentSliderListWidget):
             Slider names
         value : Optional[tuple[str]], optional
             Slider start values, by default None, starts all sliders at zero.
-        increasing : bool, optional = True
-            Forces sliders to be increasing, else decreasing.
+        ascending : bool, optional = True
+            Forces sliders to be ascending, else decreasing.
             If initial values are not sorted, raise an ValueError.
         """
+        if len(names) > 6:
+            raise ValueError("MonotonicProbabilitySliderListWidget only supports up to 6 sliders")
+
         super().__init__(names, value)
 
-        if tuple(sorted(self.value.values(), reverse=not increasing)) != tuple(self.value.values()):
+        if tuple(sorted(self.value.values(), reverse=not ascending)) != tuple(self.value.values()):
             raise ValueError("Initial values are not sorted")
 
-        self.increasing = increasing
+        self.ascending = ascending
         for index, sub_slider in enumerate(self.sliders.values()):
-            if increasing:
-                sub_slider.style.handle_color = alert_colors[(len(self.value) - index) % len(alert_colors)]
+            if ascending:
+                # line them up so that last slider is the first alert color
+                sub_slider.style.handle_color = alert_colors[(len(self.value) - index - 1) % len(alert_colors)]
             else:
                 sub_slider.style.handle_color = alert_colors[index % len(alert_colors)]
 
@@ -127,7 +132,7 @@ class MonotonicPercentSliderListWidget(PercentSliderListWidget):
             return
         new = change["new"]
         old = change["old"]
-        if self.increasing:  # monotonic increasing
+        if self.ascending:  # monotonic increasing
             if new > old:  # increase in value, increase all sliders after this one
                 new_tuple = [slider.value for slider in sliders[:slider_index]] + [
                     max(new, slider.value) for slider in sliders[slider_index:]

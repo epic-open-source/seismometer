@@ -10,7 +10,7 @@ from seismometer.core.decorators import export
 
 from .selection import DisjointSelectionListsWidget, MultiSelectionListWidget, SelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
-from .thresholds import MonotonicPercentSliderListWidget
+from .thresholds import MonotonicProbabilitySliderListWidget
 
 logger = logging.getLogger("seismometer")
 
@@ -196,8 +196,8 @@ class ModelOptionsWidget(VBox, ValueWidget):
             thresholds = {
                 k: v for k, v in sorted(thresholds.items(), key=lambda x: x[1], reverse=True)
             }  # decreasing order
-            self.threshold_list = MonotonicPercentSliderListWidget(
-                names=tuple(thresholds.keys()), value=tuple(thresholds.values()), increasing=False
+            self.threshold_list = MonotonicProbabilitySliderListWidget(
+                names=tuple(thresholds.keys()), value=tuple(thresholds.values()), ascending=False
             )
             children.append(self.threshold_list)
             self.threshold_list.observe(self._on_value_change, "value")
