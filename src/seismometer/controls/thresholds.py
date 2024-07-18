@@ -111,7 +111,8 @@ class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
         super().__init__(names, value)
 
         if tuple(sorted(self.value.values(), reverse=not ascending)) != tuple(self.value.values()):
-            raise ValueError("Initial values are not sorted")
+            direction = "ascending" if ascending else "descending"
+            raise ValueError(f"Initial values are not sorted, expected {direction}")
 
         self.ascending = ascending
         for index, sub_slider in enumerate(self.sliders.values()):
