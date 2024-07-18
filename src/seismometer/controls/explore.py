@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from typing import Any, Optional
+from typing import Any, Callable, Literal, Optional
 
 import traitlets
 from IPython.display import display
@@ -13,6 +13,8 @@ from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 from .thresholds import MonotonicProbabilitySliderListWidget
 
 logger = logging.getLogger("seismometer")
+
+# region Model Evaluation Header Controls
 
 
 class UpdatePlotWidget(Box):
@@ -69,89 +71,6 @@ class UpdatePlotWidget(Box):
 
     def trigger(self):
         self.plot_button.click()
-
-
-class ExlorationWidget(VBox):
-    def __init__(self, title: str, option_widget: ValueWidget):
-        """Parent class for a plot exploration widget.
-
-        Parameters
-        ----------
-        title : str
-            Widget title
-        option_widget : ValueWidget
-            widget that contains the options for the plot
-        """
-        layout = Layout(
-            width="100%",
-            height="min-content",
-            border="solid 1px var(--jp-border-color1)",
-            padding="var(--jp-cell-padding)",
-        )
-        title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
-        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
-        self.code_output = Output(layout=Layout(height="max-content", max_width="2000px"))
-        self.option_widget = option_widget
-        self.update_plot_widget = UpdatePlotWidget()
-        super().__init__(
-            children=[title, self.option_widget, self.update_plot_widget, self.code_output, self.center], layout=layout
-        )
-
-        # attach button handler and show initial plot
-        self.current_plot_code = self.generate_plot_code()
-        self.option_widget.observe(self._on_option_change, "value")
-        self.update_plot_widget.on_click(self._on_plot_button_click)
-        self.update_plot_widget.on_toggle_code(self._on_toggle_code)
-        self.update_plot_widget.trigger()
-
-    @property
-    def disabled(self) -> bool:
-        """
-        If the widget is disabled.
-        """
-        return False
-
-    @property
-    def show_code(self) -> bool:
-        """
-        If the widget should show the plot's code
-        """
-        return self.update_plot_widget.show_code
-
-    def _on_plot_button_click(self, button=None):
-        """handle for the update plot button"""
-        self.option_widget.disabled = True
-        self._on_toggle_code(self.show_code)
-        self.center.clear_output(wait=True)
-        with self.center:
-            display(self.generate_plot())
-        self.current_plot_code = self.generate_plot_code()
-        self._on_toggle_code(self.show_code)
-        self.option_widget.disabled = False
-
-    def _on_toggle_code(self, show_code: bool):
-        """handle for the toggle code checkbox"""
-
-        highlighted_code = HTML(f"Plot code: <code>{self.current_plot_code}</code>")
-        highlighted_code.add_class("jp-RenderedHTMLCommon")
-        with self.code_output:
-            if self.show_code:
-                self.code_output.clear_output(wait=True)
-                display(highlighted_code)
-            else:
-                self.code_output.clear_output()
-
-    def _on_option_change(self, change=None):
-        """enable the plot to be updated"""
-        self.update_plot_widget.disabled = self.disabled
-
-    def generate_plot(self) -> HTML:
-        """override this method with code to show a plot"""
-        raise NotImplementedError("Subclasses must implement this method")
-
-    def generate_plot_code(self) -> str:
-        """override this method with code that generates the plot"""
-        raise NotImplementedError("Subclasses must implement this method")
 
 
 class ModelOptionsWidget(VBox, ValueWidget):
@@ -429,456 +348,6 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
         return self.model_options.group_scores
 
 
-class ModelFairnessAuditOptions(Box, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the audit and model options")
-
-    def __init__(
-        self,
-        target_names: tuple[Any],
-        score_names: tuple[Any],
-        thresholds: dict[str, float],
-        per_context: bool = True,
-        fairness_metrics: tuple[str] = None,
-        fairness_threshold: float = 1.25,
-    ):
-        """
-        Widget for selecting interventions and outcomes accross categories in a cohort group.
-
-        Parameters
-        ----------
-        target_names : tuple[Any]
-            model target columns
-        score_names : tuple[Any]
-            model score columns
-        thresholds : dict[str, float]
-            tresholds for the model scores
-        per_context : bool, optional
-            if scores should be grouped by context, by default True
-        fairness_metrics : tuple[str], optional
-            list of fairness metrics to display, if None (default) will use ["tpr", "fpr", "pprev"]
-        fairness_threshold : float, optional
-            threshold for fairness metrics, by default 1.25
-        """
-        all_metrics = ["pprev", "tpr", "fpr", "fnr", "ppr", "precision"]
-        fairness_metrics = fairness_metrics or ["pprev", "tpr", "fpr"]
-        self.fairness_slider = FloatSlider(
-            description="Audit Threshold",
-            value=fairness_threshold,
-            min=1.0,
-            max=2.0,
-            step=0.01,
-            tooltip="Threshold for fairness metrics",
-            style=WIDE_LABEL_STYLE,
-        )
-        self.fairness_list = SelectionListWidget(options=all_metrics, value=fairness_metrics, title="Audit Metrics")
-        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
-        self.fairness_list.observe(self._on_value_change, "value")
-        self.fairness_slider.observe(self._on_value_change, "value")
-        self.model_options.observe(self._on_value_change, "value")
-
-        super().__init__(
-            children=[self.model_options, self.fairness_list, self.fairness_slider], layout=BOX_GRID_LAYOUT
-        )
-        self._disabled = False
-
-    @property
-    def disabled(self) -> bool:
-        return self._disabled
-
-    @disabled.setter
-    def disabled(self, disabled: bool):
-        self._disabled = disabled
-        self.fairness_list.disabled = disabled
-        self.fairness_slider.disabled = disabled
-        self.model_options.disabled = disabled
-
-    def _on_value_change(self, change=None):
-        self.value = {
-            "fairness_metrics": self.fairness_list.value,
-            "fairness_threshold": self.fairness_slider.value,
-            "model_options": self.model_options.value,
-        }
-
-    @property
-    def metrics(self) -> tuple[str]:
-        """selected cohorts"""
-        return self.fairness_list.value
-
-    @property
-    def fairness_threshold(self) -> tuple[str]:
-        """selected cohorts"""
-        return self.fairness_slider.value
-
-    @property
-    def target(self) -> str:
-        """trarget column descriptor"""
-        return self.model_options.target
-
-    @property
-    def score(self) -> str:
-        """Score column descriptor"""
-        return self.model_options.score
-
-    @property
-    def thresholds(self) -> tuple[float]:
-        """Score thresholds"""
-        return self.model_options.thresholds
-
-    @property
-    def group_scores(self) -> bool:
-        """If scores should be grouped by context"""
-        return self.model_options.group_scores
-
-
-@export
-class ExploreFairnessAudit(ExlorationWidget):
-    """
-    A widget for exploring model fairness
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for model fairness, showing details for a given target, score, and threshold.
-        """
-        from seismometer.seismogram import Seismogram
-
-        title = "Fairness Audit"
-        sg = Seismogram()
-        self.cohort_columns = sg.cohort_cols
-        thresholds = {"Score Threshold": min(sg.thresholds)}
-
-        option_widget = ModelFairnessAuditOptions(
-            sg.target_cols,
-            sg.output_list,
-            thresholds=thresholds,
-            per_context=True,
-        )
-        super().__init__(title=title, option_widget=option_widget)
-
-    def generate_plot(self) -> HTML:
-        from seismometer._api import generate_fairness_audit
-
-        return generate_fairness_audit(
-            self.cohort_columns,
-            self.option_widget.target,
-            self.option_widget.score,
-            self.option_widget.thresholds["Score Threshold"],
-            self.option_widget.group_scores,
-            list(self.option_widget.metrics),
-            self.option_widget.fairness_threshold,
-        )
-
-    def generate_plot_code(self) -> str:
-        args = ", ".join(
-            [
-                repr(x)
-                for x in [
-                    self.cohort_columns,
-                    self.option_widget.target,
-                    self.option_widget.score,
-                    self.option_widget.thresholds["Score Threshold"],
-                    self.option_widget.group_scores,
-                    list(self.option_widget.metrics),
-                    self.option_widget.fairness_threshold,
-                ]
-            ]
-        )
-        return f"sm.generate_fairness_audit({args})"
-
-
-class ExplorationModelSubgroupEvaluationWidget(ExlorationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(
-        self,
-        title: str,
-        cohort_groups: dict[str, tuple[Any]],
-        target_names: tuple[Any],
-        score_names: tuple[Any],
-        thresholds: dict[str, float],
-        per_context: bool = False,
-    ):
-        """
-        Exploration widget for model evaluation, showing a plot for a given target,
-        score, threshold, and cohort selection.
-
-        Parameters
-        ----------
-        title : str
-            title of the control
-        cohort_groups : dict[str, tuple[Any]]
-            available cohort groups
-        target_names : tuple[Any]
-            available target columns
-        score_names : tuple[Any]
-            available score columns
-        thresholds : dict[str, float]
-            default thresholds for the score columns
-        per_context : bool, optional
-            if control should allow grouping by context, by default False
-        """
-        super().__init__(
-            title=title,
-            option_widget=ModelOptionsAndCohortsWidget(
-                cohort_groups, target_names, score_names, thresholds, per_context
-            ),
-        )
-
-
-class ExplorationCohortSubclassEvaluationWidget(ExlorationWidget):
-    """
-    A widget for exploring the model performance based on the subgroups of a cohort column.
-    """
-
-    def __init__(
-        self,
-        title: str,
-        cohort_groups: dict[str, tuple[Any]],
-        target_names: tuple[Any],
-        score_names: tuple[Any],
-        thresholds: dict[str, float],
-        per_context: bool = False,
-    ):
-        """
-        Exploration widget for model evaluation, showing a plot broken down for a set of cohort column subclasses.,
-
-        Parameters
-        ----------
-        title : str
-            title of the control
-        cohort_groups : dict[str, tuple[Any]]
-            available cohort groups
-        target_names : tuple[Any]
-            available target columns
-        score_names : tuple[Any]
-            available score columns
-        thresholds : dict[str, float]
-            default thresholds for the score columns
-        per_context : bool, optional
-            if control should allow grouping by context, by default False
-        """
-        option_widget = ModelOptionsAndCohortGroupWidget(
-            cohort_groups, target_names, score_names, thresholds, per_context
-        )
-        super().__init__(title=title, option_widget=option_widget)
-
-    @property
-    def disabled(self):
-        return not self.option_widget.cohort_groups
-
-
-@export
-class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for model evaluation.
-
-        This includes the ROC, recall vs predicted condition prevalence, calibration,
-        PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
-        """
-        from seismometer.seismogram import Seismogram
-
-        sg = Seismogram()
-        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds, reverse=True), 1)}
-        super().__init__(
-            "Model Performance",
-            sg.available_cohort_groups,
-            sg.target_cols,
-            sg.output_list,
-            thresholds=thresholds,
-            per_context=False,
-        )
-
-    def generate_plot(self) -> HTML:
-        """Generates the 6 plots for model evaluation"""
-        from seismometer._api import plot_model_evaluation
-
-        return plot_model_evaluation(
-            self.option_widget.cohorts,
-            self.option_widget.target,
-            self.option_widget.score,
-            list(self.option_widget.thresholds.values()),
-            per_context=self.option_widget.group_scores,
-        )
-
-    def generate_plot_code(self) -> str:
-        """Generates the code for the model evaluation plot"""
-        args = ", ".join(
-            [
-                repr(x)
-                for x in [
-                    self.option_widget.cohorts,
-                    self.option_widget.target,
-                    self.option_widget.score,
-                    list(self.option_widget.thresholds.values()),
-                ]
-            ]
-        )
-        return f"sm.plot_model_evaluation({args}, per_context={self.option_widget.group_scores})"
-
-
-@export
-class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for cohort evaluation.
-
-
-        Creates a 2x3 grid of individual performance metrics across cohorts.
-
-        Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
-        Includes a legend with cohort size.
-        """
-        from seismometer.seismogram import Seismogram
-
-        sg = Seismogram()
-        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds, reverse=True), 1)}
-        super().__init__(
-            "Cohort Group Performance",
-            sg.available_cohort_groups,
-            sg.target_cols,
-            sg.output_list,
-            thresholds=thresholds,
-            per_context=False,
-        )
-
-    def generate_plot(self) -> HTML:
-        """Generates the cohort evaluation plot"""
-        from seismometer._api import plot_cohort_evaluation
-
-        return plot_cohort_evaluation(
-            self.option_widget.cohort,
-            self.option_widget.cohort_groups,
-            self.option_widget.target,
-            self.option_widget.score,
-            list(self.option_widget.thresholds.values()),
-            per_context=self.option_widget.group_scores,
-        )
-
-    def generate_plot_code(self) -> str:
-        """Generates the code for the cohort evaluation plot"""
-        args = ", ".join(
-            [
-                repr(x)
-                for x in [
-                    self.option_widget.cohort,
-                    self.option_widget.cohort_groups,
-                    self.option_widget.target,
-                    self.option_widget.score,
-                    list(self.option_widget.thresholds.values()),
-                ]
-            ]
-        )
-        return f"sm.plot_cohort_evaluation({args}, per_context={self.option_widget.group_scores})"
-
-
-@export
-class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for cohort histograms.
-        Shows a distribution of scores for each category in a cohort group.
-        """
-        from seismometer.seismogram import Seismogram
-
-        sg = Seismogram()
-        super().__init__(
-            "Cohort Group Score Histograms",
-            sg.available_cohort_groups,
-            sg.target_cols,
-            sg.output_list,
-            thresholds=None,
-        )
-
-    def generate_plot(self) -> HTML:
-        """Generates the cohort histogram plot"""
-        from seismometer._api import plot_cohort_group_histograms
-
-        return plot_cohort_group_histograms(
-            self.option_widget.cohort,
-            self.option_widget.cohort_groups,
-            self.option_widget.target,
-            self.option_widget.score,
-        )
-
-    def generate_plot_code(self) -> str:
-        """Generates the code for the cohort histogram plot"""
-        args = ", ".join(
-            [
-                repr(x)
-                for x in [
-                    self.option_widget.cohort,
-                    self.option_widget.cohort_groups,
-                    self.option_widget.target,
-                    self.option_widget.score,
-                ]
-            ]
-        )
-        return f"sm.plot_cohort_group_histograms({args})"
-
-
-@export
-class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for cohort lead time.
-        Shows the amount of lead time for each category in the cohort group.
-        """
-        from seismometer.seismogram import Seismogram
-
-        sg = Seismogram()
-        thresholds = {"Score Threshold": min(sg.thresholds)}
-        super().__init__(
-            "Leadtime Analysis", sg.available_cohort_groups, sg.target_cols, sg.output_list, thresholds=thresholds
-        )
-
-    def generate_plot(self) -> HTML:
-        """Generates the cohort lead time plot"""
-        from seismometer._api import plot_cohort_lead_time
-
-        return plot_cohort_lead_time(
-            self.option_widget.cohort,
-            self.option_widget.cohort_groups,
-            self.option_widget.target,
-            self.option_widget.score,
-            self.option_widget.thresholds["Score Threshold"],
-        )
-
-    def generate_plot_code(self) -> str:
-        """Generates the code for the cohort lead time plot"""
-        args = ", ".join(
-            [
-                repr(x)
-                for x in [
-                    self.option_widget.cohort,
-                    self.option_widget.cohort_groups,
-                    self.option_widget.target,
-                    self.option_widget.score,
-                    self.option_widget.thresholds["Score Threshold"],
-                ]
-            ]
-        )
-        return f"sm.plot_cohort_lead_time({args})"
-
-
 class ModelInterventionOptionsWidget(VBox, ValueWidget):
     value = traitlets.Dict(help="The selected values for the slider list")
 
@@ -1006,7 +475,269 @@ class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
         return self.model_options.reference_time
 
 
-class ExplorationCohortInterventionEvaluationWidget(ExlorationWidget):
+class ModelFairnessAuditOptions(Box, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the audit and model options")
+
+    def __init__(
+        self,
+        target_names: tuple[Any],
+        score_names: tuple[Any],
+        thresholds: dict[str, float],
+        per_context: bool = True,
+        fairness_metrics: tuple[str] = None,
+        fairness_threshold: float = 1.25,
+    ):
+        """
+        Widget for selecting interventions and outcomes accross categories in a cohort group.
+
+        Parameters
+        ----------
+        target_names : tuple[Any]
+            model target columns
+        score_names : tuple[Any]
+            model score columns
+        thresholds : dict[str, float]
+            tresholds for the model scores
+        per_context : bool, optional
+            if scores should be grouped by context, by default True
+        fairness_metrics : tuple[str], optional
+            list of fairness metrics to display, if None (default) will use ["tpr", "fpr", "pprev"]
+        fairness_threshold : float, optional
+            threshold for fairness metrics, by default 1.25
+        """
+        all_metrics = ["pprev", "tpr", "fpr", "fnr", "ppr", "precision"]
+        fairness_metrics = fairness_metrics or ["pprev", "tpr", "fpr"]
+        self.fairness_slider = FloatSlider(
+            description="Audit Threshold",
+            value=fairness_threshold,
+            min=1.0,
+            max=2.0,
+            step=0.01,
+            tooltip="Threshold for fairness metrics",
+            style=WIDE_LABEL_STYLE,
+        )
+        self.fairness_list = SelectionListWidget(options=all_metrics, value=fairness_metrics, title="Audit Metrics")
+        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
+        self.fairness_list.observe(self._on_value_change, "value")
+        self.fairness_slider.observe(self._on_value_change, "value")
+        self.model_options.observe(self._on_value_change, "value")
+
+        super().__init__(
+            children=[self.model_options, self.fairness_list, self.fairness_slider], layout=BOX_GRID_LAYOUT
+        )
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.fairness_list.disabled = disabled
+        self.fairness_slider.disabled = disabled
+        self.model_options.disabled = disabled
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "fairness_metrics": self.fairness_list.value,
+            "fairness_threshold": self.fairness_slider.value,
+            "model_options": self.model_options.value,
+        }
+
+    @property
+    def metrics(self) -> tuple[str]:
+        """selected cohorts"""
+        return self.fairness_list.value
+
+    @property
+    def fairness_threshold(self) -> tuple[str]:
+        """selected cohorts"""
+        return self.fairness_slider.value
+
+    @property
+    def target(self) -> str:
+        """trarget column descriptor"""
+        return self.model_options.target
+
+    @property
+    def score(self) -> str:
+        """Score column descriptor"""
+        return self.model_options.score
+
+    @property
+    def thresholds(self) -> tuple[float]:
+        """Score thresholds"""
+        return self.model_options.thresholds
+
+    @property
+    def group_scores(self) -> bool:
+        """If scores should be grouped by context"""
+        return self.model_options.group_scores
+
+
+# endregion
+# region Exploration Widgets (Intermediate Classes)
+
+
+class ExplorationWidget(VBox):
+    def __init__(self, title: str, option_widget: ValueWidget, plot_function: Callable[..., Any]):
+        """Parent class for a plot exploration widget.
+
+        Parameters
+        ----------
+        title : str
+            Widget title
+        option_widget : ValueWidget
+            widget that contains the options for the plot
+        """
+        layout = Layout(
+            width="100%",
+            height="min-content",
+            border="solid 1px var(--jp-border-color1)",
+            padding="var(--jp-cell-padding)",
+        )
+        title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
+        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
+        self.code_output = Output(layout=Layout(height="max-content", max_width="2000px"))
+        self.option_widget = option_widget
+        self.plot_function = plot_function
+        self.update_plot_widget = UpdatePlotWidget()
+        super().__init__(
+            children=[title, self.option_widget, self.update_plot_widget, self.code_output, self.center], layout=layout
+        )
+
+        # attach button handler and show initial plot
+        self.current_plot_code = self.generate_plot_code(self.generate_plot_args())
+        self.option_widget.observe(self._on_option_change, "value")
+        self.update_plot_widget.on_click(self._on_plot_button_click)
+        self.update_plot_widget.on_toggle_code(self._on_toggle_code)
+        self.update_plot_widget.trigger()
+
+    @property
+    def disabled(self) -> bool:
+        """
+        If the widget is disabled.
+        """
+        return False
+
+    @property
+    def show_code(self) -> bool:
+        """
+        If the widget should show the plot's code
+        """
+        return self.update_plot_widget.show_code
+
+    def _on_plot_button_click(self, button=None):
+        """handle for the update plot button"""
+        self.option_widget.disabled = True
+        self._on_toggle_code(self.show_code)
+        plot_args, plot_kwargs = self.generate_plot_args()
+        self.center.clear_output(wait=True)
+        with self.center:
+            display(self.plot_function(*plot_args, **plot_kwargs))
+        self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
+        self._on_toggle_code(self.show_code)
+        self.option_widget.disabled = False
+
+    def generate_plot_code(self, plot_args: tuple = None, plot_kwargs: dict = None) -> str:
+        """String representation of the plot's code"""
+        plot_module = self.plot_function.__module__
+        plot_method = self.plot_function.__name__
+
+        match plot_module:
+            case "__main__":
+                method_string = plot_method
+            case "seismometer._api":
+                method_string = f"sm.{plot_method}"
+            case _:
+                method_string = f"{plot_module}.{plot_method}"
+
+        args_string = ""
+        if plot_args:
+            args_string += ", ".join([repr(x) for x in plot_args])
+        if plot_kwargs:
+            if args_string:
+                args_string += ", "
+            args_string += ", ".join([f"{k}={repr(v)}" for k, v in plot_kwargs.items()])
+
+        return f"{method_string}({args_string})"
+
+    def _on_toggle_code(self, show_code: bool):
+        """handle for the toggle code checkbox"""
+        highlighted_code = HTML(f"<span>Plot code:</span> <code>{self.current_plot_code}</code>")
+        highlighted_code.add_class("jp-RenderedHTMLCommon")
+        with self.code_output:
+            if self.show_code:
+                self.code_output.clear_output(wait=True)
+                display(highlighted_code)
+            else:
+                self.code_output.clear_output()
+
+    def _on_option_change(self, change=None):
+        """enable the plot to be updated"""
+        self.update_plot_widget.disabled = self.disabled
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        """override this method with code to show a plot"""
+        raise NotImplementedError("Subclasses must implement this method")
+
+
+class ExplorationModelSubgroupEvaluationWidget(ExplorationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(
+        self,
+        title: str,
+        plot_function: Callable[..., Any],
+    ):
+        """
+        Exploration widget for model evaluation, showing a plot for a given target,
+        score, threshold, and cohort selection.
+
+        Parameters
+        ----------
+        title : str
+            title of the control
+        plot_function : Callable[..., Any]
+            callable to generate this plot: Expected to have the following signature:
+
+            def plot_function(
+                cohorts: dict[str,tuple[Any]]
+                target: str,
+                score: str,
+                thresholds: tuple[float],
+                *, per_context: bool) -> Any
+        """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds, reverse=True), 1)}
+        super().__init__(
+            title=title,
+            option_widget=ModelOptionsAndCohortsWidget(
+                sg.available_cohort_groups, sg.target_cols, sg.output_list, thresholds, per_context=False
+            ),
+            plot_function=plot_function,
+        )
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        """Generates the plot arguments for the model evaluation plot"""
+        args = (
+            self.option_widget.cohorts,
+            self.option_widget.target,
+            self.option_widget.score,
+            list(self.option_widget.thresholds.values()),
+        )
+        kwargs = {
+            "per_context": self.option_widget.group_scores,
+        }
+        return args, kwargs
+
+
+class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
     """
     A widget for exploring the model performance based on the subgroups of a cohort column.
     """
@@ -1014,10 +745,89 @@ class ExplorationCohortInterventionEvaluationWidget(ExlorationWidget):
     def __init__(
         self,
         title: str,
-        cohort_groups: dict[str, tuple[Any]],
-        outcome_names: tuple[Any],
-        intervention_names: tuple[Any],
-        reference_time_names: tuple[Any],
+        plot_function: Callable[..., Any],
+        *,
+        ignore_grouping: bool = False,
+        theshold_handling: Literal["all", "max", "min", None] = "all",
+    ):
+        """
+        Exploration widget for model evaluation, showing a plot for a given target,
+        score, threshold, broken down across labels in a cohort column.
+
+        Parameters
+        ----------
+        title : str
+            title of the control
+        plot_function : Callable[..., Any]
+            callable to generate this plot: Expected to have the following signature:
+
+            def plot_function(
+                cohorts_col: str
+                cohort_subgroups: tuple[Any]
+                target: str,
+                score: str,
+                thresholds: tuple[float],
+                *, per_context: bool) -> Any
+        """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        match theshold_handling:
+            case "all":
+                self.thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds, reverse=True), 1)}
+            case "max":
+                self.thresholds = {"Threshold": max(sg.thresholds)}
+            case "min":
+                self.thresholds = {"Threshold": min(sg.thresholds)}
+            case _:
+                self.thresholds = None
+
+        self.threshold_hanlding = theshold_handling
+        self.ignore_grouping = ignore_grouping
+
+        option_widget = ModelOptionsAndCohortGroupWidget(
+            sg.available_cohort_groups,
+            sg.target_cols,
+            sg.output_list,
+            thresholds=self.thresholds,
+            per_context=False if not self.ignore_grouping else None,
+        )
+        super().__init__(title=title, option_widget=option_widget, plot_function=plot_function)
+
+    @property
+    def disabled(self):
+        return not self.option_widget.cohort_groups
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        """Generates the plot arguments for the model evaluation plot"""
+
+        args = [
+            self.option_widget.cohort,
+            self.option_widget.cohort_groups,
+            self.option_widget.target,
+            self.option_widget.score,
+        ]
+        match self.threshold_hanlding:
+            case "all":
+                args.append(list(self.option_widget.thresholds.values()))
+            case "max" | "min":
+                args.append(self.option_widget.thresholds["Threshold"])
+
+        kwargs = {}
+        if not self.ignore_grouping:
+            kwargs["per_context"] = self.option_widget.group_scores
+        return args, kwargs
+
+
+class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
+    """
+    A widget for exploring the model performance based on the subgroups of a cohort column.
+    """
+
+    def __init__(
+        self,
+        title: str,
+        plot_function: Callable[..., Any],
     ):
         """
         Exploration widget for plotting of interventions and outcomes accross categories in a cohort group.
@@ -1026,28 +836,135 @@ class ExplorationCohortInterventionEvaluationWidget(ExlorationWidget):
         ----------
         title : str
             title of the control
-        cohort_groups : dict[str, tuple[Any]]
-            cohort names and category values
-        outcome_names : tuple[Any], optional
-            outcome descriptors, by default None
-        intervention_names : tuple[Any], optional
-            intervention descriptors, by default None
-        reference_time_names : tuple[Any], optional
-            reference time descriptors, by default None
+        plot_function : Callable[..., Any]
+            callable to generate this plot: Expected to have the following signature:
+
+            def plot_function(
+                cohorts_col: str
+                cohort_subgroups: tuple[Any]
+                outcome: str,
+                intervention: str,
+                reference_time: str) -> Any
+
         """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        reference_times = [sg.predict_time]
+        if sg.comparison_time and sg.comparison_time != sg.predict_time:
+            reference_times.append(sg.comparison_time)
+
         super().__init__(
             title,
             option_widget=ModelInterventionAndCohortGroupWidget(
-                cohort_groups,
-                outcome_names,
-                intervention_names,
-                reference_time_names,
+                sg.available_cohort_groups,
+                tuple(sg.config.outcomes.keys()),
+                tuple(sg.config.interventions.keys()),
+                reference_times,
             ),
+            plot_function=plot_function,
+        )
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        """Generates the plot arguments for the model evaluation plot"""
+        args = [
+            self.option_widget.cohort,
+            self.option_widget.cohort_groups,
+            self.option_widget.outcome,
+            self.option_widget.intervention,
+            self.option_widget.reference_time,
+        ]
+        kwargs = {}
+        return args, kwargs
+
+
+# endregion
+# region Exploration Widgets (Concrete Classes)
+
+
+@export
+class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for model evaluation.
+
+        This includes the ROC, recall vs predicted condition prevalence, calibration,
+        PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
+        """
+        from seismometer._api import plot_model_evaluation
+
+        super().__init__("Model Performance", plot_model_evaluation)
+
+
+@export
+class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for cohort evaluation.
+
+
+        Creates a 2x3 grid of individual performance metrics across cohorts.
+
+        Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
+        Includes a legend with cohort size.
+        """
+        from seismometer._api import plot_cohort_evaluation
+
+        super().__init__("Cohort Group Performance", plot_cohort_evaluation)
+
+
+@export
+class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for cohort histograms.
+        Shows a distribution of scores for each category in a cohort group.
+        """
+        from seismometer._api import plot_cohort_group_histograms
+
+        super().__init__(
+            "Cohort Group Score Histograms",
+            plot_cohort_group_histograms,
+            theshold_handling=None,
+            ignore_grouping=True,
         )
 
 
 @export
-class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidget):
+class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for cohort lead time.
+        Shows the amount of lead time for each category in the cohort group.
+        """
+        from seismometer._api import plot_cohort_lead_time
+
+        super().__init__(
+            "Leadtime Analysis",
+            plot_cohort_lead_time,
+            theshold_handling="min",
+            ignore_grouping=True,
+        )
+
+
+@export
+class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeInterventionEvaluationWidget):
     """
     A widget for exploring the model performance of a cohort.
     """
@@ -1067,43 +984,48 @@ class ExploreCohortInterventionTimes(ExplorationCohortInterventionEvaluationWidg
         reference_time_names : tuple[Any], optional
             reference time descriptors, by default None
         """
-        from seismometer.seismogram import Seismogram
-
-        sg = Seismogram()
-        reference_times = [sg.predict_time]
-        if sg.comparison_time and sg.comparison_time != sg.predict_time:
-            reference_times.append(sg.comparison_time)
-
-        super().__init__(
-            "Outcome / Intervention Analysis",
-            sg.available_cohort_groups,
-            tuple(sg.config.outcomes.keys()),
-            tuple(sg.config.interventions.keys()),
-            reference_times,
-        )
-
-    def generate_plot(self) -> HTML:
         from seismometer._api import plot_intervention_outcome_timeseries
 
-        return plot_intervention_outcome_timeseries(
-            self.option_widget.outcome,
-            self.option_widget.intervention,
-            self.option_widget.reference_time,
-            self.option_widget.cohort,
-            self.option_widget.cohort_groups,
-        )
+        super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
 
-    def generate_plot_code(self) -> str:
-        args = ", ".join(
-            [
-                repr(x)
-                for x in [
-                    self.option_widget.outcome,
-                    self.option_widget.intervention,
-                    self.option_widget.reference_time,
-                    self.option_widget.cohort,
-                    self.option_widget.cohort_groups,
-                ]
-            ]
+
+@export
+class ExploreFairnessAudit(ExplorationWidget):
+    """
+    A widget for exploring model fairness
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for model fairness, showing details for a given target, score, and threshold.
+        """
+        from seismometer._api import generate_fairness_audit
+        from seismometer.seismogram import Seismogram
+
+        title = "Fairness Audit"
+        sg = Seismogram()
+        self.cohort_columns = sg.cohort_cols
+        thresholds = {"Score Threshold": min(sg.thresholds)}
+
+        option_widget = ModelFairnessAuditOptions(
+            sg.target_cols,
+            sg.output_list,
+            thresholds=thresholds,
+            per_context=True,
         )
-        return f"sm.plot_intervention_outcome_timeseries({args})"
+        super().__init__(title=title, option_widget=option_widget, plot_function=generate_fairness_audit)
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        args = (
+            self.cohort_columns,
+            self.option_widget.target,
+            self.option_widget.score,
+            self.option_widget.thresholds["Score Threshold"],
+            self.option_widget.group_scores,
+            list(self.option_widget.metrics),
+            self.option_widget.fairness_threshold,
+        )
+        return args, {}
+
+
+# endregion

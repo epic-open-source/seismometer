@@ -56,7 +56,7 @@ class TestExporationBaseClass:
         option_widget = ipywidgets.Checkbox(description="ClickMe")
 
         with pytest.raises(NotImplementedError):
-            undertest.ExlorationWidget("ExploreTest", option_widget)
+            undertest.ExplorationWidget("ExploreTest", option_widget, lambda x: x)
 
 
 class TestModelOptionsWidget:

@@ -808,11 +808,11 @@ def plot_trend_intervention_outcome() -> HTML:
     return _plot_trend_intervention_outcome(
         sg.dataframe,
         sg.entity_keys,
+        sg.selected_cohort[0],
+        sg.selected_cohort[1],
         sg.outcome,
         sg.intervention,
         sg.comparison_time or sg.predict_time,
-        sg.selected_cohort[0],
-        sg.selected_cohort[1],
         sg.censor_threshold,
     )
 
@@ -820,24 +820,24 @@ def plot_trend_intervention_outcome() -> HTML:
 @disk_cached_html_segment
 @export
 def plot_intervention_outcome_timeseries(
+    cohort_col: str,
+    subgroups: list[str],
     outcome: str,
     intervention: str,
     reference_time_col: str,
-    cohort_col: str,
-    subgroups: list[str],
     censor_threshold: int = 10,
 ) -> HTML:
     """
+    cohort_col : str
+        column name for the cohort to split on
+    subgroups : list[str]
+        values of interest in the cohort column
     outcome : str
         outcome event time column
     intervention : str
         intervention event time column
     reference_time_col : str
         reference time column for alignment
-    cohort_col : str
-        column name for the cohort to split on
-    subgroups : list[str]
-        values of interest in the cohort column
     censor_threshold : int, optional
         minimum rows to allow in a plot, by default 10
 
@@ -850,11 +850,11 @@ def plot_intervention_outcome_timeseries(
     return _plot_trend_intervention_outcome(
         sg.dataframe,
         sg.entity_keys,
+        cohort_col,
+        subgroups,
         outcome,
         intervention,
         reference_time_col,
-        cohort_col,
-        subgroups,
         censor_threshold,
     )
 
@@ -863,11 +863,11 @@ def plot_intervention_outcome_timeseries(
 def _plot_trend_intervention_outcome(
     dataframe: pd.DataFrame,
     entity_keys: list[str],
+    cohort_col: str,
+    subgroups: list[str],
     outcome: str,
     intervention: str,
     reftime: str,
-    cohort_col: str,
-    subgroups: list[str],
     censor_threshold: int = 10,
 ) -> HTML:
     """
@@ -879,16 +879,16 @@ def _plot_trend_intervention_outcome(
         data source
     entity_keys : list[str]
         columns to use for aggregation
+    cohort_col : str
+        column name for the cohort to split on
+    subgroups : list[str]
+        values of interest in the cohort column
     outcome : str
         model score
     intervention : str
         intervention event time column
     reftime : str
         reference time column for alignment
-    cohort_col : str
-        column name for the cohort to split on
-    subgroups : list[str]
-        values of interest in the cohort column
     censor_threshold : int, optional
         minimum rows to allow in a plot, by default 10
 
