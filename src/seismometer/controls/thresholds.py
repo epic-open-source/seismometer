@@ -89,7 +89,7 @@ class ProbabilitySliderListWidget(ValueWidget, VBox):
 class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
     """
     Vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
-    Monotonicity is maintained between the sliders so they are always ascending or decending in value.
+    Monotonicity is maintained between the sliders so they are always ascending or descending in value.
     """
 
     def __init__(self, names: tuple[str], value: tuple[int] = None, ascending: bool = True):
