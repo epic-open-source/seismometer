@@ -9,6 +9,12 @@ Public API
 .. autosummary::
    :toctree: api/
 
+   ExploreModelEvaluation
+   ExploreCohortEvaluation
+   ExploreCohortHistograms
+   ExploreCohortLeadTime
+   ExploreCohortOutcomeInterventionTimes
+   ExploreFairnessAudit
    cohort_evaluation
    cohort_comparison_report
    cohort_list
@@ -22,15 +28,3 @@ Public API
    show_info
    show_cohort_summaries
    target_feature_summary
-
-.. currentmodule:: seismometer.controls.explore
-
-.. autosummary::
-   :toctree: api/
-
-   ExploreModelEvaluation
-   ExploreCohortEvaluation
-   ExploreCohortHistograms
-   ExploreCohortLeadTime
-   ExploreCohortInterventionTimes
-   ExploreFairnessAudit

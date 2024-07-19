@@ -6,8 +6,6 @@ import traitlets
 from IPython.display import display
 from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, FloatSlider, Layout, Output, ValueWidget, VBox
 
-from seismometer.core.decorators import export
-
 from .selection import DisjointSelectionListsWidget, MultiSelectionListWidget, SelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 from .thresholds import MonotonicProbabilitySliderListWidget
@@ -374,11 +372,11 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
         self.intervention_list = Dropdown(
             options=intervention_names, value=intervention_names[0], description="Intervention"
         )
-        self.ref_time_list = Dropdown(
+        self.reference_time_list = Dropdown(
             options=reference_time_names, value=reference_time_names[0], description="Reference Time"
         )
 
-        children = [self.title, self.outcome_list, self.intervention_list, self.ref_time_list]
+        children = [self.title, self.outcome_list, self.intervention_list, self.reference_time_list]
 
         super().__init__(
             children=children,
@@ -387,7 +385,19 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
 
         self.outcome_list.observe(self._on_value_change, "value")
         self.intervention_list.observe(self._on_value_change, "value")
-        self.ref_time_list.observe(self._on_value_change, "value")
+        self.reference_time_list.observe(self._on_value_change, "value")
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.outcome_list.disabled = disabled
+        self.intervention_list.disabled = disabled
+        self.reference_time_list.disabled = disabled
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -409,7 +419,7 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
     @property
     def reference_time(self) -> str:
         """reference time column descriptor"""
-        return self.ref_time_list.value
+        return self.reference_time_list.value
 
 
 class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
@@ -442,6 +452,17 @@ class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
         self.model_options.observe(self._on_value_change, "value")
 
         super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.model_options.disabled = disabled
+        self.cohort_list.disabled = disabled
 
     def _on_value_change(self, change=None):
         self.value = {
@@ -482,7 +503,7 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
         self,
         target_names: tuple[Any],
         score_names: tuple[Any],
-        thresholds: dict[str, float],
+        score_threshold: float,
         per_context: bool = True,
         fairness_metrics: tuple[str] = None,
         fairness_threshold: float = 1.25,
@@ -516,6 +537,7 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
             tooltip="Threshold for fairness metrics",
             style=WIDE_LABEL_STYLE,
         )
+        thresholds = {"Score Threshold": score_threshold}
         self.fairness_list = SelectionListWidget(options=all_metrics, value=fairness_metrics, title="Audit Metrics")
         self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
         self.fairness_list.observe(self._on_value_change, "value")
@@ -566,9 +588,9 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
         return self.model_options.score
 
     @property
-    def thresholds(self) -> tuple[float]:
+    def score_threshold(self) -> tuple[float]:
         """Score thresholds"""
-        return self.model_options.thresholds
+        return self.model_options.thresholds["Score Threshold"]
 
     @property
     def group_scores(self) -> bool:
@@ -635,7 +657,9 @@ class ExplorationWidget(VBox):
         plot_args, plot_kwargs = self.generate_plot_args()
         self.center.clear_output(wait=True)
         with self.center:
-            display(self.plot_function(*plot_args, **plot_kwargs))
+            plot_result = self.plot_function(*plot_args, **plot_kwargs)
+            if plot_result:
+                display(plot_result)
         self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
         self._on_toggle_code(self.show_code)
         self.option_widget.disabled = False
@@ -665,7 +689,9 @@ class ExplorationWidget(VBox):
 
     def _on_toggle_code(self, show_code: bool):
         """handle for the toggle code checkbox"""
-        highlighted_code = HTML(f"<span>Plot code:</span> <code>{self.current_plot_code}</code>")
+        highlighted_code = HTML(
+            f"<span style='user-select: none;'>Plot code: </span><code>{self.current_plot_code}</code>"
+        )
         highlighted_code.add_class("jp-RenderedHTMLCommon")
         with self.code_output:
             if self.show_code:
@@ -876,156 +902,6 @@ class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
         ]
         kwargs = {}
         return args, kwargs
-
-
-# endregion
-# region Exploration Widgets (Concrete Classes)
-
-
-@export
-class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for model evaluation.
-
-        This includes the ROC, recall vs predicted condition prevalence, calibration,
-        PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
-        """
-        from seismometer._api import plot_model_evaluation
-
-        super().__init__("Model Performance", plot_model_evaluation)
-
-
-@export
-class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for cohort evaluation.
-
-
-        Creates a 2x3 grid of individual performance metrics across cohorts.
-
-        Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
-        Includes a legend with cohort size.
-        """
-        from seismometer._api import plot_cohort_evaluation
-
-        super().__init__("Cohort Group Performance", plot_cohort_evaluation)
-
-
-@export
-class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for cohort histograms.
-        Shows a distribution of scores for each category in a cohort group.
-        """
-        from seismometer._api import plot_cohort_group_histograms
-
-        super().__init__(
-            "Cohort Group Score Histograms",
-            plot_cohort_group_histograms,
-            theshold_handling=None,
-            ignore_grouping=True,
-        )
-
-
-@export
-class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for cohort lead time.
-        Shows the amount of lead time for each category in the cohort group.
-        """
-        from seismometer._api import plot_cohort_lead_time
-
-        super().__init__(
-            "Leadtime Analysis",
-            plot_cohort_lead_time,
-            theshold_handling="min",
-            ignore_grouping=True,
-        )
-
-
-@export
-class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeInterventionEvaluationWidget):
-    """
-    A widget for exploring the model performance of a cohort.
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for viewing rates of interventions and outcomes accross categories in a cohort group.
-
-        Parameters
-        ----------
-        cohort_groups : dict[str, tuple[Any]]
-            cohort names and category values
-        outcome_names : tuple[Any], optional
-            outcome descriptors, by default None
-        intervention_names : tuple[Any], optional
-            intervention descriptors, by default None
-        reference_time_names : tuple[Any], optional
-            reference time descriptors, by default None
-        """
-        from seismometer._api import plot_intervention_outcome_timeseries
-
-        super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
-
-
-@export
-class ExploreFairnessAudit(ExplorationWidget):
-    """
-    A widget for exploring model fairness
-    """
-
-    def __init__(self):
-        """
-        Exploration widget for model fairness, showing details for a given target, score, and threshold.
-        """
-        from seismometer._api import generate_fairness_audit
-        from seismometer.seismogram import Seismogram
-
-        title = "Fairness Audit"
-        sg = Seismogram()
-        self.cohort_columns = sg.cohort_cols
-        thresholds = {"Score Threshold": min(sg.thresholds)}
-
-        option_widget = ModelFairnessAuditOptions(
-            sg.target_cols,
-            sg.output_list,
-            thresholds=thresholds,
-            per_context=True,
-        )
-        super().__init__(title=title, option_widget=option_widget, plot_function=generate_fairness_audit)
-
-    def generate_plot_args(self) -> tuple[tuple, dict]:
-        args = (
-            self.cohort_columns,
-            self.option_widget.target,
-            self.option_widget.score,
-            self.option_widget.thresholds["Score Threshold"],
-            self.option_widget.group_scores,
-            list(self.option_widget.metrics),
-            self.option_widget.fairness_threshold,
-        )
-        return args, {}
 
 
 # endregion

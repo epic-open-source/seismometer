@@ -107,3 +107,161 @@ class TestModelOptionsWidget:
 
         widget.per_context_checkbox.value = True
         assert widget.group_scores
+
+    def test_disabled(self):
+        widget = undertest.ModelOptionsWidget(
+            target_names=["T1", "T2"], score_names=["S1", "S2"], thresholds={"T1": 0.1, "T2": 0.2}, per_context=False
+        )
+        widget.disabled = True
+        assert widget.target_list.disabled
+        assert widget.score_list.disabled
+        assert widget.threshold_list.disabled
+        assert widget.per_context_checkbox.disabled
+        assert widget.disabled
+
+
+class TestModelOptionsAndCohortsWidget:
+    def test_init(self):
+        widget = undertest.ModelOptionsAndCohortsWidget(
+            cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            target_names=["T1", "T2"],
+            score_names=["S1", "S2"],
+            thresholds={"T1": 0.2, "T2": 0.1},
+            per_context=True,
+        )
+        assert len(widget.children) == 2
+        assert widget.cohorts == {}
+        assert widget.target == "T1"
+        assert widget.score == "S1"
+        assert widget.thresholds == {"T1": 0.2, "T2": 0.1}
+        assert widget.group_scores is True
+
+    def test_disable(self):
+        widget = undertest.ModelOptionsAndCohortsWidget(
+            cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            target_names=["T1", "T2"],
+            score_names=["S1", "S2"],
+            thresholds={"T1": 0.2, "T2": 0.1},
+            per_context=True,
+        )
+        widget.disabled = True
+        assert widget.model_options.disabled
+        assert widget.cohort_list.disabled
+        assert widget.disabled
+
+
+class TestModelOptionsAndCohortGroupWidget:
+    def test_init(self):
+        widget = undertest.ModelOptionsAndCohortGroupWidget(
+            cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            target_names=["T1", "T2"],
+            score_names=["S1", "S2"],
+            thresholds={"T1": 0.2, "T2": 0.1},
+            per_context=True,
+        )
+        assert len(widget.children) == 2
+        assert widget.cohort == "C1"
+        assert widget.cohort_groups == ("C1.1", "C1.2")
+        assert widget.target == "T1"
+        assert widget.score == "S1"
+        assert widget.thresholds == {"T1": 0.2, "T2": 0.1}
+        assert widget.group_scores is True
+
+    def test_disable(self):
+        widget = undertest.ModelOptionsAndCohortGroupWidget(
+            cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            target_names=["T1", "T2"],
+            score_names=["S1", "S2"],
+            thresholds={"T1": 0.2, "T2": 0.1},
+            per_context=True,
+        )
+        widget.disabled = True
+        assert widget.model_options.disabled
+        assert widget.cohort_list.disabled
+        assert widget.disabled
+
+
+class TestModelInterventionOptionsWidget:
+    def test_init(self):
+        widget = undertest.ModelInterventionOptionsWidget(
+            outcome_names=["O1", "O2"], intervention_names=["I1", "I2"], reference_time_names=["R1", "R2"]
+        )
+
+        assert len(widget.children) == 4
+        assert "Model Options" in widget.title.value
+        assert widget.outcome == "O1"
+        assert widget.intervention == "I1"
+        assert widget.reference_time == "R1"
+
+    def test_disable(self):
+        widget = undertest.ModelInterventionOptionsWidget(
+            outcome_names=["O1", "O2"], intervention_names=["I1", "I2"], reference_time_names=["R1", "R2"]
+        )
+        widget.disabled = True
+        assert widget.outcome_list.disabled
+        assert widget.intervention_list.disabled
+        assert widget.reference_time_list.disabled
+        assert widget.disabled
+
+
+class TestModelInterventionAndCohortGroupWidget:
+    def test_init(self):
+        widget = undertest.ModelInterventionAndCohortGroupWidget(
+            cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            outcome_names=["O1", "O2"],
+            intervention_names=["I1", "I2"],
+            reference_time_names=["R1", "R2"],
+        )
+
+        assert len(widget.children) == 2
+        assert widget.cohort == "C1"
+        assert widget.cohort_groups == ("C1.1", "C1.2")
+        assert widget.outcome == "O1"
+        assert widget.intervention == "I1"
+        assert widget.reference_time == "R1"
+
+    def test_disable(self):
+        widget = undertest.ModelInterventionAndCohortGroupWidget(
+            cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            outcome_names=["O1", "O2"],
+            intervention_names=["I1", "I2"],
+            reference_time_names=["R1", "R2"],
+        )
+        widget.disabled = True
+        assert widget.model_options.disabled
+        assert widget.cohort_list.disabled
+        assert widget.disabled
+
+
+class TestModelFairnessAuditOptions:
+    def test_init(self):
+        widget = undertest.ModelFairnessAuditOptions(
+            target_names=["T1", "T2"],
+            score_names=["S1", "S2"],
+            score_threshold=0.1,
+            per_context=True,
+            fairness_metrics=None,
+            fairness_threshold=1.25,
+        )
+
+        assert widget.target == "T1"
+        assert widget.score == "S1"
+        assert widget.score_threshold == 0.1
+        assert widget.group_scores is True
+        assert widget.metrics == ("pprev", "tpr", "fpr")
+        assert widget.fairness_threshold == 1.25
+
+    def test_disable(self):
+        widget = undertest.ModelFairnessAuditOptions(
+            target_names=["T1", "T2"],
+            score_names=["S1", "S2"],
+            score_threshold=0.1,
+            per_context=True,
+            fairness_metrics=None,
+            fairness_threshold=1.25,
+        )
+        widget.disabled = True
+        assert widget.model_options.disabled
+        assert widget.fairness_slider.disabled
+        assert widget.fairness_list.disabled
+        assert widget.disabled

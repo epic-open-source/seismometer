@@ -9,6 +9,13 @@ from pandas.io.formats.style import Styler
 import seismometer.plot as plot
 
 from .controls.decorators import disk_cached_html_segment
+from .controls.explore import (
+    ExplorationCohortOutcomeInterventionEvaluationWidget,
+    ExplorationCohortSubclassEvaluationWidget,
+    ExplorationModelSubgroupEvaluationWidget,
+    ExplorationWidget,
+    ModelFairnessAuditOptions,
+)
 from .core.io import slugify
 from .data import (
     assert_valid_performance_metrics_df,
@@ -1237,6 +1244,156 @@ def show_cohort_summaries(by_target: bool = False, by_score: bool = False) -> HT
     dfs = _get_cohort_summary_dataframes(by_target, by_score)
 
     return template.render_cohort_summary_template(dfs)
+
+
+# endregion
+
+# region Exploration Widgets
+
+
+@export
+class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for model evaluation.
+
+        This includes the ROC, recall vs predicted condition prevalence, calibration,
+        PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
+        """
+        from seismometer._api import plot_model_evaluation
+
+        super().__init__("Model Performance", plot_model_evaluation)
+
+
+@export
+class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for cohort evaluation.
+
+
+        Creates a 2x3 grid of individual performance metrics across cohorts.
+
+        Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
+        Includes a legend with cohort size.
+        """
+        from seismometer._api import plot_cohort_evaluation
+
+        super().__init__("Cohort Group Performance", plot_cohort_evaluation)
+
+
+@export
+class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for cohort histograms.
+        Shows a distribution of scores for each category in a cohort group.
+        """
+        from seismometer._api import plot_cohort_group_histograms
+
+        super().__init__(
+            "Cohort Group Score Histograms",
+            plot_cohort_group_histograms,
+            theshold_handling=None,
+            ignore_grouping=True,
+        )
+
+
+@export
+class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for cohort lead time.
+        Shows the amount of lead time for each category in the cohort group.
+        """
+        from seismometer._api import plot_cohort_lead_time
+
+        super().__init__(
+            "Leadtime Analysis",
+            plot_cohort_lead_time,
+            theshold_handling="min",
+            ignore_grouping=True,
+        )
+
+
+@export
+class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeInterventionEvaluationWidget):
+    """
+    A widget for exploring the model performance of a cohort.
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for viewing rates of interventions and outcomes accross categories in a cohort group.
+
+        Parameters
+        ----------
+        cohort_groups : dict[str, tuple[Any]]
+            cohort names and category values
+        outcome_names : tuple[Any], optional
+            outcome descriptors, by default None
+        intervention_names : tuple[Any], optional
+            intervention descriptors, by default None
+        reference_time_names : tuple[Any], optional
+            reference time descriptors, by default None
+        """
+        from seismometer._api import plot_intervention_outcome_timeseries
+
+        super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
+
+
+@export
+class ExploreFairnessAudit(ExplorationWidget):
+    """
+    A widget for exploring model fairness
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for model fairness, showing details for a given target, score, and threshold.
+        """
+        from seismometer._api import generate_fairness_audit
+        from seismometer.seismogram import Seismogram
+
+        title = "Fairness Audit"
+        sg = Seismogram()
+        self.cohort_columns = sg.cohort_cols
+
+        option_widget = ModelFairnessAuditOptions(
+            sg.target_cols,
+            sg.output_list,
+            score_threshold=max(sg.thresholds),
+            per_context=True,
+        )
+        super().__init__(title=title, option_widget=option_widget, plot_function=generate_fairness_audit)
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        args = (
+            self.cohort_columns,
+            self.option_widget.target,
+            self.option_widget.score,
+            self.option_widget.score_threshold,
+            self.option_widget.group_scores,
+            list(self.option_widget.metrics),
+            self.option_widget.fairness_threshold,
+        )
+        return args, {}
 
 
 # endregion
