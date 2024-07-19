@@ -188,10 +188,10 @@ def _count_events(left, pk_cols: list[str], right: pd.DataFrame, r_ref: str, l_r
     pks = left[pk_cols].values
 
     if window_hrs is not None:
-        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
+        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  #Keep window the specified size
         right = right.loc[(right[r_ref] - max_lookback) < left[l_ref]] #Filter to only events that happened within the window
 
-    conditions = zip(pk_cols, pks) #zip column names and expected values
+    conditions = zip(pk_cols, pks) #Zip column names and expected values
     f = '{0[0]} == {0[1]}'.format
     return len(right.query(' & '.join(f(t) for t in conditions)))
 
@@ -415,10 +415,12 @@ def _merge_with_strategy(
     if merge_strategy=="forward" or merge_strategy=="nearest":
         return pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction=merge_strategy)
      
+    #If there's multiple events with matching r_ref vals, idxmax and idxmin will return the first row.
+    #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
     if merge_strategy=="first":
-        right_filtered = right.loc[right.groupby(pks)[r_ref].idxmin()]
-    if merge_strategy=="last":
-        right_filtered = right.loc[right.groupby(pks)[r_ref].idxmax()]    
+        right_filtered = right.loc[right.sort_index().groupby(pks)[r_ref].idxmin()]
+    if merge_strategy=="last": 
+        right_filtered = right.loc[right.sort_index(ascending=False).groupby(pks)[r_ref].idxmax()]    
 
     return pd.merge(left, right_filtered, on=pks, how="left")
 
