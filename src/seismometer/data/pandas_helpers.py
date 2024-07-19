@@ -80,7 +80,6 @@ def merge_windowed_event(
     ValueError
         At least one column in pks must be in both the predictions and events dataframes.
     """
-
     # Validate and resolve
     min_offset = pd.Timedelta(min_leadtime_hrs, unit="hr")
 
@@ -106,6 +105,7 @@ def merge_windowed_event(
     predictions = _merge_next(
         predictions, one_event, pks, l_ref=predtime_col, r_ref=r_ref, merge_cols_without_times=event_val_col, sort=sort, merge_strategy=merge_strategy
     )
+
     predictions = infer_label(predictions, event_val_col, event_time_col)
 
     if window_hrs is not None:
@@ -115,7 +115,7 @@ def merge_windowed_event(
     # refactor to generalize
     if merge_strategy=="forward": #For forward merges, don't count events that happen before the prediction
         predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
-
+    
     return predictions.drop(columns=r_ref)
 
     # assume one event per
@@ -389,16 +389,16 @@ def _merge_next(
 
     # Second pass to fill in values for no times or no right-event after the left one
     #   This isn't rare when most predictions have no event (have negative labels)..
-    if merge_cols_without_times is not None:
-        needs_update = rv[merge_cols_without_times].isna()
-        direct_merge = pd.merge(left, right.sort_values(r_ref, ascending=False), how="left", on=pks)
+    # if merge_cols_without_times is not None:
+    #     needs_update = rv[merge_cols_without_times].isna()
+    #     direct_merge = pd.merge(left, right.sort_values(r_ref, ascending=False), how="left", on=pks)
 
-        if sort:
-            direct_merge = direct_merge.drop_duplicates(subset=pks + [l_ref])
+    #     if sort:
+    #         direct_merge = direct_merge.drop_duplicates(subset=pks + [l_ref])
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=FutureWarning)
-            rv.iloc[needs_update] = direct_merge.sort_values(l_ref).iloc[np.where(needs_update)[0]]
+    #     with warnings.catch_warnings():
+    #         warnings.filterwarnings("ignore", category=FutureWarning)
+    #         rv.iloc[needs_update] = direct_merge.sort_values(l_ref).iloc[np.where(needs_update)[0]]
 
     return rv
 
@@ -414,13 +414,13 @@ def _merge_with_strategy(
 
     if merge_strategy=="forward" or merge_strategy=="nearest":
         return pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction=merge_strategy)
-    
+     
     if merge_strategy=="first":
-        right = right.loc[right.groupby(pks)[r_ref].idxmin()]
+        right_filtered = right.loc[right.groupby(pks)[r_ref].idxmin()]
     if merge_strategy=="last":
-        right = right.loc[right.groupby(pks)[r_ref].idxmax()]    
-        
-    return pd.merge(left, right, on=pks, how="left")
+        right_filtered = right.loc[right.groupby(pks)[r_ref].idxmax()]    
+
+    return pd.merge(left, right_filtered, on=pks, how="left")
 
 
 # endregion
