@@ -2,8 +2,9 @@
 Seismometer
 ===========
 
-Public API
-~~~~~~~~~~~
+Exploration APIs
+~~~~~~~~~~~~~~~~
+
 .. currentmodule:: seismometer._api
 
 .. autosummary::
@@ -15,6 +16,15 @@ Public API
    ExploreCohortLeadTime
    ExploreCohortOutcomeInterventionTimes
    ExploreFairnessAudit
+
+Public API
+~~~~~~~~~~~
+
+.. currentmodule:: seismometer._api
+
+.. autosummary::
+   :toctree: api/
+
    cohort_evaluation
    cohort_comparison_report
    cohort_list

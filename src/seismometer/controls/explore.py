@@ -599,7 +599,7 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
 
 
 # endregion
-# region Exploration Widgets (Intermediate Classes)
+# region Exploration Widgets
 
 
 class ExplorationWidget(VBox):
@@ -611,7 +611,9 @@ class ExplorationWidget(VBox):
         title : str
             Widget title
         option_widget : ValueWidget
-            widget that contains the options for the plot
+            widget that contains the options the plot_function
+        plot_function : Callable[..., Any]
+            a function that generates content
         """
         layout = Layout(
             width="100%",
@@ -774,7 +776,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
         plot_function: Callable[..., Any],
         *,
         ignore_grouping: bool = False,
-        theshold_handling: Literal["all", "max", "min", None] = "all",
+        threshold_handling: Literal["all", "max", "min", None] = "all",
     ):
         """
         Exploration widget for model evaluation, showing a plot for a given target,
@@ -798,7 +800,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        match theshold_handling:
+        match threshold_handling:
             case "all":
                 self.thresholds = {f"Threshold {k}": v for k, v in enumerate(sorted(sg.thresholds, reverse=True), 1)}
             case "max":
@@ -808,7 +810,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
             case _:
                 self.thresholds = None
 
-        self.threshold_hanlding = theshold_handling
+        self.threshold_handling = threshold_handling
         self.ignore_grouping = ignore_grouping
 
         option_widget = ModelOptionsAndCohortGroupWidget(
@@ -833,7 +835,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
             self.option_widget.target,
             self.option_widget.score,
         ]
-        match self.threshold_hanlding:
+        match self.threshold_handling:
             case "all":
                 args.append(list(self.option_widget.thresholds.values()))
             case "max" | "min":

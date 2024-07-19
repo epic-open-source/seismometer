@@ -1254,59 +1254,53 @@ def show_cohort_summaries(by_target: bool = False, by_score: bool = False) -> HT
 @export
 class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
     """
-    A widget for exploring the model performance of a cohort.
+    Exploration widget for model evaluation, showing model performance for a sepecific subpopulation.
+
+    This includes the ROC, recall vs predicted condition prevalence, calibration,
+    PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
     """
 
     def __init__(self):
         """
-        Exploration widget for model evaluation.
-
-        This includes the ROC, recall vs predicted condition prevalence, calibration,
-        PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
+        Passes the plot function to the superclass.
         """
-        from seismometer._api import plot_model_evaluation
-
         super().__init__("Model Performance", plot_model_evaluation)
 
 
 @export
 class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
     """
-    A widget for exploring the model performance of a cohort.
+    Exploration widget for cohort evaluation, showing model performance across thresholds and cohort subgroups.
+
+    Creates a 2x3 grid of individual performance metrics across cohorts.
+
+    Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
+    Includes a legend with cohort size.
     """
 
     def __init__(self):
         """
-        Exploration widget for cohort evaluation.
-
-
-        Creates a 2x3 grid of individual performance metrics across cohorts.
-
-        Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
-        Includes a legend with cohort size.
+        Passes the plot function to the superclass.
         """
-        from seismometer._api import plot_cohort_evaluation
-
         super().__init__("Cohort Group Performance", plot_cohort_evaluation)
 
 
 @export
 class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
     """
-    A widget for exploring the model performance of a cohort.
+    Exploration widget to show the true positives and negative by model score.
+
+    Shows a distribution of scores for each category in a cohort group.
     """
 
     def __init__(self):
         """
-        Exploration widget for cohort histograms.
-        Shows a distribution of scores for each category in a cohort group.
+        Passes the plot function to the superclass.
         """
-        from seismometer._api import plot_cohort_group_histograms
-
         super().__init__(
             "Cohort Group Score Histograms",
             plot_cohort_group_histograms,
-            theshold_handling=None,
+            threshold_handling=None,
             ignore_grouping=True,
         )
 
@@ -1314,20 +1308,19 @@ class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
 @export
 class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
     """
-    A widget for exploring the model performance of a cohort.
+    Exploration widget for the lead time between a model prediction and an event of interest.
+
+    Shows the amount of lead time for each category in the cohort group.
     """
 
     def __init__(self):
         """
-        Exploration widget for cohort lead time.
-        Shows the amount of lead time for each category in the cohort group.
+        Passes the plot function to the superclass.
         """
-        from seismometer._api import plot_cohort_lead_time
-
         super().__init__(
             "Leadtime Analysis",
             plot_cohort_lead_time,
-            theshold_handling="min",
+            threshold_handling="min",
             ignore_grouping=True,
         )
 
@@ -1335,42 +1328,26 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
 @export
 class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeInterventionEvaluationWidget):
     """
-    A widget for exploring the model performance of a cohort.
+    Exploration widget for viewing rates of interventions and outcomes accross categories in a cohort group.
     """
 
     def __init__(self):
         """
-        Exploration widget for viewing rates of interventions and outcomes accross categories in a cohort group.
-
-        Parameters
-        ----------
-        cohort_groups : dict[str, tuple[Any]]
-            cohort names and category values
-        outcome_names : tuple[Any], optional
-            outcome descriptors, by default None
-        intervention_names : tuple[Any], optional
-            intervention descriptors, by default None
-        reference_time_names : tuple[Any], optional
-            reference time descriptors, by default None
+        Passes the plot function to the superclass.
         """
-        from seismometer._api import plot_intervention_outcome_timeseries
-
         super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
 
 
 @export
 class ExploreFairnessAudit(ExplorationWidget):
     """
-    A widget for exploring model fairness
+    Exploration widget for Aequitas model fairness metrics, showing details for a given target, score, and threshold.
     """
 
     def __init__(self):
         """
-        Exploration widget for model fairness, showing details for a given target, score, and threshold.
+        Passes the plot function to the superclass.
         """
-        from seismometer._api import generate_fairness_audit
-        from seismometer.seismogram import Seismogram
-
         title = "Fairness Audit"
         sg = Seismogram()
         self.cohort_columns = sg.cohort_cols
@@ -1384,6 +1361,14 @@ class ExploreFairnessAudit(ExplorationWidget):
         super().__init__(title=title, option_widget=option_widget, plot_function=generate_fairness_audit)
 
     def generate_plot_args(self) -> tuple[tuple, dict]:
+        """
+        Returns plot function args from the option widget
+
+        Returns
+        -------
+        tuple[tuple, dict]
+            args, and kwargs for the plot function.
+        """
         args = (
             self.cohort_columns,
             self.option_widget.target,
