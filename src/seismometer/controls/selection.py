@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Optional
 
 import traitlets
@@ -11,17 +12,17 @@ class SelectionListWidget(ValueWidget, VBox):
 
     value = traitlets.Tuple(help="The selected values for the button list")
 
-    def __init__(self, options: tuple[str], *, value: tuple[str] = None, title: Optional[str] = None):
+    def __init__(self, options: Iterable[str], *, value: Optional[Iterable[str]] = None, title: Optional[str] = None):
         """A vertical list of buttons for selection
 
         Parameters
         ----------
-        options : tuple[str]
+        options : Iterable[str]
             Selectable options.
-        value : Optional[tuple[str]], optional
+        value : Optional[Iterable[str]], optional
             Subset of options that should be selected by default, by default None.
-        title : Optional[str[], optoinal
-            Title to be displayed above the list of buttons, it not set, title not included
+        title : Optional[str, optional
+            Title to be displayed above the list of buttons, if not set, title not included
         """
         super().__init__()
         self.options = tuple(options)  # make immutable
@@ -91,7 +92,7 @@ class SelectionListWidget(ValueWidget, VBox):
 
 class MultiSelectionListWidget(ValueWidget, VBox):
     """
-    Group of selection buttons shown as a collapsale table of options.
+    Group of selection buttons shown as a collapsable table of options.
     """
 
     value = traitlets.Dict(help="The selected values for the button lists")
@@ -105,7 +106,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         border: bool = False,
     ):
         """
-        A table of buttons organized into columns by thier keys. Collapsable to save space.
+        A table of buttons organized into columns by their keys. Collapsable to save space.
 
         Parameters
         ----------
@@ -204,7 +205,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
     def __init__(
         self,
         options: dict[str, tuple],
-        value: Optional[tuple[str | tuple]] = None,
+        value: Optional[tuple[str, tuple]] = None,
         *,
         title: str = "",
         select_all: bool = True,
@@ -216,22 +217,30 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         Parameters
         ----------
         options : dict[str,tuple]
-            Drown down entires, and thier corresponding buttons.
-        value : Optional[tuple[str | tuple]], optional
+            Dropdown entires, and their corresponding buttons.
+        value : Optional[tuple[str, tuple]], optional
             Pre-selected values, by default None.
         title : str, optional
-            Dispaly above the dropdown, by default "".
+            Display above the dropdown, by default "".
         select_all : bool, optional
             As an alternative to value - set all values to selected by default, by default True.
         """
         super().__init__()
         self.title = title
         self.label = Label(title)
+
+        # preselect all values if select_all is set, will override with values next
         values = {k: options[k] if select_all else () for k in options}
+
         if value is not None:
+            # We have a value (cohort/subgroups) so set the dropdown/selection list accordingly
             values[value[0]] = value[1]
         else:
-            value = (tuple(values.keys())[0], values[tuple(values.keys())[0]])
+            # No value, so default ot the first key/value pair in values
+            dropdown_value = tuple(values.keys())[0]  # first key
+            selection_value = values[dropdown_value]
+            value = (dropdown_value, selection_value)
+
         self.dropdown = Dropdown(
             options=[key for key in values],
             value=value[0],
@@ -246,7 +255,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         self.stack = Stack(children=[self.selection_widgets[key] for key in self.selection_widgets], selected_index=0)
         self.children = [self.label, self.dropdown, self.stack]
         jslink((self.dropdown, "index"), (self.stack, "selected_index"))
-        self.layout = Layout(width="calc(100& - var(--jp-widgets-border-width)* 2)")
+        self.layout = Layout(width="calc(100% - var(--jp-widgets-border-width)* 2)")
         self._on_selection_change()
         self.observe(self._on_value_change, "value")
         self._disabled = False

@@ -66,7 +66,7 @@ class TestMonotonicPercentSliderWidget:
         assert widget.sliders["b"].value == 0.2
         assert widget.sliders["b"].style.handle_color == alert_colors.Alarm
 
-    def test_init_with_values_inceasing(self):
+    def test_init_with_values_increasing(self):
         widget = undertest.MonotonicProbabilitySliderListWidget(("a", "b"), (0.1, 0.2), ascending=True)
         assert widget.value == {"a": 0.1, "b": 0.2}
         widget.sliders["a"].value = 0.4
@@ -80,7 +80,7 @@ class TestMonotonicPercentSliderWidget:
 
     def test_init_with_values_decreasing(self):
         widget = undertest.MonotonicProbabilitySliderListWidget(("a", "b"), (0.2, 0.1), ascending=False)
-        # the order of the sliders is reveresed
+        # the order of the sliders is reversed
         assert widget.value == {"a": 0.2, "b": 0.1}
         assert widget.sliders["a"].style.handle_color == alert_colors.Alarm
         widget.sliders["a"].value = 0.4
@@ -116,7 +116,7 @@ class TestMonotonicPercentSliderWidget:
         with pytest.raises(ValueError):
             undertest.MonotonicProbabilitySliderListWidget(("a", "b"), (-0.1, 20), ascending=False)
 
-    def test_too_man_thresholds_raises_value_error(self):
+    def test_too_many_thresholds_raises_value_error(self):
         with pytest.raises(ValueError):
             threshold_names = [str(x) for x in range(7)]
             undertest.MonotonicProbabilitySliderListWidget(threshold_names)

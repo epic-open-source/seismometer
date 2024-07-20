@@ -205,11 +205,11 @@ def generate_fairness_audit(
     fairness_threshold: float = 1.25,
 ) -> HTML | IFrame:
     sg = Seismogram()
-    path = "aequitas_{cohorts}_with_{target}_and_{score}_gt_{thresold}_metrics_{metrics}_ratio_{ratio}".format(
+    path = "aequitas_{cohorts}_with_{target}_and_{score}_gt_{threshold}_metrics_{metrics}_ratio_{ratio}".format(
         cohorts="_".join(cohort_columns),
         target=target_column,
         score=score_column,
-        thresold=score_threshold,
+        threshold=score_threshold,
         metrics="_".join(metric_list),
         ratio=fairness_threshold,
     )
@@ -271,7 +271,7 @@ def cohort_list():
 
     comparison_selections.observe(on_widget_value_changed, "value")
 
-    # get intial value
+    # get initial value
     on_widget_value_changed()
 
     return VBox(children=[comparison_selections, output])
@@ -298,7 +298,7 @@ def _cohort_list_details(cohort_dict: dict[str, tuple]) -> HTML:
     aggregation = {cfg.entity_id: ["count", "nunique"]}
     if len(cfg.context_id):
         aggregation[cfg.context_id] = "nunique"
-    # add in other keys for aggreagtion
+    # add in other keys for aggregation
     aggregation.update({k: "mean" for k in cfg.output_list + intervention_cols + outcome_cols})
     title = "Summary"
     html_table = groups.agg(aggregation).to_html()
@@ -1106,7 +1106,7 @@ def _style_cohort_summaries(df: pd.DataFrame, attribute: str) -> Styler:
     ----------
     df : pd.DataFrame
         The output of default_cohort_summaries().
-    coattributehort : str
+    attribute : str
         The display name of the cohort.
 
     Returns
@@ -1254,7 +1254,7 @@ def show_cohort_summaries(by_target: bool = False, by_score: bool = False) -> HT
 @export
 class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
     """
-    Exploration widget for model evaluation, showing model performance for a sepecific subpopulation.
+    Exploration widget for model evaluation, showing model performance for a specific subpopulation.
 
     This includes the ROC, recall vs predicted condition prevalence, calibration,
     PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
@@ -1328,7 +1328,7 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
 @export
 class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeInterventionEvaluationWidget):
     """
-    Exploration widget for viewing rates of interventions and outcomes accross categories in a cohort group.
+    Exploration widget for viewing rates of interventions and outcomes across categories in a cohort group.
     """
 
     def __init__(self):

@@ -1,5 +1,7 @@
 import logging
+import operator
 from collections.abc import Iterable
+from typing import Optional
 
 import traitlets
 from ipywidgets import FloatSlider, Layout, ValueWidget, VBox
@@ -18,14 +20,14 @@ class ProbabilitySliderListWidget(ValueWidget, VBox):
 
     value = traitlets.Dict(help="The names and values for the slider list")
 
-    def __init__(self, names: Iterable[str], value: Iterable[int] = None):
+    def __init__(self, names: Iterable[str], value: Optional[Iterable[int]] = None):
         """A vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
 
         Parameters
         ----------
-        names : tuple[str]
+        names : Iterable[str]
             Slider names
-        value : Optional[tuple[str]], optional
+        value : Optional[Iterable[str]], optional
             Slider start values, by default None, starts all sliders at zero.
         """
         self.names = tuple(names)  # cast to static tuple
@@ -92,14 +94,14 @@ class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
     Monotonicity is maintained between the sliders so they are always ascending or descending in value.
     """
 
-    def __init__(self, names: tuple[str], value: tuple[int] = None, ascending: bool = True):
+    def __init__(self, names: Iterable[int], value: Optional[Iterable[int]] = None, ascending: bool = True):
         """A vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
 
         Parameters
         ----------
-        names : tuple[str]
+        names : Iterable[int]
             Slider names
-        value : Optional[tuple[str]], optional
+        value : Optional[Iterable[int]], optional
             Slider start values, by default None, starts all sliders at zero.
         ascending : bool, optional = True
             Forces sliders to be ascending, else decreasing.
@@ -110,7 +112,10 @@ class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
 
         super().__init__(names, value)
 
-        if tuple(sorted(self.value.values(), reverse=not ascending)) != tuple(self.value.values()):
+        thresholds = list(self.value.values())
+        op = operator.le if ascending else operator.ge
+        if not all(op(thresholds[i], thresholds[i + 1]) for i in range(len(thresholds) - 1)):
+            # check if sorted
             direction = "ascending" if ascending else "descending"
             raise ValueError(f"Initial values are not sorted, expected {direction}")
 
@@ -123,16 +128,17 @@ class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
                 sub_slider.style.handle_color = alert_colors[index % len(alert_colors)]
 
     def _on_slider_change(self, change=None):
-        """Slider has changed, update the value tuple, making sure values are increating"""
+        """Slider has changed, update the value tuple, making sure values are increasing"""
         sliders = list(self.sliders.values())
         if self.value_update_in_progress:
             return
         try:
             slider_index = sliders.index(change["owner"])
+            new = change["new"]
+            old = change["old"]
         except ValueError:  # Only the sliders can change values
             return
-        new = change["new"]
-        old = change["old"]
+
         if self.ascending:  # monotonic increasing
             if new > old:  # increase in value, increase all sliders after this one
                 new_tuple = [slider.value for slider in sliders[:slider_index]] + [
