@@ -41,7 +41,7 @@ logger = logging.getLogger("seismometer")
 
 # region Reports
 @export
-def feature_alerts(exclude_cols: list[str] = None):
+def feature_alerts(exclude_cols: Optional[list[str]] = None):
     """
     Generates (or loads from disk) the `ydata-profiling` report feature quality alerts.
 
@@ -65,7 +65,7 @@ def feature_alerts(exclude_cols: list[str] = None):
     ).display_alerts()
 
 
-def feature_summary(exclude_cols: list[str] = None, inline: bool = False):
+def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = False):
     """
     Generates (or loads from disk) the `ydata-profiling` report.
 
@@ -157,13 +157,13 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
 
 
 @export
-def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold=1.25) -> HTML:
+def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold: float = 1.25) -> HTML:
     """
     Displays the Aequitas fairness audit for a set of sensitive groups and metrics.
 
     Parameters
     ----------
-    metric_list : list[str]
+    metric_list : Optional[list[str]
         The list of metrics to use in Aequitas. Chosen from:
             "tpr",
             "tnr",
@@ -204,6 +204,31 @@ def generate_fairness_audit(
     metric_list: Optional[list[str]] = None,
     fairness_threshold: float = 1.25,
 ) -> HTML | IFrame:
+    """
+    Generates the Aequitas fairness audit for a set of sensitive groups and metrics.
+
+    Parameters
+    ----------
+    cohort_columns : list[str]
+        cohort columns to investigate
+    target_column : str
+        target column to use
+    score_column : str
+        score column to use
+    score_threshold : float
+        threshold at which a score predicts a positive event
+    per_context : bool, optional
+        if scores should be grouped within a context, by default False
+    metric_list : Optional[list[str]], optional
+        list of metrics to evaluate, by default None
+    fairness_threshold : float, optional
+        allowed deviation from the default class within a cohort, by default 1.25
+
+    Returns
+    -------
+    HTML | IFrame
+        IFrame holding the HTML of the audit
+    """
     sg = Seismogram()
     path = "aequitas_{cohorts}_with_{target}_and_{score}_gt_{threshold}_metrics_{metrics}_ratio_{ratio}".format(
         cohorts="_".join(cohort_columns),
@@ -235,6 +260,7 @@ def generate_fairness_audit(
     )
 
     data = data[[target, score_column] + cohort_columns]
+    data = FilterRule.isin(target, (0, 1)).filter(data)
     if len(data.index) < sg.censor_threshold:
         return template.render_censored_plot_message(sg.censor_threshold)
     fairness_audit_to_html(
@@ -245,7 +271,7 @@ def generate_fairness_audit(
 
 # endregion
 
-# region notebook IPWidgets # TODO - move to .controls submodule
+# region notebook IPWidgets
 
 
 @export
@@ -264,9 +290,11 @@ def cohort_list():
     output = Output()
 
     def on_widget_value_changed(*args):
+        output.clear_output(wait=True)
         with output:
+            display("Recalculating...")
+            output.clear_output(wait=True)
             html = _cohort_list_details(comparison_selections.value)
-            output.clear_output()
             display(html)
 
     comparison_selections.observe(on_widget_value_changed, "value")

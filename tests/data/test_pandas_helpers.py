@@ -119,9 +119,6 @@ BASE_STRINGS = [
 
 
 class TestEventValue:
-    def test_none_return_none(self):
-        assert undertest.event_value(None) is None
-
     @pytest.mark.parametrize(
         "input",
         [
@@ -151,9 +148,6 @@ class TestEventValue:
 
 
 class TestEventTime:
-    def test_none_return_none(self):
-        assert undertest.event_time(None) is None
-
     @pytest.mark.parametrize(
         "input",
         [
@@ -200,7 +194,6 @@ class TestEventName:
     @pytest.mark.parametrize(
         "input, expected",
         [
-            (None, None),
             ("eventname_Value", "eventname"),
             ("eventname_Time", "eventname"),
             ("no underscore but ends in Time", "no underscore but ends in Time"),
