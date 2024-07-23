@@ -16,6 +16,7 @@ def fake_load_config(self, *args, definitions=None):
         "event1": Event(source="event1", display_name="event1", window_hr=1),
         "event2": Event(source="event1", display_name="event1", window_hr=2, aggregation_method="min"),
     }
+    mock_config.primary_target = "event1"
     mock_config.cohorts = ["cohort1", "cohort2", "cohort3"]
     mock_config.features = ["one"]
 
@@ -31,6 +32,10 @@ def get_test_data():
             "entity": ["A", "A", "B", "C"],
             "prediction": [1, 2, 3, 4],
             "time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "event1_Value": [0, 1, 0, -1],
+            "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "event2_Value": [0, 1, 0, 1],
+            "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
         }
     )
 
@@ -72,9 +77,9 @@ class Test__set_df_counts:
     @pytest.mark.parametrize(
         "features, predict_cols, expected",
         [
-            ([], [], "~3"),
-            ([], ["entity", "time"], "~1"),
-            ([], ["entity", "notacol"], "~2"),
+            ([], [], "~7"),
+            ([], ["entity", "time"], "~5"),
+            ([], ["entity", "notacol"], "~6"),
             (["feature1", "feature2"], [], 2),
             (["feature1", "feature2"], ["entity", "time"], 2),
             (["feature1", "feature2", "feature3"], [], 3),
@@ -92,6 +97,30 @@ class Test__set_df_counts:
 
         # Assert
         assert sg.feature_count == expected
+
+
+class TestSeismogramDataMethod:
+    def test_data_with_named_target(self, fake_seismo, tmp_path):
+        # Arrange
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+
+        assert len(sg.data("event2")) == 4
+
+    def test_data_filters_target_events(self, fake_seismo, tmp_path):
+        # Arrange
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+
+        assert len(sg.data("event1")) == 3
+
+    def test_data_defaults_to_primary_target(self, fake_seismo, tmp_path):
+        # Arrange
+        sg = Seismogram()
+        sg.target_event = "event1"
+        sg.dataframe = get_test_data()
+
+        assert len(sg.data()) == 3
 
 
 class TestSeismogramConfigRetrievalMethods:

@@ -302,14 +302,16 @@ class Seismogram(object, metaclass=Singleton):
 
     # endregion
     # region data accessors
-    def data(self, event: str = None) -> pd.DataFrame:
+    def data(self, event: Optional[str] = None) -> pd.DataFrame:
         """
         Provides data for the specified target event.
 
         Expects the event string, defaults to the configured primary target.
         """
-        event_val = pdh.event_value(event) or self.target
-        event_time = pdh.event_time(event) or self.time_zero  # Assumes binary target
+        if event is None:
+            event = self.target_event
+        event_val = pdh.event_value(event)
+        event_time = pdh.event_time(event)  # Assumes binary target
         if event_time in self.dataframe:
             return self.dataframe[self._data_mask(event_val) & self._time_mask(event_time)]
 
