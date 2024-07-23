@@ -56,7 +56,7 @@ class FilterRule(object):
         Parameters
         ----------
         left : string or FilterRule
-            Column name for filtering relatinoships or FilterRule for and/or relationships.
+            Column name for filtering relationships or FilterRule for and/or relationships.
         relation : str
             A relation from FilterRule.method_router.keys().
         right : string or FilterRule

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-As for all of the utils subpackage, no other custom subpackages should be referenced.
+As for all of the utils subpackage, no other custom sub-packages should be referenced.
 """
 import hashlib
 import logging

@@ -183,7 +183,7 @@ def _bin_class_curve(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Inspired by binary_clf_curve.
-    Does core calculations for determening performance stats.
+    Does core calculations for determining performance stats.
     """
     # Sort both arrays to have predictions descending
     sort_ix = np.argsort(y_pred, kind="mergesort")[::-1]
@@ -206,7 +206,7 @@ def _point_thresholds(orig_thresholds: np.ndarray) -> np.ndarray:
     Convert thresholds to percent increments (0.01) between 0 to 1.
     """
     if orig_thresholds.max() < 1:
-        logging.warning("Passed thresoholds do not extend to maximum of 1.")
+        logging.warning("Passed thresholds do not extend to maximum of 1.")
     thresholds = np.arange(0, 101)[::-1]
     ixs = np.digitize(thresholds, orig_thresholds, right=True) - 1
     ixs = np.where(ixs < 0, 0, ixs)  # Clip to 0

@@ -157,7 +157,7 @@ class AlertConfigProvider:
         -------
         bool
             True if
-                1) there is no thresholding configured for the alert (or generally),
+                1) there is no thresholds configured for the alert (or generally),
 
                 2) _alert_threshold_met_col returns True for the alert.
         """

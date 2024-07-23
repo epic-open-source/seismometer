@@ -92,7 +92,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
         thresholds : dict[str, float]
             list of thresholds for the model scores, will be sorted into decreasing order
         per_context : bool, optional
-            if scores should be grouped by contex, by default None, in which case this checkbox is not shown.
+            if scores should be grouped by context, by default None, in which case this checkbox is not shown.
         """
         self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
         self.target_list = Dropdown(
@@ -202,7 +202,7 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
         Parameters
         ----------
         cohort_groups : dict[str, tuple[Any]]
-            cohort colums and groupings
+            cohort columns and groupings
         target_names : tuple[Any]
             model target columns
         score_names : tuple[Any]
@@ -244,7 +244,7 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
 
     @property
     def target(self) -> str:
-        """trarget column descriptor"""
+        """target column descriptor"""
         return self.model_options.target
 
     @property
@@ -287,7 +287,7 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
         score_names : tuple[Any]
             model score columns
         thresholds : dict[str, float]
-            tresholds for the model scores
+            thresholds for the model scores
         per_context : bool, optional
             if scores should be grouped by context, by default False
         """
@@ -361,7 +361,7 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
         Parameters
         ----------
         outcome_names : tuple[Any], optional
-            names of coutcome columns, by default None
+            names of outcome columns, by default None
         intervention_names : tuple[Any], optional
             names of intervention columns, by default None
         reference_time_names : tuple[Any], optional
@@ -433,7 +433,7 @@ class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
         reference_time_names: tuple[Any] = None,
     ):
         """
-        Widget for selecting interventions and outcomes accross categories in a cohort group.
+        Widget for selecting interventions and outcomes across categories in a cohort group.
 
         Parameters
         ----------
@@ -509,7 +509,7 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
         fairness_threshold: float = 1.25,
     ):
         """
-        Widget for selecting interventions and outcomes accross categories in a cohort group.
+        Widget for selecting interventions and outcomes across categories in a cohort group.
 
         Parameters
         ----------
@@ -518,7 +518,7 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
         score_names : tuple[Any]
             model score columns
         thresholds : dict[str, float]
-            tresholds for the model scores
+            thresholds for the model scores
         per_context : bool, optional
             if scores should be grouped by context, by default True
         fairness_metrics : tuple[str], optional
@@ -579,7 +579,7 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
 
     @property
     def target(self) -> str:
-        """trarget column descriptor"""
+        """target column descriptor"""
         return self.model_options.target
 
     @property
@@ -858,7 +858,7 @@ class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
         plot_function: Callable[..., Any],
     ):
         """
-        Exploration widget for plotting of interventions and outcomes accross categories in a cohort group.
+        Exploration widget for plotting of interventions and outcomes across categories in a cohort group.
 
         Parameters
         ----------

@@ -51,7 +51,7 @@ class TestUpdatePlotWidget:
         assert count == 1
 
 
-class TestExporationBaseClass:
+class TestExplorationBaseClass:
     def test_base_class(self, caplog):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
 

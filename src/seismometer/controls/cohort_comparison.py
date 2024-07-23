@@ -79,7 +79,7 @@ class ComparisonReportGenerator:
 
             if l_df.empty:
                 logger.warning(
-                    f"No comparsion report generated. The left selection ({l_title}) has no data to profile."
+                    f"No comparison report generated. The left selection ({l_title}) has no data to profile."
                 )
                 self.button.description = GENERATE_REPORT
                 self.button.disabled = False
@@ -87,7 +87,7 @@ class ComparisonReportGenerator:
 
             if r_df.empty:
                 logger.warning(
-                    f"No comparsion report generated. The right selection ({r_title}) has no data to profile."
+                    f"No comparison report generated. The right selection ({r_title}) has no data to profile."
                 )
                 self.button.description = GENERATE_REPORT
                 self.button.disabled = False

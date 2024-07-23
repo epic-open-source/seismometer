@@ -54,10 +54,10 @@ def merge_windowed_event(
     min_leadtime_hrs : Number, optional
         The number of hour offset to be required for prediction, by default 0.
         If set to 1, a prediction made within the hour before the last associated event will be invalidated and set
-        to -1 even though it occured before the event time.
+        to -1 even though it occurred before the event time.
     window_hrs : Optional[Number], optional
         The number of hours the window of predictions of interest should be limited to, by default None.
-        If None, then all predictions occuring before a known event will be included.
+        If None, then all predictions occurring before a known event will be included.
         If used with min_leadtime_hrs, the entire window is shifted maintaining its size. The maximum lookback for a
         prediction is window_hrs + min_leadtime_hrs.
     event_base_val_col : str, optional
