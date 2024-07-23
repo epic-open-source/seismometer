@@ -107,7 +107,7 @@ def resolve_filename(
 
     basedir = basedir / slugify(cohort_attribute) / subdir
 
-    # Create pre-emptively
+    # Create preemptively
     if not basedir.is_dir():
         if not create:
             logger.warning(f"No directory found for group: {basedir}")

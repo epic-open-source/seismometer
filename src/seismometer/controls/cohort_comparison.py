@@ -3,10 +3,12 @@ from functools import partial
 from typing import Optional
 
 from IPython.display import display
-from ipywidgets import Button, HBox, Output, VBox
+from ipywidgets import Box, Button, Output, VBox
 
-from seismometer.controls.selection import MultiSelectionListWidget
 from seismometer.data.filter import filter_rule_from_cohort_dictionary
+
+from .selection import MultiSelectionListWidget
+from .styles import BOX_GRID_LAYOUT
 
 logger = logging.getLogger("seismometer")
 
@@ -21,7 +23,7 @@ class ComparisonReportGenerator:
 
         for side in ["Left", "Right"]:
             options = selections
-            widget = MultiSelectionListWidget(options=options, title=f"Select {side} Cohort")
+            widget = MultiSelectionListWidget(options=options, title=f"Select {side} Cohort", border=True)
             self.selectors.append(widget)
 
         self.output = Output()
@@ -29,7 +31,15 @@ class ComparisonReportGenerator:
         self.button.on_click(partial(self._generate_comparison_report, self))
 
     def show(self):
-        display(VBox(children=[HBox(children=self.selectors), self.button, self.output]))
+        display(
+            VBox(
+                children=[
+                    Box(children=self.selectors, layout=BOX_GRID_LAYOUT),
+                    self.button,
+                    self.output,
+                ]
+            )
+        )
 
     def nth_cohort(self, n: int):
         return self.selectors[n].value
@@ -69,7 +79,7 @@ class ComparisonReportGenerator:
 
             if l_df.empty:
                 logger.warning(
-                    f"No comparsion report generated. The left selection ({l_title}) has no data to profile."
+                    f"No comparison report generated. The left selection ({l_title}) has no data to profile."
                 )
                 self.button.description = GENERATE_REPORT
                 self.button.disabled = False
@@ -77,7 +87,7 @@ class ComparisonReportGenerator:
 
             if r_df.empty:
                 logger.warning(
-                    f"No comparsion report generated. The right selection ({r_title}) has no data to profile."
+                    f"No comparison report generated. The right selection ({r_title}) has no data to profile."
                 )
                 self.button.description = GENERATE_REPORT
                 self.button.disabled = False

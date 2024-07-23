@@ -60,4 +60,5 @@ def compare_series(
             axes[0].set_xlabel("")
             counts["log(count)"] = np.log10(counts[event_col])
             sns.lineplot(x=ref_str, y="log(count)", hue=cohort_col, data=counts.reset_index(), ax=axes[1])
+
     return fig

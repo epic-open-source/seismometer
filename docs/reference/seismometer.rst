@@ -2,8 +2,24 @@
 Seismometer
 ===========
 
+Exploration APIs
+~~~~~~~~~~~~~~~~
+
+.. currentmodule:: seismometer._api
+
+.. autosummary::
+   :toctree: api/
+
+   ExploreModelEvaluation
+   ExploreCohortEvaluation
+   ExploreCohortHistograms
+   ExploreCohortLeadTime
+   ExploreCohortOutcomeInterventionTimes
+   ExploreFairnessAudit
+
 Public API
 ~~~~~~~~~~~
+
 .. currentmodule:: seismometer._api
 
 .. autosummary::
@@ -11,7 +27,6 @@ Public API
 
    cohort_evaluation
    cohort_comparison_report
-   cohort_selector
    cohort_list
    fairness_audit
    feature_alerts

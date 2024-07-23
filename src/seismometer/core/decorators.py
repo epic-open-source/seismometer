@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-As for all of the utils subpackage, no other custom subpackages should be referenced.
+As for all of the utils subpackage, no other custom sub-packages should be referenced.
 """
 import builtins
 import hashlib
@@ -113,7 +113,7 @@ class DiskCachedFunction(object):
         ------
         ValueError
             If the annotated return type is not the same as the required return type, or
-            if the runtime return type does not match teh annoated type.
+            if the runtime return type does not match the annotated type.
         """
         sig = signature(func)
         if self.return_type and (sig.return_annotation != self.return_type):
@@ -141,7 +141,7 @@ class DiskCachedFunction(object):
                     )
                 file_dir.mkdir(parents=True, exist_ok=True)
                 self.save_fn(result, filepath)
-                logger.debug(f"Saved to cahe: {filepath}")
+                logger.debug(f"Saved to cache: {filepath}")
                 return result
 
         return wrapped_func

@@ -43,21 +43,21 @@ def merge_windowed_event(
     predictions : pd.DataFrame
         The predictions or features frame where each row represents a prediction.
     predtime_col : str
-        The column in the predictions frame indicating the timestamp when inference occured.
+        The column in the predictions frame indicating the timestamp when inference occurred.
     events : pd.DataFrame
         The narrow events dataframe
     event_label : str
         The category name of the event to merge, expected to be a value in events.Type.
     pks : list[str]
-        A list of primary keys on which to perform the merge, keys are column names occuring in both predictions and
+        A list of primary keys on which to perform the merge, keys are column names occurring in both predictions and
         events dataframes.
     min_leadtime_hrs : Number, optional
         The number of hour offset to be required for prediction, by default 0.
         If set to 1, a prediction made within the hour before the last associated event will be invalidated and set
-        to -1 even though it occured before the event time.
+        to -1 even though it occurred before the event time.
     window_hrs : Optional[Number], optional
         The number of hours the window of predictions of interest should be limited to, by default None.
-        If None, then all predictions occuring before a known event will be included.
+        If None, then all predictions occurring before a known event will be included.
         If used with min_leadtime_hrs, the entire window is shifted maintaining its size. The maximum lookback for a
         prediction is window_hrs + min_leadtime_hrs.
     event_base_val_col : str, optional
@@ -117,7 +117,7 @@ def merge_windowed_event(
 def _one_event(
     events: pd.DataFrame, event_label: str, event_base_val_col: str, event_base_time_col: str
 ) -> pd.DataFrame:
-    """Reduces the events dataframe to those rows associated with the event_label, pre-emptively renaming to the
+    """Reduces the events dataframe to those rows associated with the event_label, preemptively renaming to the
     columns to what a join should use."""
     one_event = events[events.Type == event_label].drop(columns=["Type"])
     return one_event.rename(
@@ -136,7 +136,7 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.Da
     dataframe : pd.DataFrame
         The dataframe to modify.
     label_col : str
-        The column speficying the value to infer.
+        The column specifying the value to infer.
     time_col : time_col
         The time column associated with the value to infer.
 
@@ -148,7 +148,7 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.Da
     if label_col not in dataframe.columns or time_col not in dataframe.columns:
         return dataframe
 
-    try:  # Assume numeric labels: edgecase Float and Int incompatibilities
+    try:  # Assume numeric labels: edge case Float and Int incompatibilities
         dataframe[label_col] = dataframe[label_col].astype(float)
     except BaseException:  # Leave as nonnumeric
         pass
@@ -167,7 +167,7 @@ def event_score(
 ) -> pd.DataFrame:
     """
     Reduces a dataframe of all predictions to a single row of significance; such as the max or most recent value for
-    an entitiy.
+    an entity.
     Supports max/min for value only scores, and last/first if a reference timestamp is provided.
 
     Parameters
@@ -189,7 +189,7 @@ def event_score(
         The reduced dataframe with one row per combination of pks.
     """
     logger.debug(f"Combining scores using {aggregation_method} for {score} on {ref_event}")
-    # groupby.agg works on columns indivdually - this wants entire row where a condition is met
+    # groupby.agg works on columns individually - this wants entire row where a condition is met
     # start with first/last/max/min
 
     ref_score = _resolve_score_col(merged_frame, score)
@@ -238,8 +238,6 @@ def event_score(
 # region Core Methods
 def event_value(event: str) -> str:
     """Converts an event name into the value column name."""
-    if event is None:
-        return None
     if event.endswith("_Value"):
         return event
 
@@ -250,8 +248,6 @@ def event_value(event: str) -> str:
 
 def event_time(event: str) -> str:
     """Converts an event name into the time column name."""
-    if event is None:
-        return None
     if event.endswith("_Time"):
         return event
 
@@ -262,8 +258,6 @@ def event_time(event: str) -> str:
 
 def event_name(event: str) -> str:
     """Converts an event column name into the the event name."""
-    if event is None:
-        return None
     if event.endswith("_Time"):
         return event[:-5]
 
@@ -318,7 +312,7 @@ def _merge_next(
 ) -> pd.DataFrame:
     """
     Merges the right frame into the left based on a set of exact match primary keys, prioritizing the first row
-    in the right frame occuring after the row in the left.
+    in the right frame occurring after the row in the left.
 
     Delegates initial distance logic to pandas.DataFrame.merge_asof looking forward to find the next event.
     When indicated, will perform a second left-join to coalesce data from events that were not matching.

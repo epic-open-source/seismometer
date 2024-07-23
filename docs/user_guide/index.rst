@@ -338,22 +338,6 @@ You can customize the Notebook as needed by running Python code. This
 section includes tasks for common updates that you might make within the
 Notebook.
 
-Add Cohort Selection Tool
--------------------------
-
-The Cohort selection tool allows you to select one or more cohorts to
-stratify the population in various visuals throughout the Notebook.
-
-.. image:: media/selector.png
-   :alt: A screenshot of a computer Description automatically generated
-   :width: 2.5in
-
-Where you want to show the tool, add a cell with the following code:
-
-.. code-block:: python
-
-   sm.cohort_selector()
-
 .. _config-files:
 
 Create Configuration Files

@@ -158,6 +158,17 @@ class Seismogram(object, metaclass=Singleton):
             raise ValueError(f"Event {event} not found in configuration")
         return self.config.events[event].aggregation_method
 
+    def event_aggregation_window_hours(self, event_col: str) -> tuple[int, int]:
+        """
+        Gets the window in hours for aggregating scores with respect to the specified event.
+
+        Raises:
+            ValueError: If the event is not found in the configuration.
+        """
+        if (event := pdh.event_name(event_col)) not in self.config.events:
+            raise ValueError(f"Event {event} not found in configuration")
+        return self.config.events[event].window_hr
+
     @property
     def target(self):
         """
@@ -184,9 +195,7 @@ class Seismogram(object, metaclass=Singleton):
 
     @target_event.setter
     def target_event(self, event: str):
-        if event.endswith("_Value"):
-            event = event[:-6]
-        self._target = event
+        self._target = pdh.event_name(event)
 
     @property
     def target_cols(self) -> list[str]:
@@ -293,14 +302,16 @@ class Seismogram(object, metaclass=Singleton):
 
     # endregion
     # region data accessors
-    def data(self, event: str = None) -> pd.DataFrame:
+    def data(self, event: Optional[str] = None) -> pd.DataFrame:
         """
         Provides data for the specified target event.
 
         Expects the event string, defaults to the configured primary target.
         """
-        event_val = pdh.event_value(event) or self.target
-        event_time = pdh.event_time(event) or self.time_zero  # Assumes binary target
+        if event is None:
+            event = self.target_event
+        event_val = pdh.event_value(event)
+        event_time = pdh.event_time(event)  # Assumes binary target
         if event_time in self.dataframe:
             return self.dataframe[self._data_mask(event_val) & self._time_mask(event_time)]
 
