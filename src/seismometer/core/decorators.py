@@ -113,7 +113,7 @@ class DiskCachedFunction(object):
         ------
         ValueError
             If the annotated return type is not the same as the required return type, or
-            if the runtime return type does not match teh annotated type.
+            if the runtime return type does not match the annotated type.
         """
         sig = signature(func)
         if self.return_type and (sig.return_annotation != self.return_type):
