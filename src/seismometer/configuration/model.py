@@ -96,25 +96,7 @@ class EventDictionary(BaseModel):
     """ The list of all columns in the events data."""
 
 
-class DerivedFeature(BaseModel):
-    """Shared definition for features that are built from other data."""
-
-    source: str
-    """ The source column name for a derived feature. """
-    display_name: str = Field(default="", validate_default=True)
-    """
-    The display name for the derived feature.
-
-    If not specified, defaults to the source name.
-    Display names must be unique across the dataset and are what is referenced in usage configuration.
-    """
-
-    @field_validator("display_name")
-    def default_display_name(cls, display_name: str, values: dict) -> str:
-        return display_name or values.data.get("source")
-
-
-class Cohort(DerivedFeature):
+class Cohort(BaseModel):
     """
     The definition of an expected cohort attribute.
 
@@ -124,11 +106,24 @@ class Cohort(DerivedFeature):
     outside theses values.
     """
 
+    source: str
+    """ The source column name for a cohort. """
+    display_name: str = Field(default="", validate_default=True)
+    """
+    The display name for the cohort.
+
+    If not specified, defaults to the source name.
+    Display names must be unique across the dataset and are what is referenced in usage configuration.
+    """
     splits: Optional[list[Any]] = []
     """ An optional list of 'inner edges' used to create a set of cohorts from a continuous attribute."""
 
+    @field_validator("display_name")
+    def default_display_name(cls, display_name: str, values: dict) -> str:
+        return display_name or values.data.get("source")
 
-class Event(DerivedFeature):
+
+class Event(BaseModel):
     """
     The definition of an event.
 
@@ -148,6 +143,20 @@ class Event(DerivedFeature):
     target or when comparing an expected intervention to a monitored outcome.
     """
 
+    source: list[str]
+    """
+    The source column(s) for an event.
+
+    Supports a single event type or a list of event types.
+    If a list is provided, the display_name must be specified.
+    """
+    display_name: str = Field(default="", validate_default=True)
+    """
+    The display name for the event.
+
+    If not specified, defaults to the source name if singular, otherwise must be specified.
+    Display names must be unique across the dataset and are what is referenced in usage configuration.
+    """
     window_hr: Optional[float] = None
     """ The size of the valid window in hours. """
     offset_hr: float = 0
@@ -161,6 +170,22 @@ class Event(DerivedFeature):
     The strategy for aggregating (or selecting) scores for an event.
     Supports min, max, first, and last; defaulting to max.
     """
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def coerce_source_list(cls, v) -> list[str]:
+        if isinstance(v, str):
+            v = [v]
+        return v
+
+    @field_validator("display_name")
+    def default_display_name(cls, display_name: str, values: dict) -> str:
+        if display_name:
+            return display_name
+        source_list = values.data.get("source", [])
+        if len(source_list) == 1:
+            return source_list[0]
+        raise ValueError("A display_name must be specified for multiple source event types.")
 
 
 class EventTableMap(BaseModel):

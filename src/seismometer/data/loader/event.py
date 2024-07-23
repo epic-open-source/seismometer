@@ -124,16 +124,15 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
 
 
 def _merge_event(
-    config, event_col, dataframe, event_frame, offset_hrs=0, window_hrs=None, display="", sort=True
+    config, event_cols, dataframe, event_frame, offset_hrs=0, window_hrs=None, display="", sort=True
 ) -> pd.DataFrame:
     """Wrapper for calling merge_windowed_event with the correct event column names."""
-    disp_event = display if display else event_col
-    translate_event = event_col if display else ""
+    disp_event = display if display else event_cols[0]
 
     return pdh.merge_windowed_event(
         dataframe,
         config.predict_time,
-        event_frame.replace({"Type": translate_event}, disp_event),
+        event_frame.replace({"Type": event_cols}, disp_event),
         disp_event,
         config.entity_keys,
         min_leadtime_hrs=offset_hrs,
