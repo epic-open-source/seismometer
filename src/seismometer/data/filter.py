@@ -382,10 +382,8 @@ class FilterRule(object):
         if not cohort_dict:
             return rule
 
-        for key in cohort_dict:
-            if not cohort_dict[key]:
-                continue
-            else:
+        for key, value in cohort_dict.items():
+            if value:
                 rule = rule & cls.isin(key, cohort_dict[key])
         return rule
 
