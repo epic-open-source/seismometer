@@ -21,13 +21,12 @@ class SelectionListWidget(ValueWidget, VBox):
             Selectable options.
         value : Optional[Iterable[str]], optional
             Subset of options that should be selected by default, by default None.
-        title : Optional[str, optional
+        title : Optional[str, optional]
             Title to be displayed above the list of buttons, if not set, title not included
         """
         super().__init__()
         self.options = tuple(options)  # make immutable
-        selected_values = value or ()
-        selected_values = tuple(value for value in selected_values)
+        selected_values = tuple(value) if value else ()
         self.value = selected_values
         self.button_from_option = {}
         self.option_from_button = {}
@@ -47,7 +46,7 @@ class SelectionListWidget(ValueWidget, VBox):
 
         self.layout = Layout(width="max-content", min_width="var(--jp-widgets-inline-label-width)")
         self.button_box = VBox(
-            children=[button for option, button in self.button_from_option.items()],
+            children=[button for button in self.button_from_option.values()],
             layout=Layout(max_height="calc(7* var(--jp-widgets-inline-height))", align_items="flex-start"),
         )
         if title:

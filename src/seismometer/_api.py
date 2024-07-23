@@ -306,7 +306,21 @@ def cohort_list():
 
 
 @disk_cached_html_segment
-def _cohort_list_details(cohort_dict: dict[str, tuple]) -> HTML:
+def _cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
+    """
+    Generates a HTML table of cohort details.
+
+    Parameters
+    ----------
+    cohort_dict : dict[str, tuple[Any]]
+        dictionary of cohort columns and values used to subselect a population for evaluation
+
+
+    Returns
+    -------
+    HTML
+        able indexed by targets, with counts of unique entities, and mean values of the output columns.
+    """
     from .data.filter import filter_rule_from_cohort_dictionary
 
     sg = Seismogram()
@@ -350,6 +364,25 @@ def plot_cohort_hist():
 @disk_cached_html_segment
 @export
 def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_column: str, score_column: str) -> HTML:
+    """
+    Generate a histogram plot of predicted probabilities for each subgroup in a cohort.
+
+    Parameters
+    ----------
+    cohort_col : str
+        column for cohort splits
+    subgroups : list[str]
+        column values to split by
+    target_column : str
+        target column
+    score_column : str
+        score column
+
+    Returns
+    -------
+    HTML
+        html visualization of the histogram
+    """
     sg = Seismogram()
     target_column = pdh.event_value(target_column)
     target_data = FilterRule.isin(target_column, (0, 1)).filter(sg.dataframe)
@@ -461,20 +494,41 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
 @disk_cached_html_segment
 @export
 def plot_cohort_lead_time(
-    cohort_col: str, subgroups: list[str], target_column: str, score_column: str, threshold: float
+    cohort_col: str, subgroups: list[str], event_column: str, score_column: str, threshold: float
 ) -> HTML:
+    """
+    Plots a lead times between the first positive prediction give an threshold and an event.
+
+    Parameters
+    ----------
+    cohort_col : str
+        cohort column name
+    subgroups : list[str]
+        subgroups of interest in the cohort column
+    event_column : str
+        event column name
+    score_column : str
+        score column name
+    threshold : float
+        _description_
+
+    Returns
+    -------
+    HTML
+        _description_
+    """
     sg = Seismogram()
     x_label = "Lead Time (hours)"
-    target_event = pdh.event_value(target_column)
-    target_zero = pdh.event_time(target_column)
-    target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)
-    max_hours = sg.event_aggregation_window_hours(target_event)
+    event_value = pdh.event_value(event_column)
+    event_time = pdh.event_time(event_column)
+    target_data = FilterRule.isin(event_value, (0, 1)).filter(sg.dataframe)
+    max_hours = sg.event_aggregation_window_hours(event_value)
 
     return _plot_leadtime_enc(
         target_data,
         sg.entity_keys,
-        target_event,
-        target_zero,
+        event_value,
+        event_time,
         score_column,
         threshold,
         sg.predict_time,
@@ -618,6 +672,29 @@ def plot_cohort_evaluation(
     thresholds: list[float],
     per_context: bool = False,
 ) -> HTML:
+    """
+    Plots model performance metrics split by on a cohort attribute.
+
+    Parameters
+    ----------
+    cohort_col : str
+        cohort column name
+    subgroups : list[str]
+        subgroups of interest in the cohort column
+    target_column : str
+        target column
+    score_column : str
+        score column
+    thresholds : list[float]
+        thresholds to highlight
+    per_context : bool, optional
+        if scores should be grouped, by default False
+
+    Returns
+    -------
+    HTML
+        an html visualization of the model performance metrics
+    """
     sg = Seismogram()
     target_event = pdh.event_value(target_column)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)
@@ -735,6 +812,30 @@ def plot_model_evaluation(
     thresholds: list[float],
     per_context: bool = False,
 ) -> HTML:
+    """
+    Generates a 2x3 plot showing the performance of a model.
+
+    This includes the ROC, recall vs predicted condition prevalence, calibration,
+    PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
+
+    Parameters
+    ----------
+    cohort_dict : dict[str, tuple[Any]]
+        dictionary of cohort columns and values used to subselect a population for evaluation
+    target_column : str
+        target column
+    score_column : str
+        score column
+    thresholds : list[float]
+        thresholds to highlight
+    per_context : bool, optional
+        if scores should be grouped, by default False
+
+    Returns
+    -------
+    HTML
+        an html visualization of the model evaluation metrics
+    """
     sg = Seismogram()
     cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
     data = cohort_filter.filter(sg.dataframe)
@@ -863,6 +964,8 @@ def plot_intervention_outcome_timeseries(
     censor_threshold: int = 10,
 ) -> HTML:
     """
+    Plots two timeseries based on an outcome and an intervention.
+
     cohort_col : str
         column name for the cohort to split on
     subgroups : list[str]
