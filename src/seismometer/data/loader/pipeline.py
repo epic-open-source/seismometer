@@ -137,8 +137,6 @@ class SeismogramLoader:
         dataframe = self.post_predict_fn(self.config, dataframe)
         dataframe = self._add_events(dataframe, event_obj)
 
-        dataframe = self._add_custom_columns(dataframe)
-
         dataframe = self.post_load_fn(self.config, dataframe)
         return dataframe
 
@@ -172,14 +170,6 @@ class SeismogramLoader:
         if event_obj is None:
             return self.event_fn(self.config)
         return self.event_from_memory(self.config, event_obj)
-
-    def _add_custom_columns(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        """
-        Add custom columns to the dataframe based on configuration.
-
-        NotImplemented -- currently a pass-through.
-        """
-        return dataframe
 
 
 __all__ = ["SeismogramLoader", "ConfigOnlyHook", "ConfigFrameHook", "MergeFramesHook"]
