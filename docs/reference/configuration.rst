@@ -7,7 +7,7 @@ Configuration
 Configuration Provider
 ~~~~~~~~~~~~~~~~~~~~~~
 .. currentmodule:: seismometer.configuration.config
-    
+
 .. autosummary::
    :toctree: api/
 
@@ -23,7 +23,6 @@ Configuration DataModel
 
    Cohort
    DataUsage
-   DerivedFeature
    DictionaryItem
    Event
    EventDictionary

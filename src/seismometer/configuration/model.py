@@ -120,6 +120,7 @@ class Cohort(BaseModel):
 
     @field_validator("display_name")
     def default_display_name(cls, display_name: str, values: dict) -> str:
+        """Ensures that display_name exists, setting it to the source name if not provided."""
         return display_name or values.data.get("source")
 
 
@@ -145,7 +146,7 @@ class Event(BaseModel):
 
     source: list[str]
     """
-    The source column(s) for an event.
+    The source(s) for an event.
 
     Supports a single event type or a list of event types.
     If a list is provided, the display_name must be specified.
@@ -174,12 +175,19 @@ class Event(BaseModel):
     @field_validator("source", mode="before")
     @classmethod
     def coerce_source_list(cls, v) -> list[str]:
+        """Coerce single values for source into a list so all downstream processing can assume a list."""
         if isinstance(v, str):
             v = [v]
         return v
 
     @field_validator("display_name")
     def default_display_name(cls, display_name: str, values: dict) -> str:
+        """
+        Ensures that display_name exists.
+
+        If display_name is not explicitly set, it will be set to the source name if singular valued.
+        When multiple sources, raise an error if no display_name is provided.
+        """
         if display_name:
             return display_name
         source_list = values.data.get("source", [])
