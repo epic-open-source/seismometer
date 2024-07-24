@@ -306,13 +306,13 @@ class DataUsage(BaseModel):
         return DataUsage._reduce_derived_features(cohorts, "Cohorts")
 
     @staticmethod
-    def _reduce_derived_features(derived_features, field_name="DataUsage") -> list[Any]:
+    def _reduce_derived_features(derived_features: list[Event | Cohort], field_name="DataUsage") -> list[Any]:
         """
         Reduces the list of derived features to unique names.
 
         Parameters
         ----------
-        derived_features : Optional[list[DerivedFeature]]
+        derived_features : list[Event|Cohort]
             List of derived features.
         field_name : str, optional
             Name of the field for sourcing in logs, by default 'DataUsage'.
