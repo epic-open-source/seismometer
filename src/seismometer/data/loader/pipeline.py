@@ -53,6 +53,7 @@ class SeismogramLoader:
     * load events [ConfigOnlyHook]
     * transform (type) the loaded events [ConfigFrameHook]
     * merge events onto predictions [MergeFramesHook]
+    * post load manipulations [ConfigFrameHook]
 
     Each step is expected to return a dataframe, chaining the steps to get the frame driving a loaded Seismogram.
     """
@@ -65,6 +66,7 @@ class SeismogramLoader:
         post_predict_fn: Optional[ConfigFrameHook] = None,
         post_event_fn: Optional[ConfigFrameHook] = None,
         merge_fn: Optional[MergeFramesHook] = None,
+        post_load_fn: Optional[ConfigFrameHook] = None,
     ):
         """
         Initialize a data loading pipeline of functions returning a dataframe for a Seismogram session.
@@ -90,6 +92,10 @@ class SeismogramLoader:
             A callable taking a ConfigProvider, a (events) dataframe, and a (predictions) dataframe
             and returning a dataframe.
             Used to merge events onto predictions based on configuration.
+        post_load_fn : ConfigFrameHook, optional
+            A callable taking a ConfigProvider and the fully loaded dataframe and returning a dataframe.
+            Used to allow any custom manipulations of the Seismogram dataframe during load.
+            WARNING: This can completly overwrite/discard the daframe that was loaded.
         """
         self.config = config
 
@@ -102,6 +108,9 @@ class SeismogramLoader:
 
         self.prediction_from_memory: ConfigFrameHook = _passthru_framehook
         self.event_from_memory: ConfigFrameHook = _passthru_framehook
+
+        # Hooks for custom transformations
+        self.post_load_fn: ConfigFrameHook = post_load_fn or _passthru_framehook
 
     def load_data(self, prediction_obj: pd.DataFrame = None, event_obj: pd.DataFrame = None) -> pd.DataFrame:
         """
@@ -128,6 +137,9 @@ class SeismogramLoader:
         dataframe = self.post_predict_fn(self.config, dataframe)
         dataframe = self._add_events(dataframe, event_obj)
 
+        dataframe = self._add_custom_columns(dataframe)
+
+        dataframe = self.post_load_fn(self.config, dataframe)
         return dataframe
 
     def _load_predictions(self, prediction_obj: pd.DataFrame = None):
@@ -160,6 +172,14 @@ class SeismogramLoader:
         if event_obj is None:
             return self.event_fn(self.config)
         return self.event_from_memory(self.config, event_obj)
+
+    def _add_custom_columns(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add custom columns to the dataframe based on configuration.
+
+        NotImplemented -- currently a pass-through.
+        """
+        return dataframe
 
 
 __all__ = ["SeismogramLoader", "ConfigOnlyHook", "ConfigFrameHook", "MergeFramesHook"]

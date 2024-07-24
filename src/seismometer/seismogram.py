@@ -11,7 +11,7 @@ from seismometer.configuration import AggregationStrategies, ConfigProvider
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
-from seismometer.data.loader import loader_factory
+from seismometer.data.loader import SeismogramLoader, loader_factory
 from seismometer.report.alerting import AlertConfigProvider
 
 MAXIMUM_NUM_COHORTS = 25
@@ -53,6 +53,7 @@ class Seismogram(object, metaclass=Singleton):
         config_path: Optional[str | Path] = None,
         output_path: Optional[str | Path] = None,
         definitions: Optional[dict] = None,
+        loader: SeismogramLoader = None,
     ):
         """
         Constructor for Seismogram, which can only be instantiated once.
@@ -68,7 +69,9 @@ class Seismogram(object, metaclass=Singleton):
             Defaults to the config.yml info_dir, and then the notebook's output directory.
         definitions : dict, optional
             Additional definitions to be used instead of loading based on configuration, by default None.
-
+        loader : SeismogramLoader, optional
+            A loader instance for defining the data loading pipeline, by default None.
+            If not provided, uses factory to instantiate the loader based on configuration.
         """
         if config_path is None:
             config_path = Path.cwd() / "data"
@@ -83,7 +86,7 @@ class Seismogram(object, metaclass=Singleton):
 
         self.config.set_output(output_path)
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
-        self.dataloader = loader_factory(self.config)
+        self.dataloader = loader or loader_factory(self.config)
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
