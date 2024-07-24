@@ -44,6 +44,8 @@ def run_startup(
     """
     import importlib
 
+    from seismometer.configuration import ConfigProvider
+    from seismometer.data.loader import loader_factory
     from seismometer.seismogram import Seismogram
 
     set_default_logger_config()
@@ -56,7 +58,10 @@ def run_startup(
 
     if reset:
         Seismogram.kill()
-    sg = Seismogram(config_path, output_path, definitions=definitions)
+
+    config = ConfigProvider(config_path, output_path, definitions=definitions)
+    loader = loader_factory(config)
+    sg = Seismogram(config, loader)
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
     # Surface api into namespace

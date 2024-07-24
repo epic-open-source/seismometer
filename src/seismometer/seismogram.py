@@ -11,7 +11,7 @@ from seismometer.configuration import AggregationStrategies, ConfigProvider
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
-from seismometer.data.loader import SeismogramLoader, loader_factory
+from seismometer.data.loader import SeismogramLoader
 from seismometer.report.alerting import AlertConfigProvider
 
 MAXIMUM_NUM_COHORTS = 25
@@ -50,10 +50,8 @@ class Seismogram(object, metaclass=Singleton):
 
     def __init__(
         self,
-        config_path: Optional[str | Path] = None,
-        output_path: Optional[str | Path] = None,
-        definitions: Optional[dict] = None,
-        loader: SeismogramLoader = None,
+        config: ConfigProvider,
+        dataloader: SeismogramLoader,
     ):
         """
         Constructor for Seismogram, which can only be instantiated once.
@@ -62,31 +60,19 @@ class Seismogram(object, metaclass=Singleton):
 
         Parameters
         ----------
-        config_path : str or Path, optional
-            Where to find the primary configuration file, defaults to the notebook's data directory.
-        output_path : str or Path, optional
-            Override location to place resulting data and report files.
-            Defaults to the config.yml info_dir, and then the notebook's output directory.
-        definitions : dict, optional
-            Additional definitions to be used instead of loading based on configuration, by default None.
-        loader : SeismogramLoader, optional
-            A loader instance for defining the data loading pipeline, by default None.
-            If not provided, uses factory to instantiate the loader based on configuration.
+        config : ConfigProvider
+            The configuration provider instance.
+        dataloader : SeismogramLoader, optional
+            A loader instance for defining the data loading pipeline.
+
         """
-        if config_path is None:
-            config_path = Path.cwd() / "data"
-        else:
-            config_path = Path(config_path)
+        self.config = config
+        self.dataloader = dataloader
 
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
-        self.config_path = config_path
 
-        self.load_config(config_path, definitions=definitions)
-
-        self.config.set_output(output_path)
-        self.config.output_dir.mkdir(parents=True, exist_ok=True)
-        self.dataloader = loader or loader_factory(self.config)
+        self.copy_config_metadata()
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -328,7 +314,7 @@ class Seismogram(object, metaclass=Singleton):
     # endregion
 
     # region initialization and preprocessing (this region knows about config)
-    def load_config(self, config_path: Path, definitions: Optional[dict] = None):
+    def copy_config_metadata(self):
         """
         Loads the base configuration and alerting congfiguration
 
@@ -340,8 +326,7 @@ class Seismogram(object, metaclass=Singleton):
             An optional dictionary containing both events and predictions lists, by default None.
             If not passed, these will be loaded based on configuration.
         """
-        self.config = ConfigProvider(config_path, definitions=definitions)
-        self.alert_config = AlertConfigProvider(config_path)
+        self.alert_config = AlertConfigProvider(self.config.config_path)
 
         if len(self.config.cohorts) == 0:
             logger.warning("No cohort columns were configured; tool may behave unexpectedly.")
