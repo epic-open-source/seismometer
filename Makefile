@@ -18,6 +18,7 @@ clean_docs:
 # Remove any notebooks from docs
 clean_notebooks:
 	-rm -rf ./docs/example_notebooks/notebooks
+	-jupyter nbconvert --clear-output --inplace example-notebooks/binary-classifier/classifier_bin.ipynb
 
 # Copy notebooks
 copy_notebooks: 

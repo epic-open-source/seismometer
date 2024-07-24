@@ -38,7 +38,6 @@ extensions = [
 
 templates_path = ["_templates"]
 exclude_patterns = []
-
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 docstring_signature = False
@@ -99,4 +98,4 @@ html_css_files = [
 ]
 
 nbsphinx_thumbnails = {"example_notebooks/notebooks/binary-classifier/classifier_bin": "_static/images/jupyter.png"}
-nbsphinx_requirejs_path = ""
+nbsphinx_allow_errors = True

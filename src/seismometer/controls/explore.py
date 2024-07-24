@@ -67,8 +67,7 @@ class UpdatePlotWidget(Box):
 
         self.code_checkbox.observe(callback_wrapper, "value")
 
-    def trigger(self):
-        self.plot_button.click()
+
 
 
 class ModelOptionsWidget(VBox, ValueWidget):
@@ -622,8 +621,8 @@ class ExplorationWidget(VBox):
             padding="var(--jp-cell-padding)",
         )
         title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
-        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
-        self.code_output = Output(layout=Layout(height="max-content", max_width="2000px"))
+        self.center = Output(layout=Layout(height="max-content", max_width="800px"))
+        self.code_output = Output(layout=Layout(height="max-content", max_width="800px"))
         self.option_widget = option_widget
         self.plot_function = plot_function
         self.update_plot_widget = UpdatePlotWidget()
@@ -636,7 +635,10 @@ class ExplorationWidget(VBox):
         self.option_widget.observe(self._on_option_change, "value")
         self.update_plot_widget.on_click(self._on_plot_button_click)
         self.update_plot_widget.on_toggle_code(self._on_toggle_code)
-        self.update_plot_widget.trigger()
+
+        plot_args, plot_kwargs = self.generate_plot_args()
+        self.center.append_display_data(self.plot_function(*plot_args, **plot_kwargs))
+        self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
 
     @property
     def disabled(self) -> bool:
