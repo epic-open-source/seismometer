@@ -1,29 +1,38 @@
-from unittest.mock import Mock, patch
+from pathlib import Path
+from unittest.mock import Mock
 
 import pandas as pd
 import pytest
 
-import seismometer.seismogram
+import seismometer.seismogram  # noqa : needed for patching
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Event
+from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import Seismogram
 
 
-def fake_load_config(self, *args, definitions=None):
+def get_test_config(tmp_path):
     mock_config = Mock(autospec=ConfigProvider)
     mock_config.output_dir.return_value
     mock_config.events = {
         "event1": Event(source="event1", display_name="event1", window_hr=1),
         "event2": Event(source="event1", display_name="event1", window_hr=2, aggregation_method="min"),
     }
-    mock_config.primary_target = "event1"
+    mock_config.target = "event1"
+    mock_config.entity_keys = ["entity"]
+    mock_config.predict_time = "time"
     mock_config.cohorts = ["cohort1", "cohort2", "cohort3"]
     mock_config.features = ["one"]
+    mock_config.config_path = Path(tmp_path / "config")
 
-    self.config = mock_config
-    self.template = "TestTemplate"
-    self.entity_keys = ["entity"]
-    self.predict_time = "time"
+    return mock_config
+
+
+def get_test_loader(config):
+    mock_loader = Mock(autospec=SeismogramLoader)
+    mock_loader.config = config
+
+    return mock_loader
 
 
 def get_test_data():
@@ -42,11 +51,11 @@ def get_test_data():
 
 @pytest.fixture
 def fake_seismo(tmp_path):
-    with patch.object(seismometer.seismogram, "loader_factory"), patch.object(
-        Seismogram, "load_config", fake_load_config
-    ):
-        Seismogram(config_path=tmp_path / "config", output_path=tmp_path / "output")
+    config = get_test_config(tmp_path)
+    loader = get_test_loader(config)
+    Seismogram(config, loader)
     yield
+
     Seismogram.kill()
 
 
