@@ -1,6 +1,7 @@
 import logging
 
 import pytest
+from pydantic import ValidationError
 
 import seismometer.configuration.model as undertest
 
@@ -17,6 +18,106 @@ class TestDictionaryItem:
         dict_item = undertest.DictionaryItem(name="myname", display_name="a display")
         assert dict_item.name == "myname"
         assert dict_item.display_name == "a display"
+
+
+class TestEvent:
+    expectation = {
+        "source": ["source"],
+        "display_name": "source",
+        "window_hr": None,
+        "offset_hr": 0,
+        "impute_val": None,
+        "usage": None,
+        "aggregation_method": "max",
+    }
+
+    def test_default_values(self):
+        cohort = undertest.Event(source="source")
+        assert TestEvent.expectation.copy() == cohort.model_dump()
+
+    @pytest.mark.parametrize(
+        "input_dict",
+        [
+            ({"display_name": "display"}),
+            ({"window_hr": 1}),
+            ({"offset_hr": 1}),
+            ({"impute_val": 1}),
+            ({"usage": "usage"}),
+            ({"aggregation_method": "min"}),
+        ],
+    )
+    def test_one_valid_attribute_change(self, input_dict):
+        expected = TestEvent.expectation.copy()
+        for k, v in input_dict.items():
+            expected[k] = v
+
+        cohort = undertest.Event(source="source", **input_dict)
+
+        assert expected == cohort.model_dump()
+
+    @pytest.mark.parametrize(
+        "input_dict",
+        [
+            ({"display_name": 1}),
+            ({"window_hr": "abc"}),
+            ({"offset_hr": "abc"}),
+            ({"usage": 1}),
+            ({"aggregation_method": "middle"}),
+        ],
+    )
+    def test_one_invalid_attribute_change(self, input_dict):
+        with pytest.raises(ValidationError, match=f".*{list(input_dict)[0]}.*"):
+            _ = undertest.Event(source="source", **input_dict)
+
+    @pytest.mark.parametrize("agg_strategy", undertest.AggregationStrategies.__args__)
+    def test_supported_strategies_are_allowed(self, agg_strategy):
+        expected = TestEvent.expectation.copy()
+        expected["aggregation_method"] = agg_strategy
+        cohort = undertest.Event(source="source", aggregation_method=agg_strategy)
+
+        assert expected == cohort.model_dump()
+
+    def test_multiple_sources_is_allowed(self):
+        source_list = ["source1", "source2", "source3"]
+        expected = TestEvent.expectation.copy()
+        expected["source"] = source_list
+        expected["display_name"] = "display"
+
+        cohort = undertest.Event(source=source_list, display_name="display")
+
+        assert expected == cohort.model_dump()
+
+    def test_multiple_sources_require_display(self):
+        source_list = ["source1", "source2", "source3"]
+        with pytest.raises(ValidationError, match=".*display_name.*"):
+            _ = undertest.Event(source=source_list)
+
+
+class TestCohort:
+    def test_default_values(self):
+        expected = {"source": "source", "display_name": "source", "splits": []}
+        cohort = undertest.Cohort(source="source")
+
+        assert expected == cohort.model_dump()
+
+    def test_set_displayname(self):
+        expected = {"source": "source", "display_name": "display", "splits": []}
+        cohort = undertest.Cohort(source="source", display_name="display")
+
+        assert expected == cohort.model_dump()
+
+    def test_allows_splits(self):
+        split_list = ["split1", "split2"]
+        expected = {"source": "source", "display_name": "source", "splits": split_list}
+        cohort = undertest.Cohort(source="source", splits=split_list)
+
+        assert expected == cohort.model_dump()
+
+    def test_strips_other_keys(self):
+        expected = {"source": "source", "display_name": "source", "splits": []}
+        cohort = undertest.Cohort(source="source", other="other")
+
+        assert expected == cohort.model_dump()
 
 
 class TestDataUsage:
