@@ -1,6 +1,5 @@
 import logging
 import warnings
-from pathlib import Path
 
 import pandas as pd
 
@@ -9,8 +8,7 @@ logger = logging.getLogger("seismometer")
 allowed_metrics = ["tpr", "tnr", "for", "fdr", "fpr", "fnr", "npv", "ppr", "precision", "pprev"]
 
 
-def fairness_audit_to_html(
-    path: Path,
+def fairness_audit_altair(
     df: pd.DataFrame,
     sensitive_groups: list[str],
     score_column: str,
@@ -24,8 +22,6 @@ def fairness_audit_to_html(
 
     Parameters
     ----------
-    path : Path
-        The path to save the HTML file to.
     df : pd.DataFrame
         The dataframe containing scores, targets, and demographics.
     sensitive_groups : list[str]
@@ -82,4 +78,6 @@ def fairness_audit_to_html(
     audit.audit()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
-        audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold).save(path, format="html")
+        altair_plot = audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold)
+
+    return altair_plot
