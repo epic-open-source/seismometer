@@ -68,8 +68,6 @@ class UpdatePlotWidget(Box):
         self.code_checkbox.observe(callback_wrapper, "value")
 
 
-
-
 class ModelOptionsWidget(VBox, ValueWidget):
     value = traitlets.Dict(help="The selected values for the slider list")
 
@@ -621,8 +619,8 @@ class ExplorationWidget(VBox):
             padding="var(--jp-cell-padding)",
         )
         title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
-        self.center = Output(layout=Layout(height="max-content", max_width="800px"))
-        self.code_output = Output(layout=Layout(height="max-content", max_width="800px"))
+        self.center = Output(layout=Layout(height="max-content", max_width="1200px"))
+        self.code_output = Output(layout=Layout(height="max-content", max_width="1200px"))
         self.option_widget = option_widget
         self.plot_function = plot_function
         self.update_plot_widget = UpdatePlotWidget()

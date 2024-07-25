@@ -24,6 +24,7 @@ clean_notebooks:
 copy_notebooks: 
 	-mkdir ./docs/example_notebooks/notebooks
 	-cp -R ./example-notebooks/* ./docs/example_notebooks/notebooks
+	-rm -rf ./docs/example_notebooks/notebooks/binary-classifier/outputs
 
 # Generate documentation
 generate_docs:
@@ -32,7 +33,7 @@ generate_docs:
 
 copy_binary_outputs:
 	-mkdir ./public/example_notebooks/notebooks/binary-classifier/outputs
-	-cp ./docs/example_notebooks/notebooks/binary-classifier/outputs/* ./public/example_notebooks/notebooks/binary-classifier/outputs
+	-cp -r ./docs/example_notebooks/notebooks/binary-classifier/outputs/* ./public/example_notebooks/notebooks/binary-classifier/outputs/
 
 # Put it all together
 docs: clean clean_docs clean_notebooks copy_notebooks generate_docs copy_binary_outputs
