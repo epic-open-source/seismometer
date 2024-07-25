@@ -628,15 +628,15 @@ class ExplorationWidget(VBox):
             children=[title, self.option_widget, self.update_plot_widget, self.code_output, self.center], layout=layout
         )
 
-        # attach button handler and show initial plot
-        self.current_plot_code = self.generate_plot_code(self.generate_plot_args())
+        # show initial plot
+        plot_args, plot_kwargs = self.generate_plot_args()
+        self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
+        self.center.append_display_data(self.plot_function(*plot_args, **plot_kwargs))
+
+        # attache event handlers
         self.option_widget.observe(self._on_option_change, "value")
         self.update_plot_widget.on_click(self._on_plot_button_click)
         self.update_plot_widget.on_toggle_code(self._on_toggle_code)
-
-        plot_args, plot_kwargs = self.generate_plot_args()
-        self.center.append_display_data(self.plot_function(*plot_args, **plot_kwargs))
-        self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
 
     @property
     def disabled(self) -> bool:
