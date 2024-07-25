@@ -506,8 +506,8 @@ the model's name and any configured thresholds. It is typically defined in a
 Modifying the Analysis Data
 ---------------------------
 
-When possible it is better to supplement the data upstream from seismometer such as during data extraction and have predictions and events files contain everything that is needed for analysis.
-However, there will inevitably be times when this is not possible but you still want transformations to be done prior to most of the notebook running.
+When possible it is better to supplement the data upstream from seismometer, such as during data extraction, and have predictions and events files contain everything that is needed for analysis.
+Inevitably, there will be times when this is not possible and you need additional transformations to be done prior to most of the notebook running.
 
 In this situation, you should modify the first cell of your notebook to run a custom startup method instead of ``run_startup``.
 The general outline of what the code should do is the same but will take advantage of the post_load_fn hook.
@@ -520,6 +520,11 @@ Then, follow the pattern of normal startup but specify your function in the :py:
    from seismometer.data.loader import loader_factory
    from seismometer.seismogram import Seismogram
    import seismometer._api as sm
+
+   def custom_post_load_fn(config: ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
+      df["SameAB"] = df["A"] == df["B"]
+      return df
+
    def my_startup(config_path="."):
       config = ConfigProvider(config_path)
       loader = loader_factory(config, post_load_fn=custom_post_load_fn)
