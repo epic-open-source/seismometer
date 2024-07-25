@@ -41,7 +41,7 @@ class ConfigProvider:
         A dictionary of definitions to use instead of loading those specified by configuration, by default None.
     output_path : Optional[str | Path], optional
         Used by the builder CLI, specifies the path to the output directory or file, by default None;
-        if a directory, the template notebook will be used with a "gen_" prefix.
+        if a directory, the template notebook will be used with the prefix gen.
     """
 
     def __init__(

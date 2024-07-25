@@ -341,7 +341,7 @@ Notebook.
 .. _config-files:
 
 Create Configuration Files
-==========================
+--------------------------
 
 Configuration files provide the instructions and details needed to build
 the Notebook for your dataset. It can be provided in one or several YAML
@@ -502,3 +502,29 @@ the model's name and any configured thresholds. It is typically defined in a
       "modelname": "Risk of Readmission for Patients with Diabetes",
       "thresholds": [0.65, 0.3]
    }
+
+Modifying the Analysis Data
+---------------------------
+
+When possible it can be better to modify the data during extraction and have predictions and events files contain everything that is needed for analysis.
+However, there will inevitably be times when this is not possible but you still want transformations to be done prior to most of the notebook running.
+
+In this situation, you should modify the first cell of your notebook to run a custom startup method instead of ``run_startup``.
+The general outline of what the code should do is the same but will take advantage of the post_load_fn hook.
+First, create a :py:func:`~seismometer.data.loader.ConfigFrameHook` (accepts a :py:class:`~seismometer.configuration.config.ConfigProvider`) and a pd.DataFrame and outputs a pd.DataFrame) that can modify the standard Seismogram frame to the desired state.
+Then, follow the pattern of normal startup but specify your function in the :py:func:`~seismometer.data.loader.loader_factory`:
+
+.. code-block:: python
+
+   from seismometer.configuration import ConfigProvider
+   from seismometer.data.loader import loader_factory
+   from seismometer.seismogram import Seismogram
+
+   def my_startup(config_path="."):
+      config = ConfigProvider(config_path)
+      loader = loader_factory(config, post_load_fn=custom_post_load_fn)
+      sg = Seismogram(config, loader)
+      sg.load_data()
+
+The benefit of this approach over manipulating the frame later is that the Seismogram can be considered frozen.
+Among other things, this means any Seismograph notebooks cells do not have a dependence on order and can be run multiple times.

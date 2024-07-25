@@ -19,7 +19,6 @@ Initialization
    :toctree: api/
 
    Seismogram.create_cohorts
-   Seismogram.load_config
    Seismogram.load_data
 
 Properties and Accessors

@@ -1,1 +1,2 @@
-Updates the loading pipeline to have a hook for updating the loaded dataframe.  Not accessible via run_startup(), requires direct initialization of Seismogram.
+- Updates the Seismogram class constructor to take precisely a DataLoader and a ConfigProvider, improving separation between the class and configuration loading.
+- Adds a post-load hook for modifying the otherwise ready dataframe.  This hook is not accessible via normal run_startup, and requires direct initialization of Seismogram.
