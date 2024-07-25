@@ -204,7 +204,7 @@ def generate_fairness_audit(
     per_context: bool = False,
     metric_list: Optional[list[str]] = None,
     fairness_threshold: float = 1.25,
-) -> HTML | IFrame | "Chart":
+) -> HTML | IFrame | Any:
     """
     Generates the Aequitas fairness audit for a set of sensitive groups and metrics.
 
