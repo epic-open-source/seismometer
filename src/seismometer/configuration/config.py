@@ -353,7 +353,9 @@ class ConfigProvider:
         """List of all event types referenced in usage configuration."""
         if not self.events:
             return self.usage.primary_target
-        return [ele.source for ele in self.events]
+
+        events = [source for event in self.events for source in event.source]
+        return list(set(events))
 
     @property
     def censor_min_count(self) -> int:
