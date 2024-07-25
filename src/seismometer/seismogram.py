@@ -1,7 +1,6 @@
 import json
 import logging
 from functools import lru_cache
-from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -43,8 +42,6 @@ class Seismogram(object, metaclass=Singleton):
     """ The one or two columns used as identifiers for data. """
     predict_time: str
     """ The column name for evaluation timestamp. """
-    config_path: Path
-    """ The location of the main configuration file. """
     output_list: list[str]
     """ The list of columns representing model outputs."""
 
@@ -317,16 +314,8 @@ class Seismogram(object, metaclass=Singleton):
     def copy_config_metadata(self):
         """
         Loads the base configuration and alerting congfiguration
-
-        Parameters
-        ----------
-        config_path : Path
-            The location of the main configuration file.
-        definitions : Optional[dict], optional
-            An optional dictionary containing both events and predictions lists, by default None.
-            If not passed, these will be loaded based on configuration.
         """
-        self.alert_config = AlertConfigProvider(self.config.config_path)
+        self.alert_config = AlertConfigProvider(self.config.config_dir)
 
         if len(self.config.cohorts) == 0:
             logger.warning("No cohort columns were configured; tool may behave unexpectedly.")

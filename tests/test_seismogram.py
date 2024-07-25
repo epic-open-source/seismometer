@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import Mock
 
 import pandas as pd
@@ -23,7 +22,7 @@ def get_test_config(tmp_path):
     mock_config.predict_time = "time"
     mock_config.cohorts = ["cohort1", "cohort2", "cohort3"]
     mock_config.features = ["one"]
-    mock_config.config_path = Path(tmp_path / "config")
+    mock_config.config_dir = tmp_path / "config"
 
     return mock_config
 
