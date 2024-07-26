@@ -16,7 +16,6 @@ import seismometer.report
 from seismometer.core.io import slugify
 
 from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
-from .decorators import hide_disconnected_widgets
 
 PROFILING_CONFIG_PATH = _files(seismometer.report) / "report_config.yml"
 logger = logging.getLogger("seismometer")
@@ -233,7 +232,6 @@ class SingleReportWrapper(ReportWrapper):
         with open(self._alert_path, "r") as f:
             self._parsed_alerts = ParsedAlertList(**json.load(f))
 
-    @hide_disconnected_widgets
     def display_alerts(self) -> None:
         """
         Returns the alerts produced by the `ydata-profiling` ProfileReport.

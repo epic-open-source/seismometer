@@ -19,10 +19,36 @@ from typing import Any, Callable
 
 import matplotlib as matplotlib
 import matplotlib.pyplot as plt
+from IPython.display import SVG
 
 from seismometer.core.decorators import export
 
 from ._util import to_svg
+
+
+def render_as_svg(plot_fn: Callable[..., plt.Figure]) -> Callable[..., SVG]:
+    """
+    Given a plot function that retuns a figure, render to SVG and close the Figure
+
+    Parameters
+    ----------
+    plot_fn : Callable[..., plt.Figure]
+        function that returns a matplotlib figure
+
+    Returns
+    -------
+    Callable[..., SVG]
+        function that returns and SVG object
+    """
+
+    @wraps(plot_fn)
+    def plot_wrapper(*args, **kwargs):
+        plot_fn(*args, **kwargs)
+        svg = to_svg()
+        plt.close()
+        return svg
+
+    return plot_wrapper
 
 
 def is_disp_axis(ax: plt.Axes) -> bool:

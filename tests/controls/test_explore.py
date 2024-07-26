@@ -21,7 +21,7 @@ class TestUpdatePlotWidget:
 
         widget = undertest.UpdatePlotWidget()
         widget.on_click(on_click_callback)
-        widget.trigger()
+        widget.plot_button.click()
         assert count == 1
 
     def test_disable(self):
