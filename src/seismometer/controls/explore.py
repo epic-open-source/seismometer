@@ -4,7 +4,7 @@ from typing import Any, Callable, Literal, Optional
 
 import traitlets
 from IPython.display import display
-from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, FloatSlider, Layout, Output, ValueWidget, VBox
+from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, FloatSlider, HBox, Layout, Output, ValueWidget, VBox
 
 from .selection import DisjointSelectionListsWidget, MultiSelectionListWidget, SelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
@@ -526,7 +526,7 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
         all_metrics = ["pprev", "tpr", "fpr", "fnr", "ppr", "precision"]
         fairness_metrics = fairness_metrics or ["pprev", "tpr", "fpr"]
         self.fairness_slider = FloatSlider(
-            description="Audit Threshold",
+            description="Threshold",
             value=fairness_threshold,
             min=1.0,
             max=2.0,
@@ -535,15 +535,16 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
             style=WIDE_LABEL_STYLE,
         )
         thresholds = {"Score Threshold": score_threshold}
-        self.fairness_list = SelectionListWidget(options=all_metrics, value=fairness_metrics, title="Audit Metrics")
+        self.fairness_list = SelectionListWidget(options=all_metrics, value=fairness_metrics, title="Metrics")
+        fairness_section = VBox(
+            children=[html_title("Audit Options"), HBox(children=[self.fairness_list, self.fairness_slider])]
+        )
         self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
         self.fairness_list.observe(self._on_value_change, "value")
         self.fairness_slider.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
 
-        super().__init__(
-            children=[self.model_options, self.fairness_list, self.fairness_slider], layout=BOX_GRID_LAYOUT
-        )
+        super().__init__(children=[self.model_options, fairness_section], layout=BOX_GRID_LAYOUT)
         self._disabled = False
 
     @property
