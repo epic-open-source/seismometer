@@ -7,7 +7,7 @@ from IPython.display import display
 from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, FloatSlider, Layout, Output, ValueWidget, VBox
 
 from .selection import DisjointSelectionListsWidget, MultiSelectionListWidget, SelectionListWidget
-from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
+from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from .thresholds import MonotonicProbabilitySliderListWidget
 
 logger = logging.getLogger("seismometer")
@@ -91,7 +91,7 @@ class ModelOptionsWidget(VBox, ValueWidget):
         per_context : bool, optional
             if scores should be grouped by context, by default None, in which case this checkbox is not shown.
         """
-        self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
+        self.title = html_title("Model Options")
         self.target_list = Dropdown(
             options=target_names,
             value=target_names[0],
@@ -364,7 +364,7 @@ class ModelInterventionOptionsWidget(VBox, ValueWidget):
         reference_time_names : tuple[Any], optional
             name for the reference time to align patients, by default None
         """
-        self.title = HTML('<h4 style="text-align: left; margin: 0px;">Model Options</h4>')
+        self.title = html_title("Model Options")
         self.outcome_list = Dropdown(options=outcome_names, value=outcome_names[0], description="Outcome")
         self.intervention_list = Dropdown(
             options=intervention_names, value=intervention_names[0], description="Intervention"

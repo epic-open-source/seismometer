@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from ..core.exceptions import CensoredResultException
+
 logger = logging.getLogger("seismometer")
 
 allowed_metrics = ["tpr", "tnr", "for", "fdr", "fpr", "fnr", "npv", "ppr", "precision", "pprev"]
@@ -74,8 +76,7 @@ def fairness_audit_to_html(
     df.drop(score_column, axis=1, inplace=True)
 
     if df["score"].nunique() != 2:
-        logger.error("Audit requires exactly two target classes to be present")
-        return
+        raise CensoredResultException("Audit requires exactly two target classes to be present")
 
     # Do NOT pass list of sensitive attributes; reducing frame gets desired behavior
     audit = Audit(df, score_column="score", label_column=target_column)
