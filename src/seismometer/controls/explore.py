@@ -67,9 +67,6 @@ class UpdatePlotWidget(Box):
 
         self.code_checkbox.observe(callback_wrapper, "value")
 
-    def trigger(self):
-        self.plot_button.click()
-
 
 class ModelOptionsWidget(VBox, ValueWidget):
     value = traitlets.Dict(help="The selected values for the slider list")
@@ -622,8 +619,8 @@ class ExplorationWidget(VBox):
             padding="var(--jp-cell-padding)",
         )
         title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
-        self.center = Output(layout=Layout(height="max-content", max_width="2000px"))
-        self.code_output = Output(layout=Layout(height="max-content", max_width="2000px"))
+        self.center = Output(layout=Layout(height="max-content", max_width="1200px"))
+        self.code_output = Output(layout=Layout(height="max-content", max_width="1200px"))
         self.option_widget = option_widget
         self.plot_function = plot_function
         self.update_plot_widget = UpdatePlotWidget()
@@ -631,12 +628,13 @@ class ExplorationWidget(VBox):
             children=[title, self.option_widget, self.update_plot_widget, self.code_output, self.center], layout=layout
         )
 
-        # attach button handler and show initial plot
-        self.current_plot_code = self.generate_plot_code(self.generate_plot_args())
+        # show initial plot
+        self.update_plot(initial=True)
+
+        # attache event handlers
         self.option_widget.observe(self._on_option_change, "value")
         self.update_plot_widget.on_click(self._on_plot_button_click)
         self.update_plot_widget.on_toggle_code(self._on_toggle_code)
-        self.update_plot_widget.trigger()
 
     @property
     def disabled(self) -> bool:
@@ -652,17 +650,21 @@ class ExplorationWidget(VBox):
         """
         return self.update_plot_widget.show_code
 
+    def update_plot(self, initial: bool = False):
+        plot_args, plot_kwargs = self.generate_plot_args()
+        self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
+        plot = self.plot_function(*plot_args, **plot_kwargs)
+        if not initial:
+            self.center.clear_output()
+            with self.center:
+                display(plot)
+        else:
+            self.center.append_display_data(plot)
+
     def _on_plot_button_click(self, button=None):
         """handle for the update plot button"""
         self.option_widget.disabled = True
-        self._on_toggle_code(self.show_code)
-        plot_args, plot_kwargs = self.generate_plot_args()
-        self.center.clear_output(wait=True)
-        with self.center:
-            plot_result = self.plot_function(*plot_args, **plot_kwargs)
-            if plot_result:
-                display(plot_result)
-        self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
+        self.update_plot()
         self._on_toggle_code(self.show_code)
         self.option_widget.disabled = False
 
@@ -691,16 +693,16 @@ class ExplorationWidget(VBox):
 
     def _on_toggle_code(self, show_code: bool):
         """handle for the toggle code checkbox"""
+        self.code_output.clear_output()
+        if not show_code:
+            return
+
         highlighted_code = HTML(
             f"<span style='user-select: none;'>Plot code: </span><code>{self.current_plot_code}</code>"
         )
         highlighted_code.add_class("jp-RenderedHTMLCommon")
         with self.code_output:
-            if self.show_code:
-                self.code_output.clear_output(wait=True)
-                display(highlighted_code)
-            else:
-                self.code_output.clear_output()
+            display(highlighted_code)
 
     def _on_option_change(self, change=None):
         """enable the plot to be updated"""
