@@ -514,8 +514,8 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
             model target columns
         score_names : tuple[Any]
             model score columns
-        thresholds : dict[str, float]
-            thresholds for the model scores
+        score_threshold : float
+            main threshold for the model score
         per_context : bool, optional
             if scores should be grouped by context, by default True
         fairness_metrics : tuple[str], optional
