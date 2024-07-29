@@ -39,17 +39,21 @@ class ConfigProvider:
         This is the template that will be used as a base for building the final notebook.
     definitions : Optional[dict], optional
         A dictionary of definitions to use instead of loading those specified by configuration, by default None.
-
+    output_path : Optional[str | Path], optional
+        Used by the builder CLI, specifies the path to the output directory or file, by default None;
+        if a directory, the template notebook will be used with the prefix gen.
     """
 
     def __init__(
         self,
         config_config: str | Path,
+        *,
         usage_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
         template_notebook: Option = None,
         definitions: dict = None,
+        output_path: str | Path = None,
     ):
         self._config: OtherInfo = None
         self._usage: DataUsage = None
@@ -63,7 +67,7 @@ class ConfigProvider:
             self._event_defs = EventDictionary(events=definitions.pop("events", None))
 
         self._load_config_config(config_config)
-        self._resolve_other_paths(usage_config, info_dir, data_dir)
+        self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
         self._override_template(template_notebook)
 
     def _override_template(self, template_notebook: Option) -> None:
@@ -78,7 +82,8 @@ class ConfigProvider:
         """
         Loads the configuration file containing "other_info".
         """
-        config_path = Path(config_config)
+        config_path = Path.cwd() / "data" if config_config is None else Path(config_config)
+
         if config_path.is_dir():
             self.config_dir: Path = config_path
             self.config_file: str = "config.yml"
@@ -91,7 +96,11 @@ class ConfigProvider:
         self.config = OtherInfo(**raw_config["other_info"])
 
     def _resolve_other_paths(
-        self, usage_config: str | Path = None, info_dir: str | Path = None, data_dir: str | Path = None
+        self,
+        usage_config: str | Path = None,
+        info_dir: str | Path = None,
+        data_dir: str | Path = None,
+        output_path: str | Path = None,
     ) -> None:
         """
         Identifies the paths to all other configuration between primary configuration and specified values.
@@ -100,6 +109,7 @@ class ConfigProvider:
         self.config.usage_config = Path(usage_config) if usage_config is not None else Path(self.config.usage_config)
         self.config.info_dir = Path(info_dir) if info_dir is not None else Path(self.config.info_dir)
         self.config.data_dir = Path(data_dir) if data_dir is not None else Path(self.config.data_dir)
+        self.set_output(output_path)
 
     # region Config
     @property
@@ -410,6 +420,8 @@ class ConfigProvider:
         """The directory for output files."""
         if self._output_dir is None:
             self._output_dir = Path.cwd()
+        # Make directory on first access
+        self._output_dir.mkdir(exist_ok=True, parents=True)
         return Path(self._output_dir)
 
     @property

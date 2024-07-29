@@ -8,7 +8,7 @@ from ipywidgets import Box, Button, Output, VBox
 from seismometer.data.filter import filter_rule_from_cohort_dictionary
 
 from .selection import MultiSelectionListWidget
-from .styles import BOX_GRID_LAYOUT
+from .styles import BOX_GRID_LAYOUT, WIDE_BUTTON_LAYOUT
 
 logger = logging.getLogger("seismometer")
 
@@ -27,7 +27,7 @@ class ComparisonReportGenerator:
             self.selectors.append(widget)
 
         self.output = Output()
-        self.button = Button(description=GENERATE_REPORT, button_style="primary")
+        self.button = Button(description=GENERATE_REPORT, button_style="primary", layout=WIDE_BUTTON_LAYOUT)
         self.button.on_click(partial(self._generate_comparison_report, self))
 
     def show(self):

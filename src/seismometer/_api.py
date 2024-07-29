@@ -16,6 +16,7 @@ from .controls.explore import (
     ExplorationWidget,
     ModelFairnessAuditOptions,
 )
+from .core.exceptions import CensoredResultException
 from .core.io import slugify
 from .core.nbhost import NotebookHost
 from .data import (
@@ -264,9 +265,13 @@ def generate_fairness_audit(
     data = FilterRule.isin(target, (0, 1)).filter(data)
     if len(data.index) < sg.censor_threshold:
         return template.render_censored_plot_message(sg.censor_threshold)
-    altair_plot = fairness_audit_altair(
-        data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
-    )
+
+    try:
+        altair_plot = fairness_audit_altair(
+            data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
+        )
+    except CensoredResultException as error:
+        return template.render_censored_data_message(error.message)
 
     if NotebookHost.supports_iframe():
         altair_plot.save(fairness_path, format="html")
@@ -619,7 +624,11 @@ def _plot_leadtime_enc(
         score=score,
         ref_event=target_zero,
         aggregation_method="first",
-    )[[target_zero, ref_time, cohort_col]]
+    )
+    if summary_data is not None and len(summary_data) > censor_threshold:
+        summary_data = summary_data[[target_zero, ref_time, cohort_col]]
+    else:
+        return template.render_censored_plot_message(censor_threshold)
 
     # filter by group size
     counts = summary_data[cohort_col].value_counts()

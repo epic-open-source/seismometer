@@ -1,0 +1,2 @@
+class CensoredResultException(Exception):
+    pass
