@@ -17,7 +17,7 @@ class TestNotebookHost:
         ],
     )
     def test_current_host(self, env_key, host):
-        with patch.dict(os.environ, {env_key: "1"}):
+        with patch.dict(os.environ, {env_key: "1"}, clear=True):
             assert undertest.NotebookHost.get_current_host() == host
 
     @pytest.mark.parametrize(
@@ -30,5 +30,5 @@ class TestNotebookHost:
         ],
     )
     def test_supports_iframe(self, env_key, supports_iframe):
-        with patch.dict(os.environ, {env_key: "1"}):
+        with patch.dict(os.environ, {env_key: "1"}, clear=True):
             assert undertest.NotebookHost.supports_iframe() == supports_iframe

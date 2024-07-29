@@ -1,5 +1,6 @@
 import logging
 import warnings
+from typing import Any
 
 import pandas as pd
 
@@ -16,7 +17,7 @@ def fairness_audit_altair(
     score_threshold: float,
     metric_list: list[str],
     fairness_threshold: float,
-) -> None:
+) -> Any:
     """
     Generate an html file with the Aequitas fairness audit for a set of sensitive groups and metrics
 
@@ -48,6 +49,12 @@ def fairness_audit_altair(
         The maximum ratio between sensitive groups before differential performance is considered a 'failure'.
         For example, a PPV of 0.5 for group A and a PPV of 0.75 (or 0.33) for group B would be considered a failure
         for any fairness_threshold < 1.5.
+
+
+    Returns
+    -------
+    Altair Chart
+        the generated Altair chart for display.
     """
     try:
         from aequitas import Audit
