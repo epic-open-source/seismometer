@@ -533,3 +533,61 @@ Then, follow the pattern of normal startup but specify your function in the :py:
 
 The benefit of this approach over manipulating the frame later is that the Seismogram can be considered frozen.
 Among other things, this means any Seismograph notebooks cells do not have a dependence on order and can be run multiple times.
+
+
+Create Custom Visualizations
+----------------------------
+
+You can create custom controls that allow users to interact with the data via a set of 
+standardized controls. The :py:func:`~seismometer.controls.explore` module contains several ``Exploration*``
+widgets you can use for housing custom visualizations. 
+
+To add your own custom visualization, you need a function that takes the same signature as the Exploration widget, and
+it should return a displayable object. If using matplotlib, you can use the :py:func:`~seismometer.plot.mpl.decorators.render_as_svg`
+to convert to close the figure and render it as an SVG, for the control to display. 
+
+The following example shows how to create a custom visualization. 
+
+.. code-block:: python
+
+   import seaborn as sns
+   import matplotlib.pyplot as plt
+
+   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget # Allows selecting a score, target, threshold, and cohort. 
+   from seismometer.plot.mpl.decorators import render_as_svg # converts our figure to SVG for display
+   from seismometer.data.filter import FilterRule # Allows us to filter our data
+
+   @render_as_svg
+   def plot_heat_map(
+         cohort_dict: dict[str,tuple], # cohort columns and allowable values
+         target_col: str, # the model target column
+         score_col: str,  # the model output column (score)
+         thresholds: tuple[float], # a list of thresholds to consider
+         *,
+         per_context: bool # if the visualization should group the scores inside a context
+         ) -> plt.Figure:
+      xcol = "age"
+      ycol = "num_procedures"
+      hue = score_col
+
+      sg = sm.Seismogram()
+      cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict) # Use only rows that match the cohort
+      data = cohort_filter.filter(sg.data(target_col))[[xcol, ycol, hue]]
+      data = data.groupby([xcol, ycol], observed=False)[[hue]].agg('mean').reset_index()
+      data = data.pivot(index=ycol, columns=xcol, values=hue)
+
+      ax = plt.axes()
+      sns.heatmap(data = data, cbar_kws= {'label': hue}, ax = ax, vmin=min(thresholds), vmax=max(thresholds), cmap="crest")
+      ax.set_title(f"Heatmap of {hue} for {cohort_filter}",  wrap=True, fontsize=10)
+      plt.tight_layout()
+      return plt.gcf()
+
+   ExplorationModelSubgroupEvaluationWidget("Heatmap", plot_heat_map)
+
+The above code snippet shows how to create a custom visualization for the Notebook. The function
+``plot_heat_map`` creates a heatmap of the mean of the score column for each subgroup of the cohort
+
+   
+.. image:: media/custom_plot_control.png
+   :alt: A custom control, allowing a user to select a cohort and display a heatmap restricted to that cohort.
+   :width: 3.5in
