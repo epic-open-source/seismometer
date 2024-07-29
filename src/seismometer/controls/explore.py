@@ -540,11 +540,12 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
             children=[html_title("Audit Options"), HBox(children=[self.fairness_list, self.fairness_slider])]
         )
         self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
+
+        super().__init__(children=[self.model_options, fairness_section], layout=BOX_GRID_LAYOUT)
+
         self.fairness_list.observe(self._on_value_change, "value")
         self.fairness_slider.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
-
-        super().__init__(children=[self.model_options, fairness_section], layout=BOX_GRID_LAYOUT)
         self._disabled = False
 
     @property
