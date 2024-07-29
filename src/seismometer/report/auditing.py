@@ -1,6 +1,6 @@
 import logging
 import warnings
-from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -11,8 +11,7 @@ logger = logging.getLogger("seismometer")
 allowed_metrics = ["tpr", "tnr", "for", "fdr", "fpr", "fnr", "npv", "ppr", "precision", "pprev"]
 
 
-def fairness_audit_to_html(
-    path: Path,
+def fairness_audit_altair(
     df: pd.DataFrame,
     sensitive_groups: list[str],
     score_column: str,
@@ -20,14 +19,12 @@ def fairness_audit_to_html(
     score_threshold: float,
     metric_list: list[str],
     fairness_threshold: float,
-) -> None:
+) -> Any:
     """
     Generate an html file with the Aequitas fairness audit for a set of sensitive groups and metrics
 
     Parameters
     ----------
-    path : Path
-        The path to save the HTML file to.
     df : pd.DataFrame
         The dataframe containing scores, targets, and demographics.
     sensitive_groups : list[str]
@@ -54,6 +51,12 @@ def fairness_audit_to_html(
         The maximum ratio between sensitive groups before differential performance is considered a 'failure'.
         For example, a PPV of 0.5 for group A and a PPV of 0.75 (or 0.33) for group B would be considered a failure
         for any fairness_threshold < 1.5.
+
+
+    Returns
+    -------
+    Altair Chart
+        the generated Altair chart for display.
     """
     try:
         from aequitas import Audit
@@ -83,4 +86,6 @@ def fairness_audit_to_html(
     audit.audit()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
-        audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold).save(path, format="html")
+        altair_plot = audit.summary_plot(metrics=metric_list, fairness_threshold=fairness_threshold)
+
+    return altair_plot

@@ -18,6 +18,7 @@ from .controls.explore import (
 )
 from .core.exceptions import CensoredResultException
 from .core.io import slugify
+from .core.nbhost import NotebookHost
 from .data import (
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
@@ -33,7 +34,7 @@ from .data.filter import FilterRule
 from .data.timeseries import create_metric_timeseries
 from .html import template
 from .html.iframe import load_as_iframe
-from .report.auditing import fairness_audit_to_html
+from .report.auditing import fairness_audit_altair
 from .report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from .seismogram import Seismogram
 
@@ -204,7 +205,7 @@ def generate_fairness_audit(
     per_context: bool = False,
     metric_list: Optional[list[str]] = None,
     fairness_threshold: float = 1.25,
-) -> HTML | IFrame:
+) -> HTML | IFrame | Any:
     """
     Generates the Aequitas fairness audit for a set of sensitive groups and metrics.
 
@@ -227,7 +228,7 @@ def generate_fairness_audit(
 
     Returns
     -------
-    HTML | IFrame
+    HTML | IFrame | Altair Chart
         IFrame holding the HTML of the audit
     """
     sg = Seismogram()
@@ -244,7 +245,7 @@ def generate_fairness_audit(
     fairness_path = sg.config.output_dir / (slugify(path) + ".html")
     height = 100 + 100 * len(metric_list)
 
-    if fairness_path.exists():
+    if NotebookHost.supports_iframe() and fairness_path.exists():
         return load_as_iframe(fairness_path, height=height)
 
     target = pdh.event_value(target_column)
@@ -264,13 +265,19 @@ def generate_fairness_audit(
     data = FilterRule.isin(target, (0, 1)).filter(data)
     if len(data.index) < sg.censor_threshold:
         return template.render_censored_plot_message(sg.censor_threshold)
+
     try:
-        fairness_audit_to_html(
-            fairness_path, data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
+        altair_plot = fairness_audit_altair(
+            data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
         )
     except CensoredResultException as error:
         return template.render_censored_data_message(error.message)
-    return load_as_iframe(fairness_path, height=height)
+
+    if NotebookHost.supports_iframe():
+        altair_plot.save(fairness_path, format="html")
+        return load_as_iframe(fairness_path, height=height)
+
+    return altair_plot
 
 
 # endregion
