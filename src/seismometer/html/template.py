@@ -104,7 +104,24 @@ def render_censored_plot_message(censor_threshold: int) -> HTML:
     HTML
         The templated HTML.
     """
-    return render_title_message("Data is censored.", f"There are {censor_threshold} or fewer rows.")
+    return render_censored_data_message(f"There are {censor_threshold} or fewer rows.")
+
+
+def render_censored_data_message(message: str) -> HTML:
+    """
+    Get templated HTML containing a censored data message.
+
+    Parameters
+    ----------
+    message : str
+        The message to display.
+
+    Returns
+    -------
+    HTML
+        The templated HTML.
+    """
+    return render_title_message("Data is censored.", message)
 
 
 def render_title_with_image(title: str, image: SVG) -> HTML:

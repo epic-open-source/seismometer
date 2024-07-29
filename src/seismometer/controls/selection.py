@@ -4,6 +4,8 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
+from .styles import html_title
+
 
 class SelectionListWidget(ValueWidget, VBox):
     """
@@ -190,7 +192,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
 
     def update_title_section(self, title):
         if title:
-            self.title_box.value = f'<h4 style="text-align: left;  margin: 0px;">{title}</h4>'
+            self.title_box.value = html_title(title).value
 
 
 class DisjointSelectionListsWidget(ValueWidget, VBox):
@@ -226,7 +228,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         """
         super().__init__()
         self.title = title
-        self.label = Label(title)
+        self.title_box = html_title(title)
 
         # preselect all values if select_all is set, will override with values next
         values = {k: options[k] if select_all else () for k in options}
@@ -252,7 +254,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
             self.selection_widgets[key] = selection_widget
             selection_widget.observe(self._on_selection_change, "value")
         self.stack = Stack(children=[self.selection_widgets[key] for key in self.selection_widgets], selected_index=0)
-        self.children = [self.label, self.dropdown, self.stack]
+        self.children = [self.title_box, self.dropdown, self.stack]
         jslink((self.dropdown, "index"), (self.stack, "selected_index"))
         self.layout = Layout(width="calc(100% - var(--jp-widgets-border-width)* 2)")
         self._on_selection_change()
@@ -284,5 +286,5 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
 
     def get_selection_text(self) -> str:
         """Return the selection for the widget as a key value pair."""
-        key, value = self.value
+        key = self.value[0]
         return f"{key}: {self.selection_widgets[key].get_selection_text()}"
