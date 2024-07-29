@@ -1,3 +1,3 @@
 Update Generate Report button width for Cohort Comarison widget
-Update various plot titles to `<h4>` headings for cosistent size/theming
+Update various plot titles to `<h4>` headings for consistent size/theming
 New CensoredResultException, for when a plot cannot render due to too few results.
