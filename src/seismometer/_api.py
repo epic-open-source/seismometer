@@ -244,9 +244,8 @@ def generate_fairness_audit(
     fairness_path = sg.config.output_dir / (slugify(path) + ".html")
     height = 100 + 100 * len(metric_list)
 
-    if NotebookHost.get_current_host() != NotebookHost.VSCODE:
-        if fairness_path.exists():
-            return load_as_iframe(fairness_path, height=height)
+    if NotebookHost.supports_iframe() and fairness_path.exists():
+        return load_as_iframe(fairness_path, height=height)
 
     target = pdh.event_value(target_column)
     data = (
@@ -269,7 +268,7 @@ def generate_fairness_audit(
         data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
     )
 
-    if NotebookHost.get_current_host() != NotebookHost.VSCODE:
+    if NotebookHost.supports_iframe():
         altair_plot.save(fairness_path, format="html")
         return load_as_iframe(fairness_path, height=height)
 
