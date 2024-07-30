@@ -539,8 +539,8 @@ Create Custom Visualizations
 ----------------------------
 
 You can create custom controls that allow users to interact with the data via a set of 
-standardized controls. The :py:mod:`~seismometer.controls.explore` module contains several ``Exploration*``
-widgets you can use for housing custom visualizations. 
+standardized controls. The :py:mod:`seismometer.controls.explore` module contains several ``Exploration*``
+widgets you can use for housing custom visualizations, see :ref:`custom-visualization-controls`. 
 
 .. image:: media/custom_plot_control.png
    :alt: A custom control, allowing a user to select a cohort and display a heatmap restricted to that cohort.
@@ -548,7 +548,8 @@ widgets you can use for housing custom visualizations.
 
 To add your own custom visualization, you need a function that takes the same signature as the Exploration widget, and
 it should return a displayable object. If using matplotlib, you can use the :py:func:`~seismometer.plot.mpl.decorators.render_as_svg`
-to convert to close the figure and render it as an SVG, for the control to display. 
+to convert the plot to an SVG, for the control to display.
+This will close the plot/figure after saving to prevent the plot from displaying twice.
 
 The following example shows how to create a visualization above. 
 

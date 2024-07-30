@@ -602,6 +602,10 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
 
 
 class ExplorationWidget(VBox):
+    """
+    Parent class for model exploration widgets.
+    """
+
     def __init__(self, title: str, option_widget: ValueWidget, plot_function: Callable[..., Any]):
         """Parent class for a plot exploration widget.
 
@@ -612,7 +616,7 @@ class ExplorationWidget(VBox):
         option_widget : ValueWidget
             widget that contains the options the plot_function
         plot_function : Callable[..., Any]
-            a function that generates content
+            a function that generates content for display within the control.
         """
         layout = Layout(
             width="100%",
