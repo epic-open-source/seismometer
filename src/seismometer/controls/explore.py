@@ -69,7 +69,7 @@ class UpdatePlotWidget(Box):
 
 
 class ModelOptionsWidget(VBox, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the slider list")
+    value = traitlets.Dict(help="The selected values for the model options")
 
     def __init__(
         self,
@@ -344,7 +344,7 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
 
 
 class ModelInterventionOptionsWidget(VBox, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the slider list")
+    value = traitlets.Dict(help="The selected values for the intevetion options")
 
     def __init__(
         self,
@@ -861,7 +861,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
 
 class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
     """
-    A widget for exploring the model performance based on the subgroups of a cohort column.
+    A widget for exploring the model outcomes and interventions based on the subgroups of a cohort column.
     """
 
     def __init__(

@@ -548,10 +548,10 @@ widgets you can use for housing custom visualizations, see :ref:`custom-visualiz
 
 To add your own custom visualization, you need a function that takes the same signature as the Exploration widget, and
 it should return a displayable object. If using matplotlib, you can use the :py:func:`~seismometer.plot.mpl.decorators.render_as_svg`
-to convert the plot to an SVG, for the control to display.
+decorator to convert the plot to an SVG, for the control to display.
 This will close the plot/figure after saving to prevent the plot from displaying twice.
 
-The following example shows how to create a visualization above. 
+The following example shows how to create the visualization above. 
 
 .. code-block:: python
 
@@ -565,7 +565,8 @@ The following example shows how to create a visualization above.
    # Filter our data based on a specified cohort 
    from seismometer.data.filter import FilterRule 
 
-   @render_as_svg
+   
+   @render_as_svg # convert figure to svg for display
    def plot_heat_map(
          cohort_dict: dict[str,tuple], # cohort columns and allowable values
          target_col: str, # the model target column
@@ -574,13 +575,20 @@ The following example shows how to create a visualization above.
          *,
          per_context: bool # if a plot groups scores by context
          ) -> plt.Figure:
+      # The signature of the function must match the ExplorationWidget's expected signature
+      # This example does not use the `per_context` parameter, but it must be included in the signature
+      # to match ExplorationModelSubgroupEvaluationWidget's expectations.
+
+      # These three rows select the data from the seismogram based on the cohort_dict
+      sg = sm.Seismogram()
+      cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict) # Use only rows that match the cohort
+      data = cohort_filter.filter(sg.data(target_col))
+      
       xcol = "age"
       ycol = "num_procedures"
       hue = score_col
 
-      sg = sm.Seismogram()
-      cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict) # Use only rows that match the cohort
-      data = cohort_filter.filter(sg.data(target_col))[[xcol, ycol, hue]]
+      data = data[[xcol, ycol, hue]] # select only the columns we need
       data = data.groupby([xcol, ycol], observed=False)[[hue]].agg('mean').reset_index()
       data = data.pivot(index=ycol, columns=xcol, values=hue)
 
