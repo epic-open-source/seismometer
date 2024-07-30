@@ -7,11 +7,6 @@ section h1 {
     overflow: visible;
 }
 
-:root {
-    --color-brand: #580067;
-    --docsearch-modal-width: '900px';
-}
-
 @media (min-width: 1600px) {
     .container {
         max-width:1600px;
@@ -51,6 +46,20 @@ section h1 {
     
     #content {
         width: 1100px;
+    }
+}
+
+@media (min-width: 1900px) {
+    .container {
+        max-width:1900px;
+    }
+
+    main.relative {
+        width: 1600px;
+    }
+    
+    #content {
+        width: 1200px;
     }
 }
 
