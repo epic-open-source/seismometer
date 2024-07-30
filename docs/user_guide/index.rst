@@ -542,20 +542,27 @@ You can create custom controls that allow users to interact with the data via a 
 standardized controls. The :py:func:`~seismometer.controls.explore` module contains several ``Exploration*``
 widgets you can use for housing custom visualizations. 
 
+.. image:: media/custom_plot_control.png
+   :alt: A custom control, allowing a user to select a cohort and display a heatmap restricted to that cohort.
+   :width: 4.5in
+
 To add your own custom visualization, you need a function that takes the same signature as the Exploration widget, and
 it should return a displayable object. If using matplotlib, you can use the :py:func:`~seismometer.plot.mpl.decorators.render_as_svg`
 to convert to close the figure and render it as an SVG, for the control to display. 
 
-The following example shows how to create a custom visualization. 
+The following example shows how to create a visualization above. 
 
 .. code-block:: python
 
    import seaborn as sns
    import matplotlib.pyplot as plt
 
-   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget # Allows selecting a score, target, threshold, and cohort. 
-   from seismometer.plot.mpl.decorators import render_as_svg # converts our figure to SVG for display
-   from seismometer.data.filter import FilterRule # Allows us to filter our data
+   # Control allowing users to specify a score, target, threshold, and cohort. 
+   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget 
+   # Converts matplotlib figure to SVG for display within the control's output
+   from seismometer.plot.mpl.decorators import render_as_svg
+   # Filter our data based on a specified cohort 
+   from seismometer.data.filter import FilterRule 
 
    @render_as_svg
    def plot_heat_map(
@@ -564,7 +571,7 @@ The following example shows how to create a custom visualization.
          score_col: str,  # the model output column (score)
          thresholds: tuple[float], # a list of thresholds to consider
          *,
-         per_context: bool # if the visualization should group the scores inside a context
+         per_context: bool # if a plot groups scores by context
          ) -> plt.Figure:
       xcol = "age"
       ycol = "num_procedures"
@@ -582,12 +589,9 @@ The following example shows how to create a custom visualization.
       plt.tight_layout()
       return plt.gcf()
 
-   ExplorationModelSubgroupEvaluationWidget("Heatmap", plot_heat_map)
+   ExplorationModelSubgroupEvaluationWidget("Heatmap", plot_heat_map) #generates the overall widget. 
 
-The above code snippet shows how to create a custom visualization for the Notebook. The function
-``plot_heat_map`` creates a heatmap of the mean of the score column for each subgroup of the cohort
+The function ``plot_heat_map`` creates a heatmap of the mean of the score column for each subgroup of the cohort, based on 
+the fixed columns ``age`` and ``num_procedures``. 
 
    
-.. image:: media/custom_plot_control.png
-   :alt: A custom control, allowing a user to select a cohort and display a heatmap restricted to that cohort.
-   :width: 3.5in
