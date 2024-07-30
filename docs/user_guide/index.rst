@@ -539,7 +539,7 @@ Create Custom Visualizations
 ----------------------------
 
 You can create custom controls that allow users to interact with the data via a set of 
-standardized controls. The :py:func:`~seismometer.controls.explore` module contains several ``Exploration*``
+standardized controls. The :py:mod:`~seismometer.controls.explore` module contains several ``Exploration*``
 widgets you can use for housing custom visualizations. 
 
 .. image:: media/custom_plot_control.png

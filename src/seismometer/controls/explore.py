@@ -734,14 +734,16 @@ class ExplorationModelSubgroupEvaluationWidget(ExplorationWidget):
         title : str
             title of the control
         plot_function : Callable[..., Any]
-            callable to generate this plot: Expected to have the following signature:
+            Expected to have the following signature:
 
-            def plot_function(
-                cohorts: dict[str,tuple[Any]]
-                target: str,
-                score: str,
-                thresholds: tuple[float],
-                *, per_context: bool) -> Any
+            .. code:: python
+
+                def plot_function(
+                    cohorts: dict[str,tuple[Any]]
+                    target: str,
+                    score: str,
+                    thresholds: tuple[float],
+                    *, per_context: bool) -> Any
         """
         from seismometer.seismogram import Seismogram
 
@@ -791,15 +793,17 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
         title : str
             title of the control
         plot_function : Callable[..., Any]
-            callable to generate this plot: Expected to have the following signature:
+            Expected to have the following signature:
 
-            def plot_function(
-                cohorts_col: str
-                cohort_subgroups: tuple[Any]
-                target: str,
-                score: str,
-                thresholds: tuple[float],
-                *, per_context: bool) -> Any
+            .. code:: python
+
+                def plot_function(
+                    cohorts_col: str
+                    cohort_subgroups: tuple[Any]
+                    target: str,
+                    score: str,
+                    thresholds: tuple[float],
+                    *, per_context: bool) -> Any
         """
         from seismometer.seismogram import Seismogram
 
@@ -869,15 +873,16 @@ class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
         title : str
             title of the control
         plot_function : Callable[..., Any]
-            callable to generate this plot: Expected to have the following signature:
+            Expected to have the following signature:
 
-            def plot_function(
-                cohorts_col: str
-                cohort_subgroups: tuple[Any]
-                outcome: str,
-                intervention: str,
-                reference_time: str) -> Any
+            .. code:: python
 
+                def plot_function(
+                    cohorts_col: str
+                    cohort_subgroups: tuple[Any]
+                    outcome: str,
+                    intervention: str,
+                    reference_time: str) -> Any
         """
         from seismometer.seismogram import Seismogram
 
