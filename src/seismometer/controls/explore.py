@@ -69,7 +69,7 @@ class UpdatePlotWidget(Box):
 
 
 class ModelOptionsWidget(VBox, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the slider list")
+    value = traitlets.Dict(help="The selected values for the model options")
 
     def __init__(
         self,
@@ -344,7 +344,7 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
 
 
 class ModelInterventionOptionsWidget(VBox, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the slider list")
+    value = traitlets.Dict(help="The selected values for the intervention options")
 
     def __init__(
         self,
@@ -602,6 +602,10 @@ class ModelFairnessAuditOptions(Box, ValueWidget):
 
 
 class ExplorationWidget(VBox):
+    """
+    Parent class for model exploration widgets.
+    """
+
     def __init__(self, title: str, option_widget: ValueWidget, plot_function: Callable[..., Any]):
         """Parent class for a plot exploration widget.
 
@@ -612,7 +616,7 @@ class ExplorationWidget(VBox):
         option_widget : ValueWidget
             widget that contains the options the plot_function
         plot_function : Callable[..., Any]
-            a function that generates content
+            a function that generates content for display within the control.
         """
         layout = Layout(
             width="100%",
@@ -734,14 +738,16 @@ class ExplorationModelSubgroupEvaluationWidget(ExplorationWidget):
         title : str
             title of the control
         plot_function : Callable[..., Any]
-            callable to generate this plot: Expected to have the following signature:
+            Expected to have the following signature:
 
-            def plot_function(
-                cohorts: dict[str,tuple[Any]]
-                target: str,
-                score: str,
-                thresholds: tuple[float],
-                *, per_context: bool) -> Any
+            .. code:: python
+
+                def plot_function(
+                    cohorts: dict[str,tuple[Any]]
+                    target: str,
+                    score: str,
+                    thresholds: tuple[float],
+                    *, per_context: bool) -> Any
         """
         from seismometer.seismogram import Seismogram
 
@@ -791,15 +797,17 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
         title : str
             title of the control
         plot_function : Callable[..., Any]
-            callable to generate this plot: Expected to have the following signature:
+            Expected to have the following signature:
 
-            def plot_function(
-                cohorts_col: str
-                cohort_subgroups: tuple[Any]
-                target: str,
-                score: str,
-                thresholds: tuple[float],
-                *, per_context: bool) -> Any
+            .. code:: python
+
+                def plot_function(
+                    cohorts_col: str
+                    cohort_subgroups: tuple[Any]
+                    target: str,
+                    score: str,
+                    thresholds: tuple[float],
+                    *, per_context: bool) -> Any
         """
         from seismometer.seismogram import Seismogram
 
@@ -853,7 +861,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
 
 class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
     """
-    A widget for exploring the model performance based on the subgroups of a cohort column.
+    A widget for exploring the model outcomes and interventions based on the subgroups of a cohort column.
     """
 
     def __init__(
@@ -869,15 +877,16 @@ class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
         title : str
             title of the control
         plot_function : Callable[..., Any]
-            callable to generate this plot: Expected to have the following signature:
+            Expected to have the following signature:
 
-            def plot_function(
-                cohorts_col: str
-                cohort_subgroups: tuple[Any]
-                outcome: str,
-                intervention: str,
-                reference_time: str) -> Any
+            .. code:: python
 
+                def plot_function(
+                    cohorts_col: str
+                    cohort_subgroups: tuple[Any]
+                    outcome: str,
+                    intervention: str,
+                    reference_time: str) -> Any
         """
         from seismometer.seismogram import Seismogram
 

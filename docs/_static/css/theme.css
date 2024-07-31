@@ -6,3 +6,78 @@ section h1 {
 #right-sidebar div {
     overflow: visible;
 }
+
+section#seismometer-documentation {
+    max-width: 800px;
+}
+
+@media (min-width: 1600px) {
+    .container {
+        max-width:1600px;
+    }
+
+    main.relative {
+        width: 1300px;
+    }
+    
+    #content {
+        width: 900px;
+    }
+}
+
+@media (min-width: 1700px) {
+    .container {
+        max-width:1700px;
+    }
+
+    main.relative {
+        width: 1400px;
+    }
+    
+    #content {
+        width: 1000px;
+    }
+}
+
+@media (min-width: 1800px) {
+    .container {
+        max-width:1800px;
+    }
+
+    main.relative {
+        width: 1500px;
+    }
+    
+    #content {
+        width: 1100px;
+    }
+}
+
+@media (min-width: 1900px) {
+    .container {
+        max-width:1900px;
+    }
+
+    main.relative {
+        width: 1600px;
+    }
+    
+    #content {
+        width: 1200px;
+    }
+}
+
+
+@media (min-width: 2000px) {
+    .container {
+        max-width:2000px;
+    }
+
+    main.relative {
+        width: 1700px;
+    }
+    
+    #content {
+        width: 1300px;
+    }
+}

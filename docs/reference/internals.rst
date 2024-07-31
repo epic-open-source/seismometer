@@ -60,6 +60,13 @@ Binary classification
    recall_condition
    singleROC
 
+Utility Functions
+~~~~~~~~~~~~~~~~~
+.. autosummary::
+   :toctree: api/
+
+   decorators.render_as_svg
+
 
 .. currentmodule:: seismometer.data
 
