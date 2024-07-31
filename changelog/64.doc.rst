@@ -1,2 +1,0 @@
-Added a developer guide section for custom visualizations.
-Updated docstrings for exploration widgets and improved sphinx documentation layout.
