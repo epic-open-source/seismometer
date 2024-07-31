@@ -344,7 +344,7 @@ class ModelOptionsAndCohortGroupWidget(Box, ValueWidget):
 
 
 class ModelInterventionOptionsWidget(VBox, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the intevetion options")
+    value = traitlets.Dict(help="The selected values for the intervention options")
 
     def __init__(
         self,
