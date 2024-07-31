@@ -35,6 +35,11 @@ Bugfixes
 - Update various plot titles to `<h4>` headings for consistent size/theming. (`#58 <https://github.com/epic-open-source/seismometer/issues/58>`__)
 - New CensoredResultException, for when a plot cannot render due to too few results. (`#58 <https://github.com/epic-open-source/seismometer/issues/58>`__)
 
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Added a developer guide section for custom visualizations. (`#64 <https://github.com/epic-open-source/seismometer/issues/64>`__)
+- Updated docstrings for exploration widgets and improved sphinx documentation layout. (`#64 <https://github.com/epic-open-source/seismometer/issues/64>`__)
 
 0.1.1
 -----
