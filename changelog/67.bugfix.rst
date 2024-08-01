@@ -1,0 +1,1 @@
+Log a warning if cohort source column is not found in the dataframe.

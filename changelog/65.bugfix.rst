@@ -1,0 +1,1 @@
+Warning message on censored cohorts is coerced to string before logging.
