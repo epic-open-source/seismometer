@@ -93,13 +93,20 @@ def merge_windowed_event(
     event_time_col = event_time(event_label)
     event_val_col = event_value(event_label)
 
+    ct_times = one_event[event_time_col].notna().sum()
+    if ct_times == 0:
+        logger.warning(f"No times found for event {event_label}, merging first")
+        return merge_predictions()
+
+    if ct_times != len(one_event.index):
+        warnings.warn(f"Inconsistent event times for {event_label}, dropping missing events")
+        one_event = one_event.dropna(subset=[event_time_col])
+
     # one_event = infer_label(one_event, event_val_col, event_time_col)
     one_event[r_ref] = one_event[event_time_col] - min_offset
 
     # merge next event for each prediction
-    predictions = _merge_next(
-        predictions, one_event, pks, l_ref=predtime_col, r_ref=r_ref, merge_cols_without_times=event_val_col, sort=sort
-    )
+    predictions = _merge_next(predictions, one_event, pks, l_ref=predtime_col, r_ref=r_ref, sort=sort)
     predictions = infer_label(predictions, event_val_col, event_time_col)
 
     if window_hrs is not None:
@@ -307,7 +314,6 @@ def _merge_next(
     *,
     l_ref: str = "Time",
     r_ref: str = "Time",
-    merge_cols_without_times: str = None,
     sort: bool = True,
 ) -> pd.DataFrame:
     """
@@ -315,7 +321,6 @@ def _merge_next(
     in the right frame occurring after the row in the left.
 
     Delegates initial distance logic to pandas.DataFrame.merge_asof looking forward to find the next event.
-    When indicated, will perform a second left-join to coalesce data from events that were not matching.
 
     Parameters
     ----------
@@ -329,9 +334,6 @@ def _merge_next(
         The column in the left frame to use as a reference point in the distance match, by default 'Time'.
     r_ref : str, optional
         The column in the right frame to use reference in the distance match, by default 'Time'.
-    merge_cols_without_times : Optional[str], optional
-        A column name from the right frame, which when provided, will perform a second merge to attempt
-        filling in data where the distance merge did not find results, by default None.
     sort : bool
         Whether or not to sort the left/right dataframes, by default True.
 
@@ -345,19 +347,6 @@ def _merge_next(
         right = right.sort_values(r_ref)
 
     rv = pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction="forward")
-
-    # Second pass to fill in values for no times or no right-event after the left one
-    #   This isn't rare when most predictions have no event (have negative labels)..
-    if merge_cols_without_times is not None:
-        needs_update = rv[merge_cols_without_times].isna()
-        direct_merge = pd.merge(left, right.sort_values(r_ref, ascending=False), how="left", on=pks)
-
-        if sort:
-            direct_merge = direct_merge.drop_duplicates(subset=pks + [l_ref])
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=FutureWarning)
-            rv.iloc[needs_update] = direct_merge.sort_values(l_ref).iloc[np.where(needs_update)[0]]
 
     return rv
 
