@@ -373,7 +373,7 @@ class Seismogram(object, metaclass=Singleton):
                 continue
             if not sufficient.all():
                 log_details = ", ".join(sufficient[~sufficient].index.astype(str))
-                logger.debug(f"Some cohorts of {disp_attr} were below censor limit: {log_details}")
+                logger.warning(f"Some cohorts of {disp_attr} were below censor limit: {log_details}")
 
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)
