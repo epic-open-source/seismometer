@@ -78,7 +78,7 @@ class TestMergeWindowedEvent:
                 2, 2, None, "2024-02-01 12:00:00", 12, 0, "2024-02-01 12:00:00", 1, id="null in_window: impute+"
             ),
             #
-            # Predictions for positive labels after last event(late prediction) have label imputed to -1,
+            # Predictions for positive labels after last event(late prediction) are no time and imputed to negative,
             # but keep time
             pytest.param(
                 3,
@@ -87,9 +87,9 @@ class TestMergeWindowedEvent:
                 "2024-01-31 12:00:00",
                 12,
                 0,
-                "2024-01-31 12:00:00",
-                -1,
-                id="pos val late time: invalidate label",
+                None,
+                0,
+                id="pos val late time: NaT+0",
             ),
             pytest.param(
                 3,
@@ -98,9 +98,9 @@ class TestMergeWindowedEvent:
                 "2024-01-31 12:00:00",
                 12,
                 0,
-                "2024-01-31 12:00:00",
-                -1,
-                id="neg val late time: invalidate label",
+                None,
+                0,
+                id="neg val late time:  NaT+0",
             ),
             pytest.param(
                 3,
@@ -109,9 +109,9 @@ class TestMergeWindowedEvent:
                 "2024-01-31 12:00:00",
                 12,
                 0,
-                "2024-01-31 12:00:00",
-                -1,
-                id="null val late time: impute the invalidate",
+                None,
+                0,
+                id="null val late time:  NaT+0",
             ),
             #
             # predictions at edge of window count
@@ -185,8 +185,8 @@ class TestMergeWindowedEvent:
                 "2024-02-01 01:00:00",
                 10,
                 2,
-                "2024-02-01 01:00:00",
-                -1,
+                None,
+                0,
                 id="offset misses near event; like 4.3",
             ),
             pytest.param(
@@ -263,7 +263,7 @@ class TestMergeWindowedEvent:
                 ["2024-02-01 12:00:00", "2024-02-01 13:00:00"],
                 24,
                 0,
-                "2024-02-01 13:00:00",
+                "2024-02-01 12:00:00",
                 1,
                 id="two later events: impute positive",
             ),
@@ -275,9 +275,9 @@ class TestMergeWindowedEvent:
                 ["2024-01-31 12:00:00", "2024-01-31 11:00:00"],
                 1,
                 0,
-                "2024-01-31 12:00:00",
-                -1,
-                id="two events before prediction: last time",
+                None,
+                0,
+                id="two events before prediction: NaT+0",
             ),
             pytest.param(
                 0,
@@ -286,8 +286,8 @@ class TestMergeWindowedEvent:
                 ["2024-01-31 11:00:00", "2024-01-31 12:00:00"],
                 1,
                 0,
-                "2024-01-31 12:00:00",
-                -1,
+                None,
+                0,
                 id="two events before prediction: last time",
             ),
             pytest.param(
@@ -365,8 +365,8 @@ class TestMergeWindowedEvent:
                 ["2024-01-31 12:00:00", None],
                 12,
                 0,
-                "2024-01-31 12:00:00",
-                -1,
+                None,
+                0,
                 id="late and no time: prioritize known time ('late score')",
             ),
             pytest.param(
@@ -376,8 +376,8 @@ class TestMergeWindowedEvent:
                 [None, "2024-01-31 12:00:00"],
                 12,
                 0,
-                "2024-01-31 12:00:00",
-                -1,
+                None,
+                0,
                 id="late and no time ooo: ",
             ),
             #
@@ -479,29 +479,29 @@ class TestMergeWindowedEvent:
             pytest.param(
                 12,
                 0,
-                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", None, "2024-02-04 12:00:00"],
-                [0.0, 2, 2, 3, -1],
+                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", None, None],
+                [0.0, 2, 2, 3, 0],
                 id="base lookback",
             ),
             pytest.param(
                 12,
                 2,
-                [None, "2024-02-02 12:00:00", None, None, "2024-02-04 12:00:00"],
-                [0.0, 2, 3, 3, -1],
+                [None, "2024-02-02 12:00:00", None, None, None],
+                [0.0, 2, 3, 3, 0],
                 id="offset out of middle pred window",
             ),
             pytest.param(
                 12,
                 -2,
-                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", "2024-02-02 12:00:00", "2024-02-04 12:00:00"],
-                [0.0, 2, 2, 2, -1],
+                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", "2024-02-02 12:00:00", None],
+                [0.0, 2, 2, 2, 0],
                 id="offset allow future for third event",
             ),
             pytest.param(
                 1.5,
                 0,
-                [None, None, "2024-02-02 12:00:00", None, "2024-02-04 12:00:00"],
-                [0.0, 2, 2, 3, -1],
+                [None, None, "2024-02-02 12:00:00", None, None],
+                [0.0, 2, 2, 3, 0],
                 id="reduce window out of second event",
             ),
         ],
@@ -583,15 +583,15 @@ class TestMergeWindowedEvent:
                 "2024-02-02 12:00:00",
                 "2024-02-02 12:00:00",
                 None,
-                "2024-02-04 12:00:00",
+                None,
                 None,
                 "2024-02-02 12:00:00",
                 None,
                 None,
-                "2024-02-04 12:00:00",
+                None,
             ]
         )
-        expected_vals = np.hstack(([0.0, 2, 2, 3, -1], np.add([0.0, 2, 3, 3, -6], 5)))  # -6+5=-1
+        expected_vals = np.hstack(([0.0, 2, 2, 3, 0], np.add([0.0, 2, 3, 3, -5], 5)))  # -5+5=0
         predictions = create_prediction_table(ids, csns, predtimes)
         events = create_event_table(
             ids, csns, event_name, event_times=event_times, event_values=range(len(event_times))
@@ -644,15 +644,15 @@ class TestMergeWindowedEvent:
                 "2024-02-02 12:00:00",
                 "2024-02-02 12:00:00",
                 None,
-                "2024-02-04 12:00:00",
+                None,
                 None,
                 "2024-02-02 12:00:00",
                 None,
                 None,
-                "2024-02-04 12:00:00",
+                None,
             ]
         )
-        expected_vals = np.hstack(([0.0, 2, 2, 3, -1], np.add([0.0, 2, 3, 3, -6], 5)))  # -6+5=-1
+        expected_vals = np.hstack(([0.0, 2, 2, 3, 0], np.add([0.0, 2, 3, 3, -5], 5)))  # -5+5=0
         predictions = create_prediction_table(ids, csns, predtimes)
         events = create_event_table(
             ids, csns, event_name, event_times=event_times, event_values=range(len(event_times))
