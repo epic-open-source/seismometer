@@ -346,6 +346,10 @@ class Seismogram(object, metaclass=Singleton):
         """Creates data columns for each cohort defined in configuration."""
         for cohort in self.config.cohorts:
             disp_attr = cohort.display_name
+
+            if cohort.source not in self.dataframe:
+                logger.warning(f"Source column {cohort.source} not found in data; skipping cohort {disp_attr}.")
+                continue
             if cohort.splits:
                 try:
                     new_col = resolve_cohorts(self.dataframe[cohort.source], cohort.splits)
@@ -368,9 +372,8 @@ class Seismogram(object, metaclass=Singleton):
                 )
                 continue
             if not sufficient.all():
-                logger.debug(
-                    f"Some cohorts of {disp_attr} were below censor limit: {', '.join(sufficient[~sufficient].index)}"
-                )
+                log_details = ", ".join(sufficient[~sufficient].index.astype(str))
+                logger.warning(f"Some cohorts of {disp_attr} were below censor limit: {log_details}")
 
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)

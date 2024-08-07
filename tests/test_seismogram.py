@@ -1,11 +1,12 @@
-from unittest.mock import Mock
+import logging
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
 
 import seismometer.seismogram  # noqa : needed for patching
 from seismometer.configuration import ConfigProvider
-from seismometer.configuration.model import Event
+from seismometer.configuration.model import Cohort, Event
 from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import Seismogram
 
@@ -20,9 +21,10 @@ def get_test_config(tmp_path):
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity"]
     mock_config.predict_time = "time"
-    mock_config.cohorts = ["cohort1", "cohort2", "cohort3"]
+    mock_config.cohorts = [Cohort(source=name) for name in ["cohort1", "cohort2"]]
     mock_config.features = ["one"]
     mock_config.config_dir = tmp_path / "config"
+    mock_config.censor_min_count = 0
 
     return mock_config
 
@@ -44,6 +46,8 @@ def get_test_data():
             "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "event2_Value": [0, 1, 0, 1],
             "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "cohort1": [1, 0, 1, 0],
+            "cohort2": [0, 1, 0, 1],
         }
     )
 
@@ -67,7 +71,7 @@ class Test__set_df_counts:
             ("start_time", "2022-01-01"),
             ("end_time", "2022-01-04"),
             ("event_types_count", 2),
-            ("cohort_attribute_count", 3),
+            ("cohort_attribute_count", 2),
         ],
     )
     def test_set_df_count_freezes_values(self, attr_name, expected, fake_seismo, tmp_path):
@@ -85,9 +89,9 @@ class Test__set_df_counts:
     @pytest.mark.parametrize(
         "features, predict_cols, expected",
         [
-            ([], [], "~7"),
-            ([], ["entity", "time"], "~5"),
-            ([], ["entity", "notacol"], "~6"),
+            ([], [], "~9"),
+            ([], ["entity", "time"], "~7"),
+            ([], ["entity", "notacol"], "~8"),
             (["feature1", "feature2"], [], 2),
             (["feature1", "feature2"], ["entity", "time"], 2),
             (["feature1", "feature2", "feature3"], [], 3),
@@ -172,3 +176,85 @@ class TestSeismogramConfigRetrievalMethods:
         # Assert
         with pytest.raises(exception_type):
             getattr(sg, method_name)(*method_args)
+
+
+class TestSeismogramCreateCohorts:
+    def test_create_cohorts_creates_str_list(self, fake_seismo, tmp_path):
+        # Arrange
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+
+        # Act
+        sg.create_cohorts()
+
+        # Assert
+        assert sg.cohort_cols == ["cohort1", "cohort2"]
+
+    def test_unseen_column_logs_warning_and_drops(self, fake_seismo, tmp_path, caplog):
+        # Arrange
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        sg.config.cohorts = sg.config.cohorts + [Cohort(source="unseen")]
+
+        # Act
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            sg.create_cohorts()
+
+        # Assert
+        assert len(caplog.records) == 1
+        assert "Source column unseen" in caplog.text
+        assert sg.cohort_cols == ["cohort1", "cohort2"]
+
+    @patch.object(seismometer.seismogram, "MAXIMUM_NUM_COHORTS", 2)
+    def test_large_cardinality_warns_and_drops(self, fake_seismo, tmp_path, caplog):
+        # Arrange
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        sg.dataframe["card3"] = [0, 1, 2, 2]
+        sg.config.cohorts = sg.config.cohorts + [Cohort(source="card3")]
+
+        # Act
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            sg.create_cohorts()
+
+        # Assert
+        assert len(caplog.records) == 1
+        assert "unique" in caplog.text
+        assert "card3" in caplog.text
+        assert sg.cohort_cols == ["cohort1", "cohort2"]
+
+    def test_censor_limit_logs_warning_and_drops(self, fake_seismo, tmp_path, caplog):
+        # Arrange
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        sg.dataframe["uniqVals"] = [0, 1, 2, 3]
+        sg.config.censor_min_count = 1
+        sg.config.cohorts = sg.config.cohorts + [Cohort(source="uniqVals")]
+
+        # Act
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            sg.create_cohorts()
+
+        # Assert
+        assert len(caplog.records) == 1
+        assert "No cohort" in caplog.text
+        assert "uniqVals" in caplog.text
+        assert sg.cohort_cols == ["cohort1", "cohort2"]
+
+    def test_censor_some_logs_warning(self, fake_seismo, tmp_path, caplog):
+        # Arrange
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        sg.dataframe["rareVals"] = pd.Series([0, 0, 0, 1], dtype=bool)
+        sg.config.censor_min_count = 1
+        sg.config.cohorts = sg.config.cohorts + [Cohort(source="rareVals")]
+
+        # Act
+        with caplog.at_level(logging.DEBUG, logger="seismometer"):
+            sg.create_cohorts()
+
+        # Assert
+        assert len(caplog.records) == 2
+        assert "Some cohorts" in caplog.records[0].message
+        assert "rareVals" in caplog.records[0].message
+        assert sg.cohort_cols == ["cohort1", "cohort2", "rareVals"]
