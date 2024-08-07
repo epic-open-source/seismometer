@@ -339,7 +339,7 @@ def _handle_merge(
     ct_times = one_event[event_ref].notna().sum()
     if ct_times == 0:
         logger.warning(f"No times found for {event_display}, merging first")
-        return pd.merge(predictions, one_event, how="left", on=pks)
+        return pd.merge(predictions, one_event.groupby(pks).first(), how="left", on=pks)
 
     if ct_times != len(one_event.index):
         warnings.warn(f"Inconsistent event times for {event_display}, only considering events with times.")
