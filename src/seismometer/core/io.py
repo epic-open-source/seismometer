@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -49,6 +50,9 @@ def slugify(value: str) -> str:
     value = re.sub(r"_+", "_", value)
     if len(value) == 0:
         raise Exception(f"Invalid filename to slugify: {old_value}")
+    if len(value) > 82:
+        hash_str = hashlib.md5(value.encode()).hexdigest()
+        value = value[:50] + hash_str
     return value
 
 
