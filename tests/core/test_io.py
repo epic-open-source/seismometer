@@ -21,7 +21,7 @@ class Test_IO:
             pytest.param("abc_123_    ,,...,,,,['<18', '18-30']", "abc_123_lt_18_18-30", id="combination of above"),
             pytest.param(
                 "Feature Report Comparing Age_Group in ['<18', '18-30', '30-40'] vs Ethnicity in ['Not Hispanic']",
-                "feature_report_comparing_age_group_in_lt_18_18-30_30-40_vs_ethnicity_in_not_hispanic",
+                "feature_report_comparing_age_group_in_lt_18_18-30_a9386de720764da2ed95cd2ecea4f4ae",
                 id="example filepath",
             ),
             pytest.param("Б, В, Г, Д, Ж, З, К, Л", "б_в_г_д_ж_з_к_л", id="acceptable unicode characters"),

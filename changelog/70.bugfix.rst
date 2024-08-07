@@ -1,2 +1,3 @@
 Improved support for datasets with a large number of cohort columns. Allowing row wrapping of cohort selection.
 Improved the Fairness audit iframe support by increasing the height a bit to account for cohort error messages.
+Allow long filenames by hashing the ends, this fix allow large cohort selection lists when creating reports and fairness audits which are cached to disk. 
