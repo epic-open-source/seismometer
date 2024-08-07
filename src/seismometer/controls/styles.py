@@ -2,7 +2,9 @@ from ipywidgets.widgets import HTML, Layout
 
 WIDE_LABEL_STYLE = {"description_width": "120px"}
 
-BOX_GRID_LAYOUT = Layout(align_items="flex-start", grid_gap="20px", width="max-content", min_width="300px")
+BOX_GRID_LAYOUT = Layout(
+    align_items="flex-start", grid_gap="20px", width="100%", min_width="300px", max_width="1400px"
+)
 WIDE_BUTTON_LAYOUT = Layout(align_items="flex-start", width="max-content", min_width="200px")
 
 
