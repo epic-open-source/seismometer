@@ -1,0 +1,3 @@
+Handle merging without context id; assumes events dataframe columns.
+Remove coalecsing logic from merging, now assumes an event type always has times (or never does). Preps for supporting strategies.
+Hardens restriction of events (with times) to occur after prediction time + window offset.
