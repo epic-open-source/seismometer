@@ -4,7 +4,7 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
-from .styles import html_title
+from .styles import DROPDOWN_LAYOUT, html_title
 
 
 class SelectionListWidget(ValueWidget, VBox):
@@ -245,7 +245,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         self.dropdown = Dropdown(
             options=[key for key in values],
             value=value[0],
-            layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))"),
+            layout=DROPDOWN_LAYOUT,
         )
         self.dropdown.observe(self._on_selection_change, "value")
         self.selection_widgets = {}

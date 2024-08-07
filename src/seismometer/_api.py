@@ -263,7 +263,7 @@ def generate_fairness_audit(
 
     data = data[[target, score_column] + cohort_columns]
     data = FilterRule.isin(target, (0, 1)).filter(data)
-    if len(data.index) < sg.censor_threshold:
+    if min(data[target].sum(), len(data.index)) < sg.censor_threshold:
         return template.render_censored_plot_message(sg.censor_threshold)
 
     try:
@@ -294,6 +294,7 @@ def cohort_list():
     from ipywidgets import Output, VBox
 
     from .controls.selection import MultiSelectionListWidget
+    from .controls.styles import BOX_GRID_LAYOUT
 
     options = sg.available_cohort_groups
 
@@ -301,19 +302,17 @@ def cohort_list():
     output = Output()
 
     def on_widget_value_changed(*args):
-        output.clear_output(wait=True)
         with output:
-            display("Recalculating...")
-            output.clear_output(wait=True)
+            display("Recalculating...", clear=True)
             html = _cohort_list_details(comparison_selections.value)
-            display(html)
+            display(html, clear=True)
 
     comparison_selections.observe(on_widget_value_changed, "value")
 
     # get initial value
     on_widget_value_changed()
 
-    return VBox(children=[comparison_selections, output])
+    return VBox(children=[comparison_selections, output], layout=BOX_GRID_LAYOUT)
 
 
 @disk_cached_html_segment
@@ -348,13 +347,28 @@ def _cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
     groups = data[cfg.entity_keys + cfg.output_list + intervention_cols + outcome_cols + target_cols].groupby(
         target_cols
     )
-    aggregation = {cfg.entity_id: ["count", "nunique"]}
+    columns = []
+    for c in ["count", "nunique"]:
+        series = groups[cfg.entity_id].agg(c)
+        series.name = f"{cfg.entity_id} {c}"
+        columns.append(series)
     if len(cfg.context_id):
-        aggregation[cfg.context_id] = "nunique"
+        series = groups[cfg.context_id].nunique()
+        series.name = f"{cfg.context_id} nunique"
+        columns.append(series)
+
     # add in other keys for aggregation
-    aggregation.update({k: "mean" for k in cfg.output_list + intervention_cols + outcome_cols})
+    for c in cfg.output_list + intervention_cols + outcome_cols:
+        if data.dtypes[c] == "float64":
+            series = groups[c].mean()
+            series.name = f"{c} mean"
+            columns.append(series)
+
+    reduced_groups = pd.concat(columns, axis=1)
+    print(reduced_groups)
+
+    html_table = reduced_groups.to_html()
     title = "Summary"
-    html_table = groups.agg(aggregation).to_html()
     return template.render_title_message(title, html_table)
 
 
