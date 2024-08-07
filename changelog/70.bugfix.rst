@@ -1,0 +1,2 @@
+Improved support for datasets with a large number of cohort columns. Allowing row wrapping of cohort selection.
+Improved the Fairness audit iframe support by increasing the height a bit to account for cohort error messages.
