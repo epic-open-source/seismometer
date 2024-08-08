@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
@@ -737,3 +739,123 @@ class TestMergeWindowedEvent:
         )
 
         pdt.assert_frame_equal(actual, predictions, check_dtype=False)
+
+    def test_ctx_not_key_not_added(self):
+        # Use two ctxs
+        ids = np.repeat([1], 10)
+        ctxs = np.repeat([1, 2], 5)
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-02-02 10:00:00",
+            "2024-02-02 12:00:00",
+            "2024-02-02 14:00:00",
+            "2024-12-31 23:59:59",
+            "2024-01-01 01:00:00",
+            "2024-02-02 12:00:00",
+            "2024-02-02 14:00:00",
+            "2024-02-02 16:00:00",
+            "2024-12-31 23:59:59",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 12:00:00",
+                pd.NA,
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1, 1], [1, 2], event_name, event_times=event_times, event_values=[10, 20])
+
+        expected_vals = [10, 0, 0, 0, 0, 10, 0, 0, 0, 0]
+        expected_times = ["2024-01-01 12:00:00", None, None, None, None, "2024-01-01 12:00:00", None, None, None, None]
+        expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12
+        )
+
+        # No CtxId_x
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_some_nat_warn_and_dropped(self, caplog):
+        # Use two ctxs
+        ids = np.repeat([1], 10)
+        ctxs = np.repeat([1, 2], 5)
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-02-02 10:00:00",
+            "2024-02-02 12:00:00",
+            "2024-02-02 14:00:00",
+            "2024-12-31 23:59:59",
+            "2024-01-01 01:00:00",
+            "2024-02-02 12:00:00",
+            "2024-02-02 14:00:00",
+            "2024-02-02 16:00:00",
+            "2024-12-31 23:59:59",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 12:00:00",
+                pd.NA,
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1, 1], [1, 2], event_name, event_times=event_times, event_values=[10, 20])
+
+        expected_vals = [10, 0, 0, 0, 0, 10, 0, 0, 0, 0]
+        expected_times = ["2024-01-01 12:00:00", None, None, None, None, "2024-01-01 12:00:00", None, None, None, None]
+        expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            actual = undertest.merge_windowed_event(
+                predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12
+            )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+        assert len(caplog.records) == 1
+        assert "Inconsistent" in caplog.text
+
+    def test_no_times_warn_and_merges(self, caplog):
+        # Use two ctxs
+        ids = np.repeat([1], 10)
+        ctxs = np.repeat([1, 2], 5)
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-02-02 10:00:00",
+            "2024-02-02 12:00:00",
+            "2024-02-02 14:00:00",
+            "2024-12-31 23:59:59",
+            "2024-01-01 01:00:00",
+            "2024-02-02 12:00:00",
+            "2024-02-02 14:00:00",
+            "2024-02-02 16:00:00",
+            "2024-12-31 23:59:59",
+        ]
+        event_times = pd.to_datetime(
+            [
+                pd.NA,
+                pd.NA,
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1, 1], [1, 2], event_name, event_times=event_times, event_values=[10, 20])
+
+        expected_vals = [10.0, 10, 10, 10, 10, 20, 20, 20, 20, 20]
+        expected_times = [None] * 10
+        expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            actual = undertest.merge_windowed_event(
+                predictions, "PredictTime", events, event_name, ["Id", "CtxId"], min_leadtime_hrs=0, window_hrs=12
+            )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+        assert len(caplog.records) == 1
+        assert "No times" in caplog.text
