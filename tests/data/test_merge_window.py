@@ -17,7 +17,7 @@ def create_event_table(ids, ctxs, event_labels, event_offsets=None, event_values
     count = len(event_times)
     return pd.DataFrame(
         {
-            "Id": ids * count if len(ids) == 1 else ids,
+            "Id": [str(i) for i in (ids * count if len(ids) == 1 else ids)],
             "CtxId": ctxs * count if len(ctxs) == 1 else ctxs,
             "Type": event_labels,
             "Time": event_times,
@@ -30,7 +30,7 @@ def create_prediction_table(ids, ctxs, predtimes):
     count = len(predtimes)
     return pd.DataFrame(
         {
-            "Id": ids * count if len(ids) == 1 else ids,
+            "Id": [str(i) for i in (ids * count if len(ids) == 1 else ids)],
             "CtxId": ctxs * count if len(ctxs) == 1 else ctxs,
             "PredictTime": pd.to_datetime(predtimes),
         }
@@ -821,7 +821,7 @@ class TestMergeWindowedEvent:
 
     def test_no_times_warn_and_merges(self, caplog):
         # Use two ctxs
-        ids = np.repeat([1], 10)
+        ids = np.repeat([1], 10).astype("int64")
         ctxs = np.repeat([1, 2], 5)
         event_name = "TestEvent"
         predtimes = [
