@@ -1,5 +1,4 @@
 import logging
-import warnings
 from numbers import Number
 from typing import Optional
 
@@ -101,11 +100,13 @@ def merge_windowed_event(
     predictions = _handle_merge(
         predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref, event_display=event_label
     )
-    predictions = infer_label(predictions, event_val_col, event_time_col)
 
-    if window_hrs is not None:
+    if window_hrs is not None:  # Clear out events outside window
         max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
-        predictions.loc[predictions[predtime_col] < (predictions[r_ref] - max_lookback), event_time_col] = pd.NaT
+        filter_map = predictions[predtime_col] < (predictions[r_ref] - max_lookback)
+        predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
+
+    predictions = infer_label(predictions, event_val_col, event_time_col)
 
     # refactor to generalize
     predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
@@ -342,7 +343,7 @@ def _handle_merge(
         return pd.merge(predictions, one_event.groupby(pks).first(), how="left", on=pks)
 
     if ct_times != len(one_event.index):
-        warnings.warn(f"Inconsistent event times for {event_display}, only considering events with times.")
+        logger.warning(f"Inconsistent event times for {event_display}, only considering events with times.")
         one_event = one_event.dropna(subset=[event_ref])
 
     # merge next event for each prediction
