@@ -1,4 +1,4 @@
-Id	CSN	ref_event	min	max	first	last
+Id	CtxId	ref_event	min	max	first	last
 1	0	Target	1	21	1	1
 1	0	Reference_5_15_Time	1	21	5	15
 1	0	PredictTime	1	21	1	21
