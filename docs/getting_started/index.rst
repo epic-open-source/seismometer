@@ -21,7 +21,7 @@ Jupyter Notebook templates
 --------------------------
 
 Open-source Python libraries and Jupyter Notebooks allow data scientists
-to quickly generate a notebook to evaluate model performance. 
+to quickly generate a notebook to evaluate model performance.
 
 We expect these templates to continually evolve as new validation and
 analysis techniques and approaches are created.
@@ -52,7 +52,7 @@ following at your command line:
 
    pip install seismometer
 
-If you want to utilize fairness audit visualizations, run the following at 
+If you want to utilize fairness audit visualizations, run the following at
 your command line:
 
 .. code-block:: bash
@@ -152,7 +152,8 @@ model output and expected measurable results driven by those actions.
 The configuration includes two core elements:
 
 1. Data definitions to map columns in your data tables to the keys used
-   in the Notebook template.
+   in the Notebook template. This includes information on how data is
+   used, including associating events to relevant predictions.
 
 2. Supplemental documentation to give report consumers working in the
    Notebook background on the model, definitions of terms and cohorts,
