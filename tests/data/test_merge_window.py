@@ -1,4 +1,3 @@
-import logging
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
@@ -10,6 +9,7 @@ import seismometer.data.pandas_helpers as undertest
 DEFAULT_PRED_TIME_STR = "2024-02-01 01:00:00"
 DEFAULT_TIME = pd.Timestamp("2024-02-01 12:00:00")
 DAY = pd.Timedelta(days=1)
+
 
 def create_event_table(ids, ctxs, event_labels, event_offsets=None, event_values=None, event_times=None):
     count = len(event_times)
@@ -53,7 +53,9 @@ class TestMergeWindowedEvent:
             pytest.param(0, 2, None, None, 10, 0, None, 0, id="null val no event: impute negative"),
             #
             # Predictions far away from event (early-predicition) have associated event cleared out
-            pytest.param(1, 0, 1, "2024-02-01 12:00:00", 10, 0, None, 0, id="pos val before_window: clear time+impute neg"),
+            pytest.param(
+                1, 0, 1, "2024-02-01 12:00:00", 10, 0, None, 0, id="pos val before_window: clear time+impute neg"
+            ),
             pytest.param(1, 1, 0, "2024-02-01 12:00:00", 10, 0, None, 0, id="neg val before_window: clear time"),
             pytest.param(
                 1,
@@ -288,7 +290,7 @@ class TestMergeWindowedEvent:
                 0,
                 None,
                 0,
-                id="two events before prediction: last time",
+                id="two events before prediction: Nat+0",
             ),
             pytest.param(
                 0,
@@ -299,7 +301,7 @@ class TestMergeWindowedEvent:
                 0,
                 None,
                 0,
-                id="two early out of order events: earliest label",
+                id="two early out of order events: keep neither",
             ),
             pytest.param(
                 0,
@@ -309,8 +311,8 @@ class TestMergeWindowedEvent:
                 1,
                 0,
                 None,
-                1,
-                id="two early events: earliest label",
+                0,
+                id="two early events: keep neither",
             ),
             # split events
             # -24hr event is before prediction (late score)
@@ -345,7 +347,7 @@ class TestMergeWindowedEvent:
                 0,
                 None,
                 0,
-                id="late and early score: keeps last event ('early score')",
+                id="late and early score: NaT+0",
             ),
             pytest.param(
                 0,
@@ -355,8 +357,8 @@ class TestMergeWindowedEvent:
                 12,
                 0,
                 None,
-                1,
-                id="late and early score ooo: keeps later event ('early score')",
+                0,
+                id="late and early score ooo: NaT+0",
             ),
             pytest.param(
                 0,
@@ -480,14 +482,14 @@ class TestMergeWindowedEvent:
                 12,
                 0,
                 [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", None, None],
-                [0.0, 2, 2, 3, 0],
+                [0.0, 2, 2, 0, 0],
                 id="base lookback",
             ),
             pytest.param(
                 12,
                 2,
                 [None, "2024-02-02 12:00:00", None, None, None],
-                [0.0, 2, 3, 3, 0],
+                [0.0, 2, 0, 0, 0],
                 id="offset out of middle pred window",
             ),
             pytest.param(
@@ -501,7 +503,7 @@ class TestMergeWindowedEvent:
                 1.5,
                 0,
                 [None, None, "2024-02-02 12:00:00", None, None],
-                [0.0, 2, 2, 3, 0],
+                [0.0, 0, 2, 0, 0],
                 id="reduce window out of second event",
             ),
         ],
@@ -591,7 +593,7 @@ class TestMergeWindowedEvent:
                 None,
             ]
         )
-        expected_vals = np.hstack(([0.0, 2, 2, 3, 0], np.add([0.0, 2, 3, 3, -5], 5)))  # -5+5=0
+        expected_vals = np.hstack(([0.0, 2, 2, 0, 0], np.add([-5.0, 2, -5, -5, -5], 5)))  # -5+5=0
         predictions = create_prediction_table(ids, ctxs, predtimes)
         events = create_event_table(
             ids, ctxs, event_name, event_times=event_times, event_values=range(len(event_times))
@@ -652,7 +654,7 @@ class TestMergeWindowedEvent:
                 None,
             ]
         )
-        expected_vals = np.hstack(([0.0, 2, 2, 3, 0], np.add([0.0, 2, 3, 3, -5], 5)))  # -5+5=0
+        expected_vals = np.hstack(([0.0, 2, 2, 0, 0], np.add([-5.0, 2, -5, -5, -5], 5)))  # -5+5=0
         predictions = create_prediction_table(ids, ctxs, predtimes)
         events = create_event_table(
             ids, ctxs, event_name, event_times=event_times, event_values=range(len(event_times))
