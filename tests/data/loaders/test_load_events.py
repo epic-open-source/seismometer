@@ -123,7 +123,7 @@ class TestMergeOntoPredictions:
         )
 
         expected = predictions.copy()
-        expected[["a_Time", "a_Value"]] = event_df[["Time", "Value"]].values[[0, 2, 5]]
+        expected[["a_Value", "a_Time"]] = event_df[["Value", "Time"]].values[[0, 2, 5]]
         expected["a_Value"] = expected["a_Value"].astype(float)
 
         actual = undertest.merge_onto_predictions(config, event_df, predictions)
@@ -148,7 +148,7 @@ class TestMergeOntoPredictions:
         )
 
         expected = predictions.copy()
-        expected[["ac_Time", "ac_Value"]] = event_df[["Time", "Value"]].values[[0, 2, 5]]
+        expected[["ac_Value", "ac_Time"]] = event_df[["Value", "Time"]].values[[0, 2, 5]]
         expected["ac_Value"] = expected["ac_Value"].astype(float)
 
         actual = undertest.merge_onto_predictions(config, event_df, predictions)

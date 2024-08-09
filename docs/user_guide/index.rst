@@ -445,6 +445,8 @@ targets, interventions, and outcomes associated with an entity.
          value: Value
       # Events define what types of events to merge into analyses
       # Windowing defines the range of time prior to the event where predictions are considered
+      # On initial load, the events data are merged into a single frame alongside predictions, with
+      # those columns appearing empty if events only occur outside the window.
       events:
          - source: TargetLabel
            display_name: Readmitted within 30 Days
@@ -538,9 +540,9 @@ Among other things, this means any Seismograph notebooks cells do not have a dep
 Create Custom Visualizations
 ----------------------------
 
-You can create custom controls that allow users to interact with the data via a set of 
+You can create custom controls that allow users to interact with the data via a set of
 standardized controls. The :py:mod:`seismometer.controls.explore` module contains several ``Exploration*``
-widgets you can use for housing custom visualizations, see :ref:`custom-visualization-controls`. 
+widgets you can use for housing custom visualizations, see :ref:`custom-visualization-controls`.
 
 .. image:: media/custom_plot_control.png
    :alt: A custom control, allowing a user to select a cohort and display a heatmap restricted to that cohort.
@@ -551,21 +553,21 @@ it should return a displayable object. If using matplotlib, you can use the :py:
 decorator to convert the plot to an SVG, for the control to display.
 This will close the plot/figure after saving to prevent the plot from displaying twice.
 
-The following example shows how to create the visualization above. 
+The following example shows how to create the visualization above.
 
 .. code-block:: python
 
    import seaborn as sns
    import matplotlib.pyplot as plt
 
-   # Control allowing users to specify a score, target, threshold, and cohort. 
-   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget 
+   # Control allowing users to specify a score, target, threshold, and cohort.
+   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget
    # Converts matplotlib figure to SVG for display within the control's output
    from seismometer.plot.mpl.decorators import render_as_svg
-   # Filter our data based on a specified cohort 
-   from seismometer.data.filter import FilterRule 
+   # Filter our data based on a specified cohort
+   from seismometer.data.filter import FilterRule
 
-   
+
    @render_as_svg # convert figure to svg for display
    def plot_heat_map(
          cohort_dict: dict[str,tuple], # cohort columns and allowable values
@@ -583,7 +585,7 @@ The following example shows how to create the visualization above.
       sg = sm.Seismogram()
       cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict) # Use only rows that match the cohort
       data = cohort_filter.filter(sg.data(target_col))
-      
+
       xcol = "age"
       ycol = "num_procedures"
       hue = score_col
@@ -598,9 +600,7 @@ The following example shows how to create the visualization above.
       plt.tight_layout()
       return plt.gcf()
 
-   ExplorationModelSubgroupEvaluationWidget("Heatmap", plot_heat_map) #generates the overall widget. 
+   ExplorationModelSubgroupEvaluationWidget("Heatmap", plot_heat_map) #generates the overall widget.
 
-The function ``plot_heat_map`` creates a heatmap of the mean of the score column for each subgroup of the cohort, based on 
-the fixed columns ``age`` and ``num_procedures``. 
-
-   
+The function ``plot_heat_map`` creates a heatmap of the mean of the score column for each subgroup of the cohort, based on
+the fixed columns ``age`` and ``num_procedures``.
