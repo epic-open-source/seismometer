@@ -53,7 +53,7 @@ class TestMergeFrames:
         data = filter_case(merge_data, id_, enc)
         expect = data.expect.drop(columns=[c for c in data.expect if "Cohort" in c]).rename(columns={"✨Time✨": "Time"})
 
-        actual = undertest._handle_merge(
+        actual = undertest._merge_with_strategy(
             data.preds.sort_values("PredictTime"),
             data.events.sort_values("Time"),
             ["Id", "Enc"],

@@ -859,3 +859,154 @@ class TestMergeWindowedEvent:
 
         assert len(caplog.records) == 1
         assert "No times" in caplog.text
+
+    def test_merge_first(self):
+        # Test merge_windowed_event with merge strategy equal to first
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-02-02 10:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:01",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-12-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*10, [x for x in range(1,11)], event_name, event_times=event_times, event_values=[1]*10)
+
+        expected_vals = [1,0]
+        expected_times = ["2024-01-01 00:00:01",pd.NA] 
+        expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12,merge_strategy="first"
+        )
+
+        # No CtxId_x
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+    
+    def test_merge_nearest(self):
+        # Test merge_windowed_event with merge strategy equal to first
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-02 01:00:00",
+            "2024-01-01 10:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 03:00:00",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 12:00:00",
+                "2024-01-01 08:00:00",
+                "2024-12-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, [x for x in range(1,11)], event_name, event_times=event_times, event_values=[1]*10)
+
+        expected_vals = [1,1]
+        expected_times = ["2024-01-01 11:00:00","2024-01-01 11:00:00"]
+        expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12,merge_strategy="nearest"
+        )
+
+        # No CtxId_x
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_merge_last(self):
+        # Test merge_windowed_event with merge strategy equal to last
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-12-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, [x for x in range(1,11)], event_name, event_times=event_times, event_values=[1]*10)
+
+        expected_vals = [1,0]
+        expected_times = ["2024-01-01 11:00:00",pd.NA] # second event is NaN because the last event is outside the time range
+        expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12,merge_strategy="last"
+        )
+
+        # No CtxId_x
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_merge_count(self):
+        # Test merge_windowed_event with merge strategy equal to last
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-12-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, [x for x in range(1,11)], event_name, event_times=event_times, event_values=[1]*10)
+
+        expected_vals = [5,4]
+        expected = pd.DataFrame({"1_Count":expected_vals})
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12,merge_strategy="count"
+        )
+
+        # No CtxId_x
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
