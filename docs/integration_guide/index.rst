@@ -19,11 +19,10 @@ associated vendor.
 You might also be interested in using ``seismometer`` with other open source tools that assess complementary facets of AI systems deployed in specific settings. The follow table provides a list of such 
 tools and links to relevant code/documentation.
 
-+----------------------------+----------------------------------------------+---------------------------------------------+
-| Package name               | Description                                  | Link                                        |
-+============================+===============================================+============================================+
-| APLUSML                    | A Python Library for Usefulness Simulations  | `Example notebook integrating seismometer`_ |
-|                            | of Machine Learning Models                   |                                             |
-+----------------------------+----------------------------------------------+---------------------------------------------+
++----------------------------+----------------------------------------------------------+---------------------------------------------+
+| Package name               | Description                                              | Link                                        |
++============================+===============================================+========================================================+
+| APLUSML                    | A Python Library for Usefulness Simulations of ML Models | `Example notebook integrating seismometer`_ |
++----------------------------+----------------------------------------------------------+---------------------------------------------+
 
 .. _Example notebook integrating seismometer: https://github.com/som-shahlab/aplusml/blob/seismometer_integration/tutorials/synthetic_pad_seismometer.ipynb`_
