@@ -25,4 +25,4 @@ tools and links to relevant code/documentation.
 | APLUSML                    | A Python Library for Usefulness Simulations of ML Models | `Example notebook integrating seismometer`_ |
 +----------------------------+----------------------------------------------------------+---------------------------------------------+
 
-.. _Example notebook integrating seismometer: https://github.com/som-shahlab/aplusml/blob/seismometer_integration/tutorials/synthetic_pad_seismometer.ipynb`_
+.. _Example notebook integrating seismometer: https://github.com/som-shahlab/aplusml/blob/seismometer_integration/tutorials/synthetic_pad_seismometer.ipynb
