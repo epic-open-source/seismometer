@@ -16,7 +16,7 @@ associated vendor.
 
 .. _Setup and Support Guide: https://galaxy.epic.com/Redirect.aspx?DocumentID=100277113        
 
-You might also be interested in using ``seismometer`` with other open source tools that assess complementary facets of AI systems deployed in specific settings. The follow table provides a list of such 
+You might also be interested in using ``seismometer`` with other open source tools that assess complementary facets of AI systems deployed in specific settings. The following table provides a list of such 
 tools and links to relevant code/documentation.
 
 +----------------------------+----------------------------------------------------------+---------------------------------------------+
