@@ -10,9 +10,19 @@ import sklearn.metrics as metrics
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
 from .decorators import export
 
+'''
+rho : float
+Effect size of the intervention, between 0 and 1. Default to 1/3 for now.
+
+TODO: convert RHO from constant, get from config or precompute across range then
+        user selectable
+'''
+RHO = 1/3
+
 PathLike = Union[str, Path]
 COUNTS = ["TP", "FP", "TN", "FN"]
-STATNAMES = COUNTS + ["Threshold", "Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flagged", "LR+"]
+STATNAMES = COUNTS + ["Threshold", "Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flagged", "LR+",
+                      f"ARR@{RHO:0.3f}", f"NNT@{RHO:0.3f}", "NetBenefitScore"]
 
 
 @export
@@ -78,7 +88,8 @@ def calculate_bin_stats(
     y_true = y_true[keep]
     y_pred = y_pred[keep].round(5)
 
-    m = len(y_true)
+    m = len(y_true) # why is this not called n?
+    
     if not keep_score_values:
         y_pred = as_percentages(y_pred)
 
@@ -114,6 +125,12 @@ def calculate_bin_stats(
         npv[np.isnan(npv)] = 1
 
         lr = tpr / fpr
+        
+        # re-implementation of metrics from med_metrics package
+        arr = RHO * tps/(tps + fps)
+        nnt = 1/(arr)
+        nbs = (tps - fps*(thresholds/(1-thresholds)))/m
+        
 
     accuracy = (tps + (fps[-1] - fps)) / m
     ppcr = (tps + fps) / m
@@ -122,7 +139,7 @@ def calculate_bin_stats(
     # makes lookup annoying due to tolerance settings
     stats = pd.DataFrame(
         np.column_stack(
-            (tps, fps, fps[-1] - fps, tps[-1] - tps, thresholds, accuracy, tpr, 1 - fpr, ppv, npv, ppcr, lr)
+            (tps, fps, fps[-1] - fps, tps[-1] - tps, thresholds, accuracy, tpr, 1 - fpr, ppv, npv, ppcr, lr, arr, nnt, nbs)
         ),
         columns=STATNAMES,
     )
