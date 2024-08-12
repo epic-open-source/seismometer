@@ -1,0 +1,1 @@
+Updated integration_guide/index.rst to add a table documenting examples from the Seismometer Community of open source tools that are compatible/integrated with Seismometer.
