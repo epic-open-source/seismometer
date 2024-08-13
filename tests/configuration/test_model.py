@@ -29,6 +29,7 @@ class TestEvent:
         "impute_val": None,
         "usage": None,
         "aggregation_method": "max",
+        "merge_strategy": "forward",
     }
 
     def test_default_values(self):

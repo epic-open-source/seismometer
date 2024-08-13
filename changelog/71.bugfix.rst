@@ -1,0 +1,1 @@
+Handle merging without context id; assumes events dataframe columns.

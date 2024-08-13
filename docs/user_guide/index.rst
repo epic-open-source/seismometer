@@ -445,6 +445,8 @@ targets, interventions, and outcomes associated with an entity.
          value: Value
       # Events define what types of events to merge into analyses
       # Windowing defines the range of time prior to the event where predictions are considered
+      # On initial load, the events data are merged into a single frame alongside predictions, with
+      # those columns appearing empty if events only occur outside the window.
       events:
          - source: TargetLabel
            display_name: Readmitted within 30 Days
@@ -533,3 +535,72 @@ Then, follow the pattern of normal startup but specify your function in the :py:
 
 The benefit of this approach over manipulating the frame later is that the Seismogram can be considered frozen.
 Among other things, this means any Seismograph notebooks cells do not have a dependence on order and can be run multiple times.
+
+
+Create Custom Visualizations
+----------------------------
+
+You can create custom controls that allow users to interact with the data via a set of
+standardized controls. The :py:mod:`seismometer.controls.explore` module contains several ``Exploration*``
+widgets you can use for housing custom visualizations, see :ref:`custom-visualization-controls`.
+
+.. image:: media/custom_plot_control.png
+   :alt: A custom control, allowing a user to select a cohort and display a heatmap restricted to that cohort.
+   :width: 4.5in
+
+To add your own custom visualization, you need a function that takes the same signature as the Exploration widget, and
+it should return a displayable object. If using matplotlib, you can use the :py:func:`~seismometer.plot.mpl.decorators.render_as_svg`
+decorator to convert the plot to an SVG, for the control to display.
+This will close the plot/figure after saving to prevent the plot from displaying twice.
+
+The following example shows how to create the visualization above.
+
+.. code-block:: python
+
+   import seaborn as sns
+   import matplotlib.pyplot as plt
+
+   # Control allowing users to specify a score, target, threshold, and cohort.
+   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget
+   # Converts matplotlib figure to SVG for display within the control's output
+   from seismometer.plot.mpl.decorators import render_as_svg
+   # Filter our data based on a specified cohort
+   from seismometer.data.filter import FilterRule
+
+
+   @render_as_svg # convert figure to svg for display
+   def plot_heat_map(
+         cohort_dict: dict[str,tuple], # cohort columns and allowable values
+         target_col: str, # the model target column
+         score_col: str,  # the model output column (score)
+         thresholds: tuple[float], # a list of thresholds to consider
+         *,
+         per_context: bool # if a plot groups scores by context
+         ) -> plt.Figure:
+      # The signature of the function must match the ExplorationWidget's expected signature
+      # This example does not use the `per_context` parameter, but it must be included in the signature
+      # to match ExplorationModelSubgroupEvaluationWidget's expectations.
+
+      # These three rows select the data from the seismogram based on the cohort_dict
+      sg = sm.Seismogram()
+      cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict) # Use only rows that match the cohort
+      data = cohort_filter.filter(sg.data(target_col))
+
+      xcol = "age"
+      ycol = "num_procedures"
+      hue = score_col
+
+      data = data[[xcol, ycol, hue]] # select only the columns we need
+      data = data.groupby([xcol, ycol], observed=False)[[hue]].agg('mean').reset_index()
+      data = data.pivot(index=ycol, columns=xcol, values=hue)
+
+      ax = plt.axes()
+      sns.heatmap(data = data, cbar_kws= {'label': hue}, ax = ax, vmin=min(thresholds), vmax=max(thresholds), cmap="crest")
+      ax.set_title(f"Heatmap of {hue} for {cohort_filter}",  wrap=True, fontsize=10)
+      plt.tight_layout()
+      return plt.gcf()
+
+   ExplorationModelSubgroupEvaluationWidget("Heatmap", plot_heat_map) #generates the overall widget.
+
+The function ``plot_heat_map`` creates a heatmap of the mean of the score column for each subgroup of the cohort, based on
+the fixed columns ``age`` and ``num_procedures``.

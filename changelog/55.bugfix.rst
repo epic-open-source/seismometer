@@ -1,2 +1,0 @@
-Fixes issue with ipywidgets being hidden in sphinx docs
-Fixes issue with iframe sources not being found in sphinx docs

@@ -1,1 +1,0 @@
-Configuration now supports multiple event types as the source for a single event. Values for the source events are assumed to be compatible, like both being Boolean.

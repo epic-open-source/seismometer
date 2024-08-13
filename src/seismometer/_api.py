@@ -243,7 +243,7 @@ def generate_fairness_audit(
     if per_context:
         path += "_grouped"
     fairness_path = sg.config.output_dir / (slugify(path) + ".html")
-    height = 100 + 100 * len(metric_list)
+    height = 200 + 100 * len(metric_list)
 
     if NotebookHost.supports_iframe() and fairness_path.exists():
         return load_as_iframe(fairness_path, height=height)

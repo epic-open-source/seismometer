@@ -38,3 +38,20 @@ Public API
    show_info
    show_cohort_summaries
    target_feature_summary
+
+
+.. _custom-visualization-controls:
+
+Custom Visualization Controls
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. currentmodule:: seismometer.controls
+
+.. autosummary::
+   :toctree: api/
+
+
+   explore.ExplorationWidget
+   explore.ExplorationModelSubgroupEvaluationWidget
+   explore.ExplorationCohortSubclassEvaluationWidget
+   explore.ExplorationCohortOutcomeInterventionEvaluationWidget
