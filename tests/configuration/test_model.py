@@ -64,6 +64,7 @@ class TestEvent:
             ({"offset_hr": "abc"}),
             ({"usage": 1}),
             ({"aggregation_method": "middle"}),
+            ({"merge_strategy": "center"})
         ],
     )
     def test_one_invalid_attribute_change(self, input_dict):
@@ -71,10 +72,18 @@ class TestEvent:
             _ = undertest.Event(source="source", **input_dict)
 
     @pytest.mark.parametrize("agg_strategy", undertest.AggregationStrategies.__args__)
-    def test_supported_strategies_are_allowed(self, agg_strategy):
+    def test_supported_agg_strategies_are_allowed(self, agg_strategy):
         expected = TestEvent.expectation.copy()
         expected["aggregation_method"] = agg_strategy
         cohort = undertest.Event(source="source", aggregation_method=agg_strategy)
+
+        assert expected == cohort.model_dump()
+
+    @pytest.mark.parametrize("merge_strategy", undertest.MergeStrategies.__args__)
+    def test_supported_merge_strategies_are_allowed(self, merge_strategy):
+        expected = TestEvent.expectation.copy()
+        expected["merge_strategy"] = merge_strategy
+        cohort = undertest.Event(source="source", merge_strategy=merge_strategy)
 
         assert expected == cohort.model_dump()
 

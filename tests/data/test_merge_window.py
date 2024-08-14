@@ -1010,3 +1010,33 @@ class TestMergeWindowedEvent:
         # No CtxId_x
         actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_invalid_merge_strategy(self):
+        # First two multi predictions cases, adjusted to have same offset
+        ids = np.repeat([1], 4)
+        ctxs = np.repeat([1, 2], 2)
+        event_name = "TestEvent"
+        predtimes = [
+            "2020-01-01 01:00:00",
+            "2024-02-02 10:00:00",
+            "2024-02-02 12:00:00",
+            "2024-02-02 14:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-31 12:00:00",
+                "2024-02-01 12:00:00",
+                "2024-02-02 12:00:00",
+                "2024-02-03 12:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table(
+            ids, ctxs, event_name, event_times=event_times, event_values=range(len(event_times))
+        )
+
+        merge_strat = "invalid"
+        with pytest.raises(ValueError, match="Invalid merge strategy"):
+            _ = undertest.merge_windowed_event(
+                predictions, "PredictTime", events, event_name, ["Id", "CtxId"], min_leadtime_hrs=0, window_hrs=12, merge_strategy=merge_strat
+            )

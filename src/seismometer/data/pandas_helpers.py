@@ -2,6 +2,8 @@ import logging
 from numbers import Number
 from typing import Optional
 
+from seismometer.configuration.model import MergeStrategies
+
 import numpy as np
 import pandas as pd
 
@@ -81,6 +83,10 @@ def merge_windowed_event(
     ValueError
         At least one column in pks must be in both the predictions and events dataframes.
     """
+    # Validate merge strategy
+    if merge_strategy not in MergeStrategies.__args__:
+        raise ValueError(f"Invalid merge strategy {merge_strategy} for {event_label}. Must be one of: {', '.join(MergeStrategies.__args__)}.")
+    
     # Validate and resolve
     r_ref = "~~reftime~~"
     pks = [col for col in pks if col in events and col in predictions]  # Ensure existence in both frames
@@ -408,28 +414,6 @@ def _merge_with_strategy(
         one_event_filtered = one_event.loc[one_event.sort_index().groupby(pks)[event_ref].idxmax()]
     
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
-
-# def _merge_with_strategy(
-#     left: pd.DataFrame,
-#     right: pd.DataFrame,
-#     pks: list[str],
-#     *,
-#     r_ref: str,
-#     l_ref: str,
-#     merge_strategy: str,
-# ) -> pd.DataFrame:
-
-#     if merge_strategy=="forward" or merge_strategy=="nearest":
-#         return pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction=merge_strategy)
-     
-#     #If there's multiple events with matching r_ref vals, idxmax and idxmin will return the first row.
-#     #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
-#     if merge_strategy=="first":
-#         right_filtered = right.loc[right.sort_index().groupby(pks)[r_ref].idxmin()]
-#     if merge_strategy=="last": 
-#         right_filtered = right.loc[right.sort_index(ascending=False).groupby(pks)[r_ref].idxmax()]    
-
-#     return pd.merge(left, right_filtered, on=pks, how="left")
 
 
 # endregion
