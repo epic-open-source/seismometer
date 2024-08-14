@@ -7,6 +7,8 @@ import pandas as pd
 
 logger = logging.getLogger("seismometer")
 
+MAXIMUM_NUM_COUNTS = 15
+
 
 def merge_windowed_event(
     predictions: pd.DataFrame,
@@ -101,11 +103,11 @@ def merge_windowed_event(
     one_event[r_ref] = one_event[event_time_col] - min_offset
 
     if merge_strategy=="count":
-        return _merge_event_counts(predictions, one_event, pks, event_val_col, window_hrs=window_hrs, min_offset=min_offset, l_ref=predtime_col, r_ref=r_ref)
+        return _merge_event_counts(predictions, one_event, pks, event_label, event_val_col, window_hrs=window_hrs, min_offset=min_offset, l_ref=predtime_col, r_ref=r_ref)
 
     # merge next event for each prediction
     predictions = _merge_with_strategy(
-        predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref,event_display=event_label, merge_strategy=merge_strategy
+        predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref, event_display=event_label, merge_strategy=merge_strategy
     )
 
 
@@ -171,32 +173,36 @@ def _merge_event_counts(
     left: pd.DataFrame,
     right: pd.DataFrame,
     pks: list[str],
+    event_name: str,
     event_label: str,
     window_hrs: Optional[Number] = None,
     min_offset: Number = 0,
     l_ref: str = "Time",
     r_ref: str = "Time",
 ) -> pd.DataFrame:
+    """Creates a new column for each event in the right frame's event_label column, 
+    counting the number of times that event has occurred"""
 
-    for event in right[event_label].unique():
-        right_filtered = right[right[event_label] == event]
-        left[str(event)+"_Count"] = left.apply(lambda x: _count_events(x, pks, right_filtered, r_ref, l_ref, window_hrs, min_offset), axis=1)
-    
-    return left
-        
-def _count_events(left, pk_cols: list[str], right: pd.DataFrame, r_ref: str, l_ref: str, window_hrs: Optional[Number] = None, min_offset: Number = 0) -> pd.DataFrame:
-    """
-    Counts the number of events that have occured for each unique combination of primary keys (pks).
-    """
-    pks = left[pk_cols].values
+    if (N := right[event_label].nunique()) > MAXIMUM_NUM_COUNTS:
+        logger.warning(f"Maximum number of unique events to count is {MAXIMUM_NUM_COUNTS}, but {N} were found for {event_name}. Only the first {MAXIMUM_NUM_COUNTS} will be counted.")
+        #Filter right frame to the only contain the first MAXIMUM_NUM_COUNTS events
+        events_to_count = right[event_label].unique()[:MAXIMUM_NUM_COUNTS]
+        right = right[right[event_label].isin(events_to_count)]
+
+    event_name_map = {event: str(event)+"_Count" for event in right[event_label].unique()} #Create dictionary to map column names with
 
     if window_hrs is not None:
         max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  #Keep window the specified size
-        right = right.loc[(right[r_ref] - max_lookback) < left[l_ref]] #Filter to only events that happened within the window
+        right = pd.merge(right, left[pks+[l_ref]], on=pks, how="left")
+        right = right[(right[r_ref] - max_lookback) < right[l_ref]] #Filter to only events that happened within the window
+    
+    #Create a value counts dataframe where each event is a column containing the count of that event grouped by the primary keys
+    val_counts = right.groupby(pks, as_index=False)[event_label].value_counts()
+    val_counts = val_counts.pivot(index=pks, columns=event_label, values='count').reset_index().fillna(0).rename(columns=event_name_map)
 
-    conditions = zip(pk_cols, pks) #Zip column names and expected values
-    f = '{0[0]} == "{0[1]}"'.format
-    return len(right.query(' & '.join(f(t) for t in conditions)))
+    left = pd.merge(left, val_counts, on=pks, how="left") #Merge counts into left frame
+    
+    return left
 
 
 def event_score(
@@ -403,27 +409,27 @@ def _merge_with_strategy(
     
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
-def _merge_with_strategy(
-    left: pd.DataFrame,
-    right: pd.DataFrame,
-    pks: list[str],
-    *,
-    r_ref: str,
-    l_ref: str,
-    merge_strategy: str,
-) -> pd.DataFrame:
+# def _merge_with_strategy(
+#     left: pd.DataFrame,
+#     right: pd.DataFrame,
+#     pks: list[str],
+#     *,
+#     r_ref: str,
+#     l_ref: str,
+#     merge_strategy: str,
+# ) -> pd.DataFrame:
 
-    if merge_strategy=="forward" or merge_strategy=="nearest":
-        return pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction=merge_strategy)
+#     if merge_strategy=="forward" or merge_strategy=="nearest":
+#         return pd.merge_asof(left, right.dropna(subset=[r_ref]), left_on=l_ref, right_on=r_ref, by=pks, direction=merge_strategy)
      
-    #If there's multiple events with matching r_ref vals, idxmax and idxmin will return the first row.
-    #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
-    if merge_strategy=="first":
-        right_filtered = right.loc[right.sort_index().groupby(pks)[r_ref].idxmin()]
-    if merge_strategy=="last": 
-        right_filtered = right.loc[right.sort_index(ascending=False).groupby(pks)[r_ref].idxmax()]    
+#     #If there's multiple events with matching r_ref vals, idxmax and idxmin will return the first row.
+#     #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
+#     if merge_strategy=="first":
+#         right_filtered = right.loc[right.sort_index().groupby(pks)[r_ref].idxmin()]
+#     if merge_strategy=="last": 
+#         right_filtered = right.loc[right.sort_index(ascending=False).groupby(pks)[r_ref].idxmax()]    
 
-    return pd.merge(left, right_filtered, on=pks, how="left")
+#     return pd.merge(left, right_filtered, on=pks, how="left")
 
 
 # endregion
