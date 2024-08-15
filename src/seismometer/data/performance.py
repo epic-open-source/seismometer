@@ -173,8 +173,8 @@ def calculate_bin_stats(
 @export
 def calculate_nnt(arr: np.ndarray, rho: Optional[Number | None] = None) -> np.ndarray:
     """
-    Calculates NNT (Number Needed to Treat) given a 'unit' ARR (absolute risk reduction) and
-    the relative risk reduction.
+    Calculates NNT (Number Needed to Treat) for the relative risk reduction, rho, and a
+    perfect-ARR (absolute risk reduction), ie PPV.
 
     This formulation and the related ARR and Net Benefit calculation is originally
     from eotles/med_metrics [#med_metrics]_.

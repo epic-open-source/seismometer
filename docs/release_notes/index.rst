@@ -15,7 +15,7 @@ Breaking changes may occur between minor versions prior to the v1 release; after
 Features
 ~~~~~~~~
 
-- Add number needed to treat (NNT) with fixed rho=1/3 and net benefit from med_metrics package. (`#78 <https://github.com/epic-open-source/seismometer/issues/78>`__)
+- Add number needed to treat (NNT) with fixed rho=1/3 and net benefit, from med_metrics package. (`#78 <https://github.com/epic-open-source/seismometer/issues/78>`__)
 
 
 Bugfixes
