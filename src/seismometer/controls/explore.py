@@ -182,6 +182,45 @@ class ModelOptionsWidget(VBox, ValueWidget):
             return self.per_context_checkbox.value
 
 
+class CohortsWidget(Box, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the cohorts")
+
+    def __init__(self, cohort_groups: dict[str, tuple[Any]]):
+        """
+        Widget for cohort selection
+
+        Parameters
+        ----------
+        cohort_groups : dict[str, tuple[Any]]
+            cohort columns and groupings
+        """
+        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+        self.cohort_list.observe(self._on_value_change, "value")
+
+        super().__init__(children=[self.cohort_list], layout=BOX_GRID_LAYOUT)
+
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.cohort_list.disabled = disabled
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "cohorts": self.cohort_list.value,
+        }
+
+    @property
+    def cohorts(self) -> dict[str, tuple[str]]:
+        """selected cohorts"""
+        return self.cohort_list.value
+
+
 class ModelOptionsAndCohortsWidget(Box, ValueWidget):
     value = traitlets.Dict(help="The selected values for the cohorts and model options")
 
