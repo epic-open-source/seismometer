@@ -81,11 +81,11 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
         The merged dataframe of predictions plus new event columns.
     """
     dataframe = (
-        dataframe.sort_values(config.predict_time)
+        dataframe.sort_values(config.predict_time, kind='mergesort')
         .drop_duplicates(subset=config.entity_keys + [config.predict_time])
         .dropna(subset=[config.predict_time])
     )
-    event_frame = event_frame.sort_values("Time")
+    event_frame = event_frame.sort_values("Time", kind='mergesort')
 
     for one_event in config.events.values():
         # Merge

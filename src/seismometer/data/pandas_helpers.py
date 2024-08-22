@@ -96,8 +96,8 @@ def merge_windowed_event(
     min_offset = pd.Timedelta(min_leadtime_hrs, unit="hr")
 
     if sort:
-        predictions.sort_values(predtime_col, inplace=True)
-        events.sort_values(event_base_time_col, inplace=True)
+        predictions.sort_values(predtime_col, kind='mergesort', inplace=True)
+        events.sort_values(event_base_time_col, kind='mergesort', inplace=True)
 
     # Preprocess events : reduce and rename
     one_event = _one_event(events, event_label, event_base_val_col, event_base_time_col, pks)
@@ -115,7 +115,6 @@ def merge_windowed_event(
     predictions = _merge_with_strategy(
         predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref, event_display=event_label, merge_strategy=merge_strategy
     )
-
 
     if window_hrs is not None:  # Clear out events outside window
         max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
@@ -388,30 +387,39 @@ def _merge_with_strategy(
     pd.DataFrame
         The merged dataframe.
     """
-    if merge_strategy=="forward" or merge_strategy=="nearest":
+    try:
         ct_times = one_event[event_ref].notna().sum()
+
+        #If there are no times in the event frame, merge the first row for each group
         if ct_times == 0:
-            logger.warning(f"No times found for {event_display}, merging 'first'")
-            return pd.merge(predictions, one_event.groupby(pks).first(), how="left", on=pks)
+                #Set the filtered frame to the first row for each group and throw a value error which is passed before merging.
+                one_event_filtered = one_event.groupby(pks).first()
+                raise ValueError(f"No times found for {event_display}, merging first row for each group.")
 
         if ct_times != len(one_event.index):
             logger.warning(f"Inconsistent event times for {event_display}, only considering events with times.")
             one_event = one_event.dropna(subset=[event_ref])
-        return pd.merge_asof(
-            predictions,
-            one_event.dropna(subset=[event_ref]),
-            left_on=pred_ref,
-            right_on=event_ref,
-            by=pks,
-            direction=merge_strategy,
-        )
-     
-    #If there's multiple events with matching event_ref vals, idxmax and idxmin will return the first row.
-    #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
-    if merge_strategy=="first":
-        one_event_filtered = one_event.loc[one_event.sort_index().groupby(pks)[event_ref].idxmin()]
-    if merge_strategy=="last": 
-        one_event_filtered = one_event.loc[one_event.sort_index().groupby(pks)[event_ref].idxmax()]
+
+        if merge_strategy=="forward" or merge_strategy=="nearest":
+            return pd.merge_asof(
+                predictions,
+                one_event.dropna(subset=[event_ref]),
+                left_on=pred_ref,
+                right_on=event_ref,
+                by=pks,
+                direction=merge_strategy,
+            )
+
+        #If there's multiple events with matching event_ref vals, idxmax and idxmin will return the first row.
+        #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
+        if merge_strategy=="first":
+            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmin()]
+        if merge_strategy=="last": 
+            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmax()]
+    
+    except ValueError as e:
+        logger.warning(e)
+        pass
     
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
