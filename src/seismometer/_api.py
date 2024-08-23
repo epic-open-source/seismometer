@@ -365,7 +365,6 @@ def _cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
             columns.append(series)
 
     reduced_groups = pd.concat(columns, axis=1)
-    print(reduced_groups)
 
     html_table = reduced_groups.to_html()
     title = "Summary"
