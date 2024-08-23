@@ -215,6 +215,8 @@ def _merge_event_counts(
     val_counts = val_counts.pivot(index=pks, columns=event_label, values='count').reset_index().fillna(0).rename(columns=event_name_map)
 
     left = pd.merge(left, val_counts, on=pks, how="left") #Merge counts into left frame
+    count_cols = list(event_name_map.values())
+    left[count_cols] = left[count_cols].fillna(0) #Fill any missing counts for rows that didn't have any events
     
     return left
 

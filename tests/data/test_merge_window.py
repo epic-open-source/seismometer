@@ -1220,3 +1220,34 @@ class TestMergeEventCounts:
 
         actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_merge_count_max_columns(self):
+        # Test merge_windowed_event with merge strategy of "count" with more event values than allowed
+        from seismometer.data.pandas_helpers import MAXIMUM_NUM_COUNTS #Maximum number of columns for count merge strategy
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            ["2024-01-01 01:00:00"]*(MAXIMUM_NUM_COUNTS+5)
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*(MAXIMUM_NUM_COUNTS+5), 
+                                    list(range(1,MAXIMUM_NUM_COUNTS+6)), 
+                                    event_name, 
+                                    event_times=event_times, 
+                                    event_values=list(range(1,MAXIMUM_NUM_COUNTS+6))
+                                    )
+
+        expected_vals = [1,0] #Expect only ID 1 to have 1 event for each value inside the maximum number of count columns
+        expected = pd.DataFrame({undertest.event_value_count(str(x)): expected_vals for x in range(1,MAXIMUM_NUM_COUNTS+1)})
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], merge_strategy="count"
+        )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
