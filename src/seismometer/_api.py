@@ -263,7 +263,8 @@ def generate_fairness_audit(
 
     data = data[[target, score_column] + cohort_columns]
     data = FilterRule.isin(target, (0, 1)).filter(data)
-    if min(data[target].sum(), len(data.index)) < sg.censor_threshold:
+    positive_samples = data[target].sum()
+    if min(positive_samples, len(data) - positive_samples) < sg.censor_threshold:
         return template.render_censored_plot_message(sg.censor_threshold)
 
     try:
@@ -271,7 +272,7 @@ def generate_fairness_audit(
             data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
         )
     except CensoredResultException as error:
-        return template.render_censored_data_message(error.message)
+        return template.render_censored_data_message(str(error))
 
     if NotebookHost.supports_iframe():
         altair_plot.save(fairness_path, format="html")
