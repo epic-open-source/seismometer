@@ -194,20 +194,101 @@ def _merge_event_counts(
         events_to_count = right[event_label].unique()[:MAXIMUM_NUM_COUNTS]
         right = right[right[event_label].isin(events_to_count)]
 
-    event_name_map = {event: str(event)+"_Count" for event in right[event_label].unique()} #Create dictionary to map column names with
+    event_name_map = {event: event_value_count(str(event)) for event in right[event_label].unique()} #Create dictionary to map column names with
 
     if window_hrs is not None:
+        #Filter out rows with missing times if checking window hours
+        if len(right_filtered := right[right[r_ref].notna()]) == 0:
+            logger.warning(f"No times found for {event_name}! Unable to merge any counts.")
+            return left
+        if diff := len(right) - len(right_filtered) > 0:
+            logger.warning(f"Found {diff} rows with missing times for {event_name}. These rows will be ignored.")
+            right = right_filtered
+
         max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  #Keep window the specified size
         right = pd.merge(right, left[pks+[l_ref]], on=pks, how="left")
-        right = right[(right[r_ref] - max_lookback) < right[l_ref]] #Filter to only events that happened within the window
+        right = right[right[l_ref] <= right[r_ref]] #Filter to only events that happened at or after the prediction
+        right = right[right[l_ref] > (right[r_ref] - max_lookback)] #Filter to only events that happened within the window
     
     #Create a value counts dataframe where each event is a column containing the count of that event grouped by the primary keys
-    val_counts = right.groupby(pks, as_index=False)[event_label].value_counts()
+    val_counts: pd.DataFrame = right.groupby(pks, as_index=False)[event_label].value_counts()
     val_counts = val_counts.pivot(index=pks, columns=event_label, values='count').reset_index().fillna(0).rename(columns=event_name_map)
 
     left = pd.merge(left, val_counts, on=pks, how="left") #Merge counts into left frame
     
     return left
+
+
+def _merge_with_strategy(
+    predictions: pd.DataFrame,
+    one_event: pd.DataFrame,
+    pks: list[str],
+    *,
+    pred_ref: str = "Time",
+    event_ref: str = "Time",
+    event_display: str = "an event",
+    merge_strategy: str = "forward",
+) -> pd.DataFrame:
+    """
+    Merges the right frame into the left based on a set of exact match primary keys and merge strategy. 
+
+    Parameters
+    ----------
+    predictions : pd.DataFrame
+        The left frame, usually of predictions. Assumed to be sorted by time.
+    one_event : pd.DataFrame
+        The right frame to merge, assumed to be of events. Assumed to be sorted by time if applicable.
+    pks : list[str]
+        The list of columns to require exact matches during the merge.
+    pred_ref : str, optional
+        The column in the left (prediction) frame to use as a reference point in the distance match, by default 'Time'.
+    event_ref : str, optional
+        The column in the right (event) frame to use reference in the distance match, by default 'Time'.
+    event_display : str, optional
+        The name of the event to display in warning messages, by default "an event"
+    merge_strategy : str
+        The method to use when merging the event data, by default 'forward'.
+
+    Returns
+    -------
+    pd.DataFrame
+        The merged dataframe.
+    """
+    try:
+        ct_times = one_event[event_ref].notna().sum()
+
+        #If there are no times in the event frame, merge the first row for each group
+        if ct_times == 0:
+                #Set the filtered frame to the first row for each group and throw a value error which is passed before merging.
+                one_event_filtered = one_event.groupby(pks).first()
+                raise ValueError(f"No times found for {event_display}, merging first row for each group.")
+
+        if ct_times != len(one_event.index):
+            logger.warning(f"Inconsistent event times for {event_display}, only considering events with times.")
+            one_event = one_event.dropna(subset=[event_ref])
+
+        if merge_strategy=="forward" or merge_strategy=="nearest":
+            return pd.merge_asof(
+                predictions,
+                one_event.dropna(subset=[event_ref]),
+                left_on=pred_ref,
+                right_on=event_ref,
+                by=pks,
+                direction=merge_strategy,
+            )
+
+        #If there's multiple events with matching event_ref vals, idxmax and idxmin will return the first row.
+        #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
+        if merge_strategy=="first":
+            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmin()]
+        if merge_strategy=="last": 
+            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmax()]
+    
+    except ValueError as e:
+        logger.warning(e)
+        pass
+    
+    return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
 
 def event_score(
@@ -307,6 +388,12 @@ def event_time(event: str) -> str:
         event = event[:-6]
     return f"{event}_Time"
 
+def event_value_count(event_value: str) -> str:
+    """Converts a value of an event column into the count column name."""
+    if event_value.endswith("_Count"):
+        return event_value
+
+    return f"{event_value}_Count"
 
 def event_name(event: str) -> str:
     """Converts an event column name into the the event name."""
@@ -317,6 +404,12 @@ def event_name(event: str) -> str:
         return event[:-6]
     return event
 
+def event_value_name(event_value: str) -> str:
+    """Converts event value count column into the event value name."""
+    if event_value.endswith("_Count"):
+        return event_value[:-6]
+
+    return event_value
 
 def valid_event(dataframe: pd.DataFrame, event: str) -> pd.DataFrame:
     """Filters a dataframe to valid predictions, where the event value has not set to -1."""
@@ -350,78 +443,5 @@ def _resolve_score_col(dataframe: pd.DataFrame, score: str) -> str:
             raise ValueError(f"Score column {score} not found in dataframe.")
         score = event_value(score)
     return score
-
-
-def _merge_with_strategy(
-    predictions: pd.DataFrame,
-    one_event: pd.DataFrame,
-    pks: list[str],
-    *,
-    pred_ref: str = "Time",
-    event_ref: str = "Time",
-    event_display: str = "an event",
-    merge_strategy: str = "forward",
-) -> pd.DataFrame:
-    """
-    Merges the right frame into the left based on a set of exact match primary keys and merge strategy. 
-
-    Parameters
-    ----------
-    predictions : pd.DataFrame
-        The left frame, usually of predictions. Assumed to be sorted by time.
-    one_event : pd.DataFrame
-        The right frame to merge, assumed to be of events. Assumed to be sorted by time if applicable.
-    pks : list[str]
-        The list of columns to require exact matches during the merge.
-    pred_ref : str, optional
-        The column in the left (prediction) frame to use as a reference point in the distance match, by default 'Time'.
-    event_ref : str, optional
-        The column in the right (event) frame to use reference in the distance match, by default 'Time'.
-    event_display : str, optional
-        The name of the event to display in warning messages, by default "an event"
-    merge_strategy : str
-        The method to use when merging the event data, by default 'forward'.
-
-    Returns
-    -------
-    pd.DataFrame
-        The merged dataframe.
-    """
-    try:
-        ct_times = one_event[event_ref].notna().sum()
-
-        #If there are no times in the event frame, merge the first row for each group
-        if ct_times == 0:
-                #Set the filtered frame to the first row for each group and throw a value error which is passed before merging.
-                one_event_filtered = one_event.groupby(pks).first()
-                raise ValueError(f"No times found for {event_display}, merging first row for each group.")
-
-        if ct_times != len(one_event.index):
-            logger.warning(f"Inconsistent event times for {event_display}, only considering events with times.")
-            one_event = one_event.dropna(subset=[event_ref])
-
-        if merge_strategy=="forward" or merge_strategy=="nearest":
-            return pd.merge_asof(
-                predictions,
-                one_event.dropna(subset=[event_ref]),
-                left_on=pred_ref,
-                right_on=event_ref,
-                by=pks,
-                direction=merge_strategy,
-            )
-
-        #If there's multiple events with matching event_ref vals, idxmax and idxmin will return the first row.
-        #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
-        if merge_strategy=="first":
-            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmin()]
-        if merge_strategy=="last": 
-            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmax()]
-    
-    except ValueError as e:
-        logger.warning(e)
-        pass
-    
-    return pd.merge(predictions, one_event_filtered, on=pks, how="left")
-
 
 # endregion

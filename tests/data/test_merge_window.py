@@ -974,43 +974,6 @@ class TestMergeWindowedEvent:
         actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
 
-    def test_merge_count(self):
-        # Test merge_windowed_event with merge strategy equal to last
-        ids = [1,2]
-        ctxs = [1,2]
-        event_name = "TestEvent"
-        predtimes = [
-            "2024-01-01 01:00:00",
-            "2024-01-01 01:00:00",
-        ]
-        event_times = pd.to_datetime(
-            [
-                "2024-01-01 01:00:00",
-                "2024-01-01 11:00:00",
-                "2024-01-01 09:00:00",
-                "2024-01-01 08:00:00",
-                "2024-01-01 00:00:00",
-                "2024-01-01 01:00:00",
-                "2024-01-01 11:00:00",
-                "2024-01-01 09:00:00",
-                "2024-01-01 08:00:00",
-                "2024-12-01 00:00:00",
-            ]
-        )
-        predictions = create_prediction_table(ids, ctxs, predtimes)
-        events = create_event_table([1]*5+[2]*5, [x for x in range(1,11)], event_name, event_times=event_times, event_values=[1]*10)
-
-        expected_vals = [5,4]
-        expected = pd.DataFrame({"1_Count":expected_vals})
-
-        actual = undertest.merge_windowed_event(
-            predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12,merge_strategy="count"
-        )
-
-        # No CtxId_x
-        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
-        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
-
     def test_invalid_merge_strategy(self):
         # First two multi predictions cases, adjusted to have same offset
         ids = np.repeat([1], 4)
@@ -1040,3 +1003,220 @@ class TestMergeWindowedEvent:
             _ = undertest.merge_windowed_event(
                 predictions, "PredictTime", events, event_name, ["Id", "CtxId"], min_leadtime_hrs=0, window_hrs=12, merge_strategy=merge_strat
             )
+
+class TestMergeEventCounts:
+    def test_merge_count_single_pk(self):
+        # Test merge_windowed_event with merge strategy of "count" and a single primary key
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, list(range(1,11)), event_name, event_times=event_times, event_values=[1]*10)
+
+        expected_vals = [5,5] #Expect both IDs to have 5 events of value "1"
+        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], merge_strategy="count"
+        )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_merge_count_double_pk(self):
+        # Test merge_windowed_event with merge strategy of "count" and a double primary key
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, 
+                                    [1]*2 + [3]*3 + [2]*4 + [1], #2 Secondary keys match for the first ID and 4 match for the second ID
+                                    event_name, 
+                                    event_times=event_times, 
+                                    event_values=[1]*10)
+
+        expected_vals = [2,4] #Expect ID 1 to have value of 2 and ID 2 to have value of 4
+        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id","CtxId"], merge_strategy="count"
+        )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_merge_count_missing_values(self):
+        # Test merge_windowed_event with merge strategy of "count" and some event times missing
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*2+[None]*3+[2]*4+[None], 
+                                    list(range(1,11)), 
+                                    event_name, 
+                                    event_times=event_times, 
+                                    event_values=[1]*10)
+
+        expected_vals = [2,4] #Expect ID 1 to have value of 2 and ID 2 to have value of 4
+        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"],merge_strategy="count"
+        )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+        return 
+
+    def test_merge_count_some_times_missing(self):
+        # Test merge_windowed_event with merge strategy of "count" and some event times missing
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                None,
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                None,
+                None,
+                "2024-01-01 03:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, list(range(1,11)), event_name, event_times=event_times, event_values=[1]*10)
+
+        expected_vals = [4,3] #Expect ID 1 to have value of 4 and ID 2 to have value of 3
+        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], window_hrs=12, min_leadtime_hrs=0, merge_strategy="count"
+        )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_merge_count_all_times_missing(self):
+         # Test merge_windowed_event with merge strategy of "count" all event times missing
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = [None]*10
+        
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, 
+                                    [1]*10,
+                                    event_name, 
+                                    event_times=event_times, 
+                                    event_values=[1]*10)
+
+        expected = predictions #We don't expect the predictions frame to change if no times present
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id",], merge_strategy="count"
+        )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+    def test_merge_count_window_hrs(self):
+        # Test merge_windowed_event with merge strategy of "count" and a defined window
+        ids = [1,2]
+        ctxs = [1,2]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-01-01 00:00:00", #Before prediction
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 18:00:00", #Outside window
+                "2024-01-03 08:00:00", #Outside window
+                "2024-01-01 00:00:00", #Before prediction
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5, list(range(1,11)), event_name, event_times=event_times, event_values=[1]*10)
+
+        expected_vals = [4,2] #Expect both IDs to have 5 events of value "1"
+        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12,merge_strategy="count"
+        )
+
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
