@@ -24,6 +24,7 @@ def merge_windowed_event(
     event_base_time_col: str = "Time",
     sort: bool = True,
     merge_strategy: str = "forward",
+    impute_val: Optional[Number | str] = None
 ) -> pd.DataFrame:
     """
     Merges a single windowed event into a predictions dataframe
@@ -72,6 +73,9 @@ def merge_windowed_event(
         Whether or not to sort the predictions/events dataframes, by default True.
     merge_strategy : str
         The method to use when merging the event data, by default 'forward'.
+        Options are 'forward', 'nearest', 'first', 'last', and 'count'.
+    impute_val : Optional[Number|str], optional
+        The value to impute for the label if timestamp exist, defaults to 1.
 
     Returns
     -------
@@ -121,7 +125,7 @@ def merge_windowed_event(
         filter_map = predictions[predtime_col] < (predictions[r_ref] - max_lookback)
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
 
-    predictions = infer_label(predictions, event_val_col, event_time_col)
+    predictions = infer_label(predictions, event_val_col, event_time_col, impute_val)
 
     # refactor to generalize
     if merge_strategy=="forward": #For forward merges, don't count events that happen before the prediction
@@ -142,7 +146,7 @@ def _one_event(
     )
 
 
-def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.DataFrame:
+def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str, impute_val: Optional[Number|str] = None) -> pd.DataFrame:
     """
     Infers boolean label for event columns that have no label, based on existence of time value.
     In the context of a merge_window event, a prediction-row does not have any documentation of an event and is assumed
@@ -156,6 +160,8 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.Da
         The column specifying the value to infer.
     time_col : time_col
         The time column associated with the value to infer.
+    impute_val : Optional[Number|str], optional
+        The value to impute for the label if timestamp exist, defaults to 1.
 
     Returns
     -------
@@ -169,9 +175,12 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str) -> pd.Da
         dataframe[label_col] = dataframe[label_col].astype(float)
     except BaseException:  # Leave as nonnumeric
         pass
-    dataframe.loc[dataframe[label_col].isna(), label_col] = (
-        dataframe.loc[dataframe[label_col].isna(), time_col].notna().astype(int)
+
+    dataframe.loc[dataframe[label_col].isna(), label_col] = np.where(
+        dataframe.loc[dataframe[label_col].isna(), time_col].notna(), (impute_val or 1), 0
     )
+    dataframe[label_col].replace({"1": 1, "0": 0}, inplace=True)
+
     return dataframe
 
 def _merge_event_counts(

@@ -1004,6 +1004,47 @@ class TestMergeWindowedEvent:
                 predictions, "PredictTime", events, event_name, ["Id", "CtxId"], min_leadtime_hrs=0, window_hrs=12, merge_strategy=merge_strat
             )
 
+    def test_impute_value(self):
+        # Test merge_windowed_event with impute_val specified
+        ids = [1,2,3,4]
+        ctxs = [1,2,3,4]
+        event_name = "TestEvent"
+        predtimes = [
+            "2024-01-01 01:00:00",
+            "2024-01-01 10:00:00",
+            "2024-01-01 09:00:00",
+            "2024-01-01 01:00:00",
+        ]
+        event_times = pd.to_datetime(
+            [
+                pd.NaT,
+                pd.NaT,
+                pd.NaT,
+                pd.NaT,
+                pd.NaT,
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
+                "2024-12-01 00:00:00",
+                "2024-12-01 00:00:00",
+            ]
+        )
+        predictions = create_prediction_table(ids, ctxs, predtimes)
+        events = create_event_table([1]*5+[2]*5+[4], list(range(1,12)), event_name, event_times=event_times, event_values=[1]*5+[None]*5+[1])
+
+        expected_vals = [0,"Test",0,1]
+        expected_times = [pd.NaT,"2024-01-01 01:00:00",pd.NaT,"2024-12-01 00:00:00",] 
+        expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, event_name, ["Id"], merge_strategy="first", impute_val="Test"
+        )
+
+        # No CtxId_x
+        actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
+        pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
 class TestMergeEventCounts:
     def test_merge_count_single_pk(self):
         # Test merge_windowed_event with merge strategy of "count" and a single primary key
