@@ -51,10 +51,14 @@ class TestMergeFrames:
     @pytest.mark.parametrize("id_,enc", [pytest.param(1, None, id="predictions+outcomes")])
     def test_merge_earliest(self, id_, enc, merge_data):
         data = filter_case(merge_data, id_, enc)
-        # TODO: rename second time
         expect = data.expect.drop(columns=[c for c in data.expect if "Cohort" in c]).rename(columns={"✨Time✨": "Time"})
 
-        actual = undertest._merge_next(data.preds, data.events, ["Id", "Enc"], l_ref="PredictTime")
+        actual = undertest._handle_merge(
+            data.preds.sort_values("PredictTime"),
+            data.events.sort_values("Time"),
+            ["Id", "Enc"],
+            pred_ref="PredictTime",
+        )
 
         # check_like = ignore column order
         pd.testing.assert_frame_equal(actual.reset_index(drop=True), expect, check_like=True, check_dtype=False)

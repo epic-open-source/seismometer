@@ -110,6 +110,7 @@ Performance
    performance.assert_valid_performance_metrics_df
    performance.calculate_bin_stats
    performance.calculate_eval_ci
+   performance.calculate_nnt
 
 Seismogram Loaders
 ~~~~~~~~~~~~~~~~~~

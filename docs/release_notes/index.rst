@@ -9,6 +9,34 @@ Breaking changes may occur between minor versions prior to the v1 release; after
 
 .. towncrier release notes start
 
+0.2.1
+-----
+
+Features
+~~~~~~~~
+
+- Add number needed to treat (NNT) with fixed rho=1/3 and net benefit, from med_metrics package. (`#78 <https://github.com/epic-open-source/seismometer/issues/78>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Warning message on censored cohorts is coerced to string before logging. (`#65 <https://github.com/epic-open-source/seismometer/issues/65>`__)
+- Log a warning if cohort source column is not found in the dataframe. (`#67 <https://github.com/epic-open-source/seismometer/issues/67>`__)
+- Improved support for datasets with a large number of cohort columns. Allowing row wrapping of cohort selection. (`#70 <https://github.com/epic-open-source/seismometer/issues/70>`__)
+- Improved the Fairness audit iframe support by increasing the height a bit to account for cohort error messages. (`#70 <https://github.com/epic-open-source/seismometer/issues/70>`__)
+- Allow long filenames by hashing the ends, this fix allow large cohort selection lists when creating reports and fairness audits which are cached to disk. (`#70 <https://github.com/epic-open-source/seismometer/issues/70>`__)
+- Handle merging without context id; assumes events dataframe columns. (`#71 <https://github.com/epic-open-source/seismometer/issues/71>`__)
+- Simplify merge logic for the single 'first' strategy. This removes coalecsing logic by assuming an event type always has times (or never does). (`#72 <https://github.com/epic-open-source/seismometer/issues/72>`__)
+- Hardens restriction of events (with times) to occur after prediction time + window offset, not having the unintuitive partial information for early, late, and unknown timings. (`#72 <https://github.com/epic-open-source/seismometer/issues/72>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Updated integration_guide/index.rst to add a table documenting examples from the Seismometer Community of open source tools that are compatible/integrated with Seismometer. (`#74 <https://github.com/epic-open-source/seismometer/issues/74>`__)
+
+
 0.2.0
 -----
 

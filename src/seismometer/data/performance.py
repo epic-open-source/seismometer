@@ -10,9 +10,21 @@ import sklearn.metrics as metrics
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
 from .decorators import export
 
+DEFAULT_RHO = 1 / 3
+
 PathLike = Union[str, Path]
 COUNTS = ["TP", "FP", "TN", "FN"]
-STATNAMES = COUNTS + ["Threshold", "Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flagged", "LR+"]
+STATNAMES = COUNTS + [
+    "Threshold",
+    "Accuracy",
+    "Sensitivity",
+    "Specificity",
+    "PPV",
+    "NPV",
+    "Flagged",
+    "LR+",
+    "NetBenefitScore",
+]
 
 
 @export
@@ -34,7 +46,14 @@ def assert_valid_performance_metrics_df(df: pd.DataFrame, needs_columns: list = 
     bool
         Whether it is likely a valid performance metrics df.
     """
-    performance_columns = needs_columns or ["Threshold", "Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
+    performance_columns = needs_columns or [
+        "Threshold",
+        "Accuracy",
+        "Sensitivity",
+        "Specificity",
+        "PPV",
+        "NPV",
+    ]
     if (df is None) or (not all([item in df.columns for item in performance_columns])):
         raise ValueError(
             "Passed performance frame does not have required columns: "
@@ -78,7 +97,8 @@ def calculate_bin_stats(
     y_true = y_true[keep]
     y_pred = y_pred[keep].round(5)
 
-    m = len(y_true)
+    n = len(y_true)
+
     if not keep_score_values:
         y_pred = as_percentages(y_pred)
 
@@ -115,20 +135,75 @@ def calculate_bin_stats(
 
         lr = tpr / fpr
 
-    accuracy = (tps + (fps[-1] - fps)) / m
-    ppcr = (tps + fps) / m
+        # re-implementation of metrics from med_metrics package, see _calculate_nnt for full citation
+        nnt = calculate_nnt(ppv)
+        nbs = (tps - fps * (thresholds / (100 - thresholds))) / n
+
+    accuracy = (tps + (fps[-1] - fps)) / n
+    ppcr = (tps + fps) / n
 
     # NOTE: Don't set index to be threshold because it's a float and this
     # makes lookup annoying due to tolerance settings
     stats = pd.DataFrame(
         np.column_stack(
-            (tps, fps, fps[-1] - fps, tps[-1] - tps, thresholds, accuracy, tpr, 1 - fpr, ppv, npv, ppcr, lr)
+            (
+                tps,
+                fps,
+                fps[-1] - fps,
+                tps[-1] - tps,
+                thresholds,
+                accuracy,
+                tpr,
+                1 - fpr,
+                ppv,
+                npv,
+                ppcr,
+                lr,
+                nbs,
+                nnt,
+            )
         ),
-        columns=STATNAMES,
+        columns=STATNAMES + [f"NNT@{DEFAULT_RHO:0.3n}"],
     )
 
     stats[COUNTS] = stats[COUNTS].fillna(0).astype(int)  # Strengthen dtypes on counts
     return stats
+
+
+@export
+def calculate_nnt(arr: np.ndarray, rho: Optional[Number | None] = None) -> np.ndarray:
+    """
+    Calculates NNT (Number Needed to Treat) for the relative risk reduction, rho, and a
+    perfect-ARR (absolute risk reduction), ie PPV.
+
+    This formulation and the related ARR and Net Benefit calculation is originally
+    from eotles/med_metrics [#med_metrics]_.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        The array of absolute risk reductions for each threshold assuming a rho of 1
+    rho : Number, optional
+        The estimated relative risk reduction, by default is DEFAULT_RHO (1/3).
+
+    Returns
+    -------
+    np.ndarray
+        the NNT for each threshold.
+
+    References
+    ----------
+    .. [#med_metrics] eotles/med_metrics: Initial public release. Zenodo; 2024.
+           http://dx.doi.org/10.5281/ZENODO.10514448
+    """
+    if rho is None:
+        rho = DEFAULT_RHO
+
+    # Divide by zero is ok
+    with np.errstate(invalid="ignore", divide="ignore"):
+        nnt = 1 / (rho * arr)
+
+    return nnt
 
 
 @export
@@ -167,11 +242,19 @@ def calculate_eval_ci(stats: pd.DataFrame, truth: pd.Series, output: pd.Series, 
         auc_interval = roc_conf.interval(roc_conf, truth, output)
         # pr
         aucpr_interval = aucpr_conf.interval(
-            aucpr_conf, metrics.auc(stats.Sensitivity, stats.PPV), stats[["TP", "FP", "TN", "FN"]].iloc[0].sum()
+            aucpr_conf,
+            metrics.auc(stats.Sensitivity, stats.PPV),
+            stats[["TP", "FP", "TN", "FN"]].iloc[0].sum(),
         )
 
     ci_data = {
-        "roc": {"Threshold": thresholds, "TPR": tpr, "FPR": fpr, "region": auc_region, "interval": auc_interval},
+        "roc": {
+            "Threshold": thresholds,
+            "TPR": tpr,
+            "FPR": fpr,
+            "region": auc_region,
+            "interval": auc_interval,
+        },
         "pr": {"interval": aucpr_interval},
         "conf": conf,
     }
