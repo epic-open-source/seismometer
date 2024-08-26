@@ -288,12 +288,11 @@ def _merge_with_strategy(
                 direction=merge_strategy,
             )
 
-        #If there's multiple events with matching event_ref vals, idxmax and idxmin will return the first row.
-        #So we sort the index before grabbing the value to default to the first and last index if multiple events happen simultaneously.
+        # Assume sorted on event_ref before being passed in
         if merge_strategy=="first":
-            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmin()]
+            one_event_filtered = one_event.groupby(pks).first().reset_index()
         if merge_strategy=="last": 
-            one_event_filtered = one_event.loc[one_event.groupby(pks)[event_ref].idxmax()]
+            one_event_filtered = one_event.groupby(pks).last().reset_index()
     
     except ValueError as e:
         logger.warning(e)
