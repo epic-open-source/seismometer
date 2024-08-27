@@ -1,1 +1,1 @@
-Limits control max-widths to 1400px in most cases, allowing row wrap when needed.
+Limits control max-widths to 1200px in most cases, allowing row wrap when needed.
