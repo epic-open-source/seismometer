@@ -360,6 +360,7 @@ def _cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
         f"{cfg.entity_id} Count",
         f"Unique {cfg.context_id}",
     ]
+    groupstats.index.rename([pdh.event_name(x) for x in target_cols], inplace=True)
 
     html_table = groupstats.to_html()
     title = "Summary"
