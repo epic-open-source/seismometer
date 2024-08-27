@@ -3,7 +3,7 @@
         text-align: left !important;
     }
 </style>
-<div style="width: 100%; max-width: 1200px;">
+<div style="{{ display_style }}">
     <h3>Summary</h3>
     The preloaded data covers num_predictions predictions over num_entities entities from the dates start_date to end_date.
     <table>
@@ -24,8 +24,8 @@
     </table>
     <h4>Plot Functions</h4>
     <ul>
-        <li><code>sm.model_evaluation()</code> - Overall performance across thresholds</li>
-        <li><code>sm.cohort_evaluation(cohort_group)</code> - Performance split by specified cohort</li>
-        <li><code>sm.plot_outcome(outcome, intervention, cohort)</code> - Compare trends of interventions to outcomes</li>
+        <li><code>sm.ExploreModelEvaluation()</code> - Overall performance across thresholds</li>
+        <li><code>sm.ExploreCohortEvaluation()</code> - Performance split by specified cohort</li>
+        <li><code>sm.ExploreCohortOutcomeInterventionTimes()</code> - Compare trends of interventions to outcomes</li>
     </ul> 
 </div>
