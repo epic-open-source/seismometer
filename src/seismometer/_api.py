@@ -335,39 +335,33 @@ def _cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
     from .data.filter import filter_rule_from_cohort_dictionary
 
     sg = Seismogram()
-    rule = filter_rule_from_cohort_dictionary(cohort_dict)
-    data = rule.filter(sg.dataframe)
-    cohort_count = data[sg.entity_keys[0]].nunique()
-    if cohort_count < sg.censor_threshold:
-        return template.render_censored_plot_message(sg.censor_threshold)
-
     cfg = sg.config
     target_cols = [pdh.event_value(x) for x in cfg.targets]
     intervention_cols = [pdh.event_value(x) for x in cfg.interventions]
     outcome_cols = [pdh.event_value(x) for x in cfg.outcomes]
-    groups = data[cfg.entity_keys + cfg.output_list + intervention_cols + outcome_cols + target_cols].groupby(
-        target_cols
-    )
-    columns = []
-    for c in ["count", "nunique"]:
-        series = groups[cfg.entity_id].agg(c)
-        series.name = f"{cfg.entity_id} {c}"
-        columns.append(series)
-    if len(cfg.context_id):
-        series = groups[cfg.context_id].nunique()
-        series.name = f"{cfg.context_id} nunique"
-        columns.append(series)
 
-    # add in other keys for aggregation
-    for c in cfg.output_list + intervention_cols + outcome_cols:
-        if data.dtypes[c] == "float64":
-            series = groups[c].mean()
-            series.name = f"{c} mean"
-            columns.append(series)
+    rule = filter_rule_from_cohort_dictionary(cohort_dict)
+    data = rule.filter(sg.dataframe)[
+        cfg.entity_keys + cfg.output_list + intervention_cols + outcome_cols + target_cols
+    ]
+    cohort_count = data[sg.entity_keys[0]].nunique()
+    if cohort_count < sg.censor_threshold:
+        return template.render_censored_plot_message(sg.censor_threshold)
 
-    reduced_groups = pd.concat(columns, axis=1)
+    groups = data.groupby(target_cols)
+    float_cols = list(data[intervention_cols + outcome_cols].select_dtypes(include=float))
 
-    html_table = reduced_groups.to_html()
+    stat_dict = {k: ["mean"] for k in float_cols}
+    stat_dict.update({cfg.entity_id: ["nunique", "count"], cfg.context_id: ["nunique"]})
+
+    groupstats = groups.agg(stat_dict)
+    groupstats.columns = [pdh.event_name(x) for x in float_cols] + [
+        f"Unique {cfg.entity_id}",
+        f"{cfg.entity_id} Count",
+        f"Unique {cfg.context_id}",
+    ]
+
+    html_table = groupstats.to_html()
     title = "Summary"
     return template.render_title_message(title, html_table)
 
