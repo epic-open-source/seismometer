@@ -1264,7 +1264,7 @@ class TestMergeEventCounts:
 
     def test_merge_count_max_columns(self):
         # Test merge_windowed_event with merge strategy of "count" with more event values than allowed
-        from seismometer.data.pandas_helpers import MAXIMUM_NUM_COUNTS #Maximum number of columns for count merge strategy
+        from seismometer.data.pandas_helpers import MAXIMUM_COUNT_CATS #Maximum number of columns for count merge strategy
         ids = [1,2]
         ctxs = [1,2]
         event_name = "TestEvent"
@@ -1272,19 +1272,23 @@ class TestMergeEventCounts:
             "2024-01-01 01:00:00",
             "2024-01-01 01:00:00",
         ]
-        event_times = pd.to_datetime(
-            ["2024-01-01 01:00:00"]*(MAXIMUM_NUM_COUNTS+5)
-        )
+    
+
         predictions = create_prediction_table(ids, ctxs, predtimes)
-        events = create_event_table([1]*(MAXIMUM_NUM_COUNTS+5), 
-                                    list(range(1,MAXIMUM_NUM_COUNTS+6)), 
+        events_list = [i for i in range(1, MAXIMUM_COUNT_CATS+6) for _ in range(i)] #[1,2,2,3,3,3,...] - ensure correct order
+        event_times = pd.to_datetime(
+            ["2024-01-01 01:00:00"]*(len(events_list))
+        )
+
+        events = create_event_table([1]*(len(events_list)), 
+                                    list(range(1,len(events_list)+1)), 
                                     event_name, 
                                     event_times=event_times, 
-                                    event_values=list(range(1,MAXIMUM_NUM_COUNTS+6))
+                                    event_values=events_list
                                     )
 
-        expected_vals = [1,0] #Expect only ID 1 to have 1 event for each value inside the maximum number of count columns
-        expected = pd.DataFrame({undertest.event_value_count(str(x)): expected_vals for x in range(1,MAXIMUM_NUM_COUNTS+1)})
+        expected_vals = list(range(MAXIMUM_COUNT_CATS+5,5,-1))[::-1]
+        expected = pd.DataFrame({undertest.event_value_count(str(x)): [x,0] for x in expected_vals})
 
         actual = undertest.merge_windowed_event(
             predictions, "PredictTime", events, event_name, ["Id"], merge_strategy="count"

@@ -1,6 +1,6 @@
 import logging
 from numbers import Number
-from typing import Optional
+from typing import Optional, get_args
 
 from seismometer.configuration.model import MergeStrategies
 
@@ -9,7 +9,7 @@ import pandas as pd
 
 logger = logging.getLogger("seismometer")
 
-MAXIMUM_NUM_COUNTS = 15
+MAXIMUM_COUNT_CATS = 15
 
 
 def merge_windowed_event(
@@ -88,7 +88,7 @@ def merge_windowed_event(
         At least one column in pks must be in both the predictions and events dataframes.
     """
     # Validate merge strategy
-    if merge_strategy not in MergeStrategies.__args__:
+    if merge_strategy not in get_args(MergeStrategies):
         raise ValueError(f"Invalid merge strategy {merge_strategy} for {event_label}. Must be one of: {', '.join(MergeStrategies.__args__)}.")
     
     # Validate and resolve
@@ -112,10 +112,12 @@ def merge_windowed_event(
     event_val_col = event_value(event_label)
     one_event[r_ref] = one_event[event_time_col] - min_offset
 
+    # When merging counts we want to apply the windowing BEFORE the merge. So this case is handled separately due to needing some additional arguments.
     if merge_strategy=="count":
+        # Immediately return the merged frame with the counts to avoid unnecessary processing.
         return _merge_event_counts(predictions, one_event, pks, event_label, event_val_col, window_hrs=window_hrs, min_offset=min_offset, l_ref=predtime_col, r_ref=r_ref)
 
-    # merge next event for each prediction
+    # merge event specified by merge_strategy for each prediction
     predictions = _merge_with_strategy(
         predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref, event_display=event_label, merge_strategy=merge_strategy
     )
@@ -176,10 +178,10 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str, impute_v
     except BaseException:  # Leave as nonnumeric
         pass
 
-    dataframe.loc[dataframe[label_col].isna(), label_col] = np.where(
-        dataframe.loc[dataframe[label_col].isna(), time_col].notna(), (impute_val or 1), 0
-    )
-    dataframe[label_col].replace({"1": 1, "0": 0}, inplace=True)
+    label_na_map = dataframe[label_col].isna()
+    time_na_map = dataframe[time_col].isna()
+    dataframe.loc[(label_na_map & ~time_na_map), label_col] = (impute_val or 1) # Impute value if time exists but label is missing
+    dataframe.loc[dataframe[label_col].isna(), label_col] = 0 # Set label to 0 if time and label are both missing
 
     return dataframe
 
@@ -197,14 +199,6 @@ def _merge_event_counts(
     """Creates a new column for each event in the right frame's event_label column, 
     counting the number of times that event has occurred"""
 
-    if (N := right[event_label].nunique()) > MAXIMUM_NUM_COUNTS:
-        logger.warning(f"Maximum number of unique events to count is {MAXIMUM_NUM_COUNTS}, but {N} were found for {event_name}. Only the first {MAXIMUM_NUM_COUNTS} will be counted.")
-        #Filter right frame to the only contain the first MAXIMUM_NUM_COUNTS events
-        events_to_count = right[event_label].unique()[:MAXIMUM_NUM_COUNTS]
-        right = right[right[event_label].isin(events_to_count)]
-
-    event_name_map = {event: event_value_count(str(event)) for event in right[event_label].unique()} #Create dictionary to map column names with
-
     if window_hrs is not None:
         #Filter out rows with missing times if checking window hours
         if len(right_filtered := right[right[r_ref].notna()]) == 0:
@@ -219,6 +213,18 @@ def _merge_event_counts(
         right = right[right[l_ref] <= right[r_ref]] #Filter to only events that happened at or after the prediction
         right = right[right[l_ref] > (right[r_ref] - max_lookback)] #Filter to only events that happened within the window
     
+    # Validate number of categories to create columns for
+    pop_counts = right[event_label].value_counts()
+    if (N := len(pop_counts)) > MAXIMUM_COUNT_CATS:
+        logger.warning(f"Maximum number of unique events to count is {MAXIMUM_COUNT_CATS}, but {N} were found for {event_name}. "
+                       + f"Only the top {MAXIMUM_COUNT_CATS} by number of appearances will be included.")
+        #Filter right frame to the only contain the top MAXIMUM_COUNT_CATS events
+        events_to_count = pop_counts.iloc[:MAXIMUM_COUNT_CATS].keys()
+        right = right[right[event_label].isin(events_to_count)]
+    del pop_counts
+
+    event_name_map = {event: event_value_count(str(event)) for event in right[event_label].unique()} #Create dictionary to map column names with
+
     #Create a value counts dataframe where each event is a column containing the count of that event grouped by the primary keys
     val_counts: pd.DataFrame = right.groupby(pks, as_index=False)[event_label].value_counts()
     val_counts = val_counts.pivot(index=pks, columns=event_label, values='count').reset_index().fillna(0).rename(columns=event_name_map)
