@@ -360,8 +360,10 @@ def _cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
         f"{cfg.entity_id} Count",
         f"Unique {cfg.context_id}",
     ]
-    groupstats.index.rename([pdh.event_name(x) for x in target_cols], inplace=True)
-
+    new_names = [pdh.event_name(x) for x in target_cols]
+    if len(new_names) == 1:
+        new_names = new_names[0]  # because pandas Index only accepts a string for rename.
+    groupstats.index.rename(new_names, inplace=True)
     html_table = groupstats.to_html()
     title = "Summary"
     return template.render_title_message(title, html_table)
