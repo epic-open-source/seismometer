@@ -263,7 +263,8 @@ def generate_fairness_audit(
 
     data = data[[target, score_column] + cohort_columns]
     data = FilterRule.isin(target, (0, 1)).filter(data)
-    if len(data.index) < sg.censor_threshold:
+    positive_samples = data[target].sum()
+    if min(positive_samples, len(data) - positive_samples) < sg.censor_threshold:
         return template.render_censored_plot_message(sg.censor_threshold)
 
     try:
@@ -271,7 +272,7 @@ def generate_fairness_audit(
             data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
         )
     except CensoredResultException as error:
-        return template.render_censored_data_message(error.message)
+        return template.render_censored_data_message(str(error))
 
     if NotebookHost.supports_iframe():
         altair_plot.save(fairness_path, format="html")
@@ -294,6 +295,7 @@ def cohort_list():
     from ipywidgets import Output, VBox
 
     from .controls.selection import MultiSelectionListWidget
+    from .controls.styles import BOX_GRID_LAYOUT
 
     options = sg.available_cohort_groups
 
@@ -301,19 +303,17 @@ def cohort_list():
     output = Output()
 
     def on_widget_value_changed(*args):
-        output.clear_output(wait=True)
         with output:
-            display("Recalculating...")
-            output.clear_output(wait=True)
+            display("Recalculating...", clear=True)
             html = _cohort_list_details(comparison_selections.value)
-            display(html)
+            display(html, clear=True)
 
     comparison_selections.observe(on_widget_value_changed, "value")
 
     # get initial value
     on_widget_value_changed()
 
-    return VBox(children=[comparison_selections, output])
+    return VBox(children=[comparison_selections, output], layout=BOX_GRID_LAYOUT)
 
 
 @disk_cached_html_segment
@@ -335,26 +335,37 @@ def _cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
     from .data.filter import filter_rule_from_cohort_dictionary
 
     sg = Seismogram()
-    rule = filter_rule_from_cohort_dictionary(cohort_dict)
-    data = rule.filter(sg.dataframe)
-    cohort_count = data[sg.entity_keys[0]].nunique()
-    if cohort_count < sg.censor_threshold:
-        return template.render_censored_plot_message(sg.censor_threshold)
-
     cfg = sg.config
     target_cols = [pdh.event_value(x) for x in cfg.targets]
     intervention_cols = [pdh.event_value(x) for x in cfg.interventions]
     outcome_cols = [pdh.event_value(x) for x in cfg.outcomes]
-    groups = data[cfg.entity_keys + cfg.output_list + intervention_cols + outcome_cols + target_cols].groupby(
-        target_cols
-    )
-    aggregation = {cfg.entity_id: ["count", "nunique"]}
-    if len(cfg.context_id):
-        aggregation[cfg.context_id] = "nunique"
-    # add in other keys for aggregation
-    aggregation.update({k: "mean" for k in cfg.output_list + intervention_cols + outcome_cols})
+
+    rule = filter_rule_from_cohort_dictionary(cohort_dict)
+    data = rule.filter(sg.dataframe)[
+        cfg.entity_keys + cfg.output_list + intervention_cols + outcome_cols + target_cols
+    ]
+    cohort_count = data[sg.entity_keys[0]].nunique()
+    if cohort_count < sg.censor_threshold:
+        return template.render_censored_plot_message(sg.censor_threshold)
+
+    groups = data.groupby(target_cols)
+    float_cols = list(data[intervention_cols + outcome_cols].select_dtypes(include=float))
+
+    stat_dict = {k: ["mean"] for k in float_cols}
+    stat_dict.update({cfg.entity_id: ["nunique", "count"], cfg.context_id: ["nunique"]})
+
+    groupstats = groups.agg(stat_dict)
+    groupstats.columns = [pdh.event_name(x) for x in float_cols] + [
+        f"Unique {cfg.entity_id}",
+        f"{cfg.entity_id} Count",
+        f"Unique {cfg.context_id}",
+    ]
+    new_names = [pdh.event_name(x) for x in target_cols]
+    if len(new_names) == 1:
+        new_names = new_names[0]  # because pandas Index only accepts a string for rename.
+    groupstats.index.rename(new_names, inplace=True)
+    html_table = groupstats.to_html()
     title = "Summary"
-    html_table = groups.agg(aggregation).to_html()
     return template.render_title_message(title, html_table)
 
 
