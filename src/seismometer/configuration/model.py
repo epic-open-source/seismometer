@@ -176,7 +176,12 @@ class Event(BaseModel):
     """
     The strategy for merging events with predictions.
     Supports first, last, nearest, forward, and count; defaulting to forward.
-    If count, a counts column for each event value will be added to the dataframe. Counts respect the window_hr.
+        - first: The first event within the window is selected. If no window, the first event is selected.
+        - last: The last event within the window is selected. If no window, the last event is selected.
+        - nearest: The event closest to the prediction time within the window is selected. If no window, the nearest event is selected.
+        - forward: The first event at or after the prediction time within the window is selected. If no window, the first event at or after the prediction time is selected.
+        - count: Creates a count column for each event value for specified event label. This column tracks the occurrences of each event value for each prediction. 
+                 Counts respects the window.
     """
 
     @field_validator("source", mode="before")
