@@ -74,6 +74,7 @@ def merge_windowed_event(
     merge_strategy : str
         The method to use when merging the event data, by default 'forward'.
         Options are 'forward', 'nearest', 'first', 'last', and 'count'.
+        See seismometer.configuration.model for more information.
     impute_val : Optional[Number|str], optional
         The value to impute for the label if timestamp exist, defaults to 1.
 
@@ -89,7 +90,7 @@ def merge_windowed_event(
     """
     # Validate merge strategy
     if merge_strategy not in get_args(MergeStrategies):
-        raise ValueError(f"Invalid merge strategy {merge_strategy} for {event_label}. Must be one of: {', '.join(MergeStrategies.__args__)}.")
+        raise ValueError(f"Invalid merge strategy {merge_strategy} for {event_label}. Must be one of: {', '.join(get_args(MergeStrategies))}.")
     
     # Validate and resolve
     r_ref = "~~reftime~~"
