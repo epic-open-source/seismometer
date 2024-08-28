@@ -223,7 +223,7 @@ def _merge_event_counts(
         right = right[right[event_label].isin(events_to_count)]
     del pop_counts
 
-    event_name_map = {event: event_value_count(str(event)) for event in right[event_label].unique()} #Create dictionary to map column names with
+    event_name_map = {event: event_value_count(str(event_label), str(event)) for event in right[event_label].unique()} #Create dictionary to map column names with
 
     #Create a value counts dataframe where each event is a column containing the count of that event grouped by the primary keys
     val_counts: pd.DataFrame = right.groupby(pks, as_index=False)[event_label].value_counts()
@@ -404,12 +404,14 @@ def event_time(event: str) -> str:
         event = event[:-6]
     return f"{event}_Time"
 
-def event_value_count(event_value: str) -> str:
+def event_value_count(event_label: str, event_value: str) -> str:
     """Converts a value of an event column into the count column name."""
-    if event_value.endswith("_Count"):
-        return event_value
+    event_label = event_name(event_label)
 
-    return f"{event_value}_Count"
+    if event_value.endswith("_Count"):
+        return f"{event_label}~{event_value}"
+
+    return f"{event_label}~{event_value}_Count"
 
 def event_name(event: str) -> str:
     """Converts an event column name into the the event name."""
@@ -422,10 +424,13 @@ def event_name(event: str) -> str:
 
 def event_value_name(event_value: str) -> str:
     """Converts event value count column into the event value name."""
-    if event_value.endswith("_Count"):
-        return event_value[:-6]
+    val = event_value
+    if "~" in val:
+        val = val.split("~")[1]
+    if val.endswith("_Count"):
+        val = val[:-6]
 
-    return event_value
+    return val
 
 def valid_event(dataframe: pd.DataFrame, event: str) -> pd.DataFrame:
     """Filters a dataframe to valid predictions, where the event value has not set to -1."""

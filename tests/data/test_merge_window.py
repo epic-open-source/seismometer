@@ -1073,7 +1073,7 @@ class TestMergeEventCounts:
         events = create_event_table([1]*5+[2]*5, list(range(1,11)), event_name, event_times=event_times, event_values=[1]*10)
 
         expected_vals = [5,5] #Expect both IDs to have 5 events of value "1"
-        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+        expected = pd.DataFrame({undertest.event_value_count("TestEvent", "1"): expected_vals})
 
         actual = undertest.merge_windowed_event(
             predictions, "PredictTime", events, event_name, ["Id"], merge_strategy="count"
@@ -1113,7 +1113,7 @@ class TestMergeEventCounts:
                                     event_values=[1]*10)
 
         expected_vals = [2,4] #Expect ID 1 to have value of 2 and ID 2 to have value of 4
-        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+        expected = pd.DataFrame({undertest.event_value_count("TestEvent", "1"): expected_vals})
 
         actual = undertest.merge_windowed_event(
             predictions, "PredictTime", events, event_name, ["Id","CtxId"], merge_strategy="count"
@@ -1153,7 +1153,7 @@ class TestMergeEventCounts:
                                     event_values=[1]*10)
 
         expected_vals = [2,4] #Expect ID 1 to have value of 2 and ID 2 to have value of 4
-        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+        expected = pd.DataFrame({undertest.event_value_count("TestEvent", "1"): expected_vals})
 
         actual = undertest.merge_windowed_event(
             predictions, "PredictTime", events, event_name, ["Id"],merge_strategy="count"
@@ -1190,7 +1190,7 @@ class TestMergeEventCounts:
         events = create_event_table([1]*5+[2]*5, list(range(1,11)), event_name, event_times=event_times, event_values=[1]*10)
 
         expected_vals = [4,3] #Expect ID 1 to have value of 4 and ID 2 to have value of 3
-        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+        expected = pd.DataFrame({undertest.event_value_count("TestEvent", "1"): expected_vals})
 
         actual = undertest.merge_windowed_event(
             predictions, "PredictTime", events, event_name, ["Id"], window_hrs=12, min_leadtime_hrs=0, merge_strategy="count"
@@ -1253,7 +1253,7 @@ class TestMergeEventCounts:
         events = create_event_table([1]*5+[2]*5, list(range(1,11)), event_name, event_times=event_times, event_values=[1]*10)
 
         expected_vals = [4,2] #Expect both IDs to have 5 events of value "1"
-        expected = pd.DataFrame({undertest.event_value_count("1"): expected_vals})
+        expected = pd.DataFrame({undertest.event_value_count("TestEvent", "1"): expected_vals})
 
         actual = undertest.merge_windowed_event(
             predictions, "PredictTime", events, event_name, ["Id"], min_leadtime_hrs=0, window_hrs=12,merge_strategy="count"
@@ -1288,7 +1288,7 @@ class TestMergeEventCounts:
                                     )
 
         expected_vals = list(range(MAXIMUM_COUNT_CATS+5,5,-1))[::-1]
-        expected = pd.DataFrame({undertest.event_value_count(str(x)): [x,0] for x in expected_vals})
+        expected = pd.DataFrame({undertest.event_value_count("TestEvent", str(x)): [x,0] for x in expected_vals})
 
         actual = undertest.merge_windowed_event(
             predictions, "PredictTime", events, event_name, ["Id"], merge_strategy="count"
