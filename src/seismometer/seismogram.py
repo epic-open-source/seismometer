@@ -28,7 +28,7 @@ class Seismogram(object, metaclass=Singleton):
             b. Source Data
         2. Hold the current dynamic configuration that is shared state.
             a. Cohort Selection
-        3. Providing data accces for other objects without compromising the source data.
+        3. Providing data access for other objects without compromising the source data.
             a. Merge Event data with Prediction data for Label generation
             b. Cohort based data selection
             c. Model configuration help texts
@@ -324,7 +324,7 @@ class Seismogram(object, metaclass=Singleton):
     # region initialization and preprocessing (this region knows about config)
     def copy_config_metadata(self):
         """
-        Loads the base configuration and alerting congfiguration
+        Loads the base configuration and alerting configuration.
         """
         self.alert_config = AlertConfigProvider(self.config.config_dir)
 

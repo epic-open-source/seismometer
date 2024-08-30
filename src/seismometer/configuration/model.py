@@ -234,7 +234,7 @@ class DataUsage(BaseModel):
 
     The features and scores list, when defined, limit the loading of data from the predictions file to only those
     inputs and outputs (plus primary_score and cohort attributes).
-    The events similary limits the event types that are merged into the working dataframe and available to analyses.
+    The events similarly limits the event types that are merged into the working dataframe and available to analyses.
     """
 
     entity_id: str = "Id"
