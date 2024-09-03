@@ -64,7 +64,7 @@ class TestEvent:
             ({"offset_hr": "abc"}),
             ({"usage": 1}),
             ({"aggregation_method": "middle"}),
-            ({"merge_strategy": "center"})
+            ({"merge_strategy": "center"}),
         ],
     )
     def test_one_invalid_attribute_change(self, input_dict):

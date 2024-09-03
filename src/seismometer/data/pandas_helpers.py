@@ -2,10 +2,10 @@ import logging
 from numbers import Number
 from typing import Optional, get_args
 
-from seismometer.configuration.model import MergeStrategies
-
 import numpy as np
 import pandas as pd
+
+from seismometer.configuration.model import MergeStrategies
 
 logger = logging.getLogger("seismometer")
 
@@ -24,7 +24,7 @@ def merge_windowed_event(
     event_base_time_col: str = "Time",
     sort: bool = True,
     merge_strategy: str = "forward",
-    impute_val: Optional[Number | str] = None
+    impute_val: Optional[Number | str] = None,
 ) -> pd.DataFrame:
     """
     Merges a single windowed event into a predictions dataframe
@@ -90,8 +90,11 @@ def merge_windowed_event(
     """
     # Validate merge strategy
     if merge_strategy not in get_args(MergeStrategies):
-        raise ValueError(f"Invalid merge strategy {merge_strategy} for {event_label}. Must be one of: {', '.join(get_args(MergeStrategies))}.")
-    
+        raise ValueError(
+            f"Invalid merge strategy {merge_strategy} for {event_label}."
+            + f" Must be one of: {', '.join(get_args(MergeStrategies))}."
+        )
+
     # Validate and resolve
     r_ref = "~~reftime~~"
     pks = [col for col in pks if col in events and col in predictions]  # Ensure existence in both frames
@@ -101,8 +104,8 @@ def merge_windowed_event(
     min_offset = pd.Timedelta(min_leadtime_hrs, unit="hr")
 
     if sort:
-        predictions.sort_values(predtime_col, kind='mergesort', inplace=True)
-        events.sort_values(event_base_time_col, kind='mergesort', inplace=True)
+        predictions.sort_values(predtime_col, kind="mergesort", inplace=True)
+        events.sort_values(event_base_time_col, kind="mergesort", inplace=True)
 
     # Preprocess events : reduce and rename
     one_event = _one_event(events, event_label, event_base_val_col, event_base_time_col, pks)
@@ -113,14 +116,31 @@ def merge_windowed_event(
     event_val_col = event_value(event_label)
     one_event[r_ref] = one_event[event_time_col] - min_offset
 
-    # When merging counts we want to apply the windowing BEFORE the merge. So this case is handled separately due to needing some additional arguments.
-    if merge_strategy=="count":
+    # When merging counts we want to apply the windowing BEFORE the merge.
+    # So this case is handled separately due to needing some additional arguments.
+    if merge_strategy == "count":
         # Immediately return the merged frame with the counts to avoid unnecessary processing.
-        return _merge_event_counts(predictions, one_event, pks, event_label, event_val_col, window_hrs=window_hrs, min_offset=min_offset, l_ref=predtime_col, r_ref=r_ref)
+        return _merge_event_counts(
+            predictions,
+            one_event,
+            pks,
+            event_label,
+            event_val_col,
+            window_hrs=window_hrs,
+            min_offset=min_offset,
+            l_ref=predtime_col,
+            r_ref=r_ref,
+        )
 
     # merge event specified by merge_strategy for each prediction
     predictions = _merge_with_strategy(
-        predictions, one_event, pks, pred_ref=predtime_col, event_ref=r_ref, event_display=event_label, merge_strategy=merge_strategy
+        predictions,
+        one_event,
+        pks,
+        pred_ref=predtime_col,
+        event_ref=r_ref,
+        event_display=event_label,
+        merge_strategy=merge_strategy,
     )
 
     if window_hrs is not None:  # Clear out events outside window
@@ -131,9 +151,9 @@ def merge_windowed_event(
     predictions = infer_label(predictions, event_val_col, event_time_col, impute_val)
 
     # refactor to generalize
-    if merge_strategy=="forward": #For forward merges, don't count events that happen before the prediction
+    if merge_strategy == "forward":  # For forward merges, don't count events that happen before the prediction
         predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
-    
+
     return predictions.drop(columns=r_ref)
 
 
@@ -149,7 +169,9 @@ def _one_event(
     )
 
 
-def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str, impute_val: Optional[Number|str] = None) -> pd.DataFrame:
+def infer_label(
+    dataframe: pd.DataFrame, label_col: str, time_col: str, impute_val: Optional[Number | str] = None
+) -> pd.DataFrame:
     """
     Infers boolean label for event columns that have no label, based on existence of time value.
     In the context of a merge_window event, a prediction-row does not have any documentation of an event and is assumed
@@ -181,10 +203,13 @@ def infer_label(dataframe: pd.DataFrame, label_col: str, time_col: str, impute_v
 
     label_na_map = dataframe[label_col].isna()
     time_na_map = dataframe[time_col].isna()
-    dataframe.loc[(label_na_map & ~time_na_map), label_col] = (impute_val or 1) # Impute value if time exists but label is missing
-    dataframe.loc[dataframe[label_col].isna(), label_col] = 0 # Set label to 0 if time and label are both missing
+    dataframe.loc[(label_na_map & ~time_na_map), label_col] = (
+        impute_val or 1
+    )  # Impute value if time exists but label is missing
+    dataframe.loc[dataframe[label_col].isna(), label_col] = 0  # Set label to 0 if time and label are both missing
 
     return dataframe
+
 
 def _merge_event_counts(
     left: pd.DataFrame,
@@ -197,11 +222,11 @@ def _merge_event_counts(
     l_ref: str = "Time",
     r_ref: str = "Time",
 ) -> pd.DataFrame:
-    """Creates a new column for each event in the right frame's event_label column, 
+    """Creates a new column for each event in the right frame's event_label column,
     counting the number of times that event has occurred"""
 
     if window_hrs is not None:
-        #Filter out rows with missing times if checking window hours
+        # Filter out rows with missing times if checking window hours
         if len(right_filtered := right[right[r_ref].notna()]) == 0:
             logger.warning(f"No times found for {event_name}! Unable to merge any counts.")
             return left
@@ -209,31 +234,43 @@ def _merge_event_counts(
             logger.warning(f"Found {diff} rows with missing times for {event_name}. These rows will be ignored.")
             right = right_filtered
 
-        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  #Keep window the specified size
-        right = pd.merge(right, left[pks+[l_ref]], on=pks, how="left")
-        right = right[right[l_ref] <= right[r_ref]] #Filter to only events that happened at or after the prediction
-        right = right[right[l_ref] > (right[r_ref] - max_lookback)] #Filter to only events that happened within the window
-    
+        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # Keep window the specified size
+        right = pd.merge(right, left[pks + [l_ref]], on=pks, how="left")
+        right = right[right[l_ref] <= right[r_ref]]  # Filter to only events that happened at or after the prediction
+        right = right[
+            right[l_ref] > (right[r_ref] - max_lookback)
+        ]  # Filter to only events that happened within the window
+
     # Validate number of categories to create columns for
     pop_counts = right[event_label].value_counts()
     if (N := len(pop_counts)) > MAXIMUM_COUNT_CATS:
-        logger.warning(f"Maximum number of unique events to count is {MAXIMUM_COUNT_CATS}, but {N} were found for {event_name}. "
-                       + f"Only the top {MAXIMUM_COUNT_CATS} by number of appearances will be included.")
-        #Filter right frame to the only contain the top MAXIMUM_COUNT_CATS events
+        logger.warning(
+            f"Maximum number of unique events to count is {MAXIMUM_COUNT_CATS}, but {N} were found for {event_name}. "
+            + f"Only the top {MAXIMUM_COUNT_CATS} by number of appearances will be included."
+        )
+        # Filter right frame to the only contain the top MAXIMUM_COUNT_CATS events
         events_to_count = pop_counts.iloc[:MAXIMUM_COUNT_CATS].keys()
         right = right[right[event_label].isin(events_to_count)]
     del pop_counts
 
-    event_name_map = {event: event_value_count(str(event_label), str(event)) for event in right[event_label].unique()} #Create dictionary to map column names with
+    event_name_map = {
+        event: event_value_count(str(event_label), str(event)) for event in right[event_label].unique()
+    }  # Create dictionary to map column names with
 
-    #Create a value counts dataframe where each event is a column containing the count of that event grouped by the primary keys
+    # Create a value counts dataframe where each event is a column containing the count of that
+    # event grouped by the primary keys.
     val_counts: pd.DataFrame = right.groupby(pks, as_index=False)[event_label].value_counts()
-    val_counts = val_counts.pivot(index=pks, columns=event_label, values='count').reset_index().fillna(0).rename(columns=event_name_map)
+    val_counts = (
+        val_counts.pivot(index=pks, columns=event_label, values="count")
+        .reset_index()
+        .fillna(0)
+        .rename(columns=event_name_map)
+    )
 
-    left = pd.merge(left, val_counts, on=pks, how="left") #Merge counts into left frame
+    left = pd.merge(left, val_counts, on=pks, how="left")  # Merge counts into left frame
     count_cols = list(event_name_map.values())
-    left[count_cols] = left[count_cols].fillna(0) #Fill any missing counts for rows that didn't have any events
-    
+    left[count_cols] = left[count_cols].fillna(0)  # Fill any missing counts for rows that didn't have any events
+
     return left
 
 
@@ -248,7 +285,7 @@ def _merge_with_strategy(
     merge_strategy: str = "forward",
 ) -> pd.DataFrame:
     """
-    Merges the right frame into the left based on a set of exact match primary keys and merge strategy. 
+    Merges the right frame into the left based on a set of exact match primary keys and merge strategy.
 
     Parameters
     ----------
@@ -275,17 +312,18 @@ def _merge_with_strategy(
     try:
         ct_times = one_event[event_ref].notna().sum()
 
-        #If there are no times in the event frame, merge the first row for each group
+        # If there are no times in the event frame, merge the first row for each group
         if ct_times == 0:
-                #Set the filtered frame to the first row for each group and throw a value error which is passed before merging.
-                one_event_filtered = one_event.groupby(pks).first()
-                raise ValueError(f"No times found for {event_display}, merging first row for each group.")
+            # Set the filtered frame to the first row for each group and throw a value error
+            # which is passed before merging.
+            one_event_filtered = one_event.groupby(pks).first()
+            raise ValueError(f"No times found for {event_display}, merging first row for each group.")
 
         if ct_times != len(one_event.index):
             logger.warning(f"Inconsistent event times for {event_display}, only considering events with times.")
             one_event = one_event.dropna(subset=[event_ref])
 
-        if merge_strategy=="forward" or merge_strategy=="nearest":
+        if merge_strategy == "forward" or merge_strategy == "nearest":
             return pd.merge_asof(
                 predictions,
                 one_event.dropna(subset=[event_ref]),
@@ -296,15 +334,15 @@ def _merge_with_strategy(
             )
 
         # Assume sorted on event_ref before being passed in
-        if merge_strategy=="first":
+        if merge_strategy == "first":
             one_event_filtered = one_event.groupby(pks).first().reset_index()
-        if merge_strategy=="last": 
+        if merge_strategy == "last":
             one_event_filtered = one_event.groupby(pks).last().reset_index()
-    
+
     except ValueError as e:
         logger.warning(e)
         pass
-    
+
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
 
@@ -405,6 +443,7 @@ def event_time(event: str) -> str:
         event = event[:-6]
     return f"{event}_Time"
 
+
 def event_value_count(event_label: str, event_value: str) -> str:
     """Converts a value of an event column into the count column name."""
     event_label = event_name(event_label)
@@ -413,6 +452,7 @@ def event_value_count(event_label: str, event_value: str) -> str:
         return f"{event_label}~{event_value}"
 
     return f"{event_label}~{event_value}_Count"
+
 
 def event_name(event: str) -> str:
     """Converts an event column name into the the event name."""
@@ -423,6 +463,7 @@ def event_name(event: str) -> str:
         return event[:-6]
     return event
 
+
 def event_value_name(event_value: str) -> str:
     """Converts event value count column into the event value name."""
     val = event_value
@@ -432,6 +473,7 @@ def event_value_name(event_value: str) -> str:
         val = val[:-6]
 
     return val
+
 
 def valid_event(dataframe: pd.DataFrame, event: str) -> pd.DataFrame:
     """Filters a dataframe to valid predictions, where the event value has not set to -1."""
@@ -465,5 +507,6 @@ def _resolve_score_col(dataframe: pd.DataFrame, score: str) -> str:
             raise ValueError(f"Score column {score} not found in dataframe.")
         score = event_value(score)
     return score
+
 
 # endregion

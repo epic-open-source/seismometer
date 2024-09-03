@@ -5,8 +5,8 @@ from typing import Optional
 import pandas as pd
 
 from seismometer._version import __version__
-from seismometer.core.logger import add_log_formatter, set_default_logger_config
 from seismometer.configuration import ConfigProvider
+from seismometer.core.logger import add_log_formatter, set_default_logger_config
 
 
 def run_startup(
@@ -49,9 +49,9 @@ def run_startup(
     """
     import importlib
 
+    from seismometer.configuration import ConfigProvider
     from seismometer.data.loader import loader_factory
     from seismometer.seismogram import Seismogram
-    from seismometer.configuration import ConfigProvider
 
     set_default_logger_config()
 
@@ -64,7 +64,7 @@ def run_startup(
     if reset:
         Seismogram.kill()
 
-    config = (config_provider or ConfigProvider(config_path, output_path=output_path, definitions=definitions))
+    config = config_provider or ConfigProvider(config_path, output_path=output_path, definitions=definitions)
     loader = loader_factory(config)
     sg = Seismogram(config, loader)
     sg.load_data(predictions=predictions_frame, events=events_frame)

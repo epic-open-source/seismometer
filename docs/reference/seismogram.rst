@@ -29,7 +29,7 @@ Properties and Accessors
    Seismogram.events
    Seismogram.events_columns
    Seismogram.event_aggregation_method
-   Seismogram.events_merge_strategy
+   Seismogram.event_merge_strategy
    Seismogram.target
    Seismogram.target_cols
    Seismogram.target_event

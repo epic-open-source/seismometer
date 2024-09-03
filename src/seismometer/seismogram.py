@@ -154,7 +154,7 @@ class Seismogram(object, metaclass=Singleton):
         if (event := pdh.event_name(event_col)) not in self.config.events:
             raise ValueError(f"Event {event} not found in configuration")
         return self.config.events[event].window_hr
-    
+
     def event_merge_strategy(self, event_col: str) -> MergeStrategies:
         """
         Gets the strategy for merging scores with respect to the specified event.
