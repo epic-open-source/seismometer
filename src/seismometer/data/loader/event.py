@@ -81,11 +81,11 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
         The merged dataframe of predictions plus new event columns.
     """
     dataframe = (
-        dataframe.sort_values(config.predict_time)
+        dataframe.sort_values(config.predict_time, kind="mergesort")
         .drop_duplicates(subset=config.entity_keys + [config.predict_time])
         .dropna(subset=[config.predict_time])
     )
-    event_frame = event_frame.sort_values("Time")
+    event_frame = event_frame.sort_values("Time", kind="mergesort")
 
     for one_event in config.events.values():
         # Merge
@@ -103,28 +103,43 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 offset_hrs=one_event.offset_hr,
                 display=one_event.display_name,
                 sort=False,
+                impute_val=one_event.impute_val,
             )
         else:  # No lookback
             logger.debug(f"Merging event {one_event.display_name}")
             dataframe = _merge_event(
-                config, one_event.source, dataframe, event_frame, display=one_event.display_name, sort=False
+                config,
+                one_event.source,
+                dataframe,
+                event_frame,
+                display=one_event.display_name,
+                sort=False,
+                impute_val=one_event.impute_val,
             )
 
         # Impute no event
         if one_event.impute_val and one_event.impute_val != 0:
             logger.warning(
                 f"Event {one_event.display_name} specified impute; "
-                + "currently missing event value is inferred based on timestamp existence."
+                + "currently missing event value is being inferred based on timestamp existence."
             )
             event_val = pdh.event_value(one_event.display_name)
-            impute = one_event.impute_val or 0  # Enforce binary type target
+            impute = one_event.impute_val
             dataframe[event_val] = dataframe[event_val].fillna(impute)
 
     return dataframe
 
 
 def _merge_event(
-    config, event_cols, dataframe, event_frame, offset_hrs=0, window_hrs=None, display="", sort=True
+    config,
+    event_cols,
+    dataframe,
+    event_frame,
+    offset_hrs=0,
+    window_hrs=None,
+    display="",
+    sort=True,
+    impute_val=None,
 ) -> pd.DataFrame:
     """Wrapper for calling merge_windowed_event with the correct event column names."""
     disp_event = display if display else event_cols[0]
@@ -139,4 +154,6 @@ def _merge_event(
         window_hrs=window_hrs,
         event_base_time_col="Time",
         sort=sort,
+        merge_strategy=config.events[disp_event].merge_strategy,
+        impute_val=impute_val,
     )
