@@ -152,7 +152,9 @@ def merge_windowed_event(
 
     # refactor to generalize
     if merge_strategy == "forward":  # For forward merges, don't count events that happen before the prediction
-        predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
+        predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = predictions[
+            event_val_col
+        ].dtype.type(-1)
 
     return predictions.drop(columns=r_ref)
 

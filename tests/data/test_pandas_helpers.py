@@ -4,6 +4,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 from conftest import res  # noqa
+from test_merge_window import create_event_table, create_prediction_table
 
 import seismometer.data.pandas_helpers as undertest
 
@@ -112,6 +113,33 @@ class TestInferLabel:
         actual = undertest.infer_label(dataframe, col_label, col_time)
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
+
+    def test_infer_dtype(self):
+        # Check to make sure that the inferred label is the same type as the label column
+        events_test = create_event_table(
+            ids=[2],
+            ctxs=[2],
+            event_labels=["Label"],
+            event_times=pd.to_datetime(["2019-01-01 00:00:01"]),
+            event_values=["Type"],
+        )
+        events_test["Value"] = events_test["Value"].astype("string")
+
+        pred_test = create_prediction_table(
+            [1, 2], [1, 2], pd.to_datetime(["2020-01-01 00:00:00", "2020-01-01 00:00:01"])
+        )
+
+        included_cols = ["Id", "Value", "Time"]
+        dataframe = pd.merge(left=pred_test, right=events_test[included_cols], on="Id", how="left")
+
+        actual = undertest.infer_label(dataframe, "Value", "Time")
+
+        expect = pd.DataFrame(
+            {"Id": [1, 2], "Value": ["0", "Type"], "Time": pd.to_datetime([pd.NaT, "2020-01-01 00:00:01"])}
+        )
+        expect["Value"] = expect["Value"].astype("string")
+
+        pdt.assert_series_equal(actual["Value"], expect["Value"], check_dtype=True)
 
 
 BASE_STRINGS = [
