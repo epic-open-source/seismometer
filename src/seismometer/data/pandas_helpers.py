@@ -201,12 +201,14 @@ def infer_label(
     except BaseException:  # Leave as nonnumeric
         pass
 
-    label_na_map = dataframe[label_col].isna()
     time_na_map = dataframe[time_col].isna()
-    dataframe.loc[(label_na_map & ~time_na_map), label_col] = (
-        impute_val or 1
+    dataframe.loc[~time_na_map, label_col] = dataframe.loc[~time_na_map, label_col]\
+    .fillna(
+        (impute_val or dataframe[label_col].dtype.type(1)),
     )  # Impute value if time exists but label is missing
-    dataframe.loc[dataframe[label_col].isna(), label_col] = 0  # Set label to 0 if time and label are both missing
+
+    # Set label to 0 if time and label are both missing
+    dataframe[label_col].fillna(dataframe[label_col].dtype.type(0), inplace=True) 
 
     return dataframe
 
