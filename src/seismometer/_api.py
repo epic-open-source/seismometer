@@ -131,7 +131,7 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     sg = Seismogram()
 
     exclude_cols = exclude_cols or [key for key in sg.entity_keys]
-    exclude_cols += [pdh.event_time(event.display_name) for event in sg.config.events.values()]
+    exclude_cols += sg.dataframe.select_dtypes(include=["datetime", "datetimetz"]).columns.tolist()
     positive_target = FilterRule.eq(sg.target, 1)
     negative_target = ~positive_target
 
