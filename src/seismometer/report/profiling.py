@@ -20,6 +20,7 @@ from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
 PROFILING_CONFIG_PATH = _files(seismometer.report) / "report_config.yml"
 logger = logging.getLogger("seismometer")
 
+
 def filter_unsupported_columns(df: DataFrame) -> DataFrame:
     """
     Filters out columns that are not supported by ydata-profiling.
