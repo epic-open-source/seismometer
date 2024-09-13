@@ -1,0 +1,1 @@
+Exclude time columns from ydata-profiling.
