@@ -1,0 +1,11 @@
+other_info:
+  template: "binary"
+  usage_config: "usage_config.yml"
+  event_definition: "dictionary.yml"
+  prediction_definition: "dictionary.yml"
+  info_dir: "outputs"
+  data_dir: "/path/to/data/files"
+  event_path: "events.parquet"
+  prediction_path: "predictions.parquet"
+  metadata_path: "metadata.json"
+  

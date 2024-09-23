@@ -1,22 +1,16 @@
-from importlib.resources import files as _files
 from pathlib import Path
 
 import pytest
+from conftest import res  # noqa:  flake cant detect fixture usage
 
-import seismometer.builder.resources
 import seismometer.configuration.config as undertest
 
-BUILDER_CONFIG = _files(seismometer.builder.resources) / "config.yml"
+TEST_CONFIG = Path("config") / "config.yml"
 
 
 # Could share temp directory across all tests
 @pytest.mark.usefixtures("tmp_as_current")
 class TestConfigProvider:
-    def test_builder_default_template_is_binary(self):
-        config = undertest.ConfigProvider(BUILDER_CONFIG)
-        assert config.template.name == "binary"
-        assert config.template.value == BUILDER_CONFIG.parent / "classifier_bin.ipynb"
-
     @pytest.mark.parametrize(
         "property, value",
         [
@@ -40,12 +34,12 @@ class TestConfigProvider:
             ("output_notebook", "classifier_bin.ipynb"),
         ],
     )
-    def test_build_config_is_valid_simple_object(self, property, value):
-        config = undertest.ConfigProvider(BUILDER_CONFIG)
+    def test_testconfig_is_valid_simple_object(self, property, value, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
         actual = getattr(config, property)
 
         assert actual == value
 
-    def test_build_config_uses_tmp(self, tmp_path):
-        config = undertest.ConfigProvider(BUILDER_CONFIG)
+    def test_testconfig_uses_tmp(self, tmp_path, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
         assert config.output_dir == tmp_path / "outputs"

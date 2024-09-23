@@ -34,8 +34,7 @@ Standardized data schemas to incorporate data from single or multiple source sys
 Notebook configuration definitions
 ----------------------------------
 
-A config file provides instructions for how to build the notebook using
-the provided data and template. Within the file, you can control details
+Within the configuration file, you can control details
 such as the cohorts to include and the outcomes relevant to the model.
 You can also provide supplemental model documentation to give data
 scientists and other report consumers working with the notebook
@@ -142,8 +141,7 @@ The following is an example of an events table.
 Provide Configuration Files
 ===========================
 
-The configuration file provides the instructions to the template for how
-to build the Notebook with the provided data. It allows you to define
+The configuration file allows you to define
 relevant cohorts including things like demographics, sensitive groups,
 and other criteria for evaluating model performance. You can define
 outcome and intervention events that relate to actions taken based on

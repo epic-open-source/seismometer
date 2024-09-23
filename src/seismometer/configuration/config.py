@@ -33,9 +33,7 @@ class ConfigProvider:
         Specifies the path to the data directory, by default None; it uses data_dir from the primary config file,
         which is where data dictionaries are written/read.
     template_notebook : Optional[Option], optional
-        Specifies the template notebook name to use during building, by default None; it uses "template" from the
-        primary config file.
-        This is the template that will be used as a base for building the final notebook.
+        Unused.
     definitions : Optional[dict], optional
         A dictionary of definitions to use instead of loading those specified by configuration, by default None.
     output_path : Optional[str | Path], optional
@@ -67,15 +65,6 @@ class ConfigProvider:
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
-        self._override_template(template_notebook)
-
-    def _override_template(self, template_notebook: Option) -> None:
-        """
-        Overrides the configuration template with the one specified.
-        """
-        if template_notebook is None:
-            return
-        self._template = template_options[template_notebook]
 
     def _load_config_config(self, config_config: str | Path) -> None:
         """
