@@ -17,13 +17,13 @@ performance (including inputs and outputs).
 What is in Seismometer
 ======================
 
-Jupyter Notebook templates
+Jupyter Notebook examples
 --------------------------
 
 Open-source Python libraries and Jupyter Notebooks allow data scientists
-to quickly generate a notebook to evaluate model performance.
+to quickly create a notebook to evaluate model performance.
 
-We expect these templates to continually evolve as new validation and
+We expect these examples to continually expand and evolve as new validation and
 analysis techniques and approaches are created.
 
 Data Schemas

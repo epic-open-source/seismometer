@@ -15,17 +15,16 @@ MergeStrategies = Literal["first", "last", "nearest", "forward", "count"]
 class OtherInfo(BaseModel):
     """Locations of configuration and data files."""
 
-    # These are necessary for a notebook to be built
     template: Optional[str] = None
-    """ Descriptor of the template; used only during notebook build. """
+    """ Descriptor of the template; not used. """
     info_dir: Optional[DirLike] = None
-    """ Writable directors for output; used during build, extract and run. """
+    """ Writable directors for output; used during run. """
     event_definition: Optional[FileLike] = None
     """ The location of the event dictionary. """
     prediction_definition: Optional[FileLike] = None
     """ The location of the prediction dictionary. """
     usage_config: Optional[FileLike] = None
-    """ The location of the usage configuration; used during build and run. """
+    """ The location of the usage configuration; used during run. """
 
     # The following specify where to find the data at notebook runtime
     data_dir: Optional[DirLike] = None

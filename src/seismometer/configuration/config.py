@@ -143,11 +143,7 @@ class ConfigProvider:
 
     @property
     def info_dir(self) -> Path:
-        """
-        The directory for output information.
-
-        During extract and building, this is where markdown files are located.
-        """
+        """The directory for output information."""
         return self.config.info_dir
 
     @property
@@ -385,10 +381,6 @@ class ConfigProvider:
             - value specified by output argument,
             - value specified by info_dir in configuration,
             - the current working directory.
-
-        The output notebook will be located in the output directory and will use the specified name, if a file,
-        or will have "gen_" prefixed on the template file name if a directory.
-        Note: The template notebook will not always have the same name as the describing string.
 
         Parameters
         ----------

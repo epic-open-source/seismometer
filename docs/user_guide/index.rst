@@ -38,48 +38,17 @@ you might not be familiar with:
 
 -  *Feature*. A column of data used as an input to the model.
 
-Generating a Notebook
+Creating a Notebook
 =====================
 
-Generating a Notebook requires three pieces of information:
+Creating a Seismogram (notebook) requires a couple distinct pieces of information:
 
-- Template Notebook: A template Notebook that is suitable for your model.
+- Example Notebook: Starting from example notebook, while not required, is expected to be the most straight-forward. Once serveral types of models are supported, it is expected that a CLI will further automate combining new content into the example structure.
 - Configuration files: A ``config.yml`` file to specify location of required data and/or other configuration files (refer to the :ref:`config-files`).
-- Supplemental info: Explanatory markdown files and model-specific supplements to guide the analysis (refer to the :ref:`config-files`).
+- Supplemental info: Explanatory model-specific supplements to guide the analysis.
 
-Each template Notebook is associated with a collection of markdown files. Your markdown files are used to fill the corresponding
-markdown file in the template Notebook to generate a Notebook. To extract the expected markdown files
-from the template Notebook, you can run the following:
+Update or replace the example notebook with content relevant to your model.
 
-.. code-block:: bash
-
-   seismometer extract --template binary
-
-If the command is not run from the same directory as your ``config.yml`` file, use
-
-.. code-block:: bash
-
-   seismometer extract --template binary --config_yaml {path_to_base_config_file}
-
-In the above example, we are using the ``binary`` template. Run
-
-.. code-block:: bash
-
-   seismometer extract --help
-
-for more details on available templates and arguments.
-
-Update the markdown files with content relevant to your model or replace them with model-specific markdown files
-provided by the model developer.
-
-After updating the markdown files with content for the model, generate a Notebook by running
-
-.. code-block:: bash
-
-   seismometer build [--config_yaml] {path_to_base_config_file}
-
-.. seealso::
-   :ref:`cli` for more details on the CLI and :ref:`api.internals` for more information on build and extract commands.
 
 Using the Binary Classifier Notebook
 ====================================
@@ -477,8 +446,7 @@ defined in a single YAML file.
       usage_config: "usage_config.yml"
       # Name of the template to use during generation
       template: "binary"
-      # Directory to the location of markdown
-      # Use seismometer extract to prepopulate these files
+      # Directory to write info from and for the notebook run
       info_dir: "outputs"
       # These two definitions define all the columns available
       event_definition: "dictionary.yml"
