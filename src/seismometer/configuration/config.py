@@ -27,9 +27,8 @@ class ConfigProvider:
         uses usage_config from the primary config file,
         which specifies details about what kind of data is used and how it should be used.
     info_dir : Optional[str | Path], optional
-        Specifies the path to the information *directory* used by builder stages, by default None; it uses info_dir
-        from the primary config file,
-        which is where markdown files are written/read and where generated notebooks are placed.
+        Specifies the path to the information *directory*. Not used, by default None;
+        Configured in the primary config file
     data_dir : Optional[str | Path], optional
         Specifies the path to the data directory, by default None; it uses data_dir from the primary config file,
         which is where data dictionaries are written/read.
@@ -40,7 +39,7 @@ class ConfigProvider:
     definitions : Optional[dict], optional
         A dictionary of definitions to use instead of loading those specified by configuration, by default None.
     output_path : Optional[str | Path], optional
-        Used by the builder CLI, specifies the path to the output directory or file, by default None;
+        Specifies the path to the output directory or file, by default None;
         if a directory, the template notebook will be used with the prefix gen.
     """
 
