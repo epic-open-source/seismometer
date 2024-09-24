@@ -129,8 +129,8 @@ def load_notebook(filepath: Pathlike) -> nbformat.NotebookNode:
 
     Parameters
     ----------
-    filepath : Pathlike, optional
-        The path to a notebook, by default None.
+    filepath : Pathlike
+        The path to a notebook.
 
     Returns
     -------

@@ -312,7 +312,7 @@ Notebook.
 Create Configuration Files
 --------------------------
 
-Configuration files provide the instructions and details needed to build
+Configuration files provide the instructions and details needed to create
 the Notebook for your dataset. It can be provided in one or several YAML
 files. The configuration includes several sections:
 
@@ -446,7 +446,7 @@ defined in a single YAML file.
       usage_config: "usage_config.yml"
       # Name of the template to use during generation
       template: "binary"
-      # Directory to write info from and for the notebook run
+      # Directory to write info during the notebook run
       info_dir: "outputs"
       # These two definitions define all the columns available
       event_definition: "dictionary.yml"
