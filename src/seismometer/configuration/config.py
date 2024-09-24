@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from seismometer.core.io import load_yaml
 
 from .model import DataUsage, Event, EventDictionary, OtherInfo, PredictionDictionary
-from .options import Option, template_options
 
 
 class ConfigProvider:
@@ -32,7 +31,7 @@ class ConfigProvider:
     data_dir : Optional[str | Path], optional
         Specifies the path to the data directory, by default None; it uses data_dir from the primary config file,
         which is where data dictionaries are written/read.
-    template_notebook : Optional[Option], optional
+    template_notebook : Optional[object], optional
         Unused.
     definitions : Optional[dict], optional
         A dictionary of definitions to use instead of loading those specified by configuration, by default None.
@@ -48,7 +47,7 @@ class ConfigProvider:
         usage_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
-        template_notebook: Option = None,
+        template_notebook: object = None,
         definitions: dict = None,
         output_path: str | Path = None,
     ):
@@ -118,17 +117,9 @@ class ConfigProvider:
         self._template = None
 
     @property
-    def template(self) -> Option:
+    def template(self) -> None:
         """The template used for building a model-specific seismograph notebook."""
-        if self._template is None:
-            template_name = self.config.template
-            if template_name not in template_options:
-                raise ValueError(
-                    f"Template option {template_name} not found in known options: {', '.join(template_options)}"
-                )
-            self._template = template_options[template_name]
-
-        return self._template
+        raise NotImplementedError("Template building is not implemented")
 
     @property
     def info_dir(self) -> Path:
@@ -385,11 +376,7 @@ class ConfigProvider:
         output = output.resolve()
         if not output.suffix:  # no suffix implies directory
             self._output_dir = output
-            filename = self.template.value
-            if filename:
-                self._output_notebook = nb_prefix + filename.name
         else:  # file specified
-            self._output_notebook = output.name
             if str(output.parent) == ".":  # No path given, use config
                 self._output_dir = self.info_dir or output.parent
             else:

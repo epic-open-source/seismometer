@@ -7,7 +7,6 @@ import pytest
 from conftest import res, tmp_as_current  # noqa: F401
 
 import seismometer.core.io as undertest
-from seismometer.configuration.options import Option
 
 
 class Test_IO:
@@ -46,7 +45,7 @@ class Test_IO:
 
 @pytest.fixture
 def testdir(res) -> Path:
-    return res / "builder"
+    return res / "io"
 
 
 # region Loaders
@@ -71,16 +70,6 @@ class TestLoadNotebook:
         + '"metadata": {"language_info": {"name": "python"}},'
         + '"nbformat": 4, "nbformat_minor": 2}'
     )
-
-    def test_load_notebook_with_invalid_input(self):
-        with pytest.raises(ValueError):
-            _ = undertest.load_notebook()
-
-    def test_load_notebook_with_nb_template(self, testdir):
-        file = testdir / TestLoadNotebook.filepath
-        nb_template = Option(value=file, name="test")
-        result = undertest.load_notebook(nb_template=nb_template)
-        assert result == TestLoadNotebook.expected
 
     def test_load_notebook_with_filepath(self, testdir):
         filepath = testdir / TestLoadNotebook.filepath

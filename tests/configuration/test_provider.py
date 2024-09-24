@@ -31,7 +31,6 @@ class TestConfigProvider:
             ("interventions", {}),
             ("prediction_columns", ["Age", "Input", "Score", "ScoringTime", "encounter_id", "id"]),
             ("censor_min_count", 15),
-            ("output_notebook", "classifier_bin.ipynb"),
         ],
     )
     def test_testconfig_is_valid_simple_object(self, property, value, res):
