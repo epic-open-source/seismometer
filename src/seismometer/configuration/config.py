@@ -57,6 +57,8 @@ class ConfigProvider:
         self._events: EventDictionary = None
         self._output_dir: Path = None
         self._output_notebook: str = ""
+        self._event_defs: EventDictionary = None
+        self._prediction_defs: PredictionDictionary = None
 
         if definitions is not None:
             self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
@@ -144,7 +146,9 @@ class ConfigProvider:
 
     def _load_definitions(self, def_path: Path, def_key: str, data_model: BaseModel) -> dict:
         raw_defs = load_yaml(def_path, resource_dir=self.config_dir)
-        return data_model(**raw_defs.pop(def_key, {}))
+        if raw_defs is None:
+            raw_defs = {def_key: []}
+        return data_model(**raw_defs)
 
     @property
     def usage(self) -> DataUsage:

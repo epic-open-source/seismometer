@@ -5,6 +5,7 @@ from typing import Optional, get_args
 import numpy as np
 import pandas as pd
 
+from seismometer.configuration import ConfigurationError
 from seismometer.configuration.model import MergeStrategies
 
 logger = logging.getLogger("seismometer")
@@ -18,10 +19,12 @@ def merge_windowed_event(
     events: pd.DataFrame,
     event_label: str,
     pks: list[str],
+    *,
     min_leadtime_hrs: Number = 0,
     window_hrs: Optional[Number] = None,
     event_base_val_col: str = "Value",
     event_base_time_col: str = "Time",
+    event_base_val_dtype: Optional[str] = None,
     sort: bool = True,
     merge_strategy: str = "forward",
     impute_val: Optional[Number | str] = None,
@@ -108,7 +111,9 @@ def merge_windowed_event(
         events.sort_values(event_base_time_col, kind="mergesort", inplace=True)
 
     # Preprocess events : reduce and rename
-    one_event = _one_event(events, event_label, event_base_val_col, event_base_time_col, pks)
+    one_event = _one_event(
+        events, event_label, event_base_val_col, event_base_time_col, pks, event_base_val_dtype=event_base_val_dtype
+    )
     if len(one_event.index) == 0:
         return predictions
 
@@ -158,12 +163,28 @@ def merge_windowed_event(
 
 
 def _one_event(
-    events: pd.DataFrame, event_label: str, event_base_val_col: str, event_base_time_col: str, pks: list[str]
+    events: pd.DataFrame,
+    event_label: str,
+    event_base_val_col: str,
+    event_base_time_col: str,
+    pks: list[str],
+    event_base_val_dtype: Optional[str] = None,
 ) -> pd.DataFrame:
     """Reduces the events dataframe to those rows associated with the event_label, preemptively renaming to the
     columns to what a join should use and reducing columns to pks + event value and time."""
     expected_columns = pks + [event_base_val_col, event_base_time_col]
     one_event = events.loc[events.Type == event_label, expected_columns][expected_columns]
+
+    # Cast event type
+    if event_base_val_dtype is not None:
+        try:
+            one_event[event_base_val_col] = one_event[event_base_val_col].astype(event_base_val_dtype)
+        except ValueError as exc:
+            raise ConfigurationError(
+                f"Cannot cast '{event_label}' values to {event_base_val_dtype}. "
+                + "Update dictionary config or contact the model owner."
+            ) from exc
+
     return one_event.rename(
         columns={event_base_time_col: event_time(event_label), event_base_val_col: event_value(event_label)}
     )

@@ -79,8 +79,24 @@ class PredictionDictionary(BaseModel):
 
     """
 
-    predictions: list[DictionaryItem]
+    predictions: list[DictionaryItem] = []
     """ The list of all columns in the predictions data."""
+
+    def __getitem__(self, key: str) -> Optional[DictionaryItem]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+
+        Returns
+        -------
+        Optional[str]
+            The definition of the column.
+        """
+        return _search_dictionary(self.predictions, key)
 
 
 class EventDictionary(BaseModel):
@@ -92,8 +108,25 @@ class EventDictionary(BaseModel):
     interventions, and outcomes.
     """
 
-    events: list[DictionaryItem]
+    events: list[DictionaryItem] = []
+
     """ The list of all columns in the events data."""
+
+    def __getitem__(self, key: str) -> Optional[DictionaryItem]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+
+        Returns
+        -------
+        Optional[str]
+            The definition of the column.
+        """
+        return _search_dictionary(self.events, key)
 
 
 class Cohort(BaseModel):
@@ -353,3 +386,10 @@ class DataUsage(BaseModel):
             seen_names.add(feature.display_name)
             good_features.append(feature)
         return good_features
+
+
+def _search_dictionary(dictionary: list[DictionaryItem], key: str) -> Optional[DictionaryItem]:
+    for item in dictionary:
+        if item.name == key:
+            return item
+    return
