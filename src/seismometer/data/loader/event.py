@@ -167,11 +167,12 @@ def _merge_event(
     )
 
 
-def _get_source_type(config: ConfigProvider, event: Event):
+def _get_source_type(config: ConfigProvider, event: Event) -> str:
+    """Get the dtype of the first source of the specified event."""
     dtype = None
     multitypes = set()  # Aggregate woarning messages
     for source in event.source:
-        source_defn = config.event_defs[source]
+        source_defn = config.event_defs.get(source, None)
         new_type = getattr(source_defn, "dtype", None)
         if new_type is None:
             continue

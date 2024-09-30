@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -98,6 +98,23 @@ class PredictionDictionary(BaseModel):
         """
         return _search_dictionary(self.predictions, key)
 
+    def get(self, key: str, default: Optional[Any] = None) -> Union[DictionaryItem, Any]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+        default : Optional[Any]
+            The default value to return if the key is not found, defaults to None.
+
+        Returns
+        -------
+        The DictionaryItem with name specified or the default value
+        """
+        return _search_dictionary(self.predictions, key) or default
+
 
 class EventDictionary(BaseModel):
     """
@@ -127,6 +144,23 @@ class EventDictionary(BaseModel):
             The definition of the column.
         """
         return _search_dictionary(self.events, key)
+
+    def get(self, key: str, default: Optional[Any] = None) -> Union[DictionaryItem, Any]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+        default : Optional[Any]
+            The default value to return if the key is not found, defaults to None.
+
+        Returns
+        -------
+        The DictionaryItem with name specified or the default value
+        """
+        return _search_dictionary(self.predictions, key) or default
 
 
 class Cohort(BaseModel):

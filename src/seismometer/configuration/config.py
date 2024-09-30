@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -145,7 +146,12 @@ class ConfigProvider:
         return self._event_defs
 
     def _load_definitions(self, def_path: Path, def_key: str, data_model: BaseModel) -> dict:
-        raw_defs = load_yaml(def_path, resource_dir=self.config_dir)
+        try:
+            raw_defs = load_yaml(def_path, resource_dir=self.config_dir)
+        except FileNotFoundError:
+            logging.info(f"No dictionary file found at {def_path}. Update config config.")
+            raw_defs = None
+
         if raw_defs is None:
             raw_defs = {def_key: []}
         return data_model(**raw_defs)
