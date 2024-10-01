@@ -12,8 +12,23 @@ import nbformat
 import yaml
 
 Pathlike = str | Path
-
 logger = logging.getLogger("seismometer")
+
+# region io-accessor functions
+read_ipynb = partial(nbformat.read, as_version=nbformat.current_nbformat)
+dump_json_pretty = partial(json.dump, indent=4)
+dump_yaml = yaml.dump
+
+
+def _read_text(fo):
+    return fo.readlines()
+
+
+def _print_to_file(content, fo):
+    print(content, file=fo)
+
+
+# endregion
 
 
 def slugify(value: str) -> str:
@@ -54,23 +69,6 @@ def slugify(value: str) -> str:
         hash_str = hashlib.md5(value.encode()).hexdigest()
         value = value[:50] + hash_str
     return value
-
-
-# region io-accessor functions
-read_ipynb = partial(nbformat.read, as_version=nbformat.current_nbformat)
-dump_json_pretty = partial(json.dump, indent=4)
-dump_yaml = yaml.dump
-
-
-def _print_to_file(content, fo):
-    print(content, file=fo)
-
-
-def _read_text(fo):
-    return fo.readlines()
-
-
-# endregion
 
 
 def resolve_filename(
