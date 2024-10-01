@@ -42,3 +42,17 @@ class TestConfigProvider:
     def test_testconfig_uses_tmp(self, tmp_path, res):
         config = undertest.ConfigProvider(res / TEST_CONFIG)
         assert config.output_dir == tmp_path / "outputs"
+
+    @pytest.mark.parametrize(
+        "outputs, output_list",
+        [
+            (["Score2"], ["Score", "Score2"]),
+            (["Score"], ["Score"]),
+            (["Score2", "Score"], ["Score2", "Score"]),
+            (["Score1", "Score2"], ["Score", "Score1", "Score2"]),
+        ],
+    )
+    def test_provider_groups_primary_output_with_output_list(self, outputs, output_list, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
+        config.usage.outputs = outputs
+        assert config.output_list == output_list

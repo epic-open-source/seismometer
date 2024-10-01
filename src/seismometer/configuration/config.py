@@ -102,7 +102,7 @@ class ConfigProvider:
     @property
     def config(self) -> OtherInfo:
         """
-        The configuration definiton.
+        The configuration definition.
 
         Usually from config.yml, this is primarily used during initial loading to know
         where other pieces are located.
@@ -250,6 +250,8 @@ class ConfigProvider:
 
         Configured in usage_data as outputs or primary_output.
         """
+        if self.output in self.usage.outputs:
+            return self.usage.outputs
         return [self.output] + self.usage.outputs
 
     @property

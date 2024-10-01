@@ -2,9 +2,9 @@ from collections.abc import Iterable
 from typing import Optional
 
 import traitlets
-from ipywidgets import HTML, Box, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
+from ipywidgets import HTML, Box, Button, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
-from .styles import DROPDOWN_LAYOUT, html_title
+from .styles import DROPDOWN_LAYOUT, WIDE_BUTTON_LAYOUT, WIDE_LABEL_STYLE, html_title
 
 
 class SelectionListWidget(ValueWidget, VBox):
@@ -105,6 +105,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         *,
         title: str = None,
         border: bool = False,
+        show_all: bool = False,
     ):
         """
         A table of buttons organized into columns by their keys. Collapsable to save space.
@@ -119,6 +120,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             Name of the control, by default None.
         border : bool, optional
             If True, display a border around the widget, by default False.
+        show_all : bool, optional
+            If True, show all optoins, else show only selected, by default False.
         """
         super().__init__()
         self.title = title
@@ -130,8 +133,9 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             values = {k: tuple(v) for k, v in values.items()}
         self.value = values
 
+        selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
         for key in options:
-            selection_widget = SelectionListWidget(title=key, options=options[key], value=values.get(key, None))
+            selection_widget = selection_widget_class(title=key, options=options[key], value=values.get(key, None))
             self.selection_widgets[key] = selection_widget
             selection_widget.observe(self._on_subselection_change, "value")
         self.value_update_in_progress = False
@@ -242,11 +246,8 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
             selection_value = values[dropdown_value]
             value = (dropdown_value, selection_value)
 
-        self.dropdown = Dropdown(
-            options=[key for key in values],
-            value=value[0],
-            layout=DROPDOWN_LAYOUT,
-        )
+        self.dropdown = Dropdown(options=[key for key in values], value=value[0], layout=DROPDOWN_LAYOUT)
+
         self.dropdown.observe(self._on_selection_change, "value")
         self.selection_widgets = {}
         for key in options:
@@ -288,3 +289,120 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
         """Return the selection for the widget as a key value pair."""
         key = self.value[0]
         return f"{key}: {self.selection_widgets[key].get_selection_text()}"
+
+
+class MultiselectDropdownWidget(ValueWidget, VBox):
+    """
+    A multi select dropdown which allows multiple selections from a dropdown which get displayed as toggle buttons.
+    """
+
+    value = traitlets.Tuple(help="The selected values for the dropdown.")
+
+    def __init__(
+        self,
+        options: tuple[str],
+        value: Optional[tuple[str]] = None,
+        *,
+        title: str = None,
+    ):
+        """
+        A dropdown selector where multiple selections are allowed.
+
+        Parameters
+        ----------
+        options : tuple[str]
+            Dropdown entries.
+        value : Optional[tuple[str]], optional
+            Pre-selected values, by default None.
+        title : str, optional
+            Display show in the dropdown, by default "Add...".
+        """
+        self.options = tuple(options)
+        self.value = tuple(value) if value else ()
+        self.title = title
+        default_option = (title, -2) if title else ("Add...", -2)
+        add_all_option = ("Add all", -1)
+        tooltip = f"Select an option to add to {title}" if title else "Select an option to add"
+        self.dropdown = Dropdown(
+            options=[default_option, add_all_option] + [(str(v), i) for i, v in enumerate(options)],
+            index=0,
+            style=WIDE_LABEL_STYLE,
+            tooltip=tooltip,
+            layout=WIDE_BUTTON_LAYOUT,
+        )
+        self.selection_options = VBox(children=[], layout=Layout(align_self="flex-end", align_items="flex-end"))
+        self.buttons = {
+            option: Button(
+                description=str(option),
+                tooltip=f"Remove {option}",
+                indent=True,
+                button_style="primary",
+                layout=WIDE_BUTTON_LAYOUT,
+            )
+            for option in options
+        }
+
+        for val in self.value:
+            self._insert_button(val)
+
+        children = [self.dropdown, self.selection_options]
+        super().__init__(children=children, layout=Layout(width="min-content"))
+
+        for button in self.buttons.values():
+            button.on_click(self._remove_button)
+        self.dropdown.observe(self._on_dropdown_changed, "value")
+        self.observe(self._on_value_change, "value")
+        self._disabled = False
+
+    def _remove_button(self, button, update_value=True):
+        self.selection_options.children = [child for child in self.selection_options.children if child != button]
+        if update_value:
+            self.value = tuple(val for val in self.value if self.buttons[val] != button)
+
+    def _insert_button(self, val):
+        button = self.buttons[val]
+        if button not in self.selection_options.children:
+            self.selection_options.children = [child for child in self.selection_options.children] + [button]
+
+    def _on_dropdown_changed(self, change):
+        if change["owner"] != self.dropdown:
+            return
+        option_index = change["new"]
+        match option_index:
+            case -2:
+                pass
+            case -1:
+                self.value = self.options
+            case option_index if self.options[option_index] in self.value:
+                pass
+            case _:
+                self.value = tuple(
+                    [value for value in self.options if value in self.value or value == self.options[option_index]]
+                )
+
+        self.selection_options.children = [self.buttons[val] for val in self.value]
+        self.dropdown.value = -2
+
+    @property
+    def disabled(self) -> bool:
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.dropdown.disabled = disabled
+        for button in self.buttons.values():
+            button.disabled = disabled
+
+    def _on_value_change(self, change=None):
+        """Bubble up changes."""
+        self.selection_options.children = [self.buttons[val] for val in change["new"]]
+        self.dropdown.value = -2
+
+    def get_selection_text(self) -> str:
+        """Description of the currently selected values."""
+        text = f"{self.title}: " if self.title else ""
+        if self.value:
+            return text + f"{', '.join([str(x) for x in self.value])}"
+        else:
+            return text + ""

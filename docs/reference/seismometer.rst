@@ -10,12 +10,16 @@ Exploration APIs
 .. autosummary::
    :toctree: api/
 
+   ExploreSubgroups
    ExploreModelEvaluation
    ExploreCohortEvaluation
    ExploreCohortHistograms
    ExploreCohortLeadTime
    ExploreCohortOutcomeInterventionTimes
    ExploreFairnessAudit
+   ExploreModelScoreComparison
+   ExploreModelTargetComparison
+   
 
 Public API
 ~~~~~~~~~~~
@@ -52,6 +56,9 @@ Custom Visualization Controls
 
 
    explore.ExplorationWidget
+   explore.ExplorationSubpopulationWidget
    explore.ExplorationModelSubgroupEvaluationWidget
    explore.ExplorationCohortSubclassEvaluationWidget
    explore.ExplorationCohortOutcomeInterventionEvaluationWidget
+   explore.ExplorationScoreComparisonByCohortWidget
+   explore.ExplorationTargetComparisonByCohortWidget
