@@ -52,7 +52,7 @@ class TestConfigProvider:
             (["Score1", "Score2"], ["Score", "Score1", "Score2"]),
         ],
     )
-    def test_provider_groups_primary_output_with_output_list(self, outputs, output_list):
-        config = undertest.ConfigProvider(BUILDER_CONFIG)
+    def test_provider_groups_primary_output_with_output_list(self, outputs, output_list, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
         config.usage.outputs = outputs
         assert config.output_list == output_list
