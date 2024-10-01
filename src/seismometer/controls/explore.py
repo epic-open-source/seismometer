@@ -1425,3 +1425,175 @@ class ExplorationTargetComparisonByCohortWidget(ExplorationWidget):
 
 
 # endregion
+
+# region Binary Model Metric Exploration Widget
+
+
+class BinaryModelMetricOptions(Box, ValueWidget):
+    value = traitlets.Dict(help="The selected values for the audit and model options")
+
+    def __init__(
+        self,
+        cohort_groups: dict[str, tuple[Any]],
+        target_names: tuple[Any],
+        score_names: tuple[Any],
+        per_context: bool = True,
+        metrics: tuple[str] = None,
+        default_metrics: tuple[str] = None,
+    ):
+        """
+        Widget for selecting interventions and outcomes across categories in a cohort group.
+
+        Parameters
+        ----------
+        target_names : tuple[Any]
+            model target columns
+        score_names : tuple[Any]
+            model score columns
+        score_threshold : float
+            main threshold for the model score
+        per_context : bool, optional
+            if scores should be grouped by context, by default True
+        metrics : tuple[str], optional
+            list of fairness metrics to display, if None (default) metrics from `calculate_bin_stats`
+        default_metrics : tuple[str], optional
+            list of fairness metrics to display, if None (default) will use ["tpr", "fpr", "pprev"]
+        """
+        metrics = metrics or [
+            "TP",
+            "FP",
+            "TN",
+            "FN",
+            "Accuracy",
+            "Sensitivity",
+            "Specificity",
+            "PPV",
+            "NPV",
+            "Flagged",
+            "LR+",
+            "NetBenefitScore",
+            "NNT@0.333",
+        ]
+        default_metrics = default_metrics or ["NNT@0.333"]
+        self.metric_list = MultiselectDropdownWidget(options=metrics, value=default_metrics, title="Metrics")
+        self.metric_list.layout = Layout(width="min-content", align_self="flex-end")
+
+        self.model_options = ModelOptionsWidget(target_names, score_names, per_context=per_context)
+        self.model_options.children = list(self.model_options.children) + [self.metric_list]
+        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+
+        super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
+
+        self.metric_list.observe(self._on_value_change, "value")
+        self.model_options.observe(self._on_value_change, "value")
+        self.cohort_list.observe(self._on_value_change, "value")
+
+        self._on_value_change()
+        self._disabled = False
+
+    @property
+    def disabled(self) -> bool:
+        return False
+
+    @disabled.setter
+    def disabled(self, disabled: bool):
+        self._disabled = disabled
+        self.metric_list.disabled = disabled
+        self.cohort_list.disabled = disabled
+        self.model_options.disabled = disabled
+
+    def _on_value_change(self, change=None):
+        self.value = {
+            "metrics": self.metric_list.value,
+            "cohort": self.cohort_list.value,
+            "model_options": self.model_options.value,
+        }
+
+    @property
+    def metrics(self) -> tuple[str]:
+        """selected cohorts"""
+        return self.metric_list.value
+
+    @property
+    def cohorts(self) -> tuple[str]:
+        """selected cohorts"""
+        return self.cohort_list.value
+
+    @property
+    def target(self) -> str:
+        """target column descriptor"""
+        return self.model_options.target
+
+    @property
+    def score(self) -> str:
+        """Score column descriptor"""
+        return self.model_options.score
+
+    @property
+    def group_scores(self) -> bool:
+        """If scores should be grouped by context"""
+        return self.model_options.group_scores
+
+
+class ExplorationMetricWidget(ExplorationWidget):
+    """
+    A widget to explore different model metrics for a score, target, and cohort
+    """
+
+    def __init__(
+        self,
+        title: str,
+        plot_function: Callable[..., Any],
+        *,
+        metrics: tuple[str] = None,
+        default_metrics: tuple[str] = None,
+    ):
+        """
+        Exploration widget for binary model metrics, showing a plot for a given target/score
+        and cohort selection.
+
+        Parameters
+        ----------
+        title : str
+            title of the control
+        plot_function : Callable[..., Any]
+            Expected to have the following signature:
+
+            .. code:: python
+
+                def plot_function(
+                    metrics: tuple[str],
+                    cohort_dict: dict[str,tuple[Any]],
+                    target: tuple[str],
+                    score: str,
+                    *, per_context: bool) -> Any
+        """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        super().__init__(
+            title,
+            option_widget=BinaryModelMetricOptions(
+                sg.available_cohort_groups,
+                sg.target_cols,
+                sg.output_list,
+                per_context=False,
+                metrics=metrics,
+                default_metrics=default_metrics,
+            ),
+            plot_function=plot_function,
+        )
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        """Generates the plot arguments for the model evaluation plot"""
+        args = [
+            self.option_widget.metrics,
+            self.option_widget.cohorts,
+            self.option_widget.target,
+            self.option_widget.score,
+        ]
+        kwargs = {"per_context": self.option_widget.group_scores}
+        return args, kwargs
+
+
+# endregion
