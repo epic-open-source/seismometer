@@ -5,37 +5,6 @@
 Internals
 =========
 
-Command Line
-------------
-
-Extract
-~~~~~~~
-.. currentmodule:: seismometer.builder.extract
-.. autosummary::
-   :toctree: api/
-
-   extract_supplement
-   generate_data_dict_from_parquet
-
-Build
-~~~~~
-.. currentmodule:: seismometer.builder.compile
-.. autosummary::
-   :toctree: api/
-
-   compile_notebook
-
-Other
-~~~~~
-.. currentmodule:: seismometer.builder
-.. autosummary::
-   :toctree: api/
-
-   jupyter.contrib_cells
-   jupyter.get_id
-   jupyter.get_text
-
-
 .. currentmodule:: seismometer.plot.mpl
 
 Plotting

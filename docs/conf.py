@@ -37,7 +37,6 @@ extensions = [
     "sphinxarg.ext",
 ]
 
-templates_path = ["_templates"]
 exclude_patterns = []
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True

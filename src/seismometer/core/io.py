@@ -123,31 +123,20 @@ def resolve_filename(
 # region load functions
 
 
-def load_notebook(*, nb_template: "Option" = None, filepath: Optional[Pathlike] = None) -> nbformat.NotebookNode:
+def load_notebook(filepath: Pathlike) -> nbformat.NotebookNode:
     """
     Loads a notebook from a file.
 
-    Can load a notebook from a template Option or from file; prioritizing the path.
-
     Parameters
     ----------
-    nb_template : Optional[Option], optional
-        The template to load, by default None.
-    filepath : Optional[Pathlike], optional
-        The path to a notebook, by default None.
+    filepath : Pathlike
+        The path to a notebook.
 
     Returns
     -------
     nbformat.NotebookNode
         The loaded notebook.
-
     """
-    if filepath is None:
-        try:
-            filepath = nb_template.value
-        except AttributeError:
-            raise ValueError("Either a valid nb_template or a filepath for the template notebook must be provided.")
-
     return _load(read_ipynb, filepath)
 
 
