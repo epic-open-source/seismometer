@@ -113,7 +113,7 @@ class PredictionDictionary(BaseModel):
         -------
         The DictionaryItem with name specified or the default value
         """
-        return _search_dictionary(self.predictions, key) or default
+        return self[key] or default
 
 
 class EventDictionary(BaseModel):
@@ -160,7 +160,7 @@ class EventDictionary(BaseModel):
         -------
         The DictionaryItem with name specified or the default value
         """
-        return _search_dictionary(self.predictions, key) or default
+        return self[key] or default
 
 
 class Cohort(BaseModel):

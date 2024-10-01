@@ -97,6 +97,7 @@ Seismogram Loaders
    loader.event.merge_onto_predictions
    loader.prediction.parquet_loader
    loader.prediction.assumed_types
+   loader.prediction.dictionary_types
 
 Summaries
 ~~~~~~~~~
