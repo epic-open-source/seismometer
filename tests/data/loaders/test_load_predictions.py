@@ -10,6 +10,7 @@ from conftest import tmp_as_current  # noqa
 
 import seismometer.data.loader.prediction as undertest
 from seismometer.configuration import ConfigProvider
+from seismometer.configuration.model import DictionaryItem
 
 
 # region Fakes and Data Prep
@@ -211,6 +212,59 @@ class TestAssumedTypes:
 
         actual = undertest.assumed_types(config, dataframe)
         pdt.assert_frame_equal(actual, expected)
+
+
+class TestDictionaryTypes:
+    @pytest.mark.parametrize(
+        "defined_types,expected_dtypes",
+        [
+            pytest.param(
+                [{"name": "downcast", "dtype": "float16"}],
+                {"downcast": "float16", "assumedTime": "datetime64[ns]", "keep": "int64"},
+                id="basic types",
+            )
+        ],
+    )
+    def test_defined_types_conversion(self, defined_types, expected_dtypes):
+        config = Mock(spec=ConfigProvider)
+        config.output_list = []
+
+        config.prediction_defs = Mock()
+        config.prediction_defs.predictions = [DictionaryItem(**di) for di in defined_types]
+
+        dataframe = pd.DataFrame(
+            {
+                "downcast": [1.0, 2.0, 3.0],
+                "assumedTime": ["2022-01-01", "2022-01-02", "2022-01-03"],
+                "keep": [4, 5, 6],
+            }
+        )
+
+        actual_frame = undertest.dictionary_types(config, dataframe)
+
+        for k, v in expected_dtypes.items():
+            assert actual_frame[k].dtype == v
+
+    def test_value_error_raises_configuration_error(
+        self,
+    ):
+        config = Mock(spec=ConfigProvider)
+        config.output_list = []
+        config.prediction_defs = Mock()
+        config.prediction_defs.predictions = [
+            DictionaryItem(name="bad_col1", dtype="int64"),
+            DictionaryItem(name="bad_col2", dtype="datetime64[ns]"),
+        ]
+
+        dataframe = pd.DataFrame({"bad_col1": ["a", "b", "c"], "bad_col2": ["a", "b", "c"], "keep_col": [4, 5, 6]})
+
+        with pytest.raises(undertest.ConfigurationError, match="Could not convert") as cerr:
+            undertest.dictionary_types(config, dataframe)
+
+        # Check all bad columns are mentioned in the error message
+        assert "bad_col1" in str(cerr.value)
+        assert "bad_col2" in str(cerr.value)
+        assert "keep_col" not in str(cerr.value)
 
 
 # endregion
