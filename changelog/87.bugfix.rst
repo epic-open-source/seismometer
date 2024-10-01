@@ -1,0 +1,1 @@
+Cast inferred label to same type as the label column when inferring labels. 

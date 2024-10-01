@@ -152,7 +152,9 @@ def merge_windowed_event(
 
     # refactor to generalize
     if merge_strategy == "forward":  # For forward merges, don't count events that happen before the prediction
-        predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
+        predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = predictions[
+            event_val_col
+        ].dtype.type(-1)
 
     return predictions.drop(columns=r_ref)
 
@@ -201,12 +203,13 @@ def infer_label(
     except BaseException:  # Leave as nonnumeric
         pass
 
-    label_na_map = dataframe[label_col].isna()
     time_na_map = dataframe[time_col].isna()
-    dataframe.loc[(label_na_map & ~time_na_map), label_col] = (
-        impute_val or 1
+    dataframe.loc[~time_na_map, label_col] = dataframe.loc[~time_na_map, label_col].fillna(
+        (impute_val or dataframe[label_col].dtype.type(1)),
     )  # Impute value if time exists but label is missing
-    dataframe.loc[dataframe[label_col].isna(), label_col] = 0  # Set label to 0 if time and label are both missing
+
+    # Set label to 0 if time and label are both missing
+    dataframe[label_col].fillna(dataframe[label_col].dtype.type(0), inplace=True)
 
     return dataframe
 
