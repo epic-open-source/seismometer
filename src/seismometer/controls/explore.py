@@ -426,7 +426,7 @@ class ModelTargetComparisonOptionsWidget(VBox, ValueWidget):
 
     @property
     def targets(self) -> str:
-        """Target column descriptor"""
+        """Target column descriptors"""
         return self.target_list.value
 
     @property
