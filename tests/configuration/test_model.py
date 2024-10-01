@@ -55,7 +55,7 @@ class TestEventDictionary:
         assert expected == actual
 
     @pytest.mark.parametrize("search_key,expected_key", [("evA", "filled"), ("evB", "given"), ("evC", "empty")])
-    def test_search_existing_returns_item(self, search_key, expected_key):
+    def test_search_returns_item(self, search_key, expected_key):
         inputs = [
             {"name": "evA", "display_name": "event_A"},
             {"name": "evB", "display_name": "event_B", "dtype": "int", "definition": "a definition"},
@@ -111,7 +111,7 @@ class TestPredictDictionary:
         assert expected == actual
 
     @pytest.mark.parametrize("search_key,expected_key", [("evA", "filled"), ("evB", "given"), ("evC", "empty")])
-    def test_search_existing_returns_item(self, search_key, expected_key):
+    def test_search_returns_item(self, search_key, expected_key):
         inputs = [
             {"name": "evA", "display_name": "event_A"},
             {"name": "evB", "display_name": "event_B", "dtype": "int", "definition": "a definition"},

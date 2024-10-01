@@ -180,9 +180,9 @@ def _one_event(
     if event_base_val_dtype is not None:
         try:
             one_event[event_base_val_col] = one_event[event_base_val_col].astype(event_base_val_dtype)
-        except ValueError as exc:
+        except (ValueError, TypeError) as exc:
             raise ConfigurationError(
-                f"Cannot cast '{event_label}' values to {event_base_val_dtype}. "
+                f"Cannot cast '{event_label}' values to '{event_base_val_dtype}'. "
                 + "Update dictionary config or contact the model owner."
             ) from exc
 

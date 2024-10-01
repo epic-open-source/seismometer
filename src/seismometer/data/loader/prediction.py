@@ -161,11 +161,7 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 # other
 def _gather_defined_types(config: ConfigProvider) -> dict[str, str]:
     """Gathers the defined types from the configuration dictionary."""
-    return {
-        defn.name: defn.dtype
-        for defn in config.prediction_defs.predictions
-        if getattr(defn, "dtype", None) is not None
-    }
+    return {defn.name: defn.dtype for defn in config.prediction_defs.predictions if defn.dtype is not None}
 
 
 def _infer_datetime(dataframe, cols=None, override_categories=None):

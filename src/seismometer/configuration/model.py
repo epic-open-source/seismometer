@@ -113,7 +113,10 @@ class PredictionDictionary(BaseModel):
         -------
         The DictionaryItem with name specified or the default value
         """
-        return self[key] or default
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class EventDictionary(BaseModel):
@@ -160,7 +163,10 @@ class EventDictionary(BaseModel):
         -------
         The DictionaryItem with name specified or the default value
         """
-        return self[key] or default
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class Cohort(BaseModel):
@@ -426,4 +432,4 @@ def _search_dictionary(dictionary: list[DictionaryItem], key: str) -> Optional[D
     for item in dictionary:
         if item.name == key:
             return item
-    return
+    raise KeyError(f"{key} not found")
