@@ -26,6 +26,8 @@ def generate_dictionary_from_parquet(
         for events section, by default "Type".
     """
     df = pd.read_parquet(inpath)
+    if df.empty:
+        raise ValueError("No data loaded; check the input file")
 
     datadict = None
     match section:
@@ -35,9 +37,6 @@ def generate_dictionary_from_parquet(
             datadict = _generate_event_dictionary(df, column)
         case _:
             raise ValueError(f"Section {section} not recognized; only supports predictions and events")
-
-    if not datadict:
-        raise ValueError("No items generated; check the input file")
 
     write_yaml(datadict.model_dump(), outpath)
 
@@ -53,8 +52,12 @@ def _generate_prediction_dictionary(df: pd.DataFrame) -> PredictionDictionary:
 
 def _generate_event_dictionary(df, column="Type") -> EventDictionary:
     """Generates entry for each unique value in the specified column"""
-    items = [
-        DictionaryItem(name=c, dtype="string", definition=f"Placeholder description for {c}")
-        for c in df[column].unique()
-    ]
+    items = (
+        [
+            DictionaryItem(name=c, dtype="string", definition=f"Placeholder description for {c}")
+            for c in df[column].unique()
+        ]
+        if column in df
+        else []
+    )
     return EventDictionary(events=items)

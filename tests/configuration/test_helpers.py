@@ -80,3 +80,11 @@ class TestGenerateDict:
             undertest.generate_dictionary_from_parquet("TESTIN", "out.yml", section=section_type)
 
         assert section_type in str(err.value)
+
+
+# This is intentionally outside the class to NOT use the shared pd patch
+@pytest.mark.parametrize("section_type", ["events", "predictions"])
+@patch.object(undertest.pd, "read_parquet", return_value=pd.DataFrame())
+def test_generate_dict_no_data_raises_error(mock_read, section_type, tmp_as_current):
+    with pytest.raises(ValueError, match="No data loaded"):
+        undertest.generate_dictionary_from_parquet("TESTIN", "out.yml", section=section_type)
