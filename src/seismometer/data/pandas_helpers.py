@@ -168,6 +168,7 @@ def _one_event(
     event_base_val_col: str,
     event_base_time_col: str,
     pks: list[str],
+    *,
     event_base_val_dtype: Optional[str] = None,
 ) -> pd.DataFrame:
     """Reduces the events dataframe to those rows associated with the event_label, preemptively renaming to the
