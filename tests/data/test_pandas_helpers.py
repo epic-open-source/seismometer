@@ -87,7 +87,7 @@ def one_line_case():
         yield pytest.param(*row[:-1].values, id=row["description"])
 
 
-class TestInferLabel:
+class TestPostProcessEvent:
     @pytest.mark.parametrize("label_in,time_in,label_out", one_line_case())
     def test_infer_one_line(self, label_in, time_in, label_out):
         col_label = "Label"
@@ -95,7 +95,7 @@ class TestInferLabel:
         dataframe = pd.DataFrame({col_label: [label_in], col_time: pd.to_datetime([time_in])})
         expect = pd.DataFrame({col_label: [label_out], col_time: pd.to_datetime([time_in])})
 
-        actual = undertest.infer_label(dataframe, col_label, col_time)
+        actual = undertest.post_process_event(dataframe, col_label, col_time)
         # actual['Label'] = actual['Label'].astype(int) # handle inference where input frame could be all null series
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
@@ -109,7 +109,7 @@ class TestInferLabel:
         dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
         expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
 
-        actual = undertest.infer_label(dataframe, col_label, col_time)
+        actual = undertest.post_process_event(dataframe, col_label, col_time)
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
 

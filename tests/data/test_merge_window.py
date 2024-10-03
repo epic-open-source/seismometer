@@ -1076,7 +1076,7 @@ class TestMergeWindowedEvent:
             event_values=[1] * 5 + [None] * 5 + [1],
         )
 
-        expected_vals = [0, "Test", 0, 1]
+        expected_vals = ["0", "Test", "0", "1.0"]
         expected_times = [
             pd.NaT,
             "2024-01-01 01:00:00",
@@ -1086,7 +1086,14 @@ class TestMergeWindowedEvent:
         expected = create_pred_event_frame(event_name, expected_vals, expected_times)
 
         actual = undertest.merge_windowed_event(
-            predictions, "PredictTime", events, event_name, ["Id"], merge_strategy="first", impute_val="Test"
+            predictions,
+            "PredictTime",
+            events,
+            event_name,
+            ["Id"],
+            merge_strategy="first",
+            event_base_val_dtype="string",
+            impute_val_with_time="Test",
         )
 
         # No CtxId_x

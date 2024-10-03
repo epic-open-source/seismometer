@@ -1,1 +1,2 @@
-Cast features and event _Value columns to dtypes in the dictionary yml when specified in the dictionary configuration.
+Cast features to dtypes in the dictionary yml when specified in the dictionary configuration.
+Cast event _Values to dtypes in the dictionary yml when specified in the dictionary configuration, done after imputation.

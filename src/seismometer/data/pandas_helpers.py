@@ -24,10 +24,11 @@ def merge_windowed_event(
     window_hrs: Optional[Number] = None,
     event_base_val_col: str = "Value",
     event_base_time_col: str = "Time",
-    event_base_val_dtype: Optional[str] = None,
+    event_base_val_dtype: str = "float",
     sort: bool = True,
     merge_strategy: str = "forward",
-    impute_val: Optional[Number | str] = None,
+    impute_val_with_time: Optional[Number | str] = 1,
+    impute_val_no_time: Optional[Number | str] = 0,
 ) -> pd.DataFrame:
     """
     Merges a single windowed event into a predictions dataframe
@@ -70,6 +71,8 @@ def merge_windowed_event(
         prediction is window_hrs + min_leadtime_hrs.
     event_base_val_col : str, optional
         The name of the column in the events frame to merge as the _Value, by default 'Value'.
+    event_base_val_dtype : str
+        The data type to cast the event value column to, by default 'float'.
     event_base_time_col : str, optional
         The name of the column in the events frame to merge as the _Time, by default 'Time'.
     sort : bool
@@ -78,8 +81,10 @@ def merge_windowed_event(
         The method to use when merging the event data, by default 'forward'.
         Options are 'forward', 'nearest', 'first', 'last', and 'count'.
         See seismometer.configuration.model for more information.
-    impute_val : Optional[Number|str], optional
-        The value to impute for the label if timestamp exist, defaults to 1.
+    impute_val_with_time : Optional[Number|str], optional
+        The value to impute for the label if timestamp exists, defaults to 1.
+    impute_val_no_time : Optional[Number|str], optional
+        The value to impute for the label if no timestamp exists, defaults to 0.
 
     Returns
     -------
@@ -111,9 +116,7 @@ def merge_windowed_event(
         events.sort_values(event_base_time_col, kind="mergesort", inplace=True)
 
     # Preprocess events : reduce and rename
-    one_event = _one_event(
-        events, event_label, event_base_val_col, event_base_time_col, pks, event_base_val_dtype=event_base_val_dtype
-    )
+    one_event = _one_event(events, event_label, event_base_val_col, event_base_time_col, pks)
     if len(one_event.index) == 0:
         return predictions
 
@@ -153,7 +156,14 @@ def merge_windowed_event(
         filter_map = predictions[predtime_col] < (predictions[r_ref] - max_lookback)
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
 
-    predictions = infer_label(predictions, event_val_col, event_time_col, impute_val)
+    predictions = post_process_event(
+        predictions,
+        event_val_col,
+        event_time_col,
+        column_dtype=event_base_val_dtype,
+        impute_val_with_time=impute_val_with_time,
+        impute_val_no_time=impute_val_no_time,
+    )
 
     # refactor to generalize
     if merge_strategy == "forward":  # For forward merges, don't count events that happen before the prediction
@@ -163,43 +173,32 @@ def merge_windowed_event(
 
 
 def _one_event(
-    events: pd.DataFrame,
-    event_label: str,
-    event_base_val_col: str,
-    event_base_time_col: str,
-    pks: list[str],
-    *,
-    event_base_val_dtype: Optional[str] = None,
+    events: pd.DataFrame, event_label: str, event_base_val_col: str, event_base_time_col: str, pks: list[str]
 ) -> pd.DataFrame:
     """Reduces the events dataframe to those rows associated with the event_label, preemptively renaming to the
     columns to what a join should use and reducing columns to pks + event value and time."""
     expected_columns = pks + [event_base_val_col, event_base_time_col]
     one_event = events.loc[events.Type == event_label, expected_columns][expected_columns]
-
-    # Cast event type
-    if event_base_val_dtype is not None:
-        try:
-            if "int" in event_base_val_dtype:  # "1.0" -> 1.0 then 1.0 -> 1
-                one_event[event_base_val_col] = one_event[event_base_val_col].astype(float)
-            one_event[event_base_val_col] = one_event[event_base_val_col].astype(event_base_val_dtype)
-        except (ValueError, TypeError) as exc:
-            raise ConfigurationError(
-                f"Cannot cast '{event_label}' values to '{event_base_val_dtype}'. "
-                + "Update dictionary config or contact the model owner."
-            ) from exc
-
     return one_event.rename(
         columns={event_base_time_col: event_time(event_label), event_base_val_col: event_value(event_label)}
     )
 
 
-def infer_label(
-    dataframe: pd.DataFrame, label_col: str, time_col: str, impute_val: Optional[Number | str] = None
+def post_process_event(
+    dataframe: pd.DataFrame,
+    label_col: str,
+    time_col: str,
+    *,
+    column_dtype: str = "float",
+    impute_val_with_time: Optional[Number | str] = 1,
+    impute_val_no_time: Optional[Number | str] = 0,
 ) -> pd.DataFrame:
     """
-    Infers boolean label for event columns that have no label, based on existence of time value.
-    In the context of a merge_window event, a prediction-row does not have any documentation of an event and is assumed
-    to have a negative (0) label.
+    Infers and casts events.
+
+    Default assumptions are for binary classifications (cast as float to maximize compatibility with analyes).
+    A row that does not have any documentation of an event defaults to a negative (0) label - impute_val_no_time.
+    A row that has a timestamp but no event value defaults to a positive (1) label - impute_val_with_time.
 
     Parameters
     ----------
@@ -209,8 +208,12 @@ def infer_label(
         The column specifying the value to infer.
     time_col : time_col
         The time column associated with the value to infer.
-    impute_val : Optional[Number|str], optional
+    column_dtype : str
+        The data type to cast the label column to, done after imputation; by default 'float'.
+    impute_val_with_time : Optional[Number|str], optional
         The value to impute for the label if timestamp exist, defaults to 1.
+    impute_val_no_time : Optional[Number|str], optional
+        The value to impute for the label if timestamp exist, defaults to 0.
 
     Returns
     -------
@@ -220,17 +223,35 @@ def infer_label(
     if label_col not in dataframe.columns or time_col not in dataframe.columns:
         return dataframe
 
-    try:  # Assume numeric labels: edge case Float and Int incompatibilities
-        dataframe[label_col] = dataframe[label_col].astype(float)
-    except BaseException:  # Leave as nonnumeric
-        pass
+    # use pandas for compatibility of imutations -- handle Nones
+    impute_val = pd.Series([impute_val_no_time or 0, impute_val_with_time or 1], dtype=(column_dtype or float)).values
 
     label_na_map = dataframe[label_col].isna()
     time_na_map = dataframe[time_col].isna()
-    dataframe.loc[(label_na_map & ~time_na_map), label_col] = (
-        impute_val or 1
-    )  # Impute value if time exists but label is missing
-    dataframe.loc[dataframe[label_col].isna(), label_col] = 0  # Set label to 0 if time and label are both missing
+
+    if impute_val_with_time is not None:
+        dataframe.loc[(label_na_map & ~time_na_map), label_col] = impute_val[
+            1
+        ]  # Impute value if time exists but label is missing
+    if impute_val_no_time is not None:
+        dataframe.loc[dataframe[label_col].isna(), label_col] = impute_val[
+            0
+        ]  # Set label if time and label are both missing
+
+    if column_dtype is None:
+        return dataframe
+
+    # cast after imputation - supports nonnullable types
+    try:
+        # TODO:
+        # if "int" in column_dtype.lower():  # "1.0" -> 1.0 then 1.0 -> 1
+        #    dataframe[label_col] = dataframe[label_col].astype(float)
+        dataframe[label_col] = dataframe[label_col].astype(column_dtype)
+    except (ValueError, TypeError) as exc:
+        raise ConfigurationError(
+            f"Cannot cast '{event_name(label_col)}' values to '{column_dtype}'. "
+            + "Update dictionary config or contact the model owner."
+        ) from exc
 
     return dataframe
 

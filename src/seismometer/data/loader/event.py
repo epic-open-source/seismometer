@@ -108,7 +108,7 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 offset_hrs=one_event.offset_hr,
                 display=one_event.display_name,
                 sort=False,
-                impute_val=one_event.impute_val,
+                impute_pos=one_event.impute_val,
             )
         else:  # No lookback
             logger.debug(f"Merging event {one_event.display_name}")
@@ -120,7 +120,7 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 event_dtype=event_dtype,
                 display=one_event.display_name,
                 sort=False,
-                impute_val=one_event.impute_val,
+                impute_pos=one_event.impute_val,
             )
 
         # Impute no event
@@ -146,7 +146,8 @@ def _merge_event(
     window_hrs=None,
     display="",
     sort=True,
-    impute_val=None,
+    impute_pos=1,
+    impute_neg=0,
 ) -> pd.DataFrame:
     """Wrapper for calling merge_windowed_event with the correct event column names."""
     disp_event = display if display else event_cols[0]
@@ -163,7 +164,8 @@ def _merge_event(
         event_base_val_dtype=event_dtype,
         sort=sort,
         merge_strategy=config.events[disp_event].merge_strategy,
-        impute_val=impute_val,
+        impute_val_with_time=impute_pos,
+        impute_val_no_time=impute_neg,
     )
 
 
