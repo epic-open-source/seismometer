@@ -67,16 +67,18 @@ class TestMergeFrames:
 def infer_cases():
     return pd.DataFrame(
         {
-            "label_in": [1, 0, 1, 0, None, None],
-            "time_in": [1, 1, None, None, 1, None],
-            "label_out": [1, 0, 1, 0, 1, 0],
+            "label_in": [1, 0, 1, 0, None, None, None, None],
+            "time_in": [1, 1, None, None, 1, 1, None, None],
+            "label_out": [1, 0, 1, 0, 1, 1, 0, 0],
             "description": [
                 "label1+time keeps",
                 "label0+time keeps label",
                 "label1+no time keeps label",
                 "label0+no time keeps label",
                 "no label with time infers to positive",
+                "no label with time infers to positive (again)",
                 "no label nor time infers to negative",
+                "no label nor time infers to negative (again)",
             ],
         }
     )
@@ -114,22 +116,26 @@ class TestPostProcessEvent:
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
 
     @pytest.mark.parametrize(
-        "input_list",
+        "input_list,dtype",
         [
-            ["1.0", "0.0", "1.0", "0.0", None, None],
-            [1.0, 0.0, 1.0, 0.0, None, None],
-            ["1", "0", "1", "0", None, None],
-            [1, 0, 1, 0, None, None],
-            [True, False, True, False, None, None],
+            (["1.0", "0.0", "1.0", "0.0", None, None, None, None], "string"),
+            (["1", "0", "1", "0", None, None, None, None], "string"),
+            ([1, 0, 1, 0, None, None, None, None], "Int64"),  # Nullable
+            ([1, 0, 1, 0, None, None, None, None], "object"),
+            ([1.0, 0, 1, 0, None, None, None, None], "float"),
+            (
+                [True, False, True, False, None, None, None, None],
+                "object",
+            ),  # None is Falsy, so can't cast directly to bool
         ],
     )
-    def test_hardint_casts_well(self, input_list):
+    def test_hardint_casts_well(self, input_list, dtype):
         all_cases = infer_cases()
         col_label = "Label"
         col_time = "Time"
         col_map = {"label_in": col_label, "time_in": col_time, "label_out": col_label}
 
-        all_cases["label_in"] = input_list  # override the form of inputs
+        all_cases["label_in"] = pd.Series(input_list, dtype=dtype)  # override the form of inputs
         dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
         expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
 
@@ -142,7 +148,7 @@ class TestPostProcessEvent:
         col_label = "Label"
         col_time = "Time"
         col_map = {"label_in": col_label, "time_in": col_time, "label_out": col_label}
-        all_cases["label_out"] = [1, 0, 1, 0, 100, 99]
+        all_cases["label_out"] = [1, 0, 1, 0, 100, 100, 99, 99]
 
         dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
         expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})

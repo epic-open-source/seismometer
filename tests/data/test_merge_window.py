@@ -1076,7 +1076,7 @@ class TestMergeWindowedEvent:
             event_values=[1] * 5 + [None] * 5 + [1],
         )
 
-        expected_vals = ["0", "Test", "0", "1.0"]
+        expected_vals = ["0.0", "100.0", "0.0", "1.0"]
         expected_times = [
             pd.NaT,
             "2024-01-01 01:00:00",
@@ -1084,6 +1084,7 @@ class TestMergeWindowedEvent:
             "2024-12-01 00:00:00",
         ]
         expected = create_pred_event_frame(event_name, expected_vals, expected_times)
+        expected[f"{event_name}_Value"] = pd.Series(expected_vals, dtype="string")  # pandas infers numeric
 
         actual = undertest.merge_windowed_event(
             predictions,
@@ -1093,7 +1094,7 @@ class TestMergeWindowedEvent:
             ["Id"],
             merge_strategy="first",
             event_base_val_dtype="string",
-            impute_val_with_time="Test",
+            impute_val_with_time="100",  # must be compatible with other data even if string
         )
 
         # No CtxId_x

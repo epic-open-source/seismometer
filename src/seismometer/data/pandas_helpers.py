@@ -224,7 +224,9 @@ def post_process_event(
         return dataframe
 
     # use pandas for compatibility of imutations -- handle Nones
-    impute_val = pd.Series([impute_val_no_time or 0, impute_val_with_time or 1], dtype=(column_dtype or float)).values
+    impute_val = pd.Series(
+        [impute_val_no_time or 0, impute_val_with_time or 1], dtype=dataframe[label_col].dtype
+    ).values
 
     label_na_map = dataframe[label_col].isna()
     time_na_map = dataframe[time_col].isna()
