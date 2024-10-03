@@ -179,6 +179,8 @@ def _one_event(
     # Cast event type
     if event_base_val_dtype is not None:
         try:
+            if "int" in event_base_val_dtype:  # "1.0" -> 1.0 then 1.0 -> 1
+                one_event[event_base_val_col] = one_event[event_base_val_col].astype(float)
             one_event[event_base_val_col] = one_event[event_base_val_col].astype(event_base_val_dtype)
         except (ValueError, TypeError) as exc:
             raise ConfigurationError(
