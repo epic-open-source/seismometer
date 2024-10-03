@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import partial
 from typing import Any, Callable
 
 import numpy as np
@@ -7,10 +8,12 @@ import traitlets
 from great_tables import GT, html, loc, style
 from ipywidgets import HTML, Box, FloatSlider, Layout, ValueWidget, VBox
 
-from seismometer.controls.explore import ExplorationWidget
+from seismometer.controls.explore import ExplorationWidget, ModelOptionsWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
+from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
+from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
 
 
 def funcToMethod(func, clas, method_name=None):
@@ -82,18 +85,9 @@ def fairness_sort_key(key: pd.Series) -> pd.Series:
     return key.apply(lambda x: x if x not in [FairnessIcons.UNKNOWN.value, "--"] else 0)
 
 
-class MetricFunction:
-    def __init__(self, metric_names: list[str], metric_fn: Callable[[pd.DataFrame], dict[str, float]]):
-        self.metric_names = metric_names
-        self.metric_fn = metric_fn
-
-    def __call__(self, dataframe: pd.DataFrame) -> dict[str, float]:
-        return self.metric_fn(dataframe)
-
-
 def fairness_table(
     dataframe: pd.DataFrame,
-    metric_fns: list[MetricFunction],
+    metric_fns: list[Callable[[pd.DataFrame], dict[str, float]]],
     metric_list: list[str],
     fairness_ratio: float,
     cohort_dict: dict[str, tuple[Any]],
@@ -178,9 +172,31 @@ def fairness_table(
 class FarinessOptionsWidget(Box, ValueWidget):
     value = traitlets.Dict(help="The selected values for the model options.")
 
-    def __init__(self, metric_names: tuple[str], cohort_dict: dict[str, tuple[Any]], fairness_ratio: float = 0.2):
+    def __init__(
+        self,
+        metric_names: tuple[str],
+        cohort_dict: dict[str, tuple[Any]],
+        fairness_ratio: float = 0.2,
+        *,
+        model_options_widget=None,
+    ):
+        """
+        Widget for selecting fairness options
+
+        Parameters
+        ----------
+        metric_names : tuple[str]
+            Metrics that can be evaluated for fairness
+        cohort_dict : dict[str, tuple[Any]]
+            Dictionary of cohort groups.
+        fairness_ratio : float, optional
+            Allowed difference by cohort, by default 0.2
+        model_options_widget : _type_, optional
+            Additional model options if needed, will appear before fairness options, by default None
+        """
+        self.model_options_widget = model_options_widget
         self.metric_list = MultiselectDropdownWidget(metric_names, value=metric_names, title="Fairness Metrics")
-        self.cohort_list = MultiSelectionListWidget(cohort_dict, show_all=True, title="Cohorts")
+        self.cohort_list = MultiSelectionListWidget(cohort_dict, title="Cohorts")
         self.fairness_slider = FloatSlider(
             min=0.01,
             max=0.49,
@@ -199,8 +215,14 @@ class FarinessOptionsWidget(Box, ValueWidget):
             self.fairness_slider,
             self.metric_list,
         ]
+        if model_options_widget:
+            v_children.insert(0, model_options_widget)
+
         super().__init__(
-            children=[VBox(children=v_children, layout=Layout(align_items="flex-end")), self.cohort_list],
+            children=[
+                VBox(children=v_children, layout=Layout(align_items="flex-end", flex="0 0 auto")),
+                self.cohort_list,
+            ],
             layout=BOX_GRID_LAYOUT,
         )
 
@@ -217,13 +239,18 @@ class FarinessOptionsWidget(Box, ValueWidget):
         self.metric_list.disabled = value
         self.cohort_list.disabled = value
         self.fairness_slider.disabled = value
+        if self.model_options_widget:
+            self.model_options_widget.disabled = value
 
     def _on_value_changed(self, change=None):
-        self.value = {
+        new_value = {
             "metric_list": self.metric_list.value,
             "cohort_list": self.cohort_list.value,
             "fairness_ratio": self.fairness_slider.value,
         }
+        if self.model_options_widget:
+            new_value["model_options"] = self.model_options_widget.value
+        self.value = new_value
 
     @property
     def metrics(self):
@@ -237,22 +264,24 @@ class FarinessOptionsWidget(Box, ValueWidget):
     def fairness_ratio(self):
         return self.fairness_slider.value
 
+    @property
+    def model_options(self):
+        return self.model_options_widget if self.model_options_widget else None
+
 
 class ExplorationFairnessWidget(ExplorationWidget):
     """
     A widget for exploring model fairness across cohorts
     """
 
-    def __init__(self, metrics: list[MetricFunction] | MetricFunction = None):
+    def __init__(self, metrics: list[MetricGenerator] | MetricGenerator = None):
         """
-        Exploration widget for model evaluation, showing a plot for a given target,
-        score, threshold, and cohort selection.
+        Exploration widget for model fairness evaluation based on cohort selection.
+        Only works for global model metrics, not metrics that rely on parameters.
 
         Parameters
         ----------
-        title : str
-            title of the control
-        metrics : list[MetricFunction] or MetricFunction
+        metrics : list[MetricGenerator] or MetricGenerator
             list of metric functions to evaluate for fairness
         """
 
@@ -282,7 +311,77 @@ class ExplorationFairnessWidget(ExplorationWidget):
         return args, {}
 
 
-def table_wrapper_function(metric_functions, cohort_dict, fairness_ratio, metric_list):
+class ExploreBinaryModelFairness(ExplorationWidget):
+    """
+    A widget for exploring model fairness across cohorts for a binary classifier
+    """
+
+    def __init__(self):
+        """
+        Exploration widget for model evaluation, showing a plot for a given target,
+        score, threshold, and cohort selection.
+        """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        self.metric_generator = BinaryClassifierMetricGenerator()
+        metric_names = tuple(self.metric_generator.metric_names)
+        model_options_widget = ModelOptionsWidget(
+            sg.target_cols, sg.output_list, {"Score Threshold": max(sg.thresholds)}, per_context=False
+        )
+
+        super().__init__(
+            title="Binary Classifier Fairness Audit",
+            option_widget=FarinessOptionsWidget(
+                metric_names, sg.available_cohort_groups, fairness_ratio=0.2, model_options_widget=model_options_widget
+            ),
+            plot_function=binary_classifier_table_wrapper_function,
+            initial_plot=False,
+        )
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        """Generates the plot arguments for the model evaluation plot"""
+        args = (
+            self.metric_generator,
+            self.option_widget.cohorts,
+            self.option_widget.fairness_ratio,
+            self.option_widget.metrics,
+            self.option_widget.model_options.target,
+            self.option_widget.model_options.score,
+            self.option_widget.model_options.thresholds["Score Threshold"],
+        )
+        kwargs = {"per_context": self.option_widget.model_options.group_scores}
+        return args, kwargs
+
+
+def binary_classifier_table_wrapper_function(
+    metric_generator, cohort_dict, fairness_ratio, metric_list, target, score, threshold, *, per_context=False
+) -> HTML:
+    from seismometer.seismogram import Seismogram
+
+    sg = Seismogram()
+    target_column = pdh.event_value(target)
+    data = (
+        pdh.event_score(
+            sg.data(),
+            sg.entity_keys,
+            score=score_column,
+            ref_event=sg.predict_time,
+            aggregation_method=sg.event_aggregation_method(target_column),
+        )
+        if per_context
+        else sg.data()
+    )
+
+    partial_metric_function = partial(
+        metric_generator, target_col=target_column, score_col=score, score_threshold=threshold
+    )
+    return fairness_table(
+        data, [partial_metric_function], metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
+    )
+
+
+def table_wrapper_function(metric_functions, cohort_dict, fairness_ratio, metric_list) -> HTML:
     from seismometer.seismogram import Seismogram
 
     sg = Seismogram()
