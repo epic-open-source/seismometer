@@ -54,8 +54,6 @@ class ConfigProvider:
     ):
         self._config: OtherInfo = None
         self._usage: DataUsage = None
-        self._predictions: PredictionDictionary = None
-        self._events: EventDictionary = None
         self._output_dir: Path = None
         self._output_notebook: str = ""
         self._event_defs: EventDictionary = None
