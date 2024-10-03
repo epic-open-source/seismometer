@@ -219,13 +219,13 @@ class TestDictionaryTypes:
         "defined_types,expected_dtypes",
         [
             pytest.param(
-                [{"name": "downcast", "dtype": "float16"}],
-                {"downcast": "float16", "assumedTime": "datetime64[ns]", "keep": "int64"},
+                [{"name": "downcast", "dtype": "float16"}, {"name": "hardint", "dtype": "int"}],
+                {"downcast": "float16", "assumedTime": "datetime64[ns]", "keep": "int64", "hardint": "int"},
                 id="basic types",
             )
         ],
     )
-    def test_defined_types_conversion(self, defined_types, expected_dtypes):
+    def test_defined_type_conversions_succeed(self, defined_types, expected_dtypes):
         config = Mock(spec=ConfigProvider)
         config.output_list = []
 
@@ -239,6 +239,8 @@ class TestDictionaryTypes:
                 "keep": [4, 5, 6],
             }
         )
+        # avoid pandas inferring
+        dataframe["hardint"] = pd.Series(["1.0", "0.0", "3.0"], dtype="string")
 
         actual_frame = undertest.dictionary_types(config, dataframe)
 

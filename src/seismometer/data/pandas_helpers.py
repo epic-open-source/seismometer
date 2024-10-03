@@ -225,36 +225,58 @@ def post_process_event(
 
     # use pandas for compatibility of imutations -- handle Nones
     impute_val = pd.Series(
-        [impute_val_no_time or 0, impute_val_with_time or 1], dtype=dataframe[label_col].dtype
-    ).values
+        [impute_val_no_time or 0, impute_val_with_time or 1],
+        dtype=dataframe[label_col].dtype,
+        index=["no_time", "with_time"],
+    )
 
     label_na_map = dataframe[label_col].isna()
     time_na_map = dataframe[time_col].isna()
 
     if impute_val_with_time is not None:
-        dataframe.loc[(label_na_map & ~time_na_map), label_col] = impute_val[
-            1
-        ]  # Impute value if time exists but label is missing
+        dataframe.loc[(label_na_map & ~time_na_map), label_col] = impute_val.with_time
     if impute_val_no_time is not None:
-        dataframe.loc[dataframe[label_col].isna(), label_col] = impute_val[
-            0
-        ]  # Set label if time and label are both missing
+        dataframe.loc[dataframe[label_col].isna(), label_col] = impute_val.no_time
 
     if column_dtype is None:
         return dataframe
 
     # cast after imputation - supports nonnullable types
-    try:
-        if "int" in column_dtype.lower():  # "1.0" -> 1.0 then 1.0 -> 1
-            dataframe[label_col] = dataframe[label_col].astype(float)
-        dataframe[label_col] = dataframe[label_col].astype(column_dtype)
-    except (ValueError, TypeError) as exc:
-        raise ConfigurationError(
-            f"Cannot cast '{event_name(label_col)}' values to '{column_dtype}'. "
-            + "Update dictionary config or contact the model owner."
-        ) from exc
+    try_casting(dataframe, label_col, column_dtype)
 
     return dataframe
+
+
+def try_casting(dataframe: pd.DataFrame, column: str, column_dtype: str) -> None:
+    """
+    Attempts to cast a column to a specified data type inplace.
+
+    Will convert the specified column to a data type, raising a ConfigurationError if the conversion fails.
+    Does multistep casts to get strings "1.0" into format int 1.
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        The dataframe to modify.
+    column : str
+        The column to cast.
+    column_dtype : str
+        The data type to cast the column to.
+
+    Raises
+    ------
+    ConfigurationError
+        If the column cannot be cast to the specified data type.
+    """
+    try:
+        if "int" in column_dtype.lower():  # "1.0" -> 1.0 then 1.0 -> 1
+            dataframe[column] = dataframe[column].astype(float)
+        dataframe[column] = dataframe[column].astype(column_dtype)
+    except (ValueError, TypeError) as exc:
+        raise ConfigurationError(
+            f"Cannot cast '{event_name(column)}' values to '{column_dtype}'. "
+            + "Update dictionary config or contact the model owner."
+        ) from exc
 
 
 def _merge_event_counts(

@@ -103,10 +103,8 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
     for col in dataframe.columns:
         if col in defined_types:
             try:
-                if "int" in defined_types[col].lower():
-                    dataframe[col] = dataframe[col].astype(float)
-                dataframe[col] = dataframe[col].astype(defined_types[col])
-            except ValueError:
+                pdh.try_casting(dataframe, col, defined_types[col])
+            except ConfigurationError:
                 value_error_columns.append(col)
         else:
             unspecified_columns.append(col)

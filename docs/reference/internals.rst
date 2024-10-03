@@ -68,6 +68,7 @@ Pandas Helpers
    pandas_helpers.post_process_event
    pandas_helpers.merge_windowed_event
    pandas_helpers.valid_event
+   pandas_helpers.try_casting
 
 Performance
 ~~~~~~~~~~~
