@@ -243,9 +243,8 @@ def post_process_event(
 
     # cast after imputation - supports nonnullable types
     try:
-        # TODO:
-        # if "int" in column_dtype.lower():  # "1.0" -> 1.0 then 1.0 -> 1
-        #    dataframe[label_col] = dataframe[label_col].astype(float)
+        if "int" in column_dtype.lower():  # "1.0" -> 1.0 then 1.0 -> 1
+            dataframe[label_col] = dataframe[label_col].astype(float)
         dataframe[label_col] = dataframe[label_col].astype(column_dtype)
     except (ValueError, TypeError) as exc:
         raise ConfigurationError(

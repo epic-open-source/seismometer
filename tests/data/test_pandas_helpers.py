@@ -113,6 +113,46 @@ class TestPostProcessEvent:
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
 
+    @pytest.mark.parametrize(
+        "input_list",
+        [
+            ["1.0", "0.0", "1.0", "0.0", None, None],
+            [1.0, 0.0, 1.0, 0.0, None, None],
+            ["1", "0", "1", "0", None, None],
+            [1, 0, 1, 0, None, None],
+            [True, False, True, False, None, None],
+        ],
+    )
+    def test_hardint_casts_well(self, input_list):
+        all_cases = infer_cases()
+        col_label = "Label"
+        col_time = "Time"
+        col_map = {"label_in": col_label, "time_in": col_time, "label_out": col_label}
+
+        all_cases["label_in"] = input_list  # override the form of inputs
+        dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+        expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+
+        actual = undertest.post_process_event(dataframe, col_label, col_time, column_dtype="int")
+
+        pdt.assert_frame_equal(actual, expect, check_dtype=False)
+
+    def test_imputation_overrides(self):
+        all_cases = infer_cases()
+        col_label = "Label"
+        col_time = "Time"
+        col_map = {"label_in": col_label, "time_in": col_time, "label_out": col_label}
+        all_cases["label_out"] = [1, 0, 1, 0, 100, 99]
+
+        dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+        expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+
+        actual = undertest.post_process_event(
+            dataframe, col_label, col_time, impute_val_with_time=100, impute_val_no_time=99.0
+        )
+
+        pdt.assert_frame_equal(actual, expect, check_dtype=False)
+
 
 BASE_STRINGS = [
     ("A"),
