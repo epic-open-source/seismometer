@@ -9,6 +9,30 @@ Breaking changes may occur between minor versions prior to the v1 release; after
 
 .. towncrier release notes start
 
+0.2.2
+-----
+
+Features
+~~~~~~~~
+
+- Added additional "merge_strategy" event configuration option. (`#76 <https://github.com/epic-open-source/seismometer/issues/76>`__)
+- Viable merge strategies are "first", "last", "nearest", "forward", and "count". (`#76 <https://github.com/epic-open-source/seismometer/issues/76>`__)
+- Added ExploreSubgroups as a drop in replacement for sm.cohort_list (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
+- Added ExploreModelScoreComparison to compare two scores againts a shared target (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
+- Added ExploreModelTargetComparison to compare a single score across two targets (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
+- Added MultiselectDropdownWidget as a new widget for selecting cohort_dicts, uses a drop down and dismissalbe tags to keep the UX neater. (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
+- Updated handling around `primary_output` and `outputs`, so that if primary_output is in outputs, it does not get added in again during startup. (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
+- Add a configuration helper that can generate a dictionary file for events or predictions. (`#93 <https://github.com/epic-open-source/seismometer/issues/93>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Limits control max-widths to 1200px in most cases, allowing row wrap when needed. (`#81 <https://github.com/epic-open-source/seismometer/issues/81>`__)
+- Exclude time columns from ydata-profiling. (`#88 <https://github.com/epic-open-source/seismometer/issues/88>`__)
+- Temporarily remove CLI - variation in templates is not stable enough to ensure robustness. (`#90 <https://github.com/epic-open-source/seismometer/issues/90>`__)
+
+
 0.2.1
 -----
 
