@@ -367,7 +367,9 @@ is not strictly required.
         display_name: 30 days readmission
         definition: |
            A binary indicator of whether the diabetes patient was readmitted within 30 days of discharge
-        dtype: bool
+        dtype: int
+
+Note that even with a binary event, it is generally more convenient to use an int or even float datatype.
 
 Create Usage Configuration
 --------------------------

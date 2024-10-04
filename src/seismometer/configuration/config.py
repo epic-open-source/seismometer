@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -53,10 +54,10 @@ class ConfigProvider:
     ):
         self._config: OtherInfo = None
         self._usage: DataUsage = None
-        self._predictions: PredictionDictionary = None
-        self._events: EventDictionary = None
         self._output_dir: Path = None
         self._output_notebook: str = ""
+        self._event_defs: EventDictionary = None
+        self._prediction_defs: PredictionDictionary = None
 
         if definitions is not None:
             self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
@@ -143,8 +144,15 @@ class ConfigProvider:
         return self._event_defs
 
     def _load_definitions(self, def_path: Path, def_key: str, data_model: BaseModel) -> dict:
-        raw_defs = load_yaml(def_path, resource_dir=self.config_dir)
-        return data_model(**raw_defs.pop(def_key, {}))
+        try:
+            raw_defs = load_yaml(def_path, resource_dir=self.config_dir)
+        except FileNotFoundError:
+            logging.info(f"No dictionary file found at {def_path}. Update config config.")
+            raw_defs = None
+
+        if raw_defs is None:
+            raw_defs = {def_key: []}
+        return data_model(**raw_defs)
 
     @property
     def usage(self) -> DataUsage:

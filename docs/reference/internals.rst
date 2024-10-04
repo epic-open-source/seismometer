@@ -65,9 +65,10 @@ Pandas Helpers
    pandas_helpers.event_score
    pandas_helpers.event_time
    pandas_helpers.event_value
-   pandas_helpers.infer_label
+   pandas_helpers.post_process_event
    pandas_helpers.merge_windowed_event
    pandas_helpers.valid_event
+   pandas_helpers.try_casting
 
 Performance
 ~~~~~~~~~~~
@@ -97,6 +98,7 @@ Seismogram Loaders
    loader.event.merge_onto_predictions
    loader.prediction.parquet_loader
    loader.prediction.assumed_types
+   loader.prediction.dictionary_types
 
 Summaries
 ~~~~~~~~~
