@@ -22,6 +22,8 @@ Features
 - Added ExploreModelTargetComparison to compare a single score across two targets (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
 - Added MultiselectDropdownWidget as a new widget for selecting cohort_dicts, uses a drop down and dismissalbe tags to keep the UX neater. (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
 - Updated handling around `primary_output` and `outputs`, so that if primary_output is in outputs, it does not get added in again during startup. (`#82 <https://github.com/epic-open-source/seismometer/issues/82>`__)
+- Cast features to dtypes in the dictionary yml when specified in the dictionary configuration. (`#92 <https://github.com/epic-open-source/seismometer/issues/93>`__)
+- Cast event _Values to dtypes in the dictionary yml when specified in the dictionary configuration, done after imputation. (`#92 <https://github.com/epic-open-source/seismometer/issues/93>`__)
 - Add a configuration helper that can generate a dictionary file for events or predictions. (`#93 <https://github.com/epic-open-source/seismometer/issues/93>`__)
 
 
