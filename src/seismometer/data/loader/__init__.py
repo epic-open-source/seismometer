@@ -29,7 +29,7 @@ def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None)
     return SeismogramLoader(
         config,
         prediction_fn=prediction_loader,
-        post_predict_fn=prediction.assumed_types,
+        post_predict_fn=prediction.dictionary_types,
         event_fn=event_loader,
         post_event_fn=event.post_transform_fn,
         merge_fn=event.merge_onto_predictions,

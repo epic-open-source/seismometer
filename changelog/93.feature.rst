@@ -1,0 +1,1 @@
+Add a configuration helper that can generate a dictionary file for events or predictions.

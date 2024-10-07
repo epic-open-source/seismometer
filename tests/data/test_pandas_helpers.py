@@ -67,16 +67,18 @@ class TestMergeFrames:
 def infer_cases():
     return pd.DataFrame(
         {
-            "label_in": [1, 0, 1, 0, None, None],
-            "time_in": [1, 1, None, None, 1, None],
-            "label_out": [1, 0, 1, 0, 1, 0],
+            "label_in": [1, 0, 1, 0, None, None, None, None],
+            "time_in": [1, 1, None, None, 1, 1, None, None],
+            "label_out": [1, 0, 1, 0, 1, 1, 0, 0],
             "description": [
                 "label1+time keeps",
                 "label0+time keeps label",
                 "label1+no time keeps label",
                 "label0+no time keeps label",
                 "no label with time infers to positive",
+                "no label with time infers to positive (again)",
                 "no label nor time infers to negative",
+                "no label nor time infers to negative (again)",
             ],
         }
     )
@@ -87,7 +89,7 @@ def one_line_case():
         yield pytest.param(*row[:-1].values, id=row["description"])
 
 
-class TestInferLabel:
+class TestPostProcessEvent:
     @pytest.mark.parametrize("label_in,time_in,label_out", one_line_case())
     def test_infer_one_line(self, label_in, time_in, label_out):
         col_label = "Label"
@@ -95,7 +97,7 @@ class TestInferLabel:
         dataframe = pd.DataFrame({col_label: [label_in], col_time: pd.to_datetime([time_in])})
         expect = pd.DataFrame({col_label: [label_out], col_time: pd.to_datetime([time_in])})
 
-        actual = undertest.infer_label(dataframe, col_label, col_time)
+        actual = undertest.post_process_event(dataframe, col_label, col_time)
         # actual['Label'] = actual['Label'].astype(int) # handle inference where input frame could be all null series
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
@@ -109,7 +111,51 @@ class TestInferLabel:
         dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
         expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
 
-        actual = undertest.infer_label(dataframe, col_label, col_time)
+        actual = undertest.post_process_event(dataframe, col_label, col_time)
+
+        pdt.assert_frame_equal(actual, expect, check_dtype=False)
+
+    @pytest.mark.parametrize(
+        "input_list,dtype",
+        [
+            (["1.0", "0.0", "1.0", "0.0", None, None, None, None], "string"),
+            (["1", "0", "1", "0", None, None, None, None], "string"),
+            ([1, 0, 1, 0, None, None, None, None], "Int64"),  # Nullable
+            ([1, 0, 1, 0, None, None, None, None], "object"),
+            ([1.0, 0, 1, 0, None, None, None, None], "float"),
+            (
+                [True, False, True, False, None, None, None, None],
+                "object",
+            ),  # None is Falsy, so can't cast directly to bool
+        ],
+    )
+    def test_hardint_casts_well(self, input_list, dtype):
+        all_cases = infer_cases()
+        col_label = "Label"
+        col_time = "Time"
+        col_map = {"label_in": col_label, "time_in": col_time, "label_out": col_label}
+
+        all_cases["label_in"] = pd.Series(input_list, dtype=dtype)  # override the form of inputs
+        dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+        expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+
+        actual = undertest.post_process_event(dataframe, col_label, col_time, column_dtype="int")
+
+        pdt.assert_frame_equal(actual, expect, check_dtype=False)
+
+    def test_imputation_overrides(self):
+        all_cases = infer_cases()
+        col_label = "Label"
+        col_time = "Time"
+        col_map = {"label_in": col_label, "time_in": col_time, "label_out": col_label}
+        all_cases["label_out"] = [1, 0, 1, 0, 100, 100, 99, 99]
+
+        dataframe = all_cases.iloc[:, :2].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+        expect = all_cases.iloc[:, 2:0:-1].rename(columns={k: v for k, v in col_map.items() if k in all_cases.columns})
+
+        actual = undertest.post_process_event(
+            dataframe, col_label, col_time, impute_val_with_time=100, impute_val_no_time=99.0
+        )
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
 

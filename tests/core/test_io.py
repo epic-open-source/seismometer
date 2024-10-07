@@ -168,6 +168,27 @@ class TestJsonWriters:
         assert actual == self.content
 
 
+class TestYamlWriters:
+    file = Path("test.yml")
+    content = {"topkey": {"key1": "value1"}}
+
+    def test_write_yaml(self, tmp_as_current):
+        undertest.write_yaml(self.content, self.file)
+        assert self.file.read_text().strip() == "topkey:\n  key1: value1"
+
+    def test_write_yaml_fails_if_file_exists(self, tmp_as_current):
+        self.file.touch()
+
+        with pytest.raises(FileExistsError):
+            undertest.write_yaml(self.content, self.file)
+
+    def test_overwrite_yaml_if_specified(self, tmp_as_current):
+        self.file.touch()
+
+        undertest.write_yaml(self.content, self.file, overwrite=True)
+        assert self.file.read_text().strip() == "topkey:\n  key1: value1"
+
+
 def test_write_new_file_in_nonexistent_directory(tmp_as_current):
     file = Path("nonexistent_directory") / "new_file.txt"
     undertest._write(lambda content, fo: fo.write(content), "test content", file, overwrite=False)

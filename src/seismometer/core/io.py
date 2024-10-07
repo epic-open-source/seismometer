@@ -12,8 +12,23 @@ import nbformat
 import yaml
 
 Pathlike = str | Path
-
 logger = logging.getLogger("seismometer")
+
+# region io-accessor functions
+read_ipynb = partial(nbformat.read, as_version=nbformat.current_nbformat)
+dump_json_pretty = partial(json.dump, indent=4)
+dump_yaml = yaml.dump
+
+
+def _read_text(fo):
+    return fo.readlines()
+
+
+def _print_to_file(content, fo):
+    print(content, file=fo)
+
+
+# endregion
 
 
 def slugify(value: str) -> str:
@@ -54,22 +69,6 @@ def slugify(value: str) -> str:
         hash_str = hashlib.md5(value.encode()).hexdigest()
         value = value[:50] + hash_str
     return value
-
-
-# region io-accessor functions
-read_ipynb = partial(nbformat.read, as_version=nbformat.current_nbformat)
-dump_json_pretty = partial(json.dump, indent=4)
-
-
-def _print_to_file(content, fo):
-    print(content, file=fo)
-
-
-def _read_text(fo):
-    return fo.readlines()
-
-
-# endregion
 
 
 def resolve_filename(
@@ -234,6 +233,20 @@ def _load(loader: Callable["fileobject", Any], filepath: Path, resource_dir: Pat
 
 # endregion
 # region write functions
+def write_yaml(content: dict, filepath: Path, *, overwrite: bool = False) -> None:
+    """
+    Writes a dictionary to a YAML file.
+
+    Parameters
+    ----------
+    content : dict
+        The dictionary to write.
+    filepath : Path
+        The location to write.
+    overwrite : bool, optional
+        Write the file even if one exists, by default False.
+    """
+    _write(dump_yaml, content, filepath, overwrite)
 
 
 def write_markdown(content: str, filepath: Path, *, overwrite: bool = False) -> None:
@@ -303,7 +316,6 @@ def _write(writer: Callable[[Any, "fileobject"], None], content: Any, file: Path
         If True, writes the file even if one exists.
 
     """
-
     file = Path(file)
     if file.is_file() and not overwrite:
         raise FileExistsError(f"File already exists: {file.resolve()}; Specify overwrite to write anyway.")

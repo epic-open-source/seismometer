@@ -26,6 +26,8 @@ def fake_config(event_file):
             self.ev_time = "origTime"
             self.ev_value = "origValue"
 
+            self.event_defs = {}  # Fake EventDictionary.__item__
+
         # Aid setting a list of events (like that from config) but getting a dict like ConfigProvider returns
         @property
         def events(self):
