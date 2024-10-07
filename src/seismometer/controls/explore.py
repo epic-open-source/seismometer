@@ -1011,19 +1011,24 @@ class ExplorationWidget(VBox):
     def update_plot(self, initial: bool = False):
         plot_args, plot_kwargs = self.generate_plot_args()
         self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
+        if not initial:
+            self.center.clear_output()
+            with self.center:
+                plot = self._try_generate_plot(plot_args, plot_kwargs)
+                display(plot)
+        else:
+            plot = self._try_generate_plot(plot_args, plot_kwargs)
+            self.center.append_display_data(plot)
+        self.update_plot_widget.disabled = True
+
+    def _try_generate_plot(self, plot_args: tuple = None, plot_kwargs: dict = None) -> Any:
         try:
             plot = self.plot_function(*plot_args, **plot_kwargs)
         except Exception as e:
             import traceback
 
             plot = HTML(f"<div><h3>Exception: <pre>{e}</pre> </h3><pre>{traceback.format_exc()}</pre></div>")
-        if not initial:
-            self.center.clear_output()
-            with self.center:
-                display(plot)
-        else:
-            self.center.append_display_data(plot)
-        self.update_plot_widget.disabled = True
+        return plot
 
     def _on_plot_button_click(self, button=None):
         """Handle for the update plot button."""
