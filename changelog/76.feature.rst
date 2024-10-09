@@ -1,2 +1,0 @@
-Added additional "merge_strategy" event configuration option. 
-Viable merge strategies are "first", "last", "nearest", "forward", and "count".
