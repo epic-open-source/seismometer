@@ -1,5 +1,4 @@
 import logging
-from functools import partial
 from numbers import Number
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
@@ -15,8 +14,8 @@ DEFAULT_RHO = 1 / 3
 
 PathLike = Union[str, Path]
 COUNTS = ["TP", "FP", "TN", "FN"]
+THRESHOLD = "Threshold"
 STATNAMES = COUNTS + [
-    "Threshold",
     "Accuracy",
     "Sensitivity",
     "Specificity",
@@ -63,6 +62,9 @@ class MetricGenerator:
         """
         return self.metric_fn(dataframe, **kwargs)
 
+    def __repr__(self):
+        return f"MetricGenerator(metric_names={self.metric_names}, metric_fn={self.metric_fn.__name__})"
+
 
 @export
 class BinaryClassifierMetricGenerator(MetricGenerator):
@@ -76,11 +78,11 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         rho : float, optional
             The relative risk reduction for NNT calculation, by default DEFAULT_RHO.
         """
-        rho = rho or DEFAULT_RHO
-        metric_names = STATNAMES + [f"NNT@{rho:0.3n}"]
+        self.rho = rho or DEFAULT_RHO
 
-        metric_fn = partial(calculate_binary_stats, rho=rho)
-        super().__init__(metric_names, metric_fn)
+    @property
+    def metric_names(self):
+        return STATNAMES + [f"NNT@{self.rho:0.3n}"]
 
     def __call__(
         self, dataframe: pd.DataFrame, *, target_col, score_col, score_threshold: float = 0.5
@@ -104,8 +106,11 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        res = self.metric_fn(dataframe, target_col, score_col, score_threshold)
+        res = calculate_binary_stats(dataframe, target_col, score_col, score_threshold, rho=self.rho)
         return res
+
+    def __repr__(self):
+        return f"BinaryClassifierMetricGenerator(rho={self.rho})"
 
 
 @export
@@ -208,7 +213,7 @@ def calculate_bin_stats(
 
     keep = ~(np.isnan(y_true) | np.isnan(y_pred))
     if not keep.any():
-        return pd.DataFrame(columns=STATNAMES)
+        return pd.DataFrame(columns=[THRESHOLD] + STATNAMES)
 
     # reduce
     y_true = y_true[keep]
@@ -264,11 +269,11 @@ def calculate_bin_stats(
     stats = pd.DataFrame(
         np.column_stack(
             (
+                thresholds,
                 tps,
                 fps,
                 fps[-1] - fps,
                 tps[-1] - tps,
-                thresholds,
                 accuracy,
                 tpr,
                 1 - fpr,
@@ -280,7 +285,7 @@ def calculate_bin_stats(
                 nnt,
             )
         ),
-        columns=STATNAMES + [f"NNT@{rho:0.3n}"],
+        columns=[THRESHOLD] + STATNAMES + [f"NNT@{rho:0.3n}"],
     )
 
     stats[COUNTS] = stats[COUNTS].fillna(0).astype(int)  # Strengthen dtypes on counts

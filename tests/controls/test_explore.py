@@ -58,9 +58,11 @@ class TestUpdatePlotWidget:
 class TestExplorationBaseClass:
     def test_base_class(self, caplog):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
+        plot_function = Mock(return_value="some result")
+        widget = undertest.ExplorationWidget("ExploreTest", option_widget, plot_function)
 
-        with pytest.raises(NotImplementedError):
-            undertest.ExplorationWidget("ExploreTest", option_widget, lambda x: x)
+        plot_function.assert_not_called()
+        assert "Subclasses must implement this method" in widget.center.outputs[0]["data"]["text/plain"]
 
     @pytest.mark.parametrize(
         "plot_module,plot_code",
@@ -362,40 +364,6 @@ class TestModelInterventionAndCohortGroupWidget:
         widget.disabled = True
         assert widget.model_options.disabled
         assert widget.cohort_list.disabled
-        assert widget.disabled
-
-
-class TestModelFairnessAuditOptions:
-    def test_init(self):
-        widget = undertest.ModelFairnessAuditOptions(
-            target_names=["T1", "T2"],
-            score_names=["S1", "S2"],
-            score_threshold=0.1,
-            per_context=True,
-            fairness_metrics=None,
-            fairness_threshold=1.25,
-        )
-
-        assert widget.target == "T1"
-        assert widget.score == "S1"
-        assert widget.score_threshold == 0.1
-        assert widget.group_scores is True
-        assert widget.metrics == ("pprev", "tpr", "fpr")
-        assert widget.fairness_threshold == 1.25
-
-    def test_disable(self):
-        widget = undertest.ModelFairnessAuditOptions(
-            target_names=["T1", "T2"],
-            score_names=["S1", "S2"],
-            score_threshold=0.1,
-            per_context=True,
-            fairness_metrics=None,
-            fairness_threshold=1.25,
-        )
-        widget.disabled = True
-        assert widget.model_options.disabled
-        assert widget.fairness_slider.disabled
-        assert widget.fairness_list.disabled
         assert widget.disabled
 
 

@@ -123,7 +123,7 @@ of how well the model performs across thresholds. The AUROC does not
 assess performance at a specific threshold.
 
 .. image:: media/ROC.png
-   :alt: A graph with a curve Description automatically generated
+   :alt: A graph of the ROC with the AUROC included
    :width: 3.5in
 
 Sensitivity/Flag Curve
@@ -143,7 +143,7 @@ area above the curve indicates how many true positives would be missed
 at this threshold.
 
 .. image:: media/sensitivity_flagrate.png
-   :alt: A graph of a curve Description automatically generated
+   :alt: A graph of sensitivity versus flag rate
    :width: 3.5in
 
 Calibration Curve
@@ -169,7 +169,7 @@ defined threshold or with sampling:
    and a score of 15 are treated the same in that workflow.
 
 .. image:: media/observed_rate_predicted_probability.png
-   :alt: A graph with a blue line and red dots Description automatically generated
+   :alt: A graph of the calibration curve with vertical lines representing key thresholds
    :width: 3.5in
 
 PR Curve
@@ -187,7 +187,7 @@ This plot can help you assess the tradeoffs between identifying more
 positive cases and correctly identifying positive cases.
 
 .. image:: media/ppv_sensitivity.png
-   :alt: A graph with a line and numbers Description automatically generated
+   :alt: A graph of PPV versus sensistivity
    :width: 3.5in
 
 Sensitivity/Specificity/PPV Curve
@@ -199,7 +199,7 @@ it can help you identifying thresholds where your model has high enough
 specificity, sensitivity, and PPV for your intended workflows.
 
 .. image:: media/threshold_metric.png
-   :alt: A graph of a graph Description automatically generated with medium confidence
+   :alt: A graph of sensitivity, specificity, and PPV
    :width: 3.5in
 
 Predicted Probabilities
@@ -226,30 +226,28 @@ on a predetermined set while remaining aware of the others.
 
 This audit should be used by experts with a deep understanding of the
 model and the context in which the predictions are used. Even when a
-metric is flagged as failing in the fairness audit, there might be
-context that explains and even predicts the difference. Like many
+metric is flagged as a deviation in the fairness audit, the context 
+might that explains or even predict the difference. Like many
 concepts, a single parity concept can have several different names;
 notably, parity of true positive rate is equal opportunity, parity of
 false positive rate is predictive equality, and parity of predictive
 prevalence is demographic parity.
 
-An Aequitas audit gives an overview of parity across all defined groups
-for each cohort attribute. By default, the majority group is the
+An fairness audit gives an overview of parity across all defined groups
+for each cohort attribute. The majority group is the
 baseline and a statistic for all observations in the other groups is
-compared. A fairness threshold such as 125% is then used to classify the
+compared. A fairness threshold such as 20% is then used to classify the
 ratio of each group to the reference. If any group performs differently,
 above (125% in our example) or below (80%) then it is considered a
 failure for that cohort/metric.
 
-The visualization is a table showing the overall pass/fail, an ordered
-list of circles representing the groups, and a bar representing the
-percentage of the population data in reference. Note that comparison
+The visualization is a table showing the overall metrics, and icons 
+indicating default, within bounds, or out of bounds. Note that comparison
 across columns is not always exact due to potential differences in the
-included observations from missing information. Hovering over a bar or
-circle shows details on the group and metric.
+included observations from missing information. 
 
-.. image:: media/fairness_audit.png
-   :alt: A group of colorful text boxes Description automatically generated with medium confidence
+.. image:: media/fairness_table_binary_classifier.png
+   :alt: A table of metrics showing variation across cohort subgroups
    :width: 7in
 
 Cohort Analysis

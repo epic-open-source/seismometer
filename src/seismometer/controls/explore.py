@@ -4,7 +4,7 @@ from typing import Any, Callable, Literal, Optional
 
 import traitlets
 from IPython.display import display
-from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, FloatSlider, Layout, Output, ValueWidget, VBox
+from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, ValueWidget, VBox
 
 from .selection import DisjointSelectionListsWidget, MultiselectDropdownWidget, MultiSelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
@@ -830,113 +830,6 @@ class ModelInterventionAndCohortGroupWidget(Box, ValueWidget):
         return self.model_options.reference_time
 
 
-class ModelFairnessAuditOptions(Box, ValueWidget):
-    value = traitlets.Dict(help="The selected values for the audit and model options.")
-
-    def __init__(
-        self,
-        target_names: tuple[Any],
-        score_names: tuple[Any],
-        score_threshold: float,
-        per_context: bool = True,
-        fairness_metrics: tuple[str] = None,
-        fairness_threshold: float = 1.25,
-    ):
-        """
-        Widget for selecting interventions and outcomes across categories in a cohort group.
-
-        Parameters
-        ----------
-        target_names : tuple[Any]
-            Model target columns.
-        score_names : tuple[Any]
-            Model score columns.
-        score_threshold : float
-            Main threshold for the model score.
-        per_context : bool, optional
-            If scores should be grouped by context, by default True.
-        fairness_metrics : tuple[str], optional
-            List of fairness metrics to display, if None (default) will use ["tpr", "fpr", "pprev"].
-        fairness_threshold : float, optional
-            Threshold for fairness metrics, by default 1.25.
-        """
-        all_metrics = ["pprev", "tpr", "fpr", "fnr", "ppr", "precision"]
-        fairness_metrics = fairness_metrics or ["pprev", "tpr", "fpr"]
-        self.fairness_slider = FloatSlider(
-            description="Threshold",
-            value=fairness_threshold,
-            min=1.0,
-            max=2.0,
-            step=0.01,
-            tooltip="Threshold for fairness metrics",
-            style=WIDE_LABEL_STYLE,
-        )
-        thresholds = {"Score Threshold": score_threshold}
-        self.fairness_list = MultiselectDropdownWidget(options=all_metrics, value=fairness_metrics, title="Metrics")
-        fairness_section = VBox(
-            children=[html_title("Audit Options"), self.fairness_slider, self.fairness_list],
-            layout=Layout(align_items="flex-end"),
-        )
-        self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
-
-        super().__init__(children=[self.model_options, fairness_section], layout=BOX_GRID_LAYOUT)
-
-        self.fairness_list.observe(self._on_value_change, "value")
-        self.fairness_slider.observe(self._on_value_change, "value")
-        self.model_options.observe(self._on_value_change, "value")
-
-        self._on_value_change()
-        self._disabled = False
-
-    @property
-    def disabled(self) -> bool:
-        return self._disabled
-
-    @disabled.setter
-    def disabled(self, disabled: bool):
-        self._disabled = disabled
-        self.fairness_list.disabled = disabled
-        self.fairness_slider.disabled = disabled
-        self.model_options.disabled = disabled
-
-    def _on_value_change(self, change=None):
-        self.value = {
-            "fairness_metrics": self.fairness_list.value,
-            "fairness_threshold": self.fairness_slider.value,
-            "model_options": self.model_options.value,
-        }
-
-    @property
-    def metrics(self) -> tuple[str]:
-        """Selected cohorts"""
-        return self.fairness_list.value
-
-    @property
-    def fairness_threshold(self) -> tuple[str]:
-        """Threshold under which differences are considered to be fair."""
-        return self.fairness_slider.value
-
-    @property
-    def target(self) -> str:
-        """Target column descriptor"""
-        return self.model_options.target
-
-    @property
-    def score(self) -> str:
-        """Score column descriptor"""
-        return self.model_options.score
-
-    @property
-    def score_threshold(self) -> tuple[float]:
-        """Score thresholds"""
-        return self.model_options.thresholds["Score Threshold"]
-
-    @property
-    def group_scores(self) -> bool:
-        """If scores should be grouped by context."""
-        return self.model_options.group_scores
-
-
 # endregion
 # region Exploration Widgets
 
@@ -1009,20 +902,21 @@ class ExplorationWidget(VBox):
         self.update_plot_widget.show_code = show_code
 
     def update_plot(self, initial: bool = False):
-        plot_args, plot_kwargs = self.generate_plot_args()
-        self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
         if not initial:
             self.center.clear_output()
             with self.center:
-                plot = self._try_generate_plot(plot_args, plot_kwargs)
+                plot = self._try_generate_plot()
                 display(plot)
         else:
-            plot = self._try_generate_plot(plot_args, plot_kwargs)
+            plot = self._try_generate_plot()
             self.center.append_display_data(plot)
         self.update_plot_widget.disabled = True
 
-    def _try_generate_plot(self, plot_args: tuple = None, plot_kwargs: dict = None) -> Any:
+    def _try_generate_plot(self) -> Any:
+        """Attempt to generate the plot. Displaying the error at HTML"""
         try:
+            plot_args, plot_kwargs = self.generate_plot_args()
+            self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
             plot = self.plot_function(*plot_args, **plot_kwargs)
         except Exception as e:
             import traceback

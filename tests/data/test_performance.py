@@ -6,6 +6,8 @@ import seismometer.data.performance as undertest
 from seismometer.data.confidence.calculations import ValueWithCI, _RocRegionResults
 from seismometer.data.confidence.parameters import _SUPPORTED_PLOTS
 
+ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + ["NNT@0.333"]
+
 
 class TestAssertValidPerf:
     def test_no_stats_fails(self):
@@ -16,9 +18,9 @@ class TestAssertValidPerf:
     @pytest.mark.parametrize(
         "col_list",
         [
-            pytest.param(undertest.STATNAMES, id="All stats"),
+            pytest.param(ALL_STATS, id="All stats"),
             pytest.param(["Threshold", "Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"], id="Six required"),
-            pytest.param(["another"] + undertest.STATNAMES, id="Extra column"),
+            pytest.param(["another"] + ALL_STATS, id="Extra column"),
         ],
     )
     def test_default_allstats_passes(self, col_list):

@@ -1,5 +1,4 @@
 from enum import Enum
-from functools import partial
 from typing import Any, Callable
 
 import numpy as np
@@ -16,10 +15,6 @@ from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
 
 
-def funcToMethod(func, clas, method_name=None):
-    setattr(clas, method_name or func.__name__, func)
-
-
 class FairnessIcons(Enum):
     """
     Enum for fairness icons
@@ -34,7 +29,7 @@ class FairnessIcons(Enum):
     CRITICAL_LOW = "🔻"
 
     @classmethod
-    def fairness_legend(cls, limit: float = 0.2, open: bool = False, censor_threshold: int = 10) -> str:
+    def get_fairness_legend(cls, limit: float = 0.2, open: bool = False, censor_threshold: int = 10) -> str:
         return html(
             f"""
 <details {'open' if open else ''}><summary>Legend</summary>
@@ -58,7 +53,7 @@ class FairnessIcons(Enum):
         )
 
     @classmethod
-    def fairness_icon(cls, ratio, limit: float = 0.2) -> "FairnessIcons":
+    def get_fairness_icon(cls, ratio, limit: float = 0.2) -> "FairnessIcons":
         """
         Icon for fairness ratio
         If fairness ratio is 0.2 (20%) we want to show a warning if we are outside this range and
@@ -67,14 +62,20 @@ class FairnessIcons(Enum):
         4/5 - 5/4 is symmetric around 1
 
         So we are looing at 1-ratio and 1/(1-ratio)
+
+        the limit is required to be strictly between 0 and 0.5.
         """
-        if ratio > 1 / (1 - 2 * limit):
+        lower_limit, upper_limit = 1 - limit, 1 / (1 - limit)
+        twice_lower_limit, twice_upper_limit = 1 - 2 * limit, 1 / (1 - 2 * limit)
+        if ratio is None or np.isnan(ratio):
+            return FairnessIcons.UNKNOWN
+        if ratio > twice_upper_limit:
             return FairnessIcons.CRITICAL_HIGH
-        if ratio < 1 - 2 * limit:
+        if ratio < twice_lower_limit:
             return FairnessIcons.CRITICAL_LOW
-        if ratio > 1 / (1 - limit):
+        if ratio > upper_limit:
             return FairnessIcons.WARNING_HIGH
-        if ratio < 1 - limit:
+        if ratio < lower_limit:
             return FairnessIcons.WARNING_LOW
         if ratio == 1:
             return FairnessIcons.DEFAULT
@@ -100,6 +101,15 @@ def fairness_table(
     footnotes = []
     metric_list = list(metric_list)
 
+    if fairness_ratio > 1:  # backwards compatibility for limits greater than 1
+        fairness_ratio = (limit - 1) / limit  # (1.25 - 1 ) / 1.25 = 0.25/1.25 = 0.2
+
+    if fairness_ratio <= 0 or fairness_ratio >= 0.5:
+        raise ValueError("Fairness ratio must be between 0 and 0.5")
+
+    if not cohort_dict:
+        raise ValueError("No cohorts provided for fairness evaluation")
+
     for cohort_column in cohort_dict:
         cohort_indices = []
         cohort_values = []
@@ -122,7 +132,7 @@ def fairness_table(
 
         fairness_data = pd.concat([fairness_data, cohort_ratios])
         cohort_icons = cohort_ratios.drop("Count", axis=1).applymap(
-            lambda ratio: FairnessIcons.fairness_icon(ratio, fairness_ratio)
+            lambda ratio: FairnessIcons.get_fairness_icon(ratio, fairness_ratio)
         )
         cohort_icons["Count"] = cohort_data["Count"]
         fairness_icons = pd.concat([fairness_icons, cohort_icons])
@@ -146,7 +156,7 @@ def fairness_table(
         + fairness_data[metric_list].applymap(lambda x: f"  ({1-x:.2%})  " if not (np.isnan(x) or x == 1.0) else "")
     )
 
-    legend = FairnessIcons.fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
+    legend = FairnessIcons.get_fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
 
     table_data = fairness_icons.reset_index()[["Cohort", "Class", "Count"] + metric_list]
     table_data = table_data.sort_values(
@@ -169,6 +179,53 @@ def fairness_table(
     return HTML(table_html)
 
 
+# region Fairness Table Wrapper
+
+
+def binary_classifier_table_wrapper_function(
+    metric_generator, cohort_dict, fairness_ratio, metric_list, target, score, threshold, *, per_context=False
+) -> HTML:
+    from seismometer.seismogram import Seismogram
+
+    sg = Seismogram()
+    target_column = pdh.event_value(target)
+    data = (
+        pdh.event_score(
+            sg.data(),
+            sg.entity_keys,
+            score=score_column,
+            ref_event=sg.predict_time,
+            aggregation_method=sg.event_aggregation_method(target_column),
+        )
+        if per_context
+        else sg.data()
+    )
+
+    def metric_function(data: pd.DataFrame) -> dict:
+        return metric_generator(data, target_col=target_column, score_col=score, score_threshold=threshold)
+
+    return fairness_table(
+        data, [metric_function], metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
+    )
+
+
+def table_wrapper_function(metric_functions, cohort_dict, fairness_ratio, metric_list) -> HTML:
+    from seismometer.seismogram import Seismogram
+
+    sg = Seismogram()
+    dataframe = sg.dataframe
+    if not cohort_dict:
+        cohort_dict = sg.available_cohort_groups
+    return fairness_table(
+        dataframe, metric_functions, metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
+    )
+
+
+# endregion
+
+# region Fairness Controls
+
+
 class FarinessOptionsWidget(Box, ValueWidget):
     value = traitlets.Dict(help="The selected values for the model options.")
 
@@ -179,6 +236,7 @@ class FarinessOptionsWidget(Box, ValueWidget):
         fairness_ratio: float = 0.2,
         *,
         model_options_widget=None,
+        default_metrics=None,
     ):
         """
         Widget for selecting fairness options
@@ -195,7 +253,8 @@ class FarinessOptionsWidget(Box, ValueWidget):
             Additional model options if needed, will appear before fairness options, by default None
         """
         self.model_options_widget = model_options_widget
-        self.metric_list = MultiselectDropdownWidget(metric_names, value=metric_names, title="Fairness Metrics")
+        default_metrics = default_metrics or metric_names
+        self.metric_list = MultiselectDropdownWidget(metric_names, value=default_metrics, title="Fairness Metrics")
         self.cohort_list = MultiSelectionListWidget(cohort_dict, title="Cohorts")
         self.fairness_slider = FloatSlider(
             min=0.01,
@@ -205,7 +264,7 @@ class FarinessOptionsWidget(Box, ValueWidget):
             description="Threshold",
             style=WIDE_LABEL_STYLE,
         )
-
+        self.all_cohorts = cohort_dict
         self.metric_list.observe(self._on_value_changed, names="value")
         self.cohort_list.observe(self._on_value_changed, names="value")
         self.fairness_slider.observe(self._on_value_changed, names="value")
@@ -258,7 +317,7 @@ class FarinessOptionsWidget(Box, ValueWidget):
 
     @property
     def cohorts(self):
-        return self.cohort_list.value
+        return self.cohort_list.value or self.all_cohorts
 
     @property
     def fairness_ratio(self):
@@ -333,7 +392,11 @@ class ExploreBinaryModelFairness(ExplorationWidget):
         super().__init__(
             title="Binary Classifier Fairness Audit",
             option_widget=FarinessOptionsWidget(
-                metric_names, sg.available_cohort_groups, fairness_ratio=0.2, model_options_widget=model_options_widget
+                metric_names,
+                sg.available_cohort_groups,
+                fairness_ratio=0.2,
+                model_options_widget=model_options_widget,
+                default_metrics=["Accuracy", "Sensitivity", "Specificity", "PPV"],
             ),
             plot_function=binary_classifier_table_wrapper_function,
             initial_plot=False,
@@ -354,40 +417,4 @@ class ExploreBinaryModelFairness(ExplorationWidget):
         return args, kwargs
 
 
-def binary_classifier_table_wrapper_function(
-    metric_generator, cohort_dict, fairness_ratio, metric_list, target, score, threshold, *, per_context=False
-) -> HTML:
-    from seismometer.seismogram import Seismogram
-
-    sg = Seismogram()
-    target_column = pdh.event_value(target)
-    data = (
-        pdh.event_score(
-            sg.data(),
-            sg.entity_keys,
-            score=score_column,
-            ref_event=sg.predict_time,
-            aggregation_method=sg.event_aggregation_method(target_column),
-        )
-        if per_context
-        else sg.data()
-    )
-
-    partial_metric_function = partial(
-        metric_generator, target_col=target_column, score_col=score, score_threshold=threshold
-    )
-    return fairness_table(
-        data, [partial_metric_function], metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
-    )
-
-
-def table_wrapper_function(metric_functions, cohort_dict, fairness_ratio, metric_list) -> HTML:
-    from seismometer.seismogram import Seismogram
-
-    sg = Seismogram()
-    dataframe = sg.dataframe
-    if not cohort_dict:
-        cohort_dict = sg.available_cohort_groups
-    return fairness_table(
-        dataframe, metric_functions, metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
-    )
+# endregion

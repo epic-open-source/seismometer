@@ -6,6 +6,11 @@ data_usage:
   # Each use case must define a primary output and target
   # Output should be in the predictions table but target may be a display name of a windowed event
   primary_output: LGBM_score
+  # This list defines available outputs for the model (scores)
+  outputs:
+   - LGBM_score
+   - LGBM_with_noise
+   - LGBM_with_big_noise
   primary_target: Readmitted within 30 Days
   # Predict time indicates the column for timestamp associated with the row
   predict_time: ScoringTime
