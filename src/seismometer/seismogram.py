@@ -312,7 +312,7 @@ class Seismogram(object, metaclass=Singleton):
         if event_time in self.dataframe:
             return self.dataframe[self._data_mask(event_val) & self._time_mask(event_time)]
 
-        return self.dataframe[self._data_mask(event_val)]
+        return self.dataframe
 
     def score_bins(self):
         """Updates the active values for notebook-scoped selections."""
@@ -392,7 +392,7 @@ class Seismogram(object, metaclass=Singleton):
 
     @lru_cache
     def _data_mask(self, event_val):
-        return self.dataframe[event_val] != -1
+        return pdh.is_valid_event(self.dataframe, event_val, self.predict_time)
 
     @lru_cache
     def _time_mask(self, event_time, keep_zero: str = None):

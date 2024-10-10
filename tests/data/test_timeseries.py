@@ -128,9 +128,21 @@ class TestCreateMetricTimeseries:
         compare = actual.sort_values(by=["Reference", "Group", "Value"]).reset_index(drop=True)
         pdt.assert_frame_equal(compare, expected)
 
-    def test_bools_filter_out_invalid(self):
+    def test_bools_filter_out_early(self):
         input_frame = create_frame([0, 1], ["A", "B"])
         input_frame["Value"] = [-1, -2, 1, -1, -1, -2, -1, 0]
+        input_frame["Value_Time"] = pd.to_datetime(
+            [
+                "2023-12-31",  # early
+                "2023-11-30",  # early
+                "2024-02-01",  # good
+                "2023-12-31",  # early
+                "2023-12-31",  # early
+                "2023-12-31",  # early
+                "2023-11-30",  # early
+                "2024-02-01",  # good
+            ]
+        )
         expected = pd.DataFrame({"Reference": [pd.Timestamp("2024-01-01")] * 2, "Group": ["A", "B"], "Value": [1, 0]})
 
         actual = undertest.create_metric_timeseries(
@@ -142,7 +154,7 @@ class TestCreateMetricTimeseries:
     def test_missing_does_not_count_toward_threshold(self):
         input_frame = create_frame([0, 1], ["A", "A"])
         input_frame["Value"] = [-1, -2, -1, -1, -1, -2, -1, 0]
-
+        input_frame["Value_Time"] = pd.to_datetime(["2023-12-31"] * 7 + ["2024-02-01"])
         actual = undertest.create_metric_timeseries(
             input_frame, "Reference", "Value", ["EntityId"], "Group", censor_threshold=1, boolean_event=True
         )
