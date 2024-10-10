@@ -193,7 +193,7 @@ def binary_classifier_table_wrapper_function(
         pdh.event_score(
             sg.data(),
             sg.entity_keys,
-            score=score_column,
+            score=score,
             ref_event=sg.predict_time,
             aggregation_method=sg.event_aggregation_method(target_column),
         )
@@ -276,6 +276,7 @@ class FarinessOptionsWidget(Box, ValueWidget):
         ]
         if model_options_widget:
             v_children.insert(0, model_options_widget)
+            self.model_options_widget.observe(self._on_value_changed, names="value")
 
         super().__init__(
             children=[

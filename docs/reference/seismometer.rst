@@ -32,7 +32,6 @@ Public API
    cohort_evaluation
    cohort_comparison_report
    cohort_list
-   fairness_audit
    feature_alerts
    feature_summary
    model_evaluation

@@ -1541,14 +1541,6 @@ class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeIntervention
         super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
 
 
-@export
-def fairness_audit(metric_list: list[str] = None, fairness_threshold: float = 0.2):
-    """
-    Placeholder function for the fairness audit plot.
-    """
-    pass
-
-
 export(ExploreFairnessAudit)
 
 # endregion
