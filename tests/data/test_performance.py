@@ -238,3 +238,28 @@ class TestBinaryMetricGenerator:
         result = metrics(data, ["Accuracy", "PPV"], target_col="TARGET", score_col="SCORE", score_threshold=0.2)
         assert result == {"Accuracy": 0.8, "PPV": 0.5}
         mock_stats.assert_called_once_with(data, "TARGET", "SCORE", 0.2, rho=0.01)
+
+
+class TestBinaryStats:
+    def test_calc_ci_maps_roc_values(self):
+        _, truth, output, _, _ = ci_testcase0()
+        data = pd.DataFrame({"truth": truth, "output": output})
+        expected = {
+            "Threshold": 70.0,
+            "TP": 1.0,
+            "FP": 0.0,
+            "TN": 2.0,
+            "FN": 1.0,
+            "Accuracy": 0.75,
+            "Sensitivity": 0.5,
+            "Specificity": 1.0,
+            "PPV": 1.0,
+            "NPV": 0.6666666666666666,
+            "Flagged": 0.25,
+            "LR+": np.inf,
+            "NetBenefitScore": 0.25,
+            "NNT@0.2": 3.0,
+        }
+        actual = undertest.calculate_binary_stats(data, "truth", "output", 0.7, 0.2)
+
+        assert actual == expected

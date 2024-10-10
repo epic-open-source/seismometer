@@ -15,6 +15,7 @@ from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
 
 
+# region Fairness Icons
 class FairnessIcons(Enum):
     """
     Enum for fairness icons
@@ -82,14 +83,20 @@ class FairnessIcons(Enum):
         return FairnessIcons.GOOD
 
 
-def fairness_sort_key_generator(cohort_groups: tuple[str]):
+# endregion
+# region Fairness Table
+
+
+def sort_fairness_table(dataframe: pd.DataFrame, cohort_groups: tuple[str]):
     """
     Generates a sort key for the fairness table based on Cohort group name and Count
 
     Parameters
     ----------
+    dataframe : pd.DataFrame
+        Dataframe to sort
     cohort_groups : tuple[str]
-        cohort group names
+        Cohort group names for sorting.
     """
 
     def fairness_sort_key(key: pd.Series) -> pd.Series:
@@ -101,7 +108,7 @@ def fairness_sort_key_generator(cohort_groups: tuple[str]):
             case _:
                 return key
 
-    return fairness_sort_key
+    return dataframe.sort_values(by=["Cohort", "Count"], key=fairness_sort_key)
 
 
 def fairness_table(
@@ -176,9 +183,7 @@ def fairness_table(
     legend = FairnessIcons.get_fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
 
     table_data = fairness_icons.reset_index()[["Cohort", "Class", "Count"] + metric_list]
-    table_data = table_data.sort_values(
-        by=["Cohort", "Count"], key=fairness_sort_key_generator(list(cohort_dict.keys()))
-    )
+    table_data = sort_fairness_table(table_data, list(cohort_dict.keys()))
 
     table_html = (
         GT(table_data)
