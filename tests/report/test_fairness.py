@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 import seismometer.report.fairness as undertest
 from seismometer.data.performance import MetricGenerator
@@ -66,3 +67,21 @@ class TestFairnessTable:
         assert "🔻  3.00" in table.value
         assert "🔽  4.35" in table.value
         assert "🔹  7.00" in table.value
+
+
+class TestFairnessIcons:
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (0.5, undertest.FairnessIcons.CRITICAL_LOW),
+            (0.75, undertest.FairnessIcons.WARNING_LOW),
+            (0.9, undertest.FairnessIcons.GOOD),
+            (1.0, undertest.FairnessIcons.DEFAULT),
+            (1.1, undertest.FairnessIcons.GOOD),
+            (1.26, undertest.FairnessIcons.WARNING_HIGH),
+            (1.71, undertest.FairnessIcons.CRITICAL_HIGH),
+            (None, undertest.FairnessIcons.UNKNOWN),
+        ],
+    )
+    def test_values(self, value, expected):
+        assert undertest.FairnessIcons.get_fairness_icon(value) == expected
