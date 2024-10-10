@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -184,3 +186,55 @@ class TestCalCi:
 
         for i in [1, 2, 3]:
             assert actual[i] is None
+
+
+class TestMetricGenerator:
+    @pytest.mark.parametrize(
+        "errorType,errorStr,args,kwargs",
+        [
+            pytest.param(TypeError, "metric_fn", [["test_metric"]], {}, id="No function"),
+            pytest.param(ValueError, "metric_names", [[], lambda x: x], {}, id="No metrics"),
+            pytest.param(ValueError, "metric_fn", [["metric"], "not_callable"], {}, id="Not Callable"),
+        ],
+    )
+    def test_generate_metrics_init_fails(self, errorType, errorStr, args, kwargs):
+        with pytest.raises(errorType) as error:
+            undertest.MetricGenerator(*args, **kwargs)
+        assert errorStr in str(error.value)
+
+    def test_generate_metrics_init_correctly(self):
+        metric = undertest.MetricGenerator(["test_metric"], lambda data, names: {"test_metric": 1})
+        assert metric.metric_names == ["test_metric"]
+        assert metric(pd.DataFrame()) == {"test_metric": 1}
+
+    def test_generate_named_metrics(self):
+        metric = undertest.MetricGenerator(["metric1", "metric2"], lambda data, names: {name: 1 for name in names})
+        assert metric(pd.DataFrame(), ["metric2"]) == {"metric2": 1}
+        with pytest.raises(ValueError) as error:
+            metric(pd.DataFrame(), ["metric3"])
+        assert "metric3" in str(error.value)
+
+    def test_generate_metrics_with_kwargs(self):
+        def metric_fn(data, metric_names: list[str], *, special: int = 2):
+            return {name: special for name in metric_names}
+
+        metric = undertest.MetricGenerator(["metric1", "metric2"], metric_fn=metric_fn)
+        assert metric(pd.DataFrame(), ["metric1"], special=3) == {"metric1": 3}
+
+
+class TestBinaryMetricGenerator:
+    def test_binary_metric_generator_init(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        assert metrics.rho == 1 / 3
+        assert metrics.metric_names == ALL_STATS[1:]
+
+    @mock.patch(
+        "seismometer.data.performance.calculate_binary_stats",
+        return_value={"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4},
+    )
+    def test_binary_metric_generation(self, mock_stats):
+        metrics = undertest.BinaryClassifierMetricGenerator(rho=0.01)
+        data = pd.DataFrame({"fake": [0, 1, 0, 1], "data": [0.4, 0.5, 0.6, 0.7]})
+        result = metrics(data, ["Accuracy", "PPV"], target_col="TARGET", score_col="SCORE", score_threshold=0.2)
+        assert result == {"Accuracy": 0.8, "PPV": 0.5}
+        mock_stats.assert_called_once_with(data, "TARGET", "SCORE", 0.2, rho=0.01)

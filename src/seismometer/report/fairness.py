@@ -88,21 +88,21 @@ def fairness_sort_key(key: pd.Series) -> pd.Series:
 
 def fairness_table(
     dataframe: pd.DataFrame,
-    metric_fns: list[Callable[[pd.DataFrame], dict[str, float]]],
+    metric_fn: Callable[..., dict[str, float]],
     metric_list: list[str],
     fairness_ratio: float,
     cohort_dict: dict[str, tuple[Any]],
     *,
     censor_threshold: int = 10,
+    **kwargs,
 ) -> HTML:
     fairness_data = pd.DataFrame()
     metric_data = pd.DataFrame()
     fairness_icons = pd.DataFrame()
     footnotes = []
-    metric_list = list(metric_list)
 
     if fairness_ratio > 1:  # backwards compatibility for limits greater than 1
-        fairness_ratio = (limit - 1) / limit  # (1.25 - 1 ) / 1.25 = 0.25/1.25 = 0.2
+        fairness_ratio = (fairness_ratio - 1) / fairness_ratio  # (1.25 - 1 ) / 1.25 = 0.25/1.25 = 0.2
 
     if fairness_ratio <= 0 or fairness_ratio >= 0.5:
         raise ValueError("Fairness ratio must be between 0 and 0.5")
@@ -120,9 +120,8 @@ def fairness_table(
             cohort_dataframe = cohort_filter.filter(dataframe)
 
             index_value = {"Count": len(cohort_dataframe)}
-            for metric_fn in metric_fns:
-                metrics = metric_fn(cohort_dataframe)
-                index_value.update(metrics)
+            metrics = metric_fn(cohort_dataframe, [x for x in metric_list if x in metric_fn.metric_names], **kwargs)
+            index_value.update(metrics)
 
             cohort_values.append(index_value)
         cohort_data = pd.DataFrame.from_records(
@@ -182,8 +181,8 @@ def fairness_table(
 # region Fairness Table Wrapper
 
 
-def binary_classifier_table_wrapper_function(
-    metric_generator, cohort_dict, fairness_ratio, metric_list, target, score, threshold, *, per_context=False
+def binary_metrics_fairness_table(
+    metric_generator, metric_list, cohort_dict, fairness_ratio, target, score, threshold, *, per_context=False
 ) -> HTML:
     from seismometer.seismogram import Seismogram
 
@@ -200,16 +199,20 @@ def binary_classifier_table_wrapper_function(
         if per_context
         else sg.data()
     )
-
-    def metric_function(data: pd.DataFrame) -> dict:
-        return metric_generator(data, target_col=target_column, score_col=score, score_threshold=threshold)
-
     return fairness_table(
-        data, [metric_function], metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
+        data,
+        metric_generator,
+        metric_list,
+        fairness_ratio,
+        cohort_dict,
+        censor_threshold=sg.censor_threshold,
+        target_col=target_column,
+        score_col=score,
+        score_threshold=threshold,
     )
 
 
-def table_wrapper_function(metric_functions, cohort_dict, fairness_ratio, metric_list) -> HTML:
+def custom_metrics_fairness_table(metric_generator, metric_list, cohort_dict, fairness_ratio) -> HTML:
     from seismometer.seismogram import Seismogram
 
     sg = Seismogram()
@@ -217,7 +220,7 @@ def table_wrapper_function(metric_functions, cohort_dict, fairness_ratio, metric
     if not cohort_dict:
         cohort_dict = sg.available_cohort_groups
     return fairness_table(
-        dataframe, metric_functions, metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
+        dataframe, metric_generator, metric_list, fairness_ratio, cohort_dict, censor_threshold=sg.censor_threshold
     )
 
 
@@ -334,7 +337,7 @@ class ExplorationFairnessWidget(ExplorationWidget):
     A widget for exploring model fairness across cohorts
     """
 
-    def __init__(self, metrics: list[MetricGenerator] | MetricGenerator = None):
+    def __init__(self, metrics: MetricGenerator):
         """
         Exploration widget for model fairness evaluation based on cohort selection.
         Only works for global model metrics, not metrics that rely on parameters.
@@ -348,25 +351,23 @@ class ExplorationFairnessWidget(ExplorationWidget):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        if not isinstance(metrics, list):
-            metrics = [metrics]
-        self.metric_functions = metrics
-        metric_names = [item for metric_fn in metrics for item in metric_fn.metric_names]
+        self.metrics_generator = metrics
+        metric_names = [name for name in metrics.metric_names]
 
         super().__init__(
             title="Fairness Audit",
             option_widget=FarinessOptionsWidget(metric_names, sg.available_cohort_groups, fairness_ratio=0.2),
-            plot_function=table_wrapper_function,
+            plot_function=custom_metrics_fairness_table,
             initial_plot=False,
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:
         """Generates the plot arguments for the model evaluation plot"""
         args = (
-            self.metric_functions,
+            self.metrics_generator,
+            list(self.option_widget.metrics),
             self.option_widget.cohorts,
             self.option_widget.fairness_ratio,
-            self.option_widget.metrics,
         )
         return args, {}
 
@@ -399,7 +400,7 @@ class ExploreBinaryModelFairness(ExplorationWidget):
                 model_options_widget=model_options_widget,
                 default_metrics=["Accuracy", "Sensitivity", "Specificity", "PPV"],
             ),
-            plot_function=binary_classifier_table_wrapper_function,
+            plot_function=binary_metrics_fairness_table,
             initial_plot=False,
         )
 
@@ -407,9 +408,9 @@ class ExploreBinaryModelFairness(ExplorationWidget):
         """Generates the plot arguments for the model evaluation plot"""
         args = (
             self.metric_generator,
+            list(self.option_widget.metrics),
             self.option_widget.cohorts,
             self.option_widget.fairness_ratio,
-            self.option_widget.metrics,
             self.option_widget.model_options.target,
             self.option_widget.model_options.score,
             self.option_widget.model_options.thresholds["Score Threshold"],
