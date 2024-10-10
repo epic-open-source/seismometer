@@ -82,8 +82,26 @@ class FairnessIcons(Enum):
         return FairnessIcons.GOOD
 
 
-def fairness_sort_key(key: pd.Series) -> pd.Series:
-    return key.apply(lambda x: x if x not in [FairnessIcons.UNKNOWN.value, "--"] else 0)
+def fairness_sort_key_generator(cohort_groups: tuple[str]):
+    """
+    Generates a sort key for the fairness table based on Cohort group name and Count
+
+    Parameters
+    ----------
+    cohort_groups : tuple[str]
+        cohort group names
+    """
+
+    def fairness_sort_key(key: pd.Series) -> pd.Series:
+        match key.name:
+            case "Count":
+                return key.apply(lambda x: -x if x not in [FairnessIcons.UNKNOWN.value, "--"] else 0)
+            case "Cohort":
+                return key.apply(lambda x: cohort_groups.index(x))
+            case _:
+                return key
+
+    return fairness_sort_key
 
 
 def fairness_table(
@@ -159,7 +177,7 @@ def fairness_table(
 
     table_data = fairness_icons.reset_index()[["Cohort", "Class", "Count"] + metric_list]
     table_data = table_data.sort_values(
-        by=["Count", "Cohort", "Class"], ascending=[False, True, True], key=fairness_sort_key
+        by=["Cohort", "Count"], key=fairness_sort_key_generator(list(cohort_dict.keys()))
     )
 
     table_html = (
