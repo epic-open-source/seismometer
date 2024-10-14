@@ -233,7 +233,7 @@ notably, parity of true positive rate is equal opportunity, parity of
 false positive rate is predictive equality, and parity of predictive
 prevalence is demographic parity.
 
-An fairness audit gives an overview of parity across all defined groups
+A fairness audit gives an overview of parity across all defined groups
 for each cohort attribute. The majority group is the
 baseline and a statistic for all observations in the other groups is
 compared. A fairness threshold such as 20% is then used to classify the

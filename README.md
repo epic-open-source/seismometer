@@ -25,10 +25,6 @@ Install the base package with:
 
 `pip install seismometer`
 
-Install the packages required for fairness audit visualizations with:
-
-`pip install seismometer[audit]`
-
 ## Getting Help
 
 For general usage questions, refer to our [User Guide](https://epic-open-source.github.io/seismometer/user_guide/index.html#user-guide).
