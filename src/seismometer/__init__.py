@@ -1,10 +1,12 @@
+import importlib.metadata
 import logging
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
-from seismometer._version import __version__
+__version__ = importlib.metadata.version("seismometer")
+
 from seismometer.configuration import ConfigProvider
 from seismometer.core.logger import add_log_formatter, set_default_logger_config
 
