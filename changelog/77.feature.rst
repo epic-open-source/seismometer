@@ -1,1 +1,1 @@
-Fixes #77 by removing Aequistas and replacing with a great_tables based fairness audit.
+Addresses #77 by removing Aequistas and replacing with a great_tables based fairness audit.

@@ -62,7 +62,7 @@ class FairnessIcons(Enum):
 
         4/5 - 5/4 is symmetric around 1
 
-        So we are looing at 1-ratio and 1/(1-ratio)
+        So we are looking at 1-ratio and 1/(1-ratio)
 
         the limit is required to be strictly between 0 and 0.5.
         """
