@@ -215,6 +215,10 @@ def calibration(
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
     """
+    # Normalize scores for binary classfiers
+    if (output > 1).any():
+        output = output / 100.0
+
     from sklearn.calibration import calibration_curve
 
     fraction_positive, mean_predicted = calibration_curve(truth, output, n_bins=10)
@@ -252,6 +256,10 @@ def histogram_stacked(
         A flag to show the legend, by default True.
 
     """
+    # Normalize scores for binary classfiers
+    if (output > 1).any():
+        output = output / 100.0
+
     # split into samples
     data = pd.DataFrame({"predicted": output, "real": y_label})
 
