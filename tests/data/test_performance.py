@@ -190,16 +190,17 @@ class TestCalCi:
 
 class TestMetricGenerator:
     @pytest.mark.parametrize(
-        "errorType,errorStr,args,kwargs",
+        "errorType,errorStr,args",
         [
-            pytest.param(TypeError, "metric_fn", [["test_metric"]], {}, id="No function"),
-            pytest.param(ValueError, "metric_names", [[], lambda x: x], {}, id="No metrics"),
-            pytest.param(ValueError, "metric_fn", [["metric"], "not_callable"], {}, id="Not Callable"),
+            pytest.param(TypeError, "metric_fn", [["test_metric"]], id="No function"),
+            pytest.param(ValueError, "metric_names", [[], lambda x: x], id="No metrics"),
+            pytest.param(ValueError, "metric_fn", [["metric"], "not_callable"], id="Not Callable"),
+            pytest.param(ValueError, "reserved", [["metric", "Count"], lambda x: x], id="Count is reserved"),
         ],
     )
-    def test_generate_metrics_init_fails(self, errorType, errorStr, args, kwargs):
+    def test_generate_metrics_init_fails(self, errorType, errorStr, args):
         with pytest.raises(errorType) as error:
-            undertest.MetricGenerator(*args, **kwargs)
+            undertest.MetricGenerator(*args)
         assert errorStr in str(error.value)
 
     def test_generate_metrics_init_correctly(self):

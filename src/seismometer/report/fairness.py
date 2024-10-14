@@ -65,6 +65,18 @@ class FairnessIcons(Enum):
         So we are looking at 1-ratio and 1/(1-ratio)
 
         the limit is required to be strictly between 0 and 0.5.
+
+        Parameters
+        ----------
+        ratio : float
+            Ratio of the cohort to the largest cohort
+        limit : float, optional
+            Allowed difference by cohort, by default 0.2
+
+        Returns
+        -------
+        FairnessIcons
+            Icon for the ratio based on the limit.
         """
         lower_limit, upper_limit = 1 - limit, 1 / (1 - limit)
         twice_lower_limit, twice_upper_limit = 1 - 2 * limit, 1 / (1 - 2 * limit)
@@ -121,10 +133,39 @@ def fairness_table(
     censor_threshold: int = 10,
     **kwargs,
 ) -> HTML:
-    fairness_data = pd.DataFrame()
-    metric_data = pd.DataFrame()
-    fairness_icons = pd.DataFrame()
-    footnotes = []
+    """
+    Fairness table for evaluating metrics across cohorts
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        Source data to generate a fairness table for
+    metric_fn : Callable[..., dict[str, float]]
+        Metric function to generate raw metrics
+    metric_list : list[str]
+        List of metrics to use from the metric function
+    fairness_ratio : float
+        Ratio of acceptable difference between cohorts
+    cohort_dict : dict[str, tuple[Any]]
+        collection of cohort groups to loop over
+    censor_threshold : int, optional
+        Limit at which a cohort group will be removed from the table if not enough samples are found, by default 10.
+
+    Returns
+    -------
+    HTML
+        _description_
+
+    Raises
+    ------
+    ValueError
+        _description_
+    ValueError
+        _description_
+    """
+    fairness_groups = []
+    metric_groups = []
+    icon_groups = []
 
     if fairness_ratio > 1:  # backwards compatibility for limits greater than 1
         fairness_ratio = (fairness_ratio - 1) / fairness_ratio  # (1.25 - 1 ) / 1.25 = 0.25/1.25 = 0.2
@@ -154,22 +195,26 @@ def fairness_table(
         )
         cohort_ratios = cohort_data.div(cohort_data.loc[cohort_data["Count"].idxmax()], axis=1)
 
-        fairness_data = pd.concat([fairness_data, cohort_ratios])
         cohort_icons = cohort_ratios.drop("Count", axis=1).applymap(
             lambda ratio: FairnessIcons.get_fairness_icon(ratio, fairness_ratio)
         )
         cohort_icons["Count"] = cohort_data["Count"]
-        fairness_icons = pd.concat([fairness_icons, cohort_icons])
-        metric_data = pd.concat([metric_data, cohort_data])
-        for cohort_column, cohort_class in cohort_indices:
-            if cohort_data.loc[(cohort_column, cohort_class), "Count"] < censor_threshold:
-                fairness_icons.loc[(cohort_column, cohort_class), "Count"] = FairnessIcons.UNKNOWN.value
-                for metric in metric_list:
-                    fairness_icons.loc[(cohort_column, cohort_class), metric] = FairnessIcons.UNKNOWN
-                    metric_data.loc[(cohort_column, cohort_class), metric] = np.nan
-                    fairness_data.loc[(cohort_column, cohort_class), metric] = np.nan
-                warning = f'not enough samples with "{cohort_column}" == "{cohort_class}"'
-                footnotes.append(f"{FairnessIcons.UNKNOWN.value} **{cohort_column}** - {warning}")
+
+        fairness_groups.append(cohort_ratios)
+        icon_groups.append(cohort_icons)
+        metric_groups.append(cohort_data)
+
+    fairness_data = pd.concat(fairness_groups)
+    metric_data = pd.concat(metric_groups)
+    fairness_icons = pd.concat(icon_groups)
+
+    for cohort_column, cohort_class in metric_data.index:
+        if metric_data.loc[(cohort_column, cohort_class), "Count"] < censor_threshold:
+            fairness_icons.loc[(cohort_column, cohort_class), "Count"] = FairnessIcons.UNKNOWN.value
+            for metric in metric_list:
+                fairness_icons.loc[(cohort_column, cohort_class), metric] = FairnessIcons.UNKNOWN
+                metric_data.loc[(cohort_column, cohort_class), metric] = np.nan
+                fairness_data.loc[(cohort_column, cohort_class), metric] = np.nan
 
     fairness_icons[metric_list] = fairness_icons[metric_list].applymap(
         lambda x: x.value if x != FairnessIcons.UNKNOWN else "--"
