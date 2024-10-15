@@ -6,7 +6,7 @@ import pytest
 from conftest import TEST_ROOT
 
 import seismometer
-import seismometer._api as undertest
+import seismometer.api as undertest
 
 res = TEST_ROOT / "resources/html"
 
@@ -40,8 +40,8 @@ class Test_Template_Apis:
             "end_date": "2025-01-01",
             "plot_help": True,
         }
-        with mock.patch.object(undertest, "Seismogram", return_value=mock_sg):
-            assert undertest._get_info_dict(True) == expected
+        with mock.patch.object(undertest.templates, "Seismogram", return_value=mock_sg):
+            assert undertest.templates._get_info_dict(True) == expected
 
     @pytest.mark.parametrize(
         "selection,by_target,by_score,expected",
@@ -70,8 +70,8 @@ class Test_Template_Apis:
         mock_sg.score_bins.return_value = [0, 0.2, 1]
         mock_sg.dataframe = INPUT_FRAME
 
-        with mock.patch.object(undertest, "Seismogram", return_value=mock_sg):
-            result = undertest._score_target_levels_and_index(selection, by_target, by_score)
+        with mock.patch.object(undertest.templates, "Seismogram", return_value=mock_sg):
+            result = undertest.templates._score_target_levels_and_index(selection, by_target, by_score)
 
         for val, expected_val in zip(result, expected):
             for sub_val, expected_sub_val in zip(val, expected_val):

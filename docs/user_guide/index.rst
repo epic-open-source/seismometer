@@ -490,10 +490,8 @@ Then, follow the pattern of normal startup but specify your function in the :py:
 
 .. code-block:: python
 
-   from seismometer.configuration import ConfigProvider
-   from seismometer.data.loader import loader_factory
+   import seismometer.api as sm
    from seismometer.seismogram import Seismogram
-   import seismometer._api as sm
 
    def custom_post_load_fn(config: ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
       df["SameAB"] = df["A"] == df["B"]

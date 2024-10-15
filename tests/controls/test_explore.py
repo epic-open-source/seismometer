@@ -69,7 +69,7 @@ class TestExplorationBaseClass:
         "plot_module,plot_code",
         [
             ("__main__", "plot_something(False)"),
-            ("seismometer._api", "sm.plot_something(False)"),
+            ("seismometer.api", "sm.plot_something(False)"),
             ("something_else", "something_else.plot_something(False)"),
         ],
     )

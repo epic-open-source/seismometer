@@ -946,7 +946,7 @@ class ExplorationWidget(VBox):
         match plot_module:
             case "__main__":
                 method_string = plot_method
-            case "seismometer._api":
+            case "seismometer.api":
                 method_string = f"sm.{plot_method}"
             case _:
                 method_string = f"{plot_module}.{plot_method}"

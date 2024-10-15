@@ -12,7 +12,7 @@ import pandas as pd
 from seismometer.api import *
 
 __version__ = importlib.metadata.version("seismometer")
-logger = init_logger()
+logger = logging.getLogger("seismometer")
 
 
 def run_startup(
@@ -53,6 +53,7 @@ def run_startup(
     reset : bool, optional
         A flag when True, will reset the Seismogram instance before loading configuration and data, by default False.
     """
+    _ = init_logger()
     logger.setLevel(log_level)
     logger.info(f"seismometer version {__version__} starting")
 
