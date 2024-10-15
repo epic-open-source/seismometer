@@ -603,6 +603,7 @@ def _model_evaluation(
     return template.render_title_with_image(title, svg)
 
 
+@export
 def plot_trend_intervention_outcome() -> HTML:
     """
     Plots two timeseries based on selectors; an outcome and then an intervention.

@@ -5,7 +5,7 @@ Seismometer
 Exploration APIs
 ~~~~~~~~~~~~~~~~
 
-.. currentmodule:: seismometer._api
+.. currentmodule:: seismometer.api
 
 .. autosummary::
    :toctree: api/
@@ -19,12 +19,12 @@ Exploration APIs
    ExploreFairnessAudit
    ExploreModelScoreComparison
    ExploreModelTargetComparison
-   
+
 
 Public API
 ~~~~~~~~~~~
 
-.. currentmodule:: seismometer._api
+.. currentmodule:: seismometer.api
 
 .. autosummary::
    :toctree: api/
