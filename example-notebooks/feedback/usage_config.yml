@@ -1,0 +1,47 @@
+data_usage:
+  # Define the keys used to identify an output;
+  # entity_id is required while a secondary context grouping is optional
+  entity_id: Entity
+  context_id: Context
+  # Each use case must define a primary output and target
+  # Output should be in the predictions table but target may be a display name of a windowed event
+  #primary_output: LGBM_score
+  #primary_target: Readmitted within 30 Days
+  # Predict time indicates the column for timestamp associated with the row
+  predict_time: Time
+  # Features, when present, will reduce the data loaded from predictions.
+  # It does NOT need to include cohorts our outputs specified elsewhere
+  #features:
+  #  - admission_type_id
+  #  - num_medications
+  #  - num_procedures
+  # This list defines available cohort options for the default selectors
+  cohorts:
+    - source: Role
+      display_name: Role
+    - source: Location
+      display_name: Location
+    - source: UserFeedback
+      display_name: User Feedback
+  metrics:
+    - source: Accuracy
+      display_name: Accuracy
+      metric_type: ordinal_categorical
+      group_key: Rubric metrics
+    - source: Relevancy
+      display_name: Relevancy
+      metric_type: ordinal_categorical
+      group_key: Rubric metrics
+    - source: Tone
+      display_name: Tone
+      metric_type: ordinal_categorical
+      group_key: Rubric metrics
+    - source: Structure
+      display_name: Structure
+      metric_type: ordinal_categorical
+      group_key: Rubric metrics
+    - source: UserFeedback
+      display_name: User Feedback
+      metric_type: ordinal_categorical
+      group_key: User feedback
+  censor_min_count: 10

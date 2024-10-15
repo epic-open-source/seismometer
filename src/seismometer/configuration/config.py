@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from seismometer.core.io import load_yaml
 
-from .model import DataUsage, Event, EventDictionary, OtherInfo, PredictionDictionary
+from .model import DataUsage, Event, EventDictionary, OtherInfo, PredictionDictionary, MetricTypes
 
 
 class ConfigProvider:
@@ -303,6 +303,15 @@ class ConfigProvider:
         Configured in usage_data as events with usage 'group'.
         """
         return {ev.display_name: ev for ev in self.usage.events if ev.usage == usage_group}
+
+    def get_metrics_by_type(self, metric_type: MetricTypes, group_key: str = "") -> list[str]:
+        """
+        Returns a list of metrics by type.
+
+        Configured in usage_data as metrics with type 'metric_type'.
+        """
+        return [metric.source for metric in self.usage.metrics 
+                if (metric.metric_type == metric_type and (metric.group_key == group_key if group_key else True))]
 
     @property
     def targets(self) -> dict[str, Event]:

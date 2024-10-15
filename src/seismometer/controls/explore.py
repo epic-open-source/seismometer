@@ -949,7 +949,7 @@ class ExplorationWidget(VBox):
     NO_CODE_STRING = "No plot generated."
 
     def __init__(
-        self, title: str, option_widget: ValueWidget, plot_function: Callable[..., Any], initial_plot: bool = True
+        self, title: str, option_widget: ValueWidget, plot_function: Callable[..., Any], initial_plot: bool = True, **kwargs
     ):
         """
         Parent class for a plot exploration widget.
@@ -975,6 +975,8 @@ class ExplorationWidget(VBox):
         self.option_widget = option_widget
         self.plot_function = plot_function
         self.update_plot_widget = UpdatePlotWidget()
+        self.kwargs = kwargs or {}
+
         super().__init__(
             children=[title, self.option_widget, self.update_plot_widget, self.code_output, self.center], layout=layout
         )
@@ -1086,6 +1088,7 @@ class ExplorationSubpopulationWidget(ExplorationWidget):
         self,
         title: str,
         plot_function: Callable[..., Any],
+        **kwargs
     ):
         """
         Exploration widget for a subpopulation defined by a cohort selection.
@@ -1103,6 +1106,8 @@ class ExplorationSubpopulationWidget(ExplorationWidget):
         """
         from seismometer.seismogram import Seismogram
 
+        
+
         sg = Seismogram()
         cohort_groups = sg.available_cohort_groups
         option_widget = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
@@ -1111,15 +1116,13 @@ class ExplorationSubpopulationWidget(ExplorationWidget):
             title=title,
             option_widget=option_widget,
             plot_function=plot_function,
+            **kwargs
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:
         """Generates the plot arguments for the model evaluation plot."""
         args = (self.option_widget.value,)
-        kwargs = {
-            # empty dictionary
-        }
-        return args, kwargs
+        return args, self.kwargs
 
 
 class ExplorationModelSubgroupEvaluationWidget(ExplorationWidget):
@@ -1131,6 +1134,7 @@ class ExplorationModelSubgroupEvaluationWidget(ExplorationWidget):
         self,
         title: str,
         plot_function: Callable[..., Any],
+        **kwargs
     ):
         """
         Exploration widget for model evaluation, showing a plot for a given target,
@@ -1162,6 +1166,7 @@ class ExplorationModelSubgroupEvaluationWidget(ExplorationWidget):
                 sg.available_cohort_groups, sg.target_cols, sg.output_list, thresholds, per_context=False
             ),
             plot_function=plot_function,
+            **kwargs
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:
@@ -1190,6 +1195,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
         *,
         ignore_grouping: bool = False,
         threshold_handling: Literal["all", "max", "min", None] = "all",
+        **kwargs
     ):
         """
         Exploration widget for model evaluation, showing a plot for a given target,
@@ -1235,7 +1241,7 @@ class ExplorationCohortSubclassEvaluationWidget(ExplorationWidget):
             thresholds=self.thresholds,
             per_context=False if not self.ignore_grouping else None,
         )
-        super().__init__(title=title, option_widget=option_widget, plot_function=plot_function)
+        super().__init__(title=title, option_widget=option_widget, plot_function=plot_function, **kwargs)
 
     @property
     def disabled(self):
@@ -1271,6 +1277,7 @@ class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
         self,
         title: str,
         plot_function: Callable[..., Any],
+        **kwargs
     ):
         """
         Exploration widget for plotting of interventions and outcomes across categories in a cohort group.
@@ -1307,6 +1314,7 @@ class ExplorationCohortOutcomeInterventionEvaluationWidget(ExplorationWidget):
                 reference_times,
             ),
             plot_function=plot_function,
+            **kwargs
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:
@@ -1327,7 +1335,7 @@ class ExplorationScoreComparisonByCohortWidget(ExplorationWidget):
     A widget to explore different model scores based on a cohort selection.
     """
 
-    def __init__(self, title: str, plot_function: Callable[..., Any]):
+    def __init__(self, title: str, plot_function: Callable[..., Any], **kwargs):
         """
         Exploration widget for model score comparison, showing a plot for a given target
         and cohort selection, across different scores.
@@ -1356,6 +1364,7 @@ class ExplorationScoreComparisonByCohortWidget(ExplorationWidget):
                 sg.available_cohort_groups, sg.target_cols, sg.output_list, per_context=False
             ),
             plot_function=plot_function,
+            **kwargs
         )
 
     @property
