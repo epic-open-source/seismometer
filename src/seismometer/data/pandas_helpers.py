@@ -536,7 +536,10 @@ def event_value_name(event_value: str) -> str:
 
 
 def is_valid_event(dataframe: pd.DataFrame, event: str, ref: str) -> pd.DataFrame:
-    """Creates a mask if events occur after the reference time, defaults to True."""
+    """
+    Creates a mask excluding rows (False) where the event occurs before the reference time.
+    If the comparison cannot be made, all rows will be considered valid (True).
+    """
     if event_time(event) not in dataframe.columns or ref not in dataframe.columns:
         return pd.Series([True] * len(dataframe), index=dataframe.index)
     return dataframe[ref] <= dataframe[event_time(event)]
