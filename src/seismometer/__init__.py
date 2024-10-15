@@ -1,12 +1,18 @@
+# flake8: noqa: F403, F405 -- allow * from api
+import importlib.metadata
+
+# typing
 import logging
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
-from seismometer._version import __version__
-from seismometer.configuration import ConfigProvider
-from seismometer.core.logger import add_log_formatter, set_default_logger_config
+# API
+from seismometer.api import *
+
+__version__ = importlib.metadata.version("seismometer")
+logger = logging.getLogger("seismometer")
 
 
 def run_startup(
@@ -47,17 +53,7 @@ def run_startup(
     reset : bool, optional
         A flag when True, will reset the Seismogram instance before loading configuration and data, by default False.
     """
-    import importlib
-
-    from seismometer.configuration import ConfigProvider
-    from seismometer.data.loader import loader_factory
-    from seismometer.seismogram import Seismogram
-
-    set_default_logger_config()
-
-    logger = logging.getLogger("seismometer")
-    add_log_formatter(logger)
-
+    _ = init_logger()
     logger.setLevel(log_level)
     logger.info(f"seismometer version {__version__} starting")
 
@@ -68,7 +64,3 @@ def run_startup(
     loader = loader_factory(config)
     sg = Seismogram(config, loader)
     sg.load_data(predictions=predictions_frame, events=events_frame)
-
-    # Surface api into namespace
-    s_module = importlib.import_module("seismometer._api")
-    globals().update(vars(s_module))
