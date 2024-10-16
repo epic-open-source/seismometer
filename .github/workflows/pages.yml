@@ -54,7 +54,7 @@ jobs:
       - name: Install Seismometer
         run: |
           pip install --upgrade pip
-          pip install .[audit,docs]
+          pip install .[docs]
       - name: Build Docs
         run: |
           make docs

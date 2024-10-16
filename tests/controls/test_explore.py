@@ -58,9 +58,11 @@ class TestUpdatePlotWidget:
 class TestExplorationBaseClass:
     def test_base_class(self, caplog):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
+        plot_function = Mock(return_value="some result")
+        widget = undertest.ExplorationWidget("ExploreTest", option_widget, plot_function)
 
-        with pytest.raises(NotImplementedError):
-            undertest.ExplorationWidget("ExploreTest", option_widget, lambda x: x)
+        plot_function.assert_not_called()
+        assert "Subclasses must implement this method" in widget.center.outputs[0]["data"]["text/plain"]
 
     @pytest.mark.parametrize(
         "plot_module,plot_code",
@@ -365,40 +367,6 @@ class TestModelInterventionAndCohortGroupWidget:
         assert widget.disabled
 
 
-class TestModelFairnessAuditOptions:
-    def test_init(self):
-        widget = undertest.ModelFairnessAuditOptions(
-            target_names=["T1", "T2"],
-            score_names=["S1", "S2"],
-            score_threshold=0.1,
-            per_context=True,
-            fairness_metrics=None,
-            fairness_threshold=1.25,
-        )
-
-        assert widget.target == "T1"
-        assert widget.score == "S1"
-        assert widget.score_threshold == 0.1
-        assert widget.group_scores is True
-        assert widget.metrics == ("pprev", "tpr", "fpr")
-        assert widget.fairness_threshold == 1.25
-
-    def test_disable(self):
-        widget = undertest.ModelFairnessAuditOptions(
-            target_names=["T1", "T2"],
-            score_names=["S1", "S2"],
-            score_threshold=0.1,
-            per_context=True,
-            fairness_metrics=None,
-            fairness_threshold=1.25,
-        )
-        widget.disabled = True
-        assert widget.model_options.disabled
-        assert widget.fairness_slider.disabled
-        assert widget.fairness_list.disabled
-        assert widget.disabled
-
-
 class TestModelScoreComparisonOptionsWidget:
     def test_init(self):
         widget = undertest.ModelScoreComparisonOptionsWidget(
@@ -629,6 +597,118 @@ class TestExplorationModelSubgroupEvaluationWidget:
         widget.option_widget.cohort_list.value = {"C2": ("C2.1",)}
         widget.update_plot()
         plot_function.assert_called_with({"C2": ("C2.1",)}, "T1", "S1", [0.2, 0.1], per_context=False)  # updated value
+
+
+class TestExplorationCohortSubclassEvaluationWidget:
+    @pytest.mark.parametrize(
+        "threshold_handling,thresholds",
+        [("all", [0.2, 0.1]), ("max", 0.2), ("min", 0.1), (None, "")],
+    )
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo, threshold_handling, thresholds):
+        fake_seismo = mock_seismo()
+        fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.thresholds = [0.1, 0.2]
+        fake_seismo.target_cols = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        plot_function = Mock(return_value="some result")
+        plot_function.__name__ = "plot_function"
+        plot_function.__module__ = "test_explore"
+
+        widget = undertest.ExplorationCohortSubclassEvaluationWidget(
+            title="Unit Test Title", plot_function=plot_function, threshold_handling=threshold_handling
+        )
+
+        assert widget.disabled is False
+        assert widget.update_plot_widget.disabled
+        expected_code = "test_explore.plot_function('C1', ('C1.1', 'C1.2'), 'T1', 'S1',"
+        if thresholds:
+            expected_code += f" {thresholds}, per_context=False)"
+            plot_function.assert_called_once_with(
+                "C1", ("C1.1", "C1.2"), "T1", "S1", thresholds, per_context=False
+            )  # default value
+        else:
+            expected_code += " per_context=False)"
+            plot_function.assert_called_once_with(
+                "C1", ("C1.1", "C1.2"), "T1", "S1", per_context=False
+            )  # default value
+        assert widget.current_plot_code == expected_code
+
+
+class TestExplorationCohortOutcomeInterventionEvaluationWidget:
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.predict_time = "pred_time"
+        fake_seismo.comparison_time = "comp_time"
+        fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_config = Mock(
+            outcomes=Mock(keys=Mock(return_value=["O1", "O2"])),
+            interventions=Mock(keys=Mock(return_value=["I1", "I2"])),
+        )
+        fake_seismo.config = fake_config
+
+        plot_function = Mock(return_value="some result")
+        plot_function.__name__ = "plot_function"
+        plot_function.__module__ = "test_explore"
+
+        widget = undertest.ExplorationCohortOutcomeInterventionEvaluationWidget(
+            title="Unit Test Title", plot_function=plot_function
+        )
+
+        assert widget.disabled is False
+        assert widget.update_plot_widget.disabled
+        assert (
+            widget.current_plot_code == "test_explore.plot_function('C1', ('C1.1', 'C1.2'), 'O1', 'I1', 'pred_time')"
+        )
+        plot_function.assert_called_once_with("C1", ("C1.1", "C1.2"), "O1", "I1", "pred_time")  # default value
+
+
+class TestExplorationScoreComparisonByCohortWidget:
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.thresholds = [0.1, 0.2]
+        fake_seismo.target_cols = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        plot_function = Mock(return_value="some result")
+        plot_function.__name__ = "plot_function"
+        plot_function.__module__ = "test_explore"
+
+        widget = undertest.ExplorationScoreComparisonByCohortWidget(
+            title="Unit Test Title", plot_function=plot_function
+        )
+
+        assert widget.disabled is False
+        assert widget.update_plot_widget.disabled
+        assert widget.current_plot_code == "test_explore.plot_function({}, 'T1', ('S1', 'S2'), per_context=False)"
+        plot_function.assert_called_once_with({}, "T1", ("S1", "S2"), per_context=False)  # default value
+
+
+class TestExplorationTargetComparisonByCohortWidget:
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.thresholds = [0.1, 0.2]
+        fake_seismo.target_cols = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        plot_function = Mock(return_value="some result")
+        plot_function.__name__ = "plot_function"
+        plot_function.__module__ = "test_explore"
+
+        widget = undertest.ExplorationTargetComparisonByCohortWidget(
+            title="Unit Test Title", plot_function=plot_function
+        )
+
+        assert widget.disabled is False
+        assert widget.update_plot_widget.disabled
+        assert widget.current_plot_code == "test_explore.plot_function({}, ('T1', 'T2'), 'S1', per_context=False)"
+        plot_function.assert_called_once_with({}, ("T1", "T2"), "S1", per_context=False)  # default value
 
 
 # endregion
