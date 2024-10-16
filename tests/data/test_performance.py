@@ -195,7 +195,7 @@ class TestMetricGenerator:
             pytest.param(TypeError, "metric_fn", [["test_metric"]], id="No function"),
             pytest.param(ValueError, "metric_names", [[], lambda x: x], id="No metrics"),
             pytest.param(ValueError, "metric_fn", [["metric"], "not_callable"], id="Not Callable"),
-            pytest.param(ValueError, "reserved", [["metric", "Count"], lambda x: x], id="Count is reserved"),
+            pytest.param(ValueError, "Reserved metric", [["metric", "Count"], lambda x: x], id="Count is reserved"),
         ],
     )
     def test_generate_metrics_init_fails(self, errorType, errorStr, args):
