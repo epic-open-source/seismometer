@@ -1,0 +1,41 @@
+predictions:
+- definition: Placeholder description for Accuracy
+  display_name: Accuracy
+  dtype: category
+  name: Accuracy
+- definition: Placeholder description for Relevancy
+  display_name: Relevancy
+  dtype: category
+  name: Relevancy
+- definition: Placeholder description for Tone
+  display_name: Tone
+  dtype: category
+  name: Tone
+- definition: Placeholder description for Structure
+  display_name: Structure
+  dtype: category
+  name: Structure
+- definition: Placeholder description for Entity
+  display_name: Entity
+  dtype: object
+  name: Entity
+- definition: Placeholder description for Context
+  display_name: Context
+  dtype: object
+  name: Context
+- definition: Placeholder description for Time
+  display_name: Time
+  dtype: datetime64[ns]
+  name: Time
+- definition: Placeholder description for ContextA
+  display_name: Role
+  dtype: category
+  name: Role
+- definition: Placeholder description for ContextB
+  display_name: Location
+  dtype: category
+  name: Location
+- definition: Placeholder description for UserFeedback
+  display_name: User Feedback
+  dtype: category
+  name: UserFeedback
