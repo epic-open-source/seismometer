@@ -2,6 +2,8 @@ from typing import Optional
 
 import pandas as pd
 
+from .pandas_helpers import is_valid_event
+
 
 def create_metric_timeseries(
     dataframe: pd.DataFrame,
@@ -77,9 +79,9 @@ def _limit_data(
 ) -> pd.DataFrame:
     """Reduces the data to only include valid data points."""
     include = dataframe[reftime].notna()
-    # boolean events - filter out -1 where invalid
+
     if boolean_event:
-        include = include & (dataframe[event_col] >= 0)
+        include = include & (is_valid_event(dataframe, event_col, reftime))
     reduced = dataframe[include]
 
     if time_bounds is None:
