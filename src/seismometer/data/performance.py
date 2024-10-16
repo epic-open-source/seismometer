@@ -29,12 +29,13 @@ STATNAMES = COUNTS + [
 
 @export
 class MetricGenerator:
+    RESERVED_NAMES = ["Count", "Cohort", "Class"]
+
     def __init__(self, metric_names: list[str], metric_fn: Callable[..., dict[str, float]]):
         """
         A class that generates metrics from a dataframe.
         Keeps track of available metric names as well as the function to call to generate them.
         Delegates the call to the metric fuction, and returns the results as a dictionary.
-        Cannot handle parametrized metrics (one value per threhsold)
 
         Parameters
         ----------
@@ -48,8 +49,8 @@ class MetricGenerator:
             raise ValueError("metric_names must be a non-empty list of supported metrics")
         if not hasattr(metric_fn, "__call__"):
             raise ValueError("metric_fn must be a callable function")
-        if "Count" in metric_names:
-            raise ValueError("Count is a reserved metric name and cannot be used.")
+        if restricted_names := [name for name in self.RESERVED_NAMES if name in metric_names]:
+            raise ValueError(f"Reserved metric name found: {restricted_names}")
         self.metric_names = metric_names
         self.metric_fn = metric_fn
 

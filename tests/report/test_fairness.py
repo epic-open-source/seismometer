@@ -65,7 +65,7 @@ class TestFairnessTable:
         assert "60" in table.value
         assert "🔹  5.43" in table.value
         assert "🔻  3.00" in table.value
-        assert "🔽  4.35" in table.value
+        assert "🔻  4.35" in table.value
         assert "🔹  7.00" in table.value
 
 

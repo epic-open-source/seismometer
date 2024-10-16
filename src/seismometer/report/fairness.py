@@ -30,22 +30,22 @@ class FairnessIcons(Enum):
     CRITICAL_LOW = "🔻"
 
     @classmethod
-    def get_fairness_legend(cls, limit: float = 0.2, open: bool = False, censor_threshold: int = 10) -> str:
+    def get_fairness_legend(cls, limit: float = 0.25, *, open: bool = False, censor_threshold: int = 10) -> str:
         return html(
             f"""
 <details {'open' if open else ''}><summary>Legend</summary>
 <table>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.DEFAULT.value} the largest cohort for the category</td>
-<td style="text-align: left;">{cls.GOOD.value} within {limit:.2%} of the largest cohort</td>
+<td style="text-align: left;">{cls.DEFAULT.value} the default cohort for the category</td>
+<td style="text-align: left;">{cls.GOOD.value} within {limit:.2%} of the default cohort</td>
 </tr>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.WARNING_LOW.value} within {2*limit:.2%} lower than the largest cohort</td>
-<td style="text-align: left;">{cls.WARNING_HIGH.value} within {2*limit:.2%} greater than the largest cohort</td>
+<td style="text-align: left;">{cls.WARNING_LOW.value} within {2*limit:.2%} lower than the default cohort</td>
+<td style="text-align: left;">{cls.WARNING_HIGH.value} within {2*limit:.2%} greater than the default cohort</td>
 </tr>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.CRITICAL_LOW.value} more than {2*limit:.2%} lower than the largest cohort</td>
-<td style="text-align: left;">{cls.CRITICAL_HIGH.value} more than {2*limit:.2%} greater than the largest cohort</td>
+<td style="text-align: left;">{cls.CRITICAL_LOW.value} more than {2*limit:.2%} lower than the default cohort</td>
+<td style="text-align: left;">{cls.CRITICAL_HIGH.value} more than {2*limit:.2%} greater than the default cohort</td>
 </tr>
 <tr style="background: none;">
 <td style="text-align: left;">{cls.UNKNOWN.value} fewer than {censor_threshold} samples, data was censored</td>
@@ -54,32 +54,36 @@ class FairnessIcons(Enum):
         )
 
     @classmethod
-    def get_fairness_icon(cls, ratio, limit: float = 0.2) -> "FairnessIcons":
+    def get_fairness_icon(cls, ratio, limit: float = 0.25) -> "FairnessIcons":
         """
         Icon for fairness ratio
-        If fairness ratio is 0.2 (20%) we want to show a warning if we are outside this range and
+        If fairness ratio is 0.25 (25%) we want to show a warning if we are outside this range and
         a critical warning if we are 2x outside this range
 
-        4/5 - 5/4 is symmetric around 1
+        We are looking at 1 / (1 + limit) < allowed_ration < 1 + limit
 
-        So we are looking at 1-ratio and 1/(1-ratio)
+        For a limit of 0.25 we are looking at 0.80 < ratio < 1.25 (25% bigger, or 20% smaller)
+        Alternatively for a limit of 0.50 we are looking at 0.67 < ratio < 1.50 (50% bigger, or 33% smaller)
+        For a limit of 1.0 we are looking at 0.5 < ratio < 2.0 (100% bigger, or 50% smaller) which allows a 2x
+        difference between a one group and another.
 
-        the limit is required to be strictly between 0 and 0.5.
+        The extended upper bounds are at 1 + limit and 1 + 2*limit.
 
         Parameters
         ----------
         ratio : float
             Ratio of the cohort to the largest cohort
         limit : float, optional
-            Allowed difference by cohort, by default 0.2
+            Allowed percentage difference by cohort, by default 0.25, measured from the smaller metric to the larger.
 
         Returns
         -------
         FairnessIcons
             Icon for the ratio based on the limit.
         """
-        lower_limit, upper_limit = 1 - limit, 1 / (1 - limit)
-        twice_lower_limit, twice_upper_limit = 1 - 2 * limit, 1 / (1 - 2 * limit)
+        upper_limit, twice_upper_limit = 1 + limit, 1 + 2 * limit
+        lower_limit, twice_lower_limit = 1 / upper_limit, 1 / twice_upper_limit
+
         if ratio is None or np.isnan(ratio):
             return FairnessIcons.UNKNOWN
         if ratio > twice_upper_limit:
@@ -127,25 +131,38 @@ def fairness_table(
     dataframe: pd.DataFrame,
     metric_fn: Callable[..., dict[str, float]],
     metric_list: list[str],
-    fairness_ratio: float,
-    cohort_dict: dict[str, tuple[Any]],
+    fairness_ratio: float = 0.25,
+    cohort_dict: dict[str, tuple[Any]] = None,
     *,
     censor_threshold: int = 10,
     **kwargs,
 ) -> HTML:
     """
-    Fairness table for evaluating metrics across cohorts
+    Fairness table for evaluating metrics across cohorts, found by taking the largest subgroup within each cohort
+    as the default cohort and taking the ratio between a subgroup's metric and the default group's metric.
+
+    For example if if a cohort has three classes A, B, and C with counts of 10, 20, and 30 respectively, the default
+    cohort would be C. For a metric M, we would calculate M(A), M(B) and M(C) and then calculate the ratios
+    M(A)/M(C) and its reciprical M(C)/M(A).
+
+    If M(A)/M(C) > 1 + limit, then cohort A will be flagged as higher than the default.
+    If M(A)/M(C) > 1 + 2 * limit, then cohort A will be flagged as critically higher than the default.
+
+    If M(C)/M(A) > 1 + limit, then cohort A will be flagged as lower than the default.
+    If M(C)/M(A) > 1 + 2 * limit, then cohort A will be flagged as critically lower than the default.
 
     Parameters
     ----------
     dataframe : pd.DataFrame
         Source data to generate a fairness table for
     metric_fn : Callable[..., dict[str, float]]
-        Metric function to generate raw metrics
+        Metric function to generate raw metrics, which MUST be positive values.
     metric_list : list[str]
         List of metrics to use from the metric function
     fairness_ratio : float
-        Ratio of acceptable difference between cohorts
+        Ratio of acceptable difference between cohorts, 20% is 0.2, 200% is 2.0.
+        Bound is mulitplicatively symmetric around 1, so 200% means up to 3x larger or 3x smaller (1/3 the original).
+        A typical bound is 0.25 (1.25x larger or 0.8x smaller)
     cohort_dict : dict[str, tuple[Any]]
         collection of cohort groups to loop over
     censor_threshold : int, optional
@@ -154,24 +171,14 @@ def fairness_table(
     Returns
     -------
     HTML
-        _description_
-
-    Raises
-    ------
-    ValueError
-        _description_
-    ValueError
-        _description_
+        The HTML table for the fairness evaluation
     """
     fairness_groups = []
     metric_groups = []
     icon_groups = []
 
-    if fairness_ratio > 1:  # backwards compatibility for limits greater than 1
-        fairness_ratio = (fairness_ratio - 1) / fairness_ratio  # (1.25 - 1 ) / 1.25 = 0.25/1.25 = 0.2
-
-    if fairness_ratio <= 0 or fairness_ratio >= 0.5:
-        raise ValueError("Fairness ratio must be between 0 and 0.5")
+    if fairness_ratio <= 0:
+        raise ValueError("Fairness ratio must be greater than 0")
 
     if not cohort_dict:
         raise ValueError("No cohorts provided for fairness evaluation")
@@ -222,7 +229,7 @@ def fairness_table(
     fairness_icons[metric_list] = (
         fairness_icons[metric_list]
         + metric_data[metric_list].applymap(lambda x: f"  {x:.2f}  " if not np.isnan(x) else "")
-        + fairness_data[metric_list].applymap(lambda x: f"  ({1-x:.2%})  " if not (np.isnan(x) or x == 1.0) else "")
+        + fairness_data[metric_list].applymap(lambda x: f"  ({x-1:.2%})  " if not (np.isnan(x) or x == 1.0) else "")
     )
 
     legend = FairnessIcons.get_fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
@@ -250,8 +257,42 @@ def fairness_table(
 
 
 def binary_metrics_fairness_table(
-    metric_generator, metric_list, cohort_dict, fairness_ratio, target, score, threshold, *, per_context=False
+    metric_generator: BinaryClassifierMetricGenerator,
+    metric_list: list[str],
+    cohort_dict: dict[str, tuple[Any]],
+    fairness_ratio: float,
+    target: str,
+    score: str,
+    threshold: float,
+    *,
+    per_context=False,
 ) -> HTML:
+    """
+    Binary fairness metrics table
+
+    Parameters
+    ----------
+    metric_generator : The BinaryClassifierMetricGenerator that determines rho.
+    metric_list : list[str]
+        List of metrics to evaluate.
+    cohort_dict : dict[str, tuple[Any]]
+        Collection of cohort groups to loop over.
+    fairness_ratio : float
+        Ratio of acceptable difference between cohorts, 20% is 0.2, 200% is 2.0.
+    target : str
+        The target descriptor for the binary classifier.
+    score : str
+        The score descriptor for the binary classifier.
+    threshold : float
+        The threshold for the binary classifier.
+    per_context : bool, optional
+        Whether to group scores by context, by default False.
+
+    Returns
+    -------
+    HTML
+        The HTML table for the fairness evaluation.
+    """
     from seismometer.seismogram import Seismogram
 
     sg = Seismogram()
@@ -281,6 +322,25 @@ def binary_metrics_fairness_table(
 
 
 def custom_metrics_fairness_table(metric_generator, metric_list, cohort_dict, fairness_ratio) -> HTML:
+    """
+    For use by fairness tables that need custom metric generators.
+
+    Parameters
+    ----------
+    metric_generator : MetricGenerator
+        Metric generator to use for the fairness table.
+    metric_list : list[str]
+        List of metrics to evaluate.
+    cohort_dict : dict[str, tuple[Any]]
+        Collection of cohort groups to loop over.
+    fairness_ratio : float
+        Ratio of acceptable difference between cohorts, 20% is 0.2, 200% is 2.0.
+
+    Returns
+    -------
+    HTML
+        The HTML table for the fairness evaluation.
+    """
     from seismometer.seismogram import Seismogram
 
     sg = Seismogram()
@@ -329,7 +389,7 @@ class FarinessOptionsWidget(Box, ValueWidget):
         self.cohort_list = MultiSelectionListWidget(cohort_dict, title="Cohorts")
         self.fairness_slider = FloatSlider(
             min=0.01,
-            max=0.49,
+            max=1.00,
             step=0.01,
             value=fairness_ratio,
             description="Threshold",
