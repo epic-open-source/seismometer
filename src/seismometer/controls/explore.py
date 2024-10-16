@@ -913,7 +913,7 @@ class ExplorationWidget(VBox):
         self.update_plot_widget.disabled = True
 
     def _try_generate_plot(self) -> Any:
-        """Attempt to generate the plot. Displaying the error at HTML"""
+        """Attempt to generate the plot. Displaying the error as HTML"""
         try:
             plot_args, plot_kwargs = self.generate_plot_args()
             self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)

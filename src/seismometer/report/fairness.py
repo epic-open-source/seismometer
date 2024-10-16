@@ -60,7 +60,7 @@ class FairnessIcons(Enum):
         If fairness ratio is 0.25 (25%) we want to show a warning if we are outside this range and
         a critical warning if we are 2x outside this range
 
-        We are looking at 1 / (1 + limit) < allowed_ration < 1 + limit
+        We are looking at 1 / (1 + limit) < ratio < 1 + limit
 
         For a limit of 0.25 we are looking at 0.80 < ratio < 1.25 (25% bigger, or 20% smaller)
         Alternatively for a limit of 0.50 we are looking at 0.67 < ratio < 1.50 (50% bigger, or 33% smaller)
