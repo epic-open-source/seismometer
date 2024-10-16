@@ -39,8 +39,6 @@ def merge_windowed_event(
     Joins on a set of keys and associates the first event occurring after the prediction time.  The following special
     cases are also applied:
 
-    Invalidate late predictions - if a prediction occurs after all recorded events of the type, the prediction is
-    considered invalid wrt to the event and the _Value is set to -1.
     Early predictions drop timing - if a prediction occurs before all recorded events of the type, the label is kept
     for analyses but the time is removed.
     Imputation of no event to negative label - if no row in the events frame is present for the prediction keys, it is
@@ -62,8 +60,6 @@ def merge_windowed_event(
         events dataframes.
     min_leadtime_hrs : Number, optional
         The number of hour offset to be required for prediction, by default 0.
-        If set to 1, a prediction made within the hour before the last associated event will be invalidated and set
-        to -1 even though it occurred before the event time.
     window_hrs : Optional[Number], optional
         The number of hours the window of predictions of interest should be limited to, by default None.
         If None, then all predictions occurring before a known event will be included.
@@ -164,10 +160,6 @@ def merge_windowed_event(
         impute_val_with_time=impute_val_with_time,
         impute_val_no_time=impute_val_no_time,
     )
-
-    # refactor to generalize
-    if merge_strategy == "forward":  # For forward merges, don't count events that happen before the prediction
-        predictions.loc[predictions[predtime_col] > predictions[r_ref], event_val_col] = -1
 
     return predictions.drop(columns=r_ref)
 
@@ -543,9 +535,14 @@ def event_value_name(event_value: str) -> str:
     return val
 
 
-def valid_event(dataframe: pd.DataFrame, event: str) -> pd.DataFrame:
-    """Filters a dataframe to valid predictions, where the event value has not set to -1."""
-    return dataframe[dataframe[event_value(event)] >= 0]
+def is_valid_event(dataframe: pd.DataFrame, event: str, ref: str) -> pd.DataFrame:
+    """
+    Creates a mask excluding rows (False) where the event occurs before the reference time.
+    If the comparison cannot be made, all rows will be considered valid (True).
+    """
+    if event_time(event) not in dataframe.columns or ref not in dataframe.columns:
+        return pd.Series([True] * len(dataframe), index=dataframe.index)
+    return dataframe[ref] <= dataframe[event_time(event)]
 
 
 def _resolve_time_col(dataframe: pd.DataFrame, ref_event: str) -> str:
