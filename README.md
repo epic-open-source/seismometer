@@ -12,7 +12,6 @@ Standards developed in cooperation among healthcare systems, health IT software 
 
 **seismometer** is a suite of tools that allows you to evaluate AI model performance using these standardized evaluation criteria to help you make decisions based on your own local data and workflows. You can use it to validate a model’s initial performance and continue to monitor its performance over time. Although it can be used for models in any field, it was designed with a focus on validation for healthcare AI models where local validation requires cross-referencing data about patients (such as demographics, clinical interventions, and patient outcomes) and model performance.
 
-
 ## Features
 
 The package includes templates to analyze model statistical performance, fairness across different cohorts, and the application and impact of interventions on outcomes for commonly used model types within healthcare.
