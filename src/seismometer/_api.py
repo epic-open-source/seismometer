@@ -12,6 +12,7 @@ from .controls.decorators import disk_cached_html_segment
 from .controls.explore import (
     ExplorationCohortOutcomeInterventionEvaluationWidget,
     ExplorationCohortSubclassEvaluationWidget,
+    ExplorationMetricWidget,
     ExplorationModelSubgroupEvaluationWidget,
     ExplorationScoreComparisonByCohortWidget,
     ExplorationSubpopulationWidget,
@@ -1712,6 +1713,143 @@ class ExploreFairnessAudit(ExplorationWidget):
             self.option_widget.fairness_threshold,
         )
         return args, {}
+
+
+# endregion
+
+
+# region Explore Any Metric (NNT, etc)
+
+
+@disk_cached_html_segment
+@export
+def plot_model_metric(
+    metrics: str | list[str],
+    cohort_dict: dict[str, tuple[Any]],
+    target: str,
+    score_column: str,
+    *,
+    per_context: bool = False,
+    table_only: bool = False,
+) -> HTML:
+    """
+    Generates a 2x3 plot showing the performance of a model.
+
+    This includes the ROC, recall vs predicted condition prevalence, calibration,
+    PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
+
+    Parameters
+    ----------
+    cohort_dict : dict[str, tuple[Any]]
+        dictionary of cohort columns and values used to subselect a population for evaluation
+    target : str
+        name of the target
+    score_column : str
+        score column
+    per_context : bool, optional
+        if scores should be grouped, by default False
+
+    Returns
+    -------
+    HTML
+        an html visualization of the model evaluation metrics
+    """
+    sg = Seismogram()
+    cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
+    data = cohort_filter.filter(sg.dataframe)
+    target_event = pdh.event_value(target)
+    target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
+    return model_metric_evaluation(
+        metrics,
+        target_data,
+        sg.entity_keys,
+        target_event,
+        score_column,
+        sg.censor_threshold,
+        per_context,
+        sg.event_aggregation_method(target),
+        sg.predict_time,
+        table_only=table_only,
+    )
+
+
+def model_metric_evaluation(
+    metrics: str | list[str],
+    dataframe: pd.DataFrame,
+    entity_keys: list[str],
+    target: str,
+    score_col: str,
+    censor_threshold: int = 10,
+    per_context_id: bool = False,
+    aggregation_method: str = "max",
+    ref_time: str = None,
+    table_only: bool = False,
+) -> HTML:
+    """
+    plots common model evaluation metrics
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        source data
+    entity_keys : list[str]
+        columns to use for aggregation
+    target : str
+        target column
+    score_col : str
+        score column
+    censor_threshold : int, optional
+        minimum rows to allow in a plot, by default 10
+    per_context_id : bool, optional
+        report only the max score for a given entity context, by default False
+    aggregation_method : str, optional
+        method to reduce multiple scores into a single value before calculation of performance, by default "max"
+        ignored if per_context_id is False
+    ref_time : str, optional
+        reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
+
+    Returns
+    -------
+    HTML
+        Plot of model evaluation metrics
+    """
+    data = (
+        pdh.event_score(
+            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
+        )
+        if per_context_id
+        else dataframe
+    )
+
+    # Validate
+    requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
+    data = requirements.filter(data)
+    if len(data.index) < censor_threshold:
+        return template.render_censored_plot_message(censor_threshold)
+    if (lcount := data[target].nunique()) != 2:
+        return template.render_title_message(
+            "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
+        )
+    stats = calculate_bin_stats(data[target], data[score_col])
+    if isinstance(metrics, str):
+        metrics = [metrics]
+
+    if table_only:
+        return HTML(stats[metrics].T.to_html())
+    return plot.binary_classifier.plot_metric_list(stats, metrics)
+
+
+@export
+class ExploreBinaryModelMetrics(ExplorationMetricWidget):
+    """
+    Explore the models performance metrics based on a selected metric.
+    """
+
+    def __init__(self):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__("Model Metric Evaluation", plot_model_metric)
 
 
 # endregion
