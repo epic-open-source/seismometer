@@ -70,9 +70,14 @@ class MetricGenerator:
         """
         if metric_names is None:
             metric_names = self.metric_names
-        if not set(metric_names).issubset(self.metric_names):
+        elif not set(metric_names).issubset(self.metric_names):
             raise ValueError(f"Invalid metric names: {set(metric_names) - set(self.metric_names)}")
-        return self.delegate_call(dataframe, metric_names, **kwargs)
+        if len(dataframe) == 0:
+            # Universal defaults, if no data frame, return NaN
+            return {name: np.NaN for name in metric_names}
+        full_metrics = self.delegate_call(dataframe, metric_names, **kwargs)
+        filtered_metrics = {k: v for k, v in full_metrics.items() if k in metric_names}
+        return filtered_metrics
 
     def delegate_call(self, dataframe: pd.DataFrame, metric_names: list[str], **kwargs) -> dict[str, float]:
         """
@@ -136,9 +141,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        res = calculate_binary_stats(dataframe, target_col, score_col, score_threshold, rho=self.rho)
-        res = {k: v for k, v in res.items() if k in metric_names}
-        return res
+        return calculate_binary_stats(dataframe, target_col, score_col, score_threshold, rho=self.rho)
 
     def __repr__(self):
         return f"BinaryClassifierMetricGenerator(rho={self.rho})"
@@ -207,7 +210,7 @@ def calculate_binary_stats(
     y_true = dataframe[target_col]
     y_pred = dataframe[score_col]
     stats = calculate_bin_stats(y_true, y_pred, rho=rho)
-    return stats.iloc[100 - score_threshold_integer].to_dict()
+    return stats.iloc[100 - score_threshold_integer].round(5).to_dict()
 
 
 @export

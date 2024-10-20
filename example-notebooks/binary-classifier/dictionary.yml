@@ -1,0 +1,129 @@
+# Can be separated into two files, this has both predictions and events
+# This should describe the data available, but not necessarily used
+predictions:
+- definition: contact identifier
+  dtype: object
+  name: encounter_id
+- definition: Patient identifer
+  dtype: object
+  name: patient_nbr
+- definition: Patient race
+  dtype: category
+  name: race
+- definition: Patient gender
+  dtype: category
+  name: gender
+- definition: Patient age
+  dtype: category
+  name: age
+- definition: Patient admission_type_id
+  dtype: category
+  name: admission_type_id
+- definition: Patient discharge_disposition_id
+  dtype: category
+  name: discharge_disposition_id
+- definition: Patient admission_source_id
+  dtype: category
+  name: admission_source_id
+- definition: Patient time_in_hospital
+  dtype: int64
+  name: time_in_hospital
+- definition: Patient medical_specialty
+  dtype: category
+  name: medical_specialty
+- definition: Patient num_lab_procedures
+  dtype: int64
+  name: num_lab_procedures
+- definition: Patient num_procedures
+  dtype: int64
+  name: num_procedures
+- definition: Patient num_medications
+  dtype: int64
+  name: num_medications
+- definition: Patient number_outpatient
+  dtype: int64
+  name: number_outpatient
+- definition: Patient number_emergency
+  dtype: int64
+  name: number_emergency
+- definition: Patient number_inpatient
+  dtype: int64
+  name: number_inpatient
+- definition: Patient diag_1
+  dtype: category
+  name: diag_1
+- definition: Patient diag_2
+  dtype: category
+  name: diag_2
+- definition: Patient diag_3
+  dtype: category
+  name: diag_3
+- definition: Patient number_diagnoses
+  dtype: int64
+  name: number_diagnoses
+- definition: Patient max_glu_serum
+  dtype: category
+  name: max_glu_serum
+- definition: Patient A1Cresult
+  dtype: category
+  name: A1Cresult
+- definition: Patient metformin
+  dtype: category
+  name: metformin
+- definition: Patient repaglinide
+  dtype: category
+  name: repaglinide
+- definition: Patient nateglinide
+  dtype: category
+  name: nateglinide
+- definition: Patient chlorpropamide
+  dtype: category
+  name: chlorpropamide
+- definition: Patient glimepiride
+  dtype: category
+  name: glimepiride
+- definition: Patient glipizide
+  dtype: category
+  name: glipizide
+- definition: Patient glyburide
+  dtype: category
+  name: glyburide
+- definition: Patient pioglitazone
+  dtype: category
+  name: pioglitazone
+- definition: Patient rosiglitazone
+  dtype: category
+  name: rosiglitazone
+- definition: Patient acarbose
+  dtype: category
+  name: acarbose
+- definition: Patient miglitol
+  dtype: category
+  name: miglitol
+- definition: Patient tolazamide
+  dtype: category
+  name: tolazamide
+- definition: Patient insulin
+  dtype: category
+  name: insulin
+- definition: Patient glyburide-metformin
+  dtype: category
+  name: glyburide-metformin
+- definition: Patient change
+  dtype: int64
+  name: change
+- definition: Patient diabetesMed
+  dtype: int64
+  name: diabetesMed
+- definition: Patient predicted risk
+  dtype: float64
+  name: LGBM_score
+- definition: Timestamp of when the patient was scored
+  dtype: datetime64[ns]
+  name: ScoringTime
+events:
+  - name: TargetLabel
+    display_name: "Our Target"
+    definition: |
+      A binary indicator of whether the patient experienced the predicted event
+    dtype: bool

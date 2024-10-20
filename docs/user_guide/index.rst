@@ -243,7 +243,7 @@ compared against the allowed bounds determined by the fairness threshold.
 The bound determined by 1 + threshold above, and 1 / (1 + threshold) below,
 so that a fairness threshold of 0.25 sets the upper bound at 1.25 times larger,
 or a 25% increase in the metric. Since the lower bound is checked
-with the recriprical, this would result in a 20% decrease.
+with the reciprocal, this would result in a 20% decrease.
 
 The visualization is a table showing the overall metrics, and icons 
 indicating default, within bounds, or out of bounds. Note that comparison

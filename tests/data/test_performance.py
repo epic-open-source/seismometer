@@ -206,13 +206,18 @@ class TestMetricGenerator:
     def test_generate_metrics_init_correctly(self):
         metric = undertest.MetricGenerator(["test_metric"], lambda data, names: {"test_metric": 1})
         assert metric.metric_names == ["test_metric"]
-        assert metric(pd.DataFrame()) == {"test_metric": 1}
+        assert metric(ci_testcase0()) == {"test_metric": 1}
+
+    def test_generate_metrics_empty_dataframe(self):
+        metric = undertest.MetricGenerator(["test_metric"], lambda data, names: {"test_metric": 1})
+        assert metric.metric_names == ["test_metric"]
+        assert metric(pd.DataFrame()) == {"test_metric": np.NaN}
 
     def test_generate_named_metrics(self):
         metric = undertest.MetricGenerator(["metric1", "metric2"], lambda data, names: {name: 1 for name in names})
-        assert metric(pd.DataFrame(), ["metric2"]) == {"metric2": 1}
+        assert metric(ci_testcase0(), ["metric2"]) == {"metric2": 1}
         with pytest.raises(ValueError) as error:
-            metric(pd.DataFrame(), ["metric3"])
+            metric(ci_testcase0(), ["metric3"])
         assert "metric3" in str(error.value)
 
     def test_generate_metrics_with_kwargs(self):
@@ -220,7 +225,7 @@ class TestMetricGenerator:
             return {name: special for name in metric_names}
 
         metric = undertest.MetricGenerator(["metric1", "metric2"], metric_fn=metric_fn)
-        assert metric(pd.DataFrame(), ["metric1"], special=3) == {"metric1": 3}
+        assert metric(ci_testcase0(), ["metric1"], special=3) == {"metric1": 3}
 
 
 class TestBinaryMetricGenerator:
@@ -255,7 +260,7 @@ class TestBinaryStats:
             "Sensitivity": 0.5,
             "Specificity": 1.0,
             "PPV": 1.0,
-            "NPV": 0.6666666666666666,
+            "NPV": 0.66667,
             "Flagged": 0.25,
             "LR+": np.inf,
             "NetBenefitScore": 0.25,
