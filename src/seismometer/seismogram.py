@@ -1,9 +1,7 @@
 import json
 import logging
-from functools import lru_cache
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
@@ -299,21 +297,6 @@ class Seismogram(object, metaclass=Singleton):
 
     # endregion
     # region data accessors
-    def data(self, event: Optional[str] = None) -> pd.DataFrame:
-        """
-        Provides data for the specified target event.
-
-        Expects the event string, defaults to the configured primary target.
-        """
-        if event is None:
-            event = self.target_event
-        event_val = pdh.event_value(event)
-        event_time = pdh.event_time(event)  # Assumes binary target
-        if event_time in self.dataframe:
-            return self.dataframe[self._data_mask(event_val) & self._time_mask(event_time)]
-
-        return self.dataframe
-
     def score_bins(self):
         """Updates the active values for notebook-scoped selections."""
         score_bins = [0] + self.thresholds + [1.0]
@@ -389,15 +372,5 @@ class Seismogram(object, metaclass=Singleton):
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
-
-    @lru_cache
-    def _data_mask(self, event_val):
-        return pdh.is_valid_event(self.dataframe, event_val, self.predict_time)
-
-    @lru_cache
-    def _time_mask(self, event_time, keep_zero: str = None):
-        # Require events with time or negative label
-        neg_mask = np.ones(keep_zero).astype(bool) if keep_zero is None else self.dataframe[keep_zero] == 0
-        return self.dataframe[event_time].notna() | neg_mask
 
     # endregion

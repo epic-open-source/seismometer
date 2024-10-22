@@ -556,7 +556,7 @@ The following example shows how to create the visualization above.
       # These three rows select the data from the seismogram based on the cohort_dict
       sg = sm.Seismogram()
       cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict) # Use only rows that match the cohort
-      data = cohort_filter.filter(sg.data(target_col))
+      data = cohort_filter.filter(sg.dataframe)
 
       xcol = "age"
       ycol = "num_procedures"

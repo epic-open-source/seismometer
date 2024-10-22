@@ -111,30 +111,6 @@ class Test__set_df_counts:
         assert sg.feature_count == expected
 
 
-class TestSeismogramDataMethod:
-    def test_data_with_named_target(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data("event2")) == 4
-
-    def test_data_filters_target_events(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data("event1")) == 3
-
-    def test_data_defaults_to_primary_target(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.target_event = "event1"
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data()) == 3
-
-
 class TestSeismogramConfigRetrievalMethods:
     @pytest.mark.parametrize(
         "method_name,method_args,expected",

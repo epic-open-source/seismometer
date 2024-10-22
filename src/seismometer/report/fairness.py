@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 from typing import Any, Callable
 
@@ -13,6 +14,8 @@ from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
+
+logger = logging.getLogger("seismometer")
 
 
 # region Fairness Icons
@@ -130,7 +133,7 @@ def sort_fairness_table(dataframe: pd.DataFrame, cohort_groups: tuple[str]):
 def fairness_table(
     dataframe: pd.DataFrame,
     metric_fn: Callable[..., dict[str, float]],
-    metric_list: list[str],
+    metric_list: list[str] = None,
     fairness_ratio: float = 0.25,
     cohort_dict: dict[str, tuple[Any]] = None,
     *,
@@ -194,7 +197,7 @@ def fairness_table(
             cohort_dataframe = cohort_filter.filter(dataframe)
 
             index_value = {"Count": len(cohort_dataframe)}
-            metrics = metric_fn(cohort_dataframe, [x for x in metric_list if x in metric_fn.metric_names], **kwargs)
+            metrics = metric_fn(cohort_dataframe, metric_list, **kwargs)
             index_value.update(metrics)
 
             cohort_values.append(index_value)
@@ -300,14 +303,14 @@ def binary_metrics_fairness_table(
     target_column = pdh.event_value(target)
     data = (
         pdh.event_score(
-            sg.data(),
+            sg.dataframe,
             sg.entity_keys,
             score=score,
             ref_event=sg.predict_time,
-            aggregation_method=sg.event_aggregation_method(target_column),
+            aggregation_method=sg.event_aggregation_method(target),
         )
         if per_context
-        else sg.data()
+        else sg.dataframe
     )
     return fairness_table(
         data,

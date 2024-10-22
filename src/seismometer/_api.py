@@ -268,7 +268,7 @@ def plot_cohort_hist():
     cohort_col = sg.selected_cohort[0]
     subgroups = sg.selected_cohort[1]
     censor_threshold = sg.censor_threshold
-    return _plot_cohort_hist(sg.data(), sg.target, sg.output, cohort_col, subgroups, censor_threshold)
+    return _plot_cohort_hist(sg.dataframe, sg.target, sg.output, cohort_col, subgroups, censor_threshold)
 
 
 @disk_cached_html_segment
@@ -544,36 +544,6 @@ def _plot_leadtime_enc(
     rows = summary_data[cohort_col].nunique()
     svg = plot.leadtime_violin(summary_data, x_label, cohort_col, xmax=max_hours, figsize=(9, 1 + rows))
     return template.render_title_with_image(title, svg)
-
-
-@export
-def cohort_evaluation(per_context_id=False) -> HTML:
-    """Displays model performance metrics on cohort attribute across thresholds.
-
-    Parameters
-    ----------
-    per_context_id : bool, optional
-        If True, limits data to one row per context_id, by default False.
-    """
-
-    sg = Seismogram()
-
-    cohort_col = sg.selected_cohort[0]
-    subgroups = sg.selected_cohort[1]
-    censor_threshold = sg.censor_threshold
-    return _plot_cohort_evaluation(
-        sg.data(),
-        sg.entity_keys,
-        sg.target,
-        sg.output,
-        sg.thresholds,
-        cohort_col,
-        subgroups,
-        censor_threshold,
-        per_context_id,
-        sg.event_aggregation_method(sg.target),
-        sg.predict_time,
-    )
 
 
 @disk_cached_html_segment

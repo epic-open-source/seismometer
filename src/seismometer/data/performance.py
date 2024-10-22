@@ -10,6 +10,8 @@ import sklearn.metrics as metrics
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
 from .decorators import export
 
+logger = logging.getLogger("seismometer")
+
 DEFAULT_RHO = 1 / 3
 
 PathLike = Union[str, Path]
@@ -68,7 +70,7 @@ class MetricGenerator:
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        if metric_names is None:
+        if not metric_names:
             metric_names = self.metric_names
         elif not set(metric_names).issubset(self.metric_names):
             raise ValueError(f"Invalid metric names: {set(metric_names) - set(self.metric_names)}")
@@ -444,7 +446,7 @@ def _point_thresholds(orig_thresholds: np.ndarray) -> np.ndarray:
     Convert thresholds to percent increments (0.01) between 0 to 1.
     """
     if orig_thresholds.max() < 1:
-        logging.warning("Passed thresholds do not extend to maximum of 1.")
+        logger.warning("Passed thresholds do not extend to maximum of 1.")
     thresholds = np.arange(0, 101)[::-1]
     ixs = np.digitize(thresholds, orig_thresholds, right=True) - 1
     ixs = np.where(ixs < 0, 0, ixs)  # Clip to 0
