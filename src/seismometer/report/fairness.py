@@ -48,7 +48,7 @@ class FairnessIcons(Enum):
 <td style="text-align: left;">{cls.CRITICAL_HIGH.value} more than {2*limit:.2%} greater than the default cohort</td>
 </tr>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.UNKNOWN.value} fewer than {censor_threshold} samples, data was censored</td>
+<td style="text-align: left;">{cls.UNKNOWN.value} fewer than {censor_threshold} observations, data was censored</td>
 </tr>
 </details>"""
         )
@@ -166,7 +166,8 @@ def fairness_table(
     cohort_dict : dict[str, tuple[Any]]
         collection of cohort groups to loop over
     censor_threshold : int, optional
-        Limit at which a cohort group will be removed from the table if not enough samples are found, by default 10.
+        Limit at which a cohort group will be removed from the table if not enough observations are found,
+        by default 10.
 
     Returns
     -------
