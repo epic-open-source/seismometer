@@ -90,7 +90,7 @@ ENV/
 /output/
 /notebooks/output/
 /notebooks/data/
-example-notebooks/binary-classifier/data_dictionary.yml
+example-notebooks/binary-classifier/*.yml
 example-notebooks/binary-classifier/data/*
 example-notebooks/binary-classifier/outputs/*
 
