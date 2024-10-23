@@ -232,8 +232,8 @@ def fairness_table(
     )
     fairness_icons[metric_list] = (
         fairness_icons[metric_list]
-        + metric_data[metric_list].applymap(lambda x: f"  {x:.2f}  " if not np.isfinite(x) else "")
-        + fairness_data[metric_list].applymap(lambda x: f"  ({x-1:.2%})  " if not (np.isfinite(x) or x == 1.0) else "")
+        + metric_data[metric_list].applymap(lambda x: f"  {x:.2f}  " if np.isfinite(x) else "")
+        + fairness_data[metric_list].applymap(lambda x: f"  ({x-1:.2%})  " if (np.isfinite(x) and x != 1.0) else "")
     )
 
     legend = FairnessIcons.get_fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
