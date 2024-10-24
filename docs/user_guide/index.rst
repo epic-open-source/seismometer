@@ -43,7 +43,7 @@ Creating a Notebook
 
 Creating a Seismogram (notebook) requires a couple distinct pieces of information:
 
-- Example Notebook: Starting from example notebook, while not required, is expected to be the most straight-forward. Once serveral types of models are supported, it is expected that a CLI will further automate combining new content into the example structure.
+- Example Notebook: Starting from example notebook, while not required, is expected to be the most straight-forward. Once several types of models are supported, it is expected that a CLI will further automate combining new content into the example structure.
 - Configuration files: A ``config.yml`` file to specify location of required data and/or other configuration files (refer to the :ref:`config-files`).
 - Supplemental info: Explanatory model-specific supplements to guide the analysis.
 
@@ -155,7 +155,7 @@ proportion of cases at that threshold are true positives) against the
 model's predicted probability. Points above the y=x line indicate that a
 model is overconfident in its predictions (meaning that it identifies
 more positive cases than exist), and points below the y=x line indicate
-that a model is underconfident in its predictions (it identifies fewer
+that a model is under-confident in its predictions (it identifies fewer
 positive cases than exist).
 
 Note the following when using a calibration curve, particularly with a
@@ -187,7 +187,7 @@ This plot can help you assess the tradeoffs between identifying more
 positive cases and correctly identifying positive cases.
 
 .. image:: media/ppv_sensitivity.png
-   :alt: A graph of PPV versus sensistivity
+   :alt: A graph of PPV versus sensitivity
    :width: 3.5in
 
 Sensitivity/Specificity/PPV Curve

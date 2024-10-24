@@ -113,7 +113,7 @@ def sort_fairness_table(dataframe: pd.DataFrame, cohort_groups: tuple[str]):
     Parameters
     ----------
     dataframe : pd.DataFrame
-        Dataframe to sort
+        DataFrame to sort
     cohort_groups : tuple[str]
         Cohort group names for sorting.
     """
@@ -146,7 +146,7 @@ def fairness_table(
 
     For example if if a cohort has three classes A, B, and C with counts of 10, 20, and 30 respectively, the default
     cohort would be C. For a metric M, we would calculate M(A), M(B) and M(C) and then calculate the ratios
-    M(A)/M(C) and its reciprical M(C)/M(A).
+    M(A)/M(C) and its reciprocal M(C)/M(A).
 
     If M(A)/M(C) > 1 + limit, then cohort A will be flagged as higher than the default.
     If M(A)/M(C) > 1 + 2 * limit, then cohort A will be flagged as critically higher than the default.
@@ -164,7 +164,7 @@ def fairness_table(
         List of metrics to use from the metric function
     fairness_ratio : float
         Ratio of acceptable difference between cohorts, 20% is 0.2, 200% is 2.0.
-        Bound is mulitplicatively symmetric around 1, so 200% means up to 3x larger or 3x smaller (1/3 the original).
+        Bound is multiplicatively symmetric around 1, so 200% means up to 3x larger or 3x smaller (1/3 the original).
         A typical bound is 0.25 (1.25x larger or 0.8x smaller)
     cohort_dict : dict[str, tuple[Any]]
         collection of cohort groups to loop over
@@ -361,7 +361,7 @@ def custom_metrics_fairness_table(metric_generator, metric_list, cohort_dict, fa
 # region Fairness Controls
 
 
-class FarinessOptionsWidget(Box, ValueWidget):
+class FairnessOptionsWidget(Box, ValueWidget):
     value = traitlets.Dict(help="The selected values for the model options.")
 
     def __init__(
@@ -488,7 +488,7 @@ class ExplorationFairnessWidget(ExplorationWidget):
 
         super().__init__(
             title="Fairness Audit",
-            option_widget=FarinessOptionsWidget(metric_names, sg.available_cohort_groups, fairness_ratio=0.2),
+            option_widget=FairnessOptionsWidget(metric_names, sg.available_cohort_groups, fairness_ratio=0.2),
             plot_function=custom_metrics_fairness_table,
             initial_plot=False,
         )
@@ -525,7 +525,7 @@ class ExploreBinaryModelFairness(ExplorationWidget):
 
         super().__init__(
             title="Binary Classifier Fairness Audit",
-            option_widget=FarinessOptionsWidget(
+            option_widget=FairnessOptionsWidget(
                 metric_names,
                 sg.available_cohort_groups,
                 fairness_ratio=0.2,
