@@ -232,7 +232,7 @@ def fairness_table(
     )
     fairness_icons[metric_list] = (
         fairness_icons[metric_list]
-        + metric_data[metric_list].applymap(lambda x: f"  {x:.2f}  " if np.isfinite(x) else "")
+        + metric_data[metric_list].applymap(lambda x: f"  {x:.2f}  " if not np.isnan(x) else "")
         + fairness_data[metric_list].applymap(lambda x: f"  ({x-1:.2%})  " if (np.isfinite(x) and x != 1.0) else "")
     )
 
