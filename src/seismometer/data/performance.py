@@ -107,8 +107,8 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         A class that generates Binary classifier metrics from a dataframe.
         Keeps track of available metric names as well as the function to call to generate them.
-        Delegates the call to the metric fuction, and returns the results as a dictionary.
-        Cannot handle parametrized metrics (one value per threhsold)
+        Delegates the call to the metric function and returns the results as a dictionary.
+        Cannot handle parametrized metrics (one value per threshold)
 
         rho : float, optional
             The relative risk reduction for NNT calculation, by default DEFAULT_RHO.
