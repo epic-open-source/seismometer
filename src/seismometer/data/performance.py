@@ -120,7 +120,13 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         return STATNAMES + [f"NNT@{self.rho:0.3n}"]
 
     def delegate_call(
-        self, dataframe: pd.DataFrame, metric_names: list[str], *, target_col: str, score_col: str, score_threshold: float = 0.5
+        self,
+        dataframe: pd.DataFrame,
+        metric_names: list[str],
+        *,
+        target_col: str,
+        score_col: str,
+        score_threshold: float = 0.5,
     ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
