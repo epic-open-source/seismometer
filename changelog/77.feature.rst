@@ -1,0 +1,1 @@
+Addresses #77 by removing Aequitas and replacing with a great_tables based fairness audit.

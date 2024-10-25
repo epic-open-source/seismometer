@@ -51,13 +51,6 @@ following at your command line:
 
    pip install seismometer
 
-If you want to utilize fairness audit visualizations, run the following at
-your command line:
-
-.. code-block:: bash
-
-   pip install seismometer[audit]
-
 For additional details on installing Python packages, refer to the
 `Python Packaging User
 Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`__.

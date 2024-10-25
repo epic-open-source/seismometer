@@ -46,4 +46,3 @@ Properties and Accessors
    Seismogram.event_types_count
    Seismogram.cohort_attribute_count
    Seismogram.score_bins
-   Seismogram.data

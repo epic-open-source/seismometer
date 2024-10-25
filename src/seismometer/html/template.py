@@ -108,7 +108,7 @@ def render_censored_plot_message(censor_threshold: int) -> HTML:
     HTML
         The templated HTML.
     """
-    return render_censored_data_message(f"There are {censor_threshold} or fewer rows.")
+    return render_censored_data_message(f"There are {censor_threshold} or fewer observations.")
 
 
 def render_censored_data_message(message: str) -> HTML:

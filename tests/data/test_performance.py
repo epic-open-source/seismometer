@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -5,6 +7,8 @@ import pytest
 import seismometer.data.performance as undertest
 from seismometer.data.confidence.calculations import ValueWithCI, _RocRegionResults
 from seismometer.data.confidence.parameters import _SUPPORTED_PLOTS
+
+ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + ["NNT@0.333"]
 
 
 class TestAssertValidPerf:
@@ -16,9 +20,9 @@ class TestAssertValidPerf:
     @pytest.mark.parametrize(
         "col_list",
         [
-            pytest.param(undertest.STATNAMES, id="All stats"),
+            pytest.param(ALL_STATS, id="All stats"),
             pytest.param(["Threshold", "Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"], id="Six required"),
-            pytest.param(["another"] + undertest.STATNAMES, id="Extra column"),
+            pytest.param(["another"] + ALL_STATS, id="Extra column"),
         ],
     )
     def test_default_allstats_passes(self, col_list):
@@ -182,3 +186,86 @@ class TestCalCi:
 
         for i in [1, 2, 3]:
             assert actual[i] is None
+
+
+class TestMetricGenerator:
+    @pytest.mark.parametrize(
+        "errorType,errorStr,args",
+        [
+            pytest.param(TypeError, "metric_fn", [["test_metric"]], id="No function"),
+            pytest.param(ValueError, "metric_names", [[], lambda x: x], id="No metrics"),
+            pytest.param(ValueError, "metric_fn", [["metric"], "not_callable"], id="Not Callable"),
+            pytest.param(ValueError, "Reserved metric", [["metric", "Count"], lambda x: x], id="Count is reserved"),
+        ],
+    )
+    def test_generate_metrics_init_fails(self, errorType, errorStr, args):
+        with pytest.raises(errorType) as error:
+            undertest.MetricGenerator(*args)
+        assert errorStr in str(error.value)
+
+    def test_generate_metrics_init_correctly(self):
+        metric = undertest.MetricGenerator(["test_metric"], lambda data, names: {"test_metric": 1})
+        assert metric.metric_names == ["test_metric"]
+        assert metric(ci_testcase0()) == {"test_metric": 1}
+
+    def test_generate_metrics_empty_dataframe(self):
+        metric = undertest.MetricGenerator(["test_metric"], lambda data, names: {"test_metric": 1})
+        assert metric.metric_names == ["test_metric"]
+        assert metric(pd.DataFrame()) == {"test_metric": np.NaN}
+
+    def test_generate_named_metrics(self):
+        metric = undertest.MetricGenerator(["metric1", "metric2"], lambda data, names: {name: 1 for name in names})
+        assert metric(ci_testcase0(), ["metric2"]) == {"metric2": 1}
+        with pytest.raises(ValueError) as error:
+            metric(ci_testcase0(), ["metric3"])
+        assert "metric3" in str(error.value)
+
+    def test_generate_metrics_with_kwargs(self):
+        def metric_fn(data, metric_names: list[str], *, special: int = 2):
+            return {name: special for name in metric_names}
+
+        metric = undertest.MetricGenerator(["metric1", "metric2"], metric_fn=metric_fn)
+        assert metric(ci_testcase0(), ["metric1"], special=3) == {"metric1": 3}
+
+
+class TestBinaryMetricGenerator:
+    def test_binary_metric_generator_init(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        assert metrics.rho == 1 / 3
+        assert metrics.metric_names == ALL_STATS[1:]
+
+    @mock.patch(
+        "seismometer.data.performance.calculate_binary_stats",
+        return_value={"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4},
+    )
+    def test_binary_metric_generation(self, mock_stats):
+        metrics = undertest.BinaryClassifierMetricGenerator(rho=0.01)
+        data = pd.DataFrame({"fake": [0, 1, 0, 1], "data": [0.4, 0.5, 0.6, 0.7]})
+        result = metrics(data, ["Accuracy", "PPV"], target_col="TARGET", score_col="SCORE", score_threshold=0.2)
+        assert result == {"Accuracy": 0.8, "PPV": 0.5}
+        mock_stats.assert_called_once_with(data, "TARGET", "SCORE", 0.2, rho=0.01)
+
+
+class TestBinaryStats:
+    def test_calc_ci_maps_roc_values(self):
+        _, truth, output, _, _ = ci_testcase0()
+        data = pd.DataFrame({"truth": truth, "output": output})
+        expected = {
+            "Threshold": 70.0,
+            "TP": 1.0,
+            "FP": 0.0,
+            "TN": 2.0,
+            "FN": 1.0,
+            "Accuracy": 0.75,
+            "Sensitivity": 0.5,
+            "Specificity": 1.0,
+            "PPV": 1.0,
+            "NPV": 0.66667,
+            "Flagged": 0.25,
+            "LR+": np.inf,
+            "NetBenefitScore": 0.25,
+            "NNT@0.2": 3.0,
+        }
+        actual = undertest.calculate_binary_stats(data, "truth", "output", 0.7, 0.2)
+
+        assert actual == expected
