@@ -16,17 +16,12 @@ DEFAULT_RHO = 1 / 3
 
 PathLike = Union[str, Path]
 COUNTS = ["TP", "FP", "TN", "FN"]
+PERCENTS = ["TP (%)", "FP (%)", "TN (%)", "FN (%)"]
+RATE_METRICS = ["Flag Rate"]
+PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
+WORKFLOW_METRICS = ["LR+", "NetBenefitScore"]
 THRESHOLD = "Threshold"
-STATNAMES = COUNTS + [
-    "Accuracy",
-    "Sensitivity",
-    "Specificity",
-    "PPV",
-    "NPV",
-    "Flagged",
-    "LR+",
-    "NetBenefitScore",
-]
+STATNAMES = RATE_METRICS + PERFORMANCE + WORKFLOW_METRICS + COUNTS
 
 
 @export
@@ -117,7 +112,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
 
     @property
     def metric_names(self):
-        return STATNAMES + [f"NNT@{self.rho:0.3n}"]
+        return STATNAMES + PERCENTS + [f"NNT@{self.rho:0.3n}"]
 
     def delegate_call(
         self,
@@ -217,8 +212,11 @@ def calculate_binary_stats(
     score_threshold_integer = int(score_threshold * 100)
     y_true = dataframe[target_col]
     y_pred = dataframe[score_col]
-    stats = calculate_bin_stats(y_true, y_pred, rho=rho)
-    return stats.iloc[100 - score_threshold_integer].round(5).to_dict()
+    stats = calculate_bin_stats(y_true, y_pred, rho=rho).drop("Threshold", axis=1)
+    stats = stats.iloc[100 - score_threshold_integer].round(5)
+    for name, percent in zip(COUNTS, PERCENTS):
+        stats[percent] = stats[name] * 100.0 / len(y_true)
+    return stats.to_dict()
 
 
 @export
@@ -262,6 +260,8 @@ def calculate_bin_stats(
     y_pred = y_pred[keep].round(5)
 
     n = len(y_true)
+    total_positives = y_true.sum()
+    total_negatives = n - total_positives
 
     if not keep_score_values:
         y_pred = as_percentages(y_pred)
@@ -271,8 +271,8 @@ def calculate_bin_stats(
     # Add extrema if needed (logits); tree-likes could make predictions of 1 and 0
     if np.min(y_pred) > 0:
         thresholds = np.hstack((thresholds, [0]))
-        tps = np.hstack((tps, tps[-1]))
-        fps = np.hstack((fps, fps[-1]))
+        tps = np.hstack((tps, total_positives))
+        fps = np.hstack((fps, total_negatives))
     if (not keep_score_values) and (np.max(y_pred) < 100):
         thresholds = np.hstack(([100], thresholds))
         tps = np.hstack(([0], tps))
@@ -285,16 +285,21 @@ def calculate_bin_stats(
         tps = tps[threshold_ix]
         fps = fps[threshold_ix]
 
+    # false negatives are any true positives that were not predicted positive
+    fns = total_positives - tps
+
+    # true negatives that were not predictived positive
+    tns = total_negatives - fps
+
     with np.errstate(invalid="ignore", divide="ignore"):
-        # fps[-1] = N,  tps[-1] = T
-        fpr = fps / fps[-1]
-        tpr = tps / tps[-1]
+        tpr = tps / total_positives
+        fpr = fps / total_negatives
 
         ppv = tps / (tps + fps)
         ppv[np.isnan(ppv)] = 0
 
         # TN / TN + FN
-        npv = np.divide(fps[-1] - fps, (fps[-1] - fps) + (tps[-1] - tps))
+        npv = np.divide(tns, tns + fns)
         npv[np.isnan(npv)] = 1
 
         lr = tpr / fpr
@@ -303,27 +308,33 @@ def calculate_bin_stats(
         nnt = calculate_nnt(ppv)
         nbs = (tps - fps * (thresholds / (100 - thresholds))) / n
 
-    accuracy = (tps + (fps[-1] - fps)) / n
+    accuracy = (tps + tns) / n
     ppcr = (tps + fps) / n
 
     # NOTE: Don't set index to be threshold because it's a float and this
     # makes lookup annoying due to tolerance settings
+    # NOTE: Column order matters, so they are grouped by types
     stats = pd.DataFrame(
         np.column_stack(
             (
                 thresholds,
-                tps,
-                fps,
-                fps[-1] - fps,
-                tps[-1] - tps,
+                # RATES
+                ppcr,  # Flag Rate
+                # PERFORMANCE
                 accuracy,
-                tpr,
-                1 - fpr,
+                tpr,  # Sensitivity
+                1 - fpr,  # Specificity
                 ppv,
                 npv,
-                ppcr,
+                # WORKFLOWS
                 lr,
                 nbs,
+                # COUNTS
+                tps,
+                fps,
+                tns,
+                fns,
+                # DYNAMIC
                 nnt,
             )
         ),

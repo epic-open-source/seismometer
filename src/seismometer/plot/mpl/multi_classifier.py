@@ -61,7 +61,7 @@ def cohort_evaluation_vs_threshold(
     fig = plt.figure(figsize=(12, 8))
     gs = gridspec.GridSpec(2, 3, fig)
 
-    metrics = ["Sensitivity", "Flagged", "PPV", "Specificity", "NPV"]  # determines ordering of plots
+    metrics = ["Sensitivity", "Flag Rate", "PPV", "Specificity", "NPV"]  # determines ordering of plots
     func_kws = {"highlight": highlight}
     for i, metric in enumerate(metrics):
         func_kws["metric"] = metric

@@ -8,7 +8,7 @@ import seismometer.data.performance as undertest
 from seismometer.data.confidence.calculations import ValueWithCI, _RocRegionResults
 from seismometer.data.confidence.parameters import _SUPPORTED_PLOTS
 
-ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + ["NNT@0.333"]
+ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + undertest.PERCENTS + ["NNT@0.333"]
 
 
 class TestAssertValidPerf:
@@ -251,20 +251,23 @@ class TestBinaryStats:
         _, truth, output, _, _ = ci_testcase0()
         data = pd.DataFrame({"truth": truth, "output": output})
         expected = {
-            "Threshold": 70.0,
-            "TP": 1.0,
-            "FP": 0.0,
-            "TN": 2.0,
-            "FN": 1.0,
+            "Flag Rate": 0.25,
             "Accuracy": 0.75,
             "Sensitivity": 0.5,
             "Specificity": 1.0,
             "PPV": 1.0,
             "NPV": 0.66667,
-            "Flagged": 0.25,
             "LR+": np.inf,
             "NetBenefitScore": 0.25,
+            "TP": 1.0,
+            "FP": 0.0,
+            "TN": 2.0,
+            "FN": 1.0,
             "NNT@0.2": 3.0,
+            "TP (%)": 25.0,
+            "FP (%)": 0.0,
+            "TN (%)": 50.0,
+            "FN (%)": 25.0,
         }
         actual = undertest.calculate_binary_stats(data, "truth", "output", 0.7, 0.2)
 
