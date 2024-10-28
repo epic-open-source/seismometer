@@ -43,7 +43,7 @@ def get_test_data():
             "prediction": [1, 2, 3, 4],
             "time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "event1_Value": [0, 1, 0, -1],
-            "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2021-12-31"],
             "event2_Value": [0, 1, 0, 1],
             "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "cohort1": [1, 0, 1, 0],
@@ -109,30 +109,6 @@ class Test__set_df_counts:
 
         # Assert
         assert sg.feature_count == expected
-
-
-class TestSeismogramDataMethod:
-    def test_data_with_named_target(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data("event2")) == 4
-
-    def test_data_filters_target_events(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data("event1")) == 3
-
-    def test_data_defaults_to_primary_target(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.target_event = "event1"
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data()) == 3
 
 
 class TestSeismogramConfigRetrievalMethods:

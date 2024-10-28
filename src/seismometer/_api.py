@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from IPython.display import HTML, SVG, IFrame, display
+from IPython.display import HTML, SVG, display
 from pandas.io.formats.style import Styler
 
 import seismometer.plot as plot
@@ -17,12 +17,7 @@ from .controls.explore import (
     ExplorationScoreComparisonByCohortWidget,
     ExplorationSubpopulationWidget,
     ExplorationTargetComparisonByCohortWidget,
-    ExplorationWidget,
-    ModelFairnessAuditOptions,
 )
-from .core.exceptions import CensoredResultException
-from .core.io import slugify
-from .core.nbhost import NotebookHost
 from .data import (
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
@@ -37,8 +32,7 @@ from .data.decorators import export
 from .data.filter import FilterRule
 from .data.timeseries import create_metric_timeseries
 from .html import template
-from .html.iframe import load_as_iframe
-from .report.auditing import fairness_audit_altair
+from .report.fairness import ExploreBinaryModelFairness as ExploreFairnessAudit
 from .report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from .seismogram import Seismogram
 
@@ -162,130 +156,6 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     wrapper.display_report(inline)
 
 
-@export
-def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold: float = 1.25) -> HTML:
-    """
-    Displays the Aequitas fairness audit for a set of sensitive groups and metrics.
-
-    Parameters
-    ----------
-    metric_list : Optional[list[str]
-        The list of metrics to use in Aequitas. Chosen from:
-            "tpr",
-            "tnr",
-            "for",
-            "fdr",
-            "fpr",
-            "fnr",
-            "npv",
-            "ppr",
-            "precision",
-            "pprev".
-    fairness_threshold : float
-        The maximum ratio between sensitive groups before differential performance is considered a 'failure'.
-    """
-    sg = Seismogram()
-
-    sensitive_groups = sg.cohort_cols
-    metric_list = metric_list or ["tpr", "fpr", "pprev"]
-
-    return generate_fairness_audit(
-        sensitive_groups,
-        sg.target,
-        sg.output,
-        sg.thresholds[0],
-        per_context=True,
-        metric_list=metric_list,
-        fairness_threshold=fairness_threshold,
-    )
-
-
-@export
-def generate_fairness_audit(
-    cohort_columns: list[str],
-    target_column: str,
-    score_column: str,
-    score_threshold: float,
-    per_context: bool = False,
-    metric_list: Optional[list[str]] = None,
-    fairness_threshold: float = 1.25,
-) -> HTML | IFrame | Any:
-    """
-    Generates the Aequitas fairness audit for a set of sensitive groups and metrics.
-
-    Parameters
-    ----------
-    cohort_columns : list[str]
-        cohort columns to investigate
-    target_column : str
-        target column to use
-    score_column : str
-        score column to use
-    score_threshold : float
-        threshold at which a score predicts a positive event
-    per_context : bool, optional
-        if scores should be grouped within a context, by default False
-    metric_list : Optional[list[str]], optional
-        list of metrics to evaluate, by default None
-    fairness_threshold : float, optional
-        allowed deviation from the default class within a cohort, by default 1.25
-
-    Returns
-    -------
-    HTML | IFrame | Altair Chart
-        IFrame holding the HTML of the audit
-    """
-
-    sg = Seismogram()
-
-    path = "aequitas_{cohorts}_with_{target}_and_{score}_gt_{threshold}_metrics_{metrics}_ratio_{ratio}".format(
-        cohorts="_".join(cohort_columns),
-        target=target_column,
-        score=score_column,
-        threshold=score_threshold,
-        metrics="_".join(metric_list),
-        ratio=fairness_threshold,
-    )
-    if per_context:
-        path += "_grouped"
-    fairness_path = sg.config.output_dir / (slugify(path) + ".html")
-    height = 200 + 100 * len(metric_list)
-
-    if NotebookHost.supports_iframe() and fairness_path.exists():
-        return load_as_iframe(fairness_path, height=height)
-    data = (
-        pdh.event_score(
-            sg.data(),
-            sg.entity_keys,
-            score=score_column,
-            ref_event=sg.predict_time,
-            aggregation_method=sg.event_aggregation_method(target_column),
-        )
-        if per_context
-        else sg.data()
-    )
-
-    target = pdh.event_value(target_column)
-    data = data[[target, score_column] + cohort_columns]
-    data = FilterRule.isin(target, (0, 1)).filter(data)
-    positive_samples = data[target].sum()
-    if min(positive_samples, len(data) - positive_samples) < sg.censor_threshold:
-        return template.render_censored_plot_message(sg.censor_threshold)
-
-    try:
-        altair_plot = fairness_audit_altair(
-            data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
-        )
-    except CensoredResultException as error:
-        return template.render_censored_data_message(str(error))
-
-    if NotebookHost.supports_iframe():
-        altair_plot.save(fairness_path, format="html")
-        return load_as_iframe(fairness_path, height=height)
-
-    return altair_plot
-
-
 # endregion
 
 # region notebook IPWidgets
@@ -399,7 +269,7 @@ def plot_cohort_hist():
     cohort_col = sg.selected_cohort[0]
     subgroups = sg.selected_cohort[1]
     censor_threshold = sg.censor_threshold
-    return _plot_cohort_hist(sg.data(), sg.target, sg.output, cohort_col, subgroups, censor_threshold)
+    return _plot_cohort_hist(sg.dataframe, sg.target, sg.output, cohort_col, subgroups, censor_threshold)
 
 
 @disk_cached_html_segment
@@ -675,36 +545,6 @@ def _plot_leadtime_enc(
     rows = summary_data[cohort_col].nunique()
     svg = plot.leadtime_violin(summary_data, x_label, cohort_col, xmax=max_hours, figsize=(9, 1 + rows))
     return template.render_title_with_image(title, svg)
-
-
-@export
-def cohort_evaluation(per_context_id=False) -> HTML:
-    """Displays model performance metrics on cohort attribute across thresholds.
-
-    Parameters
-    ----------
-    per_context_id : bool, optional
-        If True, limits data to one row per context_id, by default False.
-    """
-
-    sg = Seismogram()
-
-    cohort_col = sg.selected_cohort[0]
-    subgroups = sg.selected_cohort[1]
-    censor_threshold = sg.censor_threshold
-    return _plot_cohort_evaluation(
-        sg.data(),
-        sg.entity_keys,
-        sg.target,
-        sg.output,
-        sg.thresholds,
-        cohort_col,
-        subgroups,
-        censor_threshold,
-        per_context_id,
-        sg.event_aggregation_method(sg.target),
-        sg.predict_time,
-    )
 
 
 @disk_cached_html_segment
@@ -1672,48 +1512,7 @@ class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeIntervention
         super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
 
 
-@export
-class ExploreFairnessAudit(ExplorationWidget):
-    """
-    Exploration widget for Aequitas model fairness metrics, showing details for a given target, score, and threshold.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        title = "Fairness Audit"
-        sg = Seismogram()
-        self.cohort_columns = sg.cohort_cols
-
-        option_widget = ModelFairnessAuditOptions(
-            sg.target_cols,
-            sg.output_list,
-            score_threshold=max(sg.thresholds),
-            per_context=True,
-        )
-        super().__init__(title=title, option_widget=option_widget, plot_function=generate_fairness_audit)
-
-    def generate_plot_args(self) -> tuple[tuple, dict]:
-        """
-        Returns plot function args from the option widget
-
-        Returns
-        -------
-        tuple[tuple, dict]
-            args, and kwargs for the plot function.
-        """
-        args = (
-            self.cohort_columns,
-            self.option_widget.target,
-            self.option_widget.score,
-            self.option_widget.score_threshold,
-            self.option_widget.group_scores,
-            list(self.option_widget.metrics),
-            self.option_widget.fairness_threshold,
-        )
-        return args, {}
-
+export(ExploreFairnessAudit)
 
 # endregion
 

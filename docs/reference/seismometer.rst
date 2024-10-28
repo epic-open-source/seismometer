@@ -30,13 +30,12 @@ Public API
 .. autosummary::
    :toctree: api/
 
-   cohort_evaluation
    cohort_comparison_report
    cohort_list
-   fairness_audit
    feature_alerts
    feature_summary
    model_evaluation
+   plot_cohort_evaluation
    plot_cohort_hist
    plot_leadtime_enc
    plot_model_metric
