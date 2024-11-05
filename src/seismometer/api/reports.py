@@ -7,6 +7,7 @@ from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWr
 from seismometer.seismogram import Seismogram
 from seismometer.table.analytics_table import ExploreBinaryModelAnalytics
 from seismometer.table.fairness import ExploreBinaryModelFairness
+from seismometer.table.likert import ExploreOrdinalCategoricalPlots
 
 logger = logging.getLogger("seismometer")
 
@@ -29,6 +30,19 @@ class ExploreFairnessAudit(ExploreBinaryModelFairness):
 
 @export
 class ExploreAnalyticsTable(ExploreBinaryModelAnalytics):
+    """
+    Exploration widget for model comparison across cohorts / binary classifiers / targets.
+    """
+
+    def __init__(self):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__()
+
+
+@export
+class ExploreOrdinalCategorical(ExploreOrdinalCategoricalPlots):
     """
     Exploration widget for model comparison across cohorts / binary classifiers / targets.
     """

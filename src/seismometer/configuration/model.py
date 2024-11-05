@@ -296,6 +296,22 @@ class EventTableMap(BaseModel):
     """ The column name of the event value. """
 
 
+class MetricDetails(BaseModel):
+    min: Optional[Union[float, int]] = None
+    max: Optional[Union[float, int]] = None
+    handle_na: Optional[str] = None
+    group: Optional[str] = None
+    values: Optional[list[Union[float, int, str]]] = None
+
+
+class Metric(BaseModel):
+    source: str
+    display_name: str
+    metric_type: str
+    group_key: Optional[str] = None
+    metric_details: MetricDetails = MetricDetails()
+
+
 class DataUsage(BaseModel):
     """
     The definitions of data to use in a notebook run.
@@ -341,6 +357,8 @@ class DataUsage(BaseModel):
 
     Must have at least one target event.
     """
+    metrics: list[Metric] = []
+    """A list of all metrics to load."""
 
     censor_min_count: int = Field(10, ge=10)
     """ The minimum size of a cohort to be considered displayable. """

@@ -27,7 +27,7 @@ class ProbabilitySliderListWidget(ValueWidget, VBox):
         ----------
         names : Iterable[str]
             Slider names
-        value : Optional[Iterable[str]], optional
+        value : Optional[Iterable[int]], optional
             Slider start values, by default None, starts all sliders at zero.
         """
         self.names = tuple(names)  # cast to static tuple
@@ -95,12 +95,12 @@ class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
     Monotonicity is maintained between the sliders so they are always ascending or descending in value.
     """
 
-    def __init__(self, names: Iterable[int], value: Optional[Iterable[int]] = None, ascending: bool = True):
+    def __init__(self, names: Iterable[str], value: Optional[Iterable[int]] = None, ascending: bool = True):
         """A vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
 
         Parameters
         ----------
-        names : Iterable[int]
+        names : Iterable[str]
             Slider names
         value : Optional[Iterable[int]], optional
             Slider start values, by default None, starts all sliders at zero.
