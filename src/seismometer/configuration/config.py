@@ -206,6 +206,11 @@ class ConfigProvider:
         """List of entity and context ids."""
         return [k for k in [self.entity_id, self.context_id] if k is not None]
 
+    @property
+    def metrics(self) -> dict:
+        """Collection of metric objects to use during analysis."""
+        return self.usage.metrics
+
     # region EventTableMap
     @property
     def ev_time(self) -> str:
