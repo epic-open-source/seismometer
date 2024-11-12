@@ -32,7 +32,7 @@ def cohort_evaluation_vs_threshold(
     """
     Creates a 2x3 grid of individual performance metrics across cohorts.
 
-    Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
+    Plots include Sensitivity, Flag Rate, PPV, Specificity, NPV vs Thresholds.
     Includes a legend with cohort size.
 
     Parameters
