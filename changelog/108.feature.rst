@@ -1,0 +1,2 @@
+Includes confusion matrix rates into Binary Fairness metrics
+Renames `Flagged` to `Flag Rate` for clarity

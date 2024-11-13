@@ -197,7 +197,7 @@ def performance_confidence(axis, perf_stats, conf, metric, color=None) -> None:
         metric_N = perf_stats["TP"] + perf_stats["FP"]
     elif metric == "NPV":
         metric_N = perf_stats["TN"] + perf_stats["FN"]
-    elif metric == "Flagged":
+    elif metric == "Flag Rate":
         return
     else:
         raise ValueError(f"Tried to plot a confidence region on an unsupported metric '{metric}'.")

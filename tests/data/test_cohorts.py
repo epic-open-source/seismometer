@@ -53,7 +53,7 @@ def expected_df(cohorts):
             "Specificity",
             "PPV",
             "NPV",
-            "Flagged",
+            "Flag Rate",
             "LR+",
             "NNT@0.5",
             "cohort",
@@ -66,8 +66,8 @@ def expected_df(cohorts):
     df[["TP", "FP", "TN", "FN", "cohort-count", "cohort-targetcount"]] = df[
         ["TP", "FP", "TN", "FN", "cohort-count", "cohort-targetcount"]
     ].astype(int)
-    df[["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flagged", "LR+", "NNT@0.5"]] = df[
-        ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flagged", "LR+", "NNT@0.5"]
+    df[["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flag Rate", "LR+", "NNT@0.5"]] = df[
+        ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flag Rate", "LR+", "NNT@0.5"]
     ].astype(float)
 
     # reduce before creating category
