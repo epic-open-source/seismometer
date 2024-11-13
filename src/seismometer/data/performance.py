@@ -16,7 +16,7 @@ DEFAULT_RHO = 1 / 3
 
 PathLike = Union[str, Path]
 COUNTS = ["TP", "FP", "TN", "FN"]
-PERCENTS = ["TP (%)", "FP (%)", "TN (%)", "FN (%)"]
+PERCENTS = [f"{count} (%)" for count in COUNTS]
 RATE_METRICS = ["Flag Rate"]
 PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
 WORKFLOW_METRICS = ["LR+", "NetBenefitScore"]
@@ -28,7 +28,12 @@ STATNAMES = RATE_METRICS + PERFORMANCE + WORKFLOW_METRICS + COUNTS
 class MetricGenerator:
     RESERVED_NAMES = ["Count", "Cohort", "Class"]
 
-    def __init__(self, metric_names: list[str], metric_fn: Callable[..., dict[str, float]]):
+    def __init__(
+        self,
+        metric_names: list[str],
+        metric_fn: Callable[..., dict[str, float]],
+        default_metrics: Optional[list[str]] = None,
+    ):
         """
         A class that generates metrics from a dataframe.
         Keeps track of available metric names as well as the function to call to generate them.
@@ -50,6 +55,7 @@ class MetricGenerator:
             raise ValueError(f"Reserved metric name found: {restricted_names}")
         self.metric_names = metric_names
         self.metric_fn = metric_fn
+        self.default_metrics = default_metrics or metric_names
 
     def __call__(self, dataframe: pd.DataFrame, metric_names: list[str] = None, **kwargs) -> dict[str, float]:
         """
@@ -66,7 +72,7 @@ class MetricGenerator:
             A dictionary of metric names and their values.
         """
         if not metric_names:
-            metric_names = self.metric_names
+            metric_names = self.default_metrics
         elif not set(metric_names).issubset(self.metric_names):
             raise ValueError(f"Invalid metric names: {set(metric_names) - set(self.metric_names)}")
         if len(dataframe) == 0:
@@ -84,6 +90,12 @@ class MetricGenerator:
         ----------
         dataframe : pd.DataFrame
             The dataframe to generate metrics from.
+
+        metric_names : list[str]
+            List of metric names to generate.
+
+        kwargs:
+            anything additional the delegate needs.
 
         Returns
         -------
@@ -109,6 +121,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             The relative risk reduction for NNT calculation, by default DEFAULT_RHO.
         """
         self.rho = rho or DEFAULT_RHO
+        self.default_metrics = PERFORMANCE
 
     @property
     def metric_names(self):
@@ -144,7 +157,36 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        return calculate_binary_stats(dataframe, target_col, score_col, score_threshold, rho=self.rho)
+        stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names)
+        score_threshold_integer = int(score_threshold * 100)
+        stats = stats.loc[score_threshold_integer]
+        return stats.to_dict()
+
+    def calculate_binary_stats(self, dataframe, target_col, score_col, metrics):
+        """
+        Calculates binary stats for all thresholds.
+
+        Parameters
+        ----------
+        dataframe : pd.DataFrame
+            The dataframe to generate metrics from.
+        target_col : str
+            The column in the dataframe that contains the true labels.
+        score_col : str
+            The column in the dataframe that contains the predicted scores.
+        score_threshold : float, optional
+            The threshold to use for binary classification, by default 0.5.
+        metrics: list[str], optional
+            List of metrics to filter down to.
+        """
+        y_true = dataframe[target_col]
+        y_pred = dataframe[score_col]
+        stats = calculate_bin_stats(y_true, y_pred, rho=self.rho).round(5).set_index(THRESHOLD)
+        for name, percent in zip(COUNTS, PERCENTS):
+            stats[percent] = stats[name] * 100.0 / len(dataframe)
+        if metrics:
+            return stats[list(metrics)]
+        return stats
 
     def __repr__(self):
         return f"BinaryClassifierMetricGenerator(rho={self.rho})"
@@ -182,41 +224,6 @@ def assert_valid_performance_metrics_df(df: pd.DataFrame, needs_columns: list = 
             "Passed performance frame does not have required columns: "
             + f"{performance_columns}.\nMissing {set(performance_columns) - set(df.columns)}"
         )
-
-
-@export
-def calculate_binary_stats(
-    dataframe: pd.DataFrame,
-    target_col: str,
-    score_col: str,
-    score_threshold: float = 0.5,
-    rho: float = None,
-) -> dict[str, float]:
-    """
-    Generates binary classifier metrics from a dataframe, as a specific threshold
-
-    Parameters
-    ----------
-    dataframe : pd.DataFrame
-        The dataframe to generate metrics from.
-    target_col : str
-        The column in the dataframe that contains the true labels.
-    score_col : str
-        The column in the dataframe that contains the predicted scores.
-    score_threshold : float, optional
-        The threshold to use for binary classification, by default 0.5.
-    rho : float, optional
-        The relative risk reduction for NNT calculation, by default DEFAULT_RHO.
-    """
-    rho = rho or DEFAULT_RHO
-    score_threshold_integer = int(score_threshold * 100)
-    y_true = dataframe[target_col]
-    y_pred = dataframe[score_col]
-    stats = calculate_bin_stats(y_true, y_pred, rho=rho).drop("Threshold", axis=1)
-    stats = stats.iloc[100 - score_threshold_integer].round(5)
-    for name, percent in zip(COUNTS, PERCENTS):
-        stats[percent] = stats[name] * 100.0 / len(y_true)
-    return stats.to_dict()
 
 
 @export
