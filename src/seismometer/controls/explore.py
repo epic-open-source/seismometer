@@ -6,6 +6,8 @@ import traitlets
 from IPython.display import display
 from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, ValueWidget, VBox
 
+from seismometer.data.performance import MetricGenerator
+
 from .selection import DisjointSelectionListsWidget, MultiselectDropdownWidget, MultiSelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from .thresholds import MonotonicProbabilitySliderListWidget
@@ -1325,6 +1327,7 @@ class ExplorationTargetComparisonByCohortWidget(ExplorationWidget):
 
 # endregion
 
+
 # region Binary Model Metric Exploration Widget
 
 
@@ -1333,11 +1336,11 @@ class BinaryModelMetricOptions(Box, ValueWidget):
 
     def __init__(
         self,
+        metrics_generator: MetricGenerator,
         cohort_groups: dict[str, tuple[Any]],
         target_names: tuple[Any],
         score_names: tuple[Any],
         per_context: bool = True,
-        metrics: tuple[str] = None,
         default_metrics: tuple[str] = None,
     ):
         """
@@ -1345,35 +1348,21 @@ class BinaryModelMetricOptions(Box, ValueWidget):
 
         Parameters
         ----------
+        metrics_generator: MetricGenertor
+            class to generate metrics of interest
+        cohort_groups : dict[str, tuple[Any]]
+            cohort columns and groupings
         target_names : tuple[Any]
             model target columns
         score_names : tuple[Any]
             model score columns
-        score_threshold : float
-            main threshold for the model score
         per_context : bool, optional
             if scores should be grouped by context, by default True
-        metrics : tuple[str], optional
-            list of fairness metrics to display, if None (default) metrics from `calculate_bin_stats`
         default_metrics : tuple[str], optional
-            list of fairness metrics to display, if None (default) will use ["tpr", "fpr", "pprev"]
+            list of fairness metrics to display, if None (default) will use those from metric_generator
         """
-        metrics = metrics or [
-            "TP",
-            "FP",
-            "TN",
-            "FN",
-            "Accuracy",
-            "Sensitivity",
-            "Specificity",
-            "PPV",
-            "NPV",
-            "Flagged",
-            "LR+",
-            "NetBenefitScore",
-            "NNT@0.333",
-        ]
-        default_metrics = default_metrics or ["NNT@0.333"]
+        metrics = metrics_generator.metric_names
+        default_metrics = default_metrics or metrics_generator.default_metrics
         self.metric_list = MultiselectDropdownWidget(options=metrics, value=default_metrics, title="Metrics")
         self.metric_list.layout = Layout(width="min-content", align_self="flex-end")
 
@@ -1442,9 +1431,9 @@ class ExplorationMetricWidget(ExplorationWidget):
     def __init__(
         self,
         title: str,
+        metric_generator: MetricGenerator,
         plot_function: Callable[..., Any],
         *,
-        metrics: tuple[str] = None,
         default_metrics: tuple[str] = None,
     ):
         """
@@ -1455,12 +1444,15 @@ class ExplorationMetricWidget(ExplorationWidget):
         ----------
         title : str
             title of the control
+        metric_generator: MetricGenerator
+            used to select metrics and compute them.
         plot_function : Callable[..., Any]
             Expected to have the following signature:
 
             .. code:: python
 
                 def plot_function(
+                    metric_generator: MetricGenerator,
                     metrics: tuple[str],
                     cohort_dict: dict[str,tuple[Any]],
                     target: tuple[str],
@@ -1469,15 +1461,16 @@ class ExplorationMetricWidget(ExplorationWidget):
         """
         from seismometer.seismogram import Seismogram
 
+        self.metric_generator = metric_generator
         sg = Seismogram()
         super().__init__(
             title,
             option_widget=BinaryModelMetricOptions(
+                metric_generator,
                 sg.available_cohort_groups,
                 sg.target_cols,
                 sg.output_list,
                 per_context=False,
-                metrics=metrics,
                 default_metrics=default_metrics,
             ),
             plot_function=plot_function,
@@ -1486,6 +1479,7 @@ class ExplorationMetricWidget(ExplorationWidget):
     def generate_plot_args(self) -> tuple[tuple, dict]:
         """Generates the plot arguments for the model evaluation plot"""
         args = [
+            self.metric_generator,
             self.option_widget.metrics,
             self.option_widget.cohorts,
             self.option_widget.target,

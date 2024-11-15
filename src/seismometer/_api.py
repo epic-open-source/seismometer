@@ -30,6 +30,7 @@ from .data import pandas_helpers as pdh
 from .data import score_target_cohort_summaries
 from .data.decorators import export
 from .data.filter import FilterRule
+from .data.performance import BinaryClassifierMetricGenerator
 from .data.timeseries import create_metric_timeseries
 from .html import template
 from .report.fairness import ExploreBinaryModelFairness as ExploreFairnessAudit
@@ -1522,7 +1523,8 @@ export(ExploreFairnessAudit)
 
 @disk_cached_html_segment
 @export
-def plot_model_metric(
+def plot_binary_classifier_metrics(
+    metric_generator: BinaryClassifierMetricGenerator,
     metrics: str | list[str],
     cohort_dict: dict[str, tuple[Any]],
     target: str,
@@ -1532,13 +1534,14 @@ def plot_model_metric(
     table_only: bool = False,
 ) -> HTML:
     """
-    Generates a 2x3 plot showing the performance of a model.
-
-    This includes the ROC, recall vs predicted condition prevalence, calibration,
-    PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
+    Generates a plot with model metrics.
 
     Parameters
     ----------
+    metric_generator: BinaryClassifierMetricGenerator
+        class that creates metrics for a model
+    metrics: list[string]
+        subset of metrics to display
     cohort_dict : dict[str, tuple[Any]]
         dictionary of cohort columns and values used to subselect a population for evaluation
     target : str
@@ -1558,7 +1561,8 @@ def plot_model_metric(
     data = cohort_filter.filter(sg.dataframe)
     target_event = pdh.event_value(target)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
-    return model_metric_evaluation(
+    return binary_classifier_metric_evaluation(
+        metric_generator,
         metrics,
         target_data,
         sg.entity_keys,
@@ -1572,7 +1576,8 @@ def plot_model_metric(
     )
 
 
-def model_metric_evaluation(
+def binary_classifier_metric_evaluation(
+    metric_generator: BinaryClassifierMetricGenerator,
     metrics: str | list[str],
     dataframe: pd.DataFrame,
     entity_keys: list[str],
@@ -1629,9 +1634,10 @@ def model_metric_evaluation(
         return template.render_title_message(
             "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
         )
-    stats = calculate_bin_stats(data[target], data[score_col])
     if isinstance(metrics, str):
         metrics = [metrics]
+
+    stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)
 
     if table_only:
         return HTML(stats[metrics].T.to_html())
@@ -1644,11 +1650,18 @@ class ExploreBinaryModelMetrics(ExplorationMetricWidget):
     Explore the models performance metrics based on a selected metric.
     """
 
-    def __init__(self):
+    def __init__(self, rho: Optional[float] = None):
         """
         Passes the plot function to the superclass.
+
+        Parameters
+        ----------
+
+        rho: float between 0 and 1
+           Probability of a treatment being effective
         """
-        super().__init__("Model Metric Evaluation", plot_model_metric)
+        metric_generator = BinaryClassifierMetricGenerator(rho=rho)
+        super().__init__("Model Metric Evaluation", metric_generator, plot_binary_classifier_metrics)
 
 
 # endregion

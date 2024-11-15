@@ -411,7 +411,7 @@ def plot_metric_list(
     Parameters
     ----------
     stats : pd.DataFrame
-        The table of performance metrics of the form given by calculate_bin_stats.
+        The table of performance metrics with the index being threshold percentiles.
     metrics : list[str]
         The performance metrics to plot, must be columns in the stats dataframe.
     """
@@ -419,7 +419,7 @@ def plot_metric_list(
     axis = fig.gca()
 
     for metric in metrics:
-        thresholds = as_probabilities(stats["Threshold"])
+        thresholds = as_probabilities(stats.index)
         axis.plot(thresholds, stats[metric], label=metric)
         axis.legend(loc="lower right")
 

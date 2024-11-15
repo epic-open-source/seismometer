@@ -19,7 +19,7 @@ COUNTS = ["TP", "FP", "TN", "FN"]
 PERCENTS = [f"{count} (%)" for count in COUNTS]
 RATE_METRICS = ["Flag Rate"]
 PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
-WORKFLOW_METRICS = ["LR+", "NetBenefitScore"]
+WORKFLOW_METRICS = ["LR+", "NetBenefitScore", "NNE"]
 THRESHOLD = "Threshold"
 STATNAMES = RATE_METRICS + PERFORMANCE + WORKFLOW_METRICS + COUNTS
 
@@ -312,6 +312,7 @@ def calculate_bin_stats(
         lr = tpr / fpr
 
         # re-implementation of metrics from med_metrics package, see _calculate_nnt for full citation
+        nne = calculate_nnt(ppv, 1)
         nnt = calculate_nnt(ppv)
         nbs = (tps - fps * (thresholds / (100 - thresholds))) / n
 
@@ -336,6 +337,7 @@ def calculate_bin_stats(
                 # WORKFLOWS
                 lr,
                 nbs,
+                nne,
                 # COUNTS
                 tps,
                 fps,

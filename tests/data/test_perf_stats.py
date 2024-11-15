@@ -19,6 +19,7 @@ TEST_KEY_ORDER = [
     "NPV",
     "Flag Rate",
     "LR+",
+    "NNE",
     "NetBenefitScore",
     "NNT@0.333",
 ]
@@ -29,11 +30,11 @@ def stats_case_base():
     y_prob = np.array([0.1, 0.5, 0.1])
 
     expected = []
-    # Threshold, TP, FP, TN, FN, Accuracy, Sensitivity, Specificity, PPV, NPV, Flag Rate, LR+, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 1, 2, 1 / 3, 0, 1, 0, 1 / 3, 0, np.nan, np.nan, np.inf])  # 1
-    expected.append([50, 1, 0, 1, 1, 2 / 3, 0.5, 1, 1, 0.5, 1 / 3, np.inf, 1 / 3, 3])  # .5
-    expected.append([10, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 17 / 27, 4.5])  # .1
-    expected.append([0, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 2 / 3, 4.5])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 0, 0, 1, 2, 1 / 3, 0, 1, 0, 1 / 3, 0, np.nan, np.inf, np.nan, np.inf])  # 1
+    expected.append([50, 1, 0, 1, 1, 2 / 3, 0.5, 1, 1, 0.5, 1 / 3, np.inf, 1, 1 / 3, 3])  # .5
+    expected.append([10, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 17 / 27, 4.5])  # .1
+    expected.append([0, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 2 / 3, 4.5])  # 0
 
     return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
@@ -44,11 +45,11 @@ def stats_case_0():
     y_prob = np.array([0, 0.1, 0.5, 0.1])
 
     expected = []
-    # Threshold, TP, FP, TN, FN, Accuracy, Sensitivity, Specificity, PPV, NPV, Flag Rate, LR+, NBS, NNT1/3|  Threshold
-    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 0, 0.5, 0, np.nan, np.nan, np.inf])  # 1
-    expected.append([50, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1 / 4, 3])  # .5
-    expected.append([10, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 17 / 36, 4.5])  # .1
-    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 1 / 2, 6])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 0, 0.5, 0, np.nan, np.inf, np.nan, np.inf])  # 1
+    expected.append([50, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .5
+    expected.append([10, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 17 / 36, 4.5])  # .1
+    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 2, 1 / 2, 6])  # 0
 
     return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
@@ -59,11 +60,11 @@ def stats_case_1():
     y_prob = np.array([0.1, 0.5, 0.1, 1])
 
     expected = []
-    # Threshold, TP, FP, TN, FN, Accuracy, Sensitivity, Specificity, PPV, NPV, Flag Rate, LR+, NBS, NNT1/3 |  Threshold
-    expected.append([100, 1, 0, 1, 2, 0.5, 1 / 3, 1, 1, 1 / 3, 0.25, np.inf, np.nan, 3])  # 1
-    expected.append([50, 2, 0, 1, 1, 0.75, 2 / 3, 1, 1, 0.5, 0.5, np.inf, 1 / 2, 3])  # .5
-    expected.append([10, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 13 / 18, 4])  # .1
-    expected.append([0, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 3 / 4, 4])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 1, 0, 1, 2, 0.5, 1 / 3, 1, 1, 1 / 3, 0.25, np.inf, 1, np.nan, 3])  # 1
+    expected.append([50, 2, 0, 1, 1, 0.75, 2 / 3, 1, 1, 0.5, 0.5, np.inf, 1, 1 / 2, 3])  # .5
+    expected.append([10, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 4 / 3, 13 / 18, 4])  # .1
+    expected.append([0, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 4 / 3, 3 / 4, 4])  # 0
 
     return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
@@ -74,11 +75,11 @@ def stats_case_01():
     y_prob = np.array([0, 0.1, 0.5, 0.1, 1])
 
     expected = []
-    # Threshold, TP, FP, TN, FN, Accuracy, Sensitivity, Specificity, PPV, NPV, Flag Rate, LR+, NBS, NNT1/3 |  Threshold
-    expected.append([100, 1, 0, 2, 2, 0.6, 1 / 3, 1, 1, 0.5, 0.2, np.inf, np.nan, 3])  # 1
-    expected.append([50, 2, 0, 2, 1, 0.8, 2 / 3, 1, 1, 2 / 3, 0.4, np.inf, 2 / 5, 3])  # .5
-    expected.append([10, 3, 1, 1, 0, 0.8, 1, 0.5, 0.75, 1, 0.8, 2, 26 / 45, 4])  # .1
-    expected.append([0, 3, 2, 0, 0, 0.6, 1, 0, 0.6, 1, 1, 1, 3 / 5, 5])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 1, 0, 2, 2, 0.6, 1 / 3, 1, 1, 0.5, 0.2, np.inf, 1, np.nan, 3])  # 1
+    expected.append([50, 2, 0, 2, 1, 0.8, 2 / 3, 1, 1, 2 / 3, 0.4, np.inf, 1, 2 / 5, 3])  # .5
+    expected.append([10, 3, 1, 1, 0, 0.8, 1, 0.5, 0.75, 1, 0.8, 2, 4 / 3, 26 / 45, 4])  # .1
+    expected.append([0, 3, 2, 0, 0, 0.6, 1, 0, 0.6, 1, 1, 1, 5 / 3, 3 / 5, 5])  # 0
 
     return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
@@ -88,12 +89,12 @@ def stats_case_0_4():
     y_prob = np.array([0.75, 0.5, 0.25, 0])
 
     expected = []
-    # Threshold, TP, FP, TN, FN, Accuracy, Sensitivity, Specificity, PPV, NPV, Flag Rate, LR+, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 0, 0.5, 0, np.nan, np.nan, np.inf])  # 1
-    expected.append([75, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1 / 4, 3])  # .75
-    expected.append([50, 2, 0, 2, 0, 1, 1, 1, 1, 1, 0.5, np.inf, 1 / 2, 3])  # .5
-    expected.append([25, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 5 / 12, 4.5])  # .25
-    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 1 / 2, 6])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 0, 0.5, 0, np.nan, np.inf, np.nan, np.inf])  # 1
+    expected.append([75, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .75
+    expected.append([50, 2, 0, 2, 0, 1, 1, 1, 1, 1, 0.5, np.inf, 1, 1 / 2, 3])  # .5
+    expected.append([25, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 5 / 12, 4.5])  # .25
+    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 2, 1 / 2, 6])  # 0
 
     return (y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER))
 
@@ -114,6 +115,7 @@ class Test_Stats:
             "PPV",
             "NPV",
             "LR+",
+            "NNE",
             "NetBenefitScore",
             "TP",
             "FP",
