@@ -72,7 +72,7 @@ def evaluation(
         highlight=highlight,
     )
     recall_condition(
-        stats["Flagged"],
+        stats["Flag Rate"],
         stats["Sensitivity"],
         stats["Threshold"],
         prevalence=prevalence,

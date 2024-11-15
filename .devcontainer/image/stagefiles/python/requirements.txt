@@ -1,5 +1,6 @@
 # numpy needs 1.26 starting at py3.12
 numpy>=1.23.5
+numba==0.58.1
 
 # All python
 ipython==8.22.2

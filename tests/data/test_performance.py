@@ -8,7 +8,7 @@ import seismometer.data.performance as undertest
 from seismometer.data.confidence.calculations import ValueWithCI, _RocRegionResults
 from seismometer.data.confidence.parameters import _SUPPORTED_PLOTS
 
-ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + ["NNT@0.333"]
+ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + undertest.PERCENTS + ["NNT@0.333"]
 
 
 class TestAssertValidPerf:
@@ -234,38 +234,45 @@ class TestBinaryMetricGenerator:
         assert metrics.rho == 1 / 3
         assert metrics.metric_names == ALL_STATS[1:]
 
-    @mock.patch(
-        "seismometer.data.performance.calculate_binary_stats",
-        return_value={"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4},
+    @mock.patch.object(
+        undertest.BinaryClassifierMetricGenerator,
+        "calculate_binary_stats",
+        return_value=pd.DataFrame.from_records(
+            [{"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4}], index=[20]
+        ),
     )
     def test_binary_metric_generation(self, mock_stats):
         metrics = undertest.BinaryClassifierMetricGenerator(rho=0.01)
         data = pd.DataFrame({"fake": [0, 1, 0, 1], "data": [0.4, 0.5, 0.6, 0.7]})
         result = metrics(data, ["Accuracy", "PPV"], target_col="TARGET", score_col="SCORE", score_threshold=0.2)
         assert result == {"Accuracy": 0.8, "PPV": 0.5}
-        mock_stats.assert_called_once_with(data, "TARGET", "SCORE", 0.2, rho=0.01)
+        mock_stats.assert_called_once_with(data, "TARGET", "SCORE", ["Accuracy", "PPV"])
 
-
-class TestBinaryStats:
     def test_calc_ci_maps_roc_values(self):
+        metrics = undertest.BinaryClassifierMetricGenerator(rho=0.2)
         _, truth, output, _, _ = ci_testcase0()
         data = pd.DataFrame({"truth": truth, "output": output})
         expected = {
-            "Threshold": 70.0,
-            "TP": 1.0,
-            "FP": 0.0,
-            "TN": 2.0,
-            "FN": 1.0,
+            "Flag Rate": 0.25,
             "Accuracy": 0.75,
             "Sensitivity": 0.5,
             "Specificity": 1.0,
             "PPV": 1.0,
             "NPV": 0.66667,
-            "Flagged": 0.25,
             "LR+": np.inf,
             "NetBenefitScore": 0.25,
+            "TP": 1.0,
+            "FP": 0.0,
+            "TN": 2.0,
+            "FN": 1.0,
             "NNT@0.2": 3.0,
+            "TP (%)": 25.0,
+            "FP (%)": 0.0,
+            "TN (%)": 50.0,
+            "FN (%)": 25.0,
         }
-        actual = undertest.calculate_binary_stats(data, "truth", "output", 0.7, 0.2)
+        actual = metrics(
+            data, metric_names=metrics.metric_names, target_col="truth", score_col="output", score_threshold=0.7
+        )
 
         assert actual == expected
