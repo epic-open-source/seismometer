@@ -1381,7 +1381,7 @@ class BinaryModelMetricOptions(Box, ValueWidget):
 
     @property
     def disabled(self) -> bool:
-        return False
+        return self._disabled
 
     @disabled.setter
     def disabled(self, disabled: bool):

@@ -5,6 +5,7 @@ import pytest
 
 import seismometer.controls.explore as undertest
 from seismometer import seismogram
+from seismometer.data.performance import MetricGenerator
 
 
 # region Test Base Classes
@@ -709,6 +710,111 @@ class TestExplorationTargetComparisonByCohortWidget:
         assert widget.update_plot_widget.disabled
         assert widget.current_plot_code == "test_explore.plot_function({}, ('T1', 'T2'), 'S1', per_context=False)"
         plot_function.assert_called_once_with({}, ("T1", "T2"), "S1", per_context=False)  # default value
+
+
+# endregion
+
+
+# region Test Binary Model Metric Exploration widgets
+class FakeMetricGenerator(MetricGenerator):
+    def __init__(self):
+        def metric_function(dataframe, metric_names, **kwargs):
+            return {"Accuracy": 0.8, "F1": 0.7, "Precision": 0.6, "Recall": 0.5}
+
+        super().__init__(["Accuracy", "F1", "Precision", "Recall"], metric_function, ["Precision", "Recall"])
+
+
+class TestBinaryModelMetricOptions:
+    def test_init(self):
+        metric_generator = FakeMetricGenerator()
+        widget = undertest.BinaryModelMetricOptions(
+            metric_generator,
+            {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            ["T1", "T2"],
+            ["S1", "S2"],
+            default_metrics=["Precision", "Recall"],
+        )
+        assert widget.disabled is False
+        assert widget.metrics == ("Precision", "Recall")
+        assert widget.metric_list.options == tuple(metric_generator.metric_names)
+        assert widget.target == "T1"
+        assert widget.score == "S1"
+
+    def test_disable(self):
+        metric_generator = FakeMetricGenerator()
+        widget = undertest.BinaryModelMetricOptions(
+            metric_generator,
+            {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            ["T1", "T2"],
+            ["S1", "S2"],
+            default_metrics=["Precision", "Recall"],
+        )
+        widget.disabled = True
+        assert widget.metric_list.disabled
+        assert widget.model_options.disabled
+        assert widget.cohort_list.disabled
+        assert widget.disabled
+
+
+class TestExplorationMetricWidget:
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo):
+        metric_generator = FakeMetricGenerator()
+        fake_seismo = mock_seismo()
+        fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.thresholds = [0.1, 0.2]
+        fake_seismo.target_cols = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        plot_function = Mock(return_value="some result")
+        plot_function.__name__ = "plot_function"
+        plot_function.__module__ = "test_explore"
+
+        widget = undertest.ExplorationMetricWidget(
+            title="Unit Test Title", metric_generator=metric_generator, plot_function=plot_function
+        )
+
+        assert widget.disabled is False
+        assert widget.update_plot_widget.disabled
+        assert (
+            widget.current_plot_code
+            == "test_explore.plot_function(MetricGenerator("
+            + "metric_names=['Accuracy', 'F1', 'Precision', 'Recall'], metric_fn=metric_function), "
+            + "('Precision', 'Recall'), {}, 'T1', 'S1', per_context=False)"
+        )
+        plot_function.assert_called_once_with(
+            metric_generator, ("Precision", "Recall"), {}, "T1", "S1", per_context=False
+        )
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_option_update(self, mock_seismo):
+        metric_generator = FakeMetricGenerator()
+        fake_seismo = mock_seismo()
+        fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.thresholds = [0.1, 0.2]
+        fake_seismo.target_cols = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        plot_function = Mock(return_value="some result")
+        plot_function.__name__ = "plot_function"
+        plot_function.__module__ = "test_explore"
+
+        widget = undertest.ExplorationMetricWidget(
+            title="Unit Test Title", metric_generator=metric_generator, plot_function=plot_function
+        )
+
+        widget.option_widget.metric_list.value = ("F1",)
+        widget.option_widget.model_options.target_list.value = "T2"
+        widget.option_widget.model_options.score_list.value = "S2"
+        widget.update_plot()
+
+        assert (
+            widget.current_plot_code
+            == "test_explore.plot_function(MetricGenerator("
+            + "metric_names=['Accuracy', 'F1', 'Precision', 'Recall'], metric_fn=metric_function), "
+            + "('F1',), {}, 'T2', 'S2', per_context=False)"
+        )
+        plot_function.assert_called_with(metric_generator, ("F1",), {}, "T2", "S2", per_context=False)
 
 
 # endregion
