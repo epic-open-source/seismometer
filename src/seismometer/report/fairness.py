@@ -33,7 +33,7 @@ class FairnessIcons(Enum):
     CRITICAL_LOW = "🔻"
 
     @classmethod
-    def get_fairness_legend(cls, limit: float = 0.25, *, open: bool = False, censor_threshold: int = 10) -> str:
+    def get_fairness_legend(cls, limit: float = 0.25, *, open: bool = True, censor_threshold: int = 10) -> str:
         return html(
             f"""
 <details {'open' if open else ''}><summary>Legend</summary>
