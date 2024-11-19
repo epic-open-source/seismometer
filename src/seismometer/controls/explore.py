@@ -113,9 +113,14 @@ class ModelOptionsWidget(VBox, ValueWidget):
             value=target_names[0],
             description="Target Column",
             style=WIDE_LABEL_STYLE,
+            disabled=len(target_names) == 1,
         )
         self.score_list = Dropdown(
-            options=score_names, value=score_names[0], description="Score Column", style=WIDE_LABEL_STYLE
+            options=score_names,
+            value=score_names[0],
+            description="Score Column",
+            style=WIDE_LABEL_STYLE,
+            disabled=len(score_names) == 1,
         )
 
         self.target_list.observe(self._on_value_change, "value")
@@ -155,8 +160,8 @@ class ModelOptionsWidget(VBox, ValueWidget):
     @disabled.setter
     def disabled(self, disabled: bool):
         self._disabled = disabled
-        self.target_list.disabled = disabled
-        self.score_list.disabled = disabled
+        self.target_list.disabled = len(self.target_list.options) == 1 or disabled
+        self.score_list.disabled = len(self.score_list.options) == 1 or disabled
         if self.threshold_list:
             self.threshold_list.disabled = disabled
         if self.per_context_checkbox:
@@ -253,7 +258,7 @@ class ModelScoreComparisonOptionsWidget(VBox, ValueWidget):
     @disabled.setter
     def disabled(self, disabled: bool):
         self._disabled = disabled
-        self.target_list.disabled = disabled
+        self.target_list.disabled = len(self.target_list.options) == 1 or disabled
         self.score_list.disabled = disabled
         if self.per_context_checkbox:
             self.per_context_checkbox.disabled = disabled
@@ -413,7 +418,7 @@ class ModelTargetComparisonOptionsWidget(VBox, ValueWidget):
     def disabled(self, disabled: bool):
         self._disabled = disabled
         self.target_list.disabled = disabled
-        self.score_list.disabled = disabled
+        self.score_list.disabled = len(self.score_list.options) == 1 or disabled
         if self.per_context_checkbox:
             self.per_context_checkbox.disabled = disabled
 
