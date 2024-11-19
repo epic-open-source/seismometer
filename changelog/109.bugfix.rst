@@ -1,4 +1,5 @@
-Fixes a few minor ux issues
+Fixes a few minor ux issues.
+
 - Disable dropdowns with only one valid option.
 - Fix the Sensitivity/Specificity/PPV plot to move the label to the lower right.
 - Fix the Legend in the new Fairness Audit table to improve readability.
