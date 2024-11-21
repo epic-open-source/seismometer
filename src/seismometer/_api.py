@@ -1540,7 +1540,7 @@ def plot_binary_classifier_metrics(
     ----------
     metric_generator: BinaryClassifierMetricGenerator
         class that creates metrics for a model
-    metrics: list[string]
+    metrics: str | list[str]
         subset of metrics to display
     cohort_dict : dict[str, tuple[Any]]
         dictionary of cohort columns and values used to subselect a population for evaluation

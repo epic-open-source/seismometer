@@ -1341,14 +1341,14 @@ class BinaryModelMetricOptions(Box, ValueWidget):
         target_names: tuple[Any],
         score_names: tuple[Any],
         per_context: bool = True,
-        default_metrics: tuple[str] = None,
+        default_metrics: Optional[tuple[str]]= None,
     ):
         """
         Widget for selecting interventions and outcomes across categories in a cohort group.
 
         Parameters
         ----------
-        metrics_generator: MetricGenertor
+        metrics_generator: MetricGenerator
             class to generate metrics of interest
         cohort_groups : dict[str, tuple[Any]]
             cohort columns and groupings
@@ -1434,7 +1434,7 @@ class ExplorationMetricWidget(ExplorationWidget):
         metric_generator: MetricGenerator,
         plot_function: Callable[..., Any],
         *,
-        default_metrics: tuple[str] = None,
+        default_metrics: Optional[tuple[str]] = None,
     ):
         """
         Exploration widget for binary model metrics, showing a plot for a given target/score
@@ -1458,6 +1458,8 @@ class ExplorationMetricWidget(ExplorationWidget):
                     target: tuple[str],
                     score: str,
                     *, per_context: bool) -> Any
+        default_metrics : tuple[str], optional
+            list of fairness metrics to display, if None (default) will use those from metric_generator
         """
         from seismometer.seismogram import Seismogram
 

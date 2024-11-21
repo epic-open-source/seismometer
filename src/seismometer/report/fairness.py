@@ -509,14 +509,14 @@ class ExploreBinaryModelFairness(ExplorationWidget):
     A widget for exploring model fairness across cohorts for a binary classifier
     """
 
-    def __init__(self, rho=None):
+    def __init__(self, rho:Optional[float]=None):
         """
         Exploration widget for model evaluation, showing a plot for a given target,
         score, threshold, and cohort selection.
 
         Parameters
         ----------
-        rho : float, between 0 and 1
+        rho : Optional[float], between 0 and 1
             treatment efficacy as a probability of positive result.
         """
         from seismometer.seismogram import Seismogram
