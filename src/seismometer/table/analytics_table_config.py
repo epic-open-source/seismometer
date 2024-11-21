@@ -12,7 +12,7 @@ class Metric(Enum):
     Sensitivity = "sensitivity"
     Specificity = "specificity"
     PPV = "ppv"
-    Flagged = "flagrate"
+    Flagged = "flagged"
     Threshold = "threshold"
 
 
@@ -48,15 +48,15 @@ class GTStyle(Enum):
 
 
 GENERATED_COLUMNS = {
-    "sensitivity": "Sensitivity",
-    "specificity": "Specificity",
-    "ppv": "PPV",
-    "flagrate": "Flagged",
-    "threshold": "Threshold",
     "positives": "Positives",
     "prevalence": "Prevalence",
     "auroc": "AUROC",
     "auprc": "AUPRC",
+    "ppv": "PPV",
+    "sensitivity": "Sensitivity",
+    "specificity": "Specificity",
+    "flagged": "Flag Rate",
+    "threshold": "Threshold",
 }
 
 
