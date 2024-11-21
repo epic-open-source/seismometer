@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -509,7 +509,7 @@ class ExploreBinaryModelFairness(ExplorationWidget):
     A widget for exploring model fairness across cohorts for a binary classifier
     """
 
-    def __init__(self, rho:Optional[float]=None):
+    def __init__(self, rho: Optional[float] = None):
         """
         Exploration widget for model evaluation, showing a plot for a given target,
         score, threshold, and cohort selection.

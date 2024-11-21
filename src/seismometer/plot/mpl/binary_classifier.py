@@ -425,7 +425,7 @@ def plot_metric_list(
     thresholds = as_probabilities(stats.index)
     for metric in metrics:
         axis.plot(thresholds, stats[metric], label=metric)
-    
+
     axis.legend(loc="lower right")
     axis.set_xlim([0, 1.01])
     axis.set_xlabel("Threshold")

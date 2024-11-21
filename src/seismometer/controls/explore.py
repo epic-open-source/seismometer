@@ -1341,7 +1341,7 @@ class BinaryModelMetricOptions(Box, ValueWidget):
         target_names: tuple[Any],
         score_names: tuple[Any],
         per_context: bool = True,
-        default_metrics: Optional[tuple[str]]= None,
+        default_metrics: Optional[tuple[str]] = None,
     ):
         """
         Widget for selecting interventions and outcomes across categories in a cohort group.
