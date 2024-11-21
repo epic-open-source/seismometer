@@ -1,0 +1,91 @@
+from typing import List
+
+import numpy as np
+from numpy.typing import ArrayLike
+from sklearn.metrics import average_precision_score, roc_auc_score
+
+from ..table.analytics_table_config import GENERATED_COLUMNS
+from . import calculate_bin_stats
+
+
+def calculate_stats(
+    y_true: ArrayLike,
+    y_pred: ArrayLike,
+    metric: str,
+    metrics_to_display: List[str],
+    metric_values: List[str],
+    decimals: int = 3,
+):
+    """
+    Calculates overall performance statistics such as AUROC and threshold-specific statistics
+    such as sensitivity and specificity.
+
+    Parameters
+    ----------
+    y_true : array_like
+        True binary labels (ground truth).
+    y_pred : array_like
+        Predicted probabilities or scores.
+    metric : str
+        The metric ('PPV', 'Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are calculated.
+    metrics_to_display : List[str]
+        List of metrics to include in the table.
+    metric_values : List[str]
+        A list of metric values for which corresponding statistics are calculated.
+    decimals: int
+        The number of decimal places for rounding numerical results, by default 3.
+
+    Returns
+    -------
+    dict
+        A dictionary containing performance metrics. A subset of:
+            - 'Positives': Total positive samples.
+            - 'Prevalence': Prevalence of positive samples.
+            - 'AUROC': Area under the receiver operating characteristic curve.
+            - 'AUPRC': Area under the precision-recall curve.
+            - Additional metrics (PPV, Flag Rate, Sensitivity, Specificity, Threshold).
+    """
+    # Initializing row data, to be populated with data specified in metrics_to_display.
+    row_data = {}
+    metric = metric.lower()
+    metrics_to_display = [metric_to_display.lower() for metric_to_display in metrics_to_display]
+
+    # Calculate overall statistics
+    if "positives" in metrics_to_display:
+        row_data["Positives"] = sum(y_true)
+    if "prevalence" in metrics_to_display:
+        row_data["Prevalence"] = sum(y_true) / len(y_true)
+    if "auroc" in metrics_to_display:
+        row_data["AUROC"] = roc_auc_score(y_true, y_pred)
+    if "auprc" in metrics_to_display:
+        row_data["AUPRC"] = average_precision_score(y_true, y_pred)
+
+    # Order/round metric values
+    metric_values = sorted([round(num, decimals) for num in metric_values])
+    metric_values = [0 if val == 0.0 else val for val in metric_values]
+
+    stats = calculate_bin_stats(y_true, y_pred)
+    thresholds = stats["Threshold"].to_numpy()
+
+    metric_data = stats[GENERATED_COLUMNS[metric]].to_numpy()
+    thresholds = stats["Threshold"].to_numpy()
+
+    if metric != "threshold":
+        indices = np.argmin(np.abs(metric_data[:, None] - metric_values), axis=0)
+        computed_thresholds = thresholds[indices]
+    else:
+        computed_thresholds = np.array(metric_values) * 100
+
+    # Find indices corresponding to the provided metric values
+    threshold_indices = np.argmin(np.abs(thresholds[:, None] - computed_thresholds), axis=0)
+
+    for metric_to_display in metrics_to_display:
+        column_name = GENERATED_COLUMNS[metric_to_display]
+        if metric_to_display != metric and column_name not in row_data:
+            metric_data = stats[column_name].to_numpy()[threshold_indices]
+            column_name = column_name.replace(" ", "\u00A0")
+            row_data.update(
+                {f"{metric_value}_{column_name}": value for metric_value, value in zip(metric_values, metric_data)}
+            )
+
+    return row_data

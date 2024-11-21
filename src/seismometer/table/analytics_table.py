@@ -6,10 +6,10 @@ import pandas as pd
 from great_tables import GT, loc, nanoplot_options, style
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
-from ...seismogram import Seismogram
-from .analytics_table_config import AnalyticsTableConfig
-from .color_manipulation import create_bar, lighten_color
-from .metric_to_threshold import calculate_stats
+from ..data.metric_to_threshold import calculate_stats
+from ..plot.mpl.color_manipulation import create_bar, lighten_color
+from ..seismogram import Seismogram
+from .analytics_table_config import GENERATED_COLUMNS, AnalyticsTableConfig
 
 
 class Metric(Enum):
@@ -20,7 +20,7 @@ class Metric(Enum):
     Sensitivity = "sensitivity"
     Specificity = "specificity"
     PPV = "ppv"
-    Flagged = "flagrate"
+    Flagged = "flagged"
     Threshold = "threshold"
 
 
@@ -56,19 +56,6 @@ class TableStyle(Enum):
     Style6 = 6
 
 
-GENERATED_COLUMNS = {
-    "sensitivity": "Sensitivity",
-    "specificity": "Specificity",
-    "ppv": "PPV",
-    "flagrate": "Flagged",
-    "threshold": "Threshold",
-    "positives": "Positives",
-    "prevalence": "Prevalence",
-    "auroc": "AUROC",
-    "auprc": "AUPRC",
-}
-
-
 class PerformanceMetrics:
     """
     A class to calculate and provide overall performance statistics and threshold-specific statistics
@@ -88,6 +75,7 @@ class PerformanceMetrics:
         *,
         metric: str = "threshold",
         metric_values: List[float] = [0.1, 0.2],
+        metrics_to_display: Optional[List[str]] = None,
         title: str = "Model Performance Statistics",
         top_level: str = "Score",
         table_config: AnalyticsTableConfig,
@@ -107,7 +95,9 @@ class PerformanceMetrics:
         metric: str
             Performance metrics will be presented for the provided values of this metric.
         metric_values: List[float]
-            Values for the specified metric to derive detailed performance statistics, by default [0.7, 0.8].
+            Values for the specified metric to derive detailed performance statistics, by default [0.1, 0.2].
+        metric_to_display: Optional[List[str]]
+            The list of metrics *** to show in the table.
         title: str
             The title for the performance statistics report, by default "Model Performance Statistics".
         top_level: str
@@ -163,6 +153,9 @@ class PerformanceMetrics:
         self.decimals = table_config.decimals
         self.metric = metric
         self.metric_values = metric_values
+        self.metrics_to_display = (
+            metrics_to_display if metrics_to_display is not None else list(GENERATED_COLUMNS.keys())
+        )
         self.title = title
         self.top_level = top_level
         self.spanner_colors = table_config.spanner_colors
@@ -186,7 +179,7 @@ class PerformanceMetrics:
         try:
             import polars as pl
 
-            # Use 'pl' in some way to avoid the F401 error
+            # Use 'pl' to avoid the F401 error
             _ = pl.DataFrame()
         except ImportError:
             from great_tables._tbl_data import Agnostic, PdDataFrame, is_na
@@ -254,6 +247,19 @@ class PerformanceMetrics:
                 f"Invalid metric name: {value}. The metric needs to be one of: "
                 f"{[member.value for member in Metric]}"
             ) from e
+
+    @property
+    def metrics_to_display(self):
+        return self._metrcis_to_display
+
+    @metrics_to_display.setter
+    def metrics_to_display(self, value):
+        for metric in value:
+            if metric.lower() not in GENERATED_COLUMNS:
+                raise ValueError(
+                    f"Invalid metric name: {value}. The metric needs to be one of: {GENERATED_COLUMNS.keys()}"
+                )
+        self._metrcis_to_display = value
 
     @property
     def metric_values(self):
@@ -517,7 +523,14 @@ class PerformanceMetrics:
                 current_row = {self.top_level: first, self._get_second_level[self.top_level]: second}
                 (score, target) = (first, second) if self.top_level == "Score" else (second, first)
                 current_row.update(
-                    calculate_stats(self.df[target], self.df[score], self.metric, self.metric_values, self.decimals)
+                    calculate_stats(
+                        self.df[target],
+                        self.df[score],
+                        self.metric,
+                        self.metrics_to_display,
+                        self.metric_values,
+                        self.decimals,
+                    )
                 )
                 rows_list.append(current_row)
             # Create a DataFrame from the rows data
