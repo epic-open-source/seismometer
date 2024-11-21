@@ -1,39 +1,44 @@
-from typing import List, Union, Dict, Optional,Any
+from enum import Enum
+from typing import Dict, List, Union
 
 from matplotlib.colors import is_color_like
-from .metric_to_threshold import *
-from .color_manipulation import *
 
-from enum import Enum
 
 class Metric(Enum):
     """
     Enumeration for available values for metric parameter in PerformanceMetrics class.
     """
-    Sensitivity = 'sensitivity'
-    Specificity = 'specificity'
-    PPV = 'ppv'
-    Flagged = 'flagrate'
-    Threshold = 'threshold'
+
+    Sensitivity = "sensitivity"
+    Specificity = "specificity"
+    PPV = "ppv"
+    Flagged = "flagrate"
+    Threshold = "threshold"
+
 
 class TopLevel(Enum):
     """
     Enumeration for available values for top_level parameter in PerformanceMetrics class.
     """
-    Score = 'score'
-    Target = 'target'
+
+    Score = "score"
+    Target = "target"
+
 
 class ColorBarStyle(Enum):
     """
     Enumeration for different color bar styles available in PerformanceMetrics class.
     """
-    Style1 = 1   # Value and color bar in two adjacent columns
-    Style2 = 2   # Value behind color bar
+
+    Style1 = 1  # Value and color bar in two adjacent columns
+    Style2 = 2  # Value behind color bar
+
 
 class GTStyle(Enum):
     """
     Enumeration for different table styles available in great_tables package.
     """
+
     Style1 = 1
     Style2 = 2
     Style3 = 3
@@ -41,27 +46,39 @@ class GTStyle(Enum):
     Style5 = 5
     Style6 = 6
 
+
 GENERATED_COLUMNS = {
-        'sensitivity': 'Sensitivity',
-        'specificity': 'Specificity',
-        'ppv': 'PPV',
-        'flagrate': 'Flagged',
-        'threshold': 'Threshold',
-        'positives': 'Positives',
-        'prevalence': 'Prevalence',
-        'auroc': 'AUROC',
-        'auprc': 'AUPRC'
-        }
+    "sensitivity": "Sensitivity",
+    "specificity": "Specificity",
+    "ppv": "PPV",
+    "flagrate": "Flagged",
+    "threshold": "Threshold",
+    "positives": "Positives",
+    "prevalence": "Prevalence",
+    "auroc": "AUROC",
+    "auprc": "AUPRC",
+}
+
 
 class AnalyticsTableConfig:
     """
     Configuration class for table settings in the PerformanceMetrics class.
     """
-    def __init__(self,*,decimals : int = 3, 
-                 spanner_colors : List[str] = None, columns_show_percentages : Union[str,List[str]] = "Prevalence", columns_show_bar : Dict[str,str] = None,
-                 color_bar_style : int = 1, style : int = 1, opacity : int = 0.5, percentages_decimals : int = 0, alternating_row_colors : bool = True,
-                 data_bar_stroke_width : int = 4):
 
+    def __init__(
+        self,
+        *,
+        decimals: int = 3,
+        spanner_colors: List[str] = None,
+        columns_show_percentages: Union[str, List[str]] = "Prevalence",
+        columns_show_bar: Dict[str, str] = None,
+        color_bar_style: int = 1,
+        style: int = 1,
+        opacity: int = 0.5,
+        percentages_decimals: int = 0,
+        alternating_row_colors: bool = True,
+        data_bar_stroke_width: int = 4,
+    ):
         self.decimals = decimals
         self.spanner_colors = spanner_colors
         self.columns_show_percentages = columns_show_percentages
@@ -98,8 +115,11 @@ class AnalyticsTableConfig:
     @columns_show_percentages.setter
     def columns_show_percentages(self, value):
         self._columns_show_percentages = [value] if isinstance(value, str) else value
-        # If a provided column name is one of the columns generated here (in particular, df is not None), then we allow the column name to be case insensitive.
-        self._columns_show_percentages = [GENERATED_COLUMNS.get(col.lower(), col) for col in self._columns_show_percentages]
+        # If a provided column name is one of the columns generated here (in particular, df is not None),
+        # then we allow the column name to be case insensitive.
+        self._columns_show_percentages = [
+            GENERATED_COLUMNS.get(col.lower(), col) for col in self._columns_show_percentages
+        ]
 
     @property
     def columns_show_bar(self):
@@ -108,9 +128,12 @@ class AnalyticsTableConfig:
     @columns_show_bar.setter
     def columns_show_bar(self, value):
         self._columns_show_bar = value if value else {"AUROC": "lightblue", "PPV": "lightgreen"}
-        # If a provided column name is one of the columns generated here (in particular, df is not None), then we allow the column name to be case insensitive.
-        self._columns_show_bar = {GENERATED_COLUMNS.get(col.lower(), col): self._columns_show_bar[col] for col in self._columns_show_bar}
-    
+        # If a provided column name is one of the columns generated here (in particular, df is not None),
+        # then we allow the column name to be case insensitive.
+        self._columns_show_bar = {
+            GENERATED_COLUMNS.get(col.lower(), col): self._columns_show_bar[col] for col in self._columns_show_bar
+        }
+
     @property
     def color_bar_style(self):
         return self._color_bar_style
@@ -127,44 +150,46 @@ class AnalyticsTableConfig:
     def style(self, value):
         self._style = GTStyle(value).value
 
+
 COLORING_SCHEMA_1 = {
-        'decimals': 3,
-        'spanner_colors': ['red', 'blue'],
-        'columns_show_percentages': ['Prevalence'],
-        'columns_show_bar': {"AUROC": "lightblue", "PPV": "lightgreen"},
-        'color_bar_style': 2,
-        'style': 2,
-        'opacity': 0.7,
-        'percentages_decimals': 1,
-        'alternating_row_colors': False,
-        'data_bar_stroke_width': 5
-    }
+    "decimals": 3,
+    "spanner_colors": ["red", "blue"],
+    "columns_show_percentages": ["Prevalence"],
+    "columns_show_bar": {"AUROC": "lightblue", "PPV": "lightgreen"},
+    "color_bar_style": 2,
+    "style": 2,
+    "opacity": 0.7,
+    "percentages_decimals": 1,
+    "alternating_row_colors": False,
+    "data_bar_stroke_width": 5,
+}
 
 COLORING_SCHEMA_2 = {
-        'decimals': 3,
-        'spanner_colors': ['red', 'blue'],
-        'columns_show_percentages': ['Prevalence'],
-        'columns_show_bar': {'Prevalence': 'bar'},
-        'color_bar_style': 2,
-        'style': 2,
-        'opacity': 0.7,
-        'percentages_decimals': 1,
-        'alternating_row_colors': False,
-        'data_bar_stroke_width': 5
-    }
+    "decimals": 3,
+    "spanner_colors": ["red", "blue"],
+    "columns_show_percentages": ["Prevalence"],
+    "columns_show_bar": {"Prevalence": "bar"},
+    "color_bar_style": 2,
+    "style": 2,
+    "opacity": 0.7,
+    "percentages_decimals": 1,
+    "alternating_row_colors": False,
+    "data_bar_stroke_width": 5,
+}
 
 COLORING_SCHEMA_3 = {
-        'decimals': 3,
-        'spanner_colors': ['red', 'blue'],
-        'columns_show_percentages': ['Prevalence', 'Accuracy'],
-        'columns_show_bar': {'Prevalence': 'bar'},
-        'color_bar_style': 2,
-        'style': 2,
-        'opacity': 0.7,
-        'percentages_decimals': 1,
-        'alternating_row_colors': False,
-        'data_bar_stroke_width': 5
-    }
+    "decimals": 3,
+    "spanner_colors": ["red", "blue"],
+    "columns_show_percentages": ["Prevalence", "Accuracy"],
+    "columns_show_bar": {"Prevalence": "bar"},
+    "color_bar_style": 2,
+    "style": 2,
+    "opacity": 0.7,
+    "percentages_decimals": 1,
+    "alternating_row_colors": False,
+    "data_bar_stroke_width": 5,
+}
+
 
 class AnalyticsTableStyle(Enum):
     Style1 = 1
@@ -181,4 +206,3 @@ class AnalyticsTableStyle(Enum):
             return COLORING_SCHEMA_3
         else:
             raise ValueError("Invalid style number. Choose 1, 2, or 3.")
-    

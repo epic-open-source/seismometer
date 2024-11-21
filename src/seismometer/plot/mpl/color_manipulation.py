@@ -1,5 +1,6 @@
-import seaborn as sns
 import matplotlib.colors as mcolors
+import seaborn as sns
+
 
 def color_to_rgb(color_str: str):
     """
@@ -22,7 +23,7 @@ def color_to_rgb(color_str: str):
     """
     try:
         # Try to convert a hexadecimal color string to RGB
-        if color_str.startswith('#'):
+        if color_str.startswith("#"):
             rgb = mcolors.hex2color(color_str)
         # Try to convert a color name to RGB
         else:
@@ -31,9 +32,10 @@ def color_to_rgb(color_str: str):
         raise ValueError(f"Invalid color name: {color_str}")
     return tuple(int(x * 255) for x in rgb)
 
+
 def lighten_color(color_str: str, n_colors: int = 3, position: int = 1) -> str:
     """
-    Lightens the given color by generating a palette of lighter shades and selecting one based on the specified position.
+    Lightens the given color by generating a palette of lighter shades and selecting one based on position.
 
     Parameters
     ----------
@@ -56,13 +58,21 @@ def lighten_color(color_str: str, n_colors: int = 3, position: int = 1) -> str:
     """
     try:
         color_str_hex = color_str if color_str.startswith("#") else mcolors.to_hex(color_str)
-        rgb_normalized = sns.light_palette(color_str_hex,n_colors=n_colors)[position]
+        rgb_normalized = sns.light_palette(color_str_hex, n_colors=n_colors)[position]
         color_hex = mcolors.to_hex(rgb_normalized)
     except ValueError:
         raise ValueError(f"Invalid color name: {color_str}")
     return color_hex
 
-def create_bar(value: float, max_width: int = 75, height: int = 20, color: str = 'green', background_color: str = 'lightgray', opacity: int = 0.5) -> str:
+
+def create_bar(
+    value: float,
+    max_width: int = 75,
+    height: int = 20,
+    color: str = "green",
+    background_color: str = "lightgray",
+    opacity: int = 0.5,
+) -> str:
     """
     Create divs to represent `value` as a bar.
 
@@ -87,12 +97,14 @@ def create_bar(value: float, max_width: int = 75, height: int = 20, color: str =
         A string containing HTML div elements representing the bar.
     """
     width = round(max_width * value, 2)
-    red,green,blue = color_to_rgb(color_str=color)
+    red, green, blue = color_to_rgb(color_str=color)
     return f"""\
     <div style="width: {max_width}px; background-color:{background_color}; position: relative;">\
-        <div style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 1;">\
+        <div style="position: absolute; width: 100%; height: 100%; display: flex; \
+        align-items: center; justify-content: center; z-index: 1;">\
             <span>{value}</span>\
         </div>\
-        <div style="height:{height}px;width:{width}px;background-color:rgba({red}, {green}, {blue}, {opacity}); position: relative; z-index: 2;"></div>\
+        <div style="height:{height}px;width:{width}px;background-color:rgba({red}, {green}, {blue}, {opacity}); \
+            position: relative; z-index: 2;"></div>\
     </div>\
     """
