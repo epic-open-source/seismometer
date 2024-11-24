@@ -227,7 +227,7 @@ on a predetermined set while remaining aware of the others.
 This audit should be used by experts with a deep understanding of the
 model and the context in which the predictions are used. Even when a
 metric is flagged as a deviation in the fairness audit, the context 
-might that explains or even predict the difference. Like many
+might explain or even predict the difference. Like many
 concepts, a single parity concept can have several different names;
 notably, parity of true positive rate is equal opportunity, parity of
 false positive rate is predictive equality, and parity of predictive

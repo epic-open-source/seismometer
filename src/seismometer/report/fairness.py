@@ -55,7 +55,7 @@ class FairnessIcons(Enum):
 <td style="text-align: left;">{cls.CRITICAL_HIGH.value} More than {2*limit:.2%} greater than the default cohort.</td>
 </tr>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.UNKNOWN.value} Fewer than {censor_threshold} observations, data was censored.</td>
+<td style="text-align: left;">{cls.UNKNOWN.value} Censored, fewer than {censor_threshold} observations.</td>
 </tr>
 </details>"""
         )
@@ -249,14 +249,18 @@ def fairness_table(
         GT(table_data)
         .tab_stub(groupname_col=COHORT, rowname_col=CLASS)
         .tab_style(
+            style=style.text(align="center"),
+            locations=loc.column_header(),
+        )
+        .tab_style(
             style=style.borders(sides=["right"], weight="1px", color="#D3D3D3"),
             locations=loc.body(columns=[COUNT] + metric_list),
         )
-        .cols_align(align="left")
-        .cols_align(align="right", columns=[COUNT])
         .tab_source_note(source_note=legend)
         .opt_horizontal_padding(scale=3)
         .tab_options(row_group_font_weight="bold")
+        .cols_align(align="left")
+        .cols_align(align="right", columns=[COUNT])
     ).as_raw_html()
     return HTML(table_html, layout=Layout(max_height="800px"))
 
