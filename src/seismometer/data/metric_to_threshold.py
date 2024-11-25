@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from numpy.typing import ArrayLike
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-from ..table.analytics_table_config import GENERATED_COLUMNS
+from ..table.analytics_table_config import GENERATED_COLUMNS, Metric
 from . import calculate_bin_stats
 
 
@@ -12,8 +12,8 @@ def calculate_stats(
     y_true: ArrayLike,
     y_pred: ArrayLike,
     metric: str,
-    metrics_to_display: List[str],
     metric_values: List[str],
+    metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
 ):
     """
@@ -27,11 +27,13 @@ def calculate_stats(
     y_pred : array_like
         Predicted probabilities or scores.
     metric : str
-        The metric ('PPV', 'Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are calculated.
-    metrics_to_display : List[str]
-        List of metrics to include in the table.
+        The metric ('PPV', 'Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
+        calculated.
     metric_values : List[str]
         A list of metric values for which corresponding statistics are calculated.
+    metrics_to_display : Optional[List[str]]
+        List of metrics to include in the table, by default None. The default behavior is to shows all columns
+        mentioned in GENERATED_COLUMNS.
     decimals: int
         The number of decimal places for rounding numerical results, by default 3.
 
@@ -45,9 +47,18 @@ def calculate_stats(
             - 'AUPRC': Area under the precision-recall curve.
             - Additional metrics (PPV, Flag Rate, Sensitivity, Specificity, Threshold).
     """
+    # Check if metric is a valid name.
+    try:
+        _ = Metric(metric.lower())
+    except ValueError:
+        raise ValueError(
+            f"Invalid metric name: {metric}. The metric needs to be one of: {list(Metric.__members__.keys())}"
+        )
+
     # Initializing row data, to be populated with data specified in metrics_to_display.
     row_data = {}
     metric = metric.lower()
+    metrics_to_display = metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.keys())
     metrics_to_display = [metric_to_display.lower() for metric_to_display in metrics_to_display]
 
     # Calculate overall statistics
