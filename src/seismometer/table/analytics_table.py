@@ -153,9 +153,7 @@ class PerformanceMetrics:
         self.decimals = table_config.decimals
         self.metric = metric
         self.metric_values = metric_values
-        self.metrics_to_display = (
-            metrics_to_display if metrics_to_display is not None else list(GENERATED_COLUMNS.keys())
-        )
+        self.metrics_to_display = metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.keys())
         self.title = title
         self.top_level = top_level
         self.spanner_colors = table_config.spanner_colors
@@ -259,7 +257,7 @@ class PerformanceMetrics:
                 raise ValueError(
                     f"Invalid metric name: {value}. The metric needs to be one of: {GENERATED_COLUMNS.keys()}"
                 )
-        self._metrcis_to_display = value
+        self._metrcis_to_display = value if value else list(GENERATED_COLUMNS.keys())
 
     @property
     def metric_values(self):
