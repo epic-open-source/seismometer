@@ -3,6 +3,19 @@ from typing import Dict, List, Union
 
 from matplotlib.colors import is_color_like
 
+GENERATED_COLUMNS = {
+    "positives": "Positives",
+    "prevalence": "Prevalence",
+    "auroc": "AUROC",
+    "auprc": "AUPRC",
+    "accuracy": "Accuracy",
+    "ppv": "PPV",
+    "sensitivity": "Sensitivity",
+    "specificity": "Specificity",
+    "flagged": "Flag Rate",
+    "threshold": "Threshold",
+}
+
 
 class Metric(Enum):
     """
@@ -11,7 +24,7 @@ class Metric(Enum):
 
     Sensitivity = "sensitivity"
     Specificity = "specificity"
-    PPV = "ppv"
+    Accuracy = "accuracy"
     Flagged = "flagged"
     Threshold = "threshold"
 
@@ -45,19 +58,6 @@ class GTStyle(Enum):
     Style4 = 4
     Style5 = 5
     Style6 = 6
-
-
-GENERATED_COLUMNS = {
-    "positives": "Positives",
-    "prevalence": "Prevalence",
-    "auroc": "AUROC",
-    "auprc": "AUPRC",
-    "ppv": "PPV",
-    "sensitivity": "Sensitivity",
-    "specificity": "Specificity",
-    "flagged": "Flag Rate",
-    "threshold": "Threshold",
-}
 
 
 class AnalyticsTableConfig:
@@ -153,15 +153,12 @@ class AnalyticsTableConfig:
 
 COLORING_SCHEMA_1 = {
     "decimals": 3,
-    "spanner_colors": ["red", "blue"],
     "columns_show_percentages": ["Prevalence"],
-    "columns_show_bar": {"AUROC": "lightblue", "PPV": "lightgreen"},
-    "color_bar_style": 2,
-    "style": 2,
-    "opacity": 0.7,
-    "percentages_decimals": 1,
-    "alternating_row_colors": False,
-    "data_bar_stroke_width": 5,
+    "columns_show_bar": {"AUROC": "lightblue", "PPV": "lightblue"},
+    "color_bar_style": 1,
+    "style": 1,
+    "opacity": 0.5,
+    "percentages_decimals": 2,
 }
 
 COLORING_SCHEMA_2 = {

@@ -3,25 +3,28 @@ from enum import Enum
 from typing import Any, List, Optional
 
 import pandas as pd
+
+# import ipywidgets as widgets
+import traitlets
 from great_tables import GT, loc, nanoplot_options, style
+from ipywidgets import HTML, Box, Dropdown, FloatRangeSlider, GridBox, Layout
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
-from ..data.metric_to_threshold import calculate_stats
-from ..plot.mpl.color_manipulation import create_bar, lighten_color
-from ..seismogram import Seismogram
-from .analytics_table_config import GENERATED_COLUMNS, AnalyticsTableConfig
+from seismometer.controls.explore import ExplorationWidget
+from seismometer.controls.selection import MultiselectDropdownWidget
+from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE  # , html_title
+from seismometer.data import pandas_helpers as pdh
+from seismometer.data.metric_to_threshold import calculate_stats, is_binary_array
+from seismometer.data.performance import (  # MetricGenerator,
+    OVERALL_PERFORMANCE,
+    STATNAMES,
+    THRESHOLD,
+    BinaryClassifierMetricGenerator,
+)
+from seismometer.plot.mpl.color_manipulation import create_bar, lighten_color
+from seismometer.seismogram import Seismogram
 
-
-class Metric(Enum):
-    """
-    Enumeration for available values for metric parameter in PerformanceMetrics class.
-    """
-
-    Sensitivity = "sensitivity"
-    Specificity = "specificity"
-    PPV = "ppv"
-    Flagged = "flagged"
-    Threshold = "threshold"
+from .analytics_table_config import COLORING_SCHEMA_1, GENERATED_COLUMNS, AnalyticsTableConfig, Metric
 
 
 class TopLevel(Enum):
@@ -139,7 +142,13 @@ class PerformanceMetrics:
         self.df = df if df is not None else sg.dataframe
         self.score_columns = score_columns if score_columns else sg.output_list
         self.target_columns = (
-            target_columns if target_columns else [target_col + "_Value" for target_col in sg.target_cols]
+            target_columns
+            if target_columns
+            else [
+                pdh.event_value(target_col)
+                for target_col in sg.target_cols
+                if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
+            ]
         )
         self.statistics_data = statistics_data
         if self.df is None and self.statistics_data is None:
@@ -253,7 +262,7 @@ class PerformanceMetrics:
     @metrics_to_display.setter
     def metrics_to_display(self, value):
         for metric in value:
-            if metric.lower() not in GENERATED_COLUMNS:
+            if metric.lower() not in GENERATED_COLUMNS and metric not in [THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE:
                 raise ValueError(
                     f"Invalid metric name: {value}. The metric needs to be one of: {GENERATED_COLUMNS.keys()}"
                 )
@@ -525,8 +534,8 @@ class PerformanceMetrics:
                         self.df[target],
                         self.df[score],
                         self.metric,
-                        self.metrics_to_display,
                         self.metric_values,
+                        self.metrics_to_display,
                         self.decimals,
                     )
                 )
@@ -552,3 +561,276 @@ class PerformanceMetrics:
             )
 
         return data
+
+
+def binary_analytics_table(
+    target_cols: list[str],
+    score_cols: list[str],
+    metric: str,
+    metric_values: list[float],
+    metrics_to_display: list[str],
+    group_by: str,
+    *,
+    title: str = None,
+    per_context=False,
+) -> HTML:
+    """
+    Binary fairness metrics table
+
+    Parameters
+    ----------
+    metric_generator : The BinaryClassifierMetricGenerator that determines rho.
+    metric_list : list[str]
+        List of metrics to evaluate.
+    cohort_dict : dict[str, tuple[Any]]
+        Collection of cohort groups to loop over.
+    fairness_ratio : float
+        Ratio of acceptable difference between cohorts, 20% is 0.2, 200% is 2.0.
+    target : str
+        The target descriptor for the binary classifier.
+    score : str
+        The score descriptor for the binary classifier.
+    threshold : float
+        The threshold for the binary classifier.
+    per_context : bool, optional
+        Whether to group scores by context, by default False.
+
+    Returns
+    -------
+    HTML
+        The HTML table for the fairness evaluation.
+    """
+    from seismometer.seismogram import Seismogram
+
+    sg = Seismogram()
+    target_cols = [
+        pdh.event_value(target_col)
+        for target_col in target_cols
+        if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
+    ]
+    # data = (
+    #     pdh.event_score(
+    #         sg.dataframe,
+    #         sg.entity_keys,
+    #         score=score,
+    #         ref_event=sg.predict_time,
+    #         aggregation_method=sg.event_aggregation_method(target),
+    #     )
+    #     if per_context
+    #     else sg.dataframe
+    # )
+    data = None
+    table_config = AnalyticsTableConfig(**COLORING_SCHEMA_1)
+    performance_metrics = PerformanceMetrics(
+        df=data,
+        score_columns=score_cols,
+        target_columns=target_cols,
+        metric=metric,
+        metric_values=metric_values,
+        metrics_to_display=metrics_to_display,
+        title=title if title else "Model Performance Statistics",
+        top_level=group_by,
+        table_config=table_config,
+    )
+    return performance_metrics.analytics_table()
+
+
+class ExploreAnalyticsTable(ExplorationWidget):
+    def __init__(self, title: Optional[str] = None):
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        self.metric_generator = BinaryClassifierMetricGenerator()
+
+        super().__init__(
+            title="Model Performance Comparison",
+            option_widget=AnalyticsTableOptionsWidget(
+                sg.target_cols,
+                sg.output_list,
+                metric="Threshold",
+                metric_values=None,
+                metrics_to_display=None,
+                title=title,
+            ),
+            plot_function=binary_analytics_table,
+            initial_plot=False,
+        )
+
+    def generate_plot_args(self) -> tuple[tuple, dict]:
+        """Generates the plot arguments for the analytics table."""
+        args = (
+            self.option_widget.target_cols,  # Updated to use target_columns
+            self.option_widget.score_cols,  # Updated to use score_columns
+            self.option_widget.metric,  # Updated to use metric
+            self.option_widget.metric_values,  # Updated to use metric_values
+            list(self.option_widget.metrics_to_display),  # Updated to use metrics_to_display
+            self.option_widget.group_by,  # Updated to use group_by
+        )
+        kwargs = {}
+        return args, kwargs
+
+
+class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
+    value = traitlets.Dict(help="The selected values for the analytics table options.")
+
+    def __init__(
+        self,
+        target_cols: tuple[str],
+        score_cols: tuple[str],
+        metric: str,
+        *,
+        model_options_widget=None,
+        metric_values=None,
+        metrics_to_display: Optional[tuple[str]] = None,
+        title: str = None,
+    ):
+        """
+        Widget for selecting analytics table options
+
+        Parameters
+        ----------
+        target_cols : tuple[str]
+            Available target columns.
+        score_cols : tuple[str]
+            Available score columns.
+        metric : str
+            Default metric.
+        model_options_widget : widget, optional
+            Additional model options widget.
+        metric_values : list[float], optional
+            Default metric values for the slider.
+        metrics_to_display : tuple[str], optional
+            Metrics to show.
+        title : str, optional
+            Title of the widget.
+        """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
+        self.model_options_widget = model_options_widget
+        self.title = title
+        self.binary_targets = [
+            target_col for target_col in sg.target_cols if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
+        ]
+        # Multiple select dropdowns for targets and scores
+        self._target_cols = MultiselectDropdownWidget(
+            self.binary_targets,
+            value=self.binary_targets,
+            title="Targets",
+        )
+        self._score_cols = MultiselectDropdownWidget(
+            sg.output_list,
+            value=score_cols,
+            title="Scores",
+        )
+        self._metric = Dropdown(
+            options=["Threshold"] + [val.name for val in Metric],
+            value=metric,
+            description="Metric",
+            style=WIDE_LABEL_STYLE,
+        )
+        self._metrics_to_display = MultiselectDropdownWidget(
+            options=[THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE,
+            value=metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.values()),
+            title="Performance Metrics to Display",
+        )
+        self._metric_values_slider = FloatRangeSlider(
+            min=0.01,
+            max=1.00,
+            step=0.01,
+            value=metric_values if metric_values else [0.2, 0.8],
+            description="Metric Values",
+            style=WIDE_LABEL_STYLE,
+        )
+        self._group_by = Dropdown(
+            options=["Score", "Target"],
+            value="Score",
+            description="Group By",
+            style=WIDE_LABEL_STYLE,
+        )
+
+        self._target_cols.observe(self._on_value_changed, names="value")
+        self._score_cols.observe(self._on_value_changed, names="value")
+        self._metric.observe(self._on_value_changed, names="value")
+        self._metric_values_slider.observe(self._on_value_changed, names="value")
+        self._metrics_to_display.observe(self._on_value_changed, names="value")
+        self._group_by.observe(self._on_value_changed, names="value")
+
+        v_children = [
+            # html_title("Analytics Table Options"),
+            self._target_cols,
+            self._score_cols,
+            self._metric,
+            self._metric_values_slider,
+            self._metrics_to_display,
+            self._group_by,
+        ]
+        if model_options_widget:
+            v_children.insert(0, model_options_widget)
+            self.model_options_widget.observe(self._on_value_changed, names="value")
+
+        grid_layout = Layout(width="100%", grid_template_columns="repeat(4, 1fr)", grid_gap="10px")  # Four columns
+
+        # Create a GridBox with the specified layout
+        grid_box = GridBox(children=v_children, layout=grid_layout)
+
+        super().__init__(
+            children=[grid_box],
+            layout=BOX_GRID_LAYOUT,
+        )
+
+        self._on_value_changed()
+        self._disabled = False
+
+    @property
+    def disabled(self):
+        return self._disabled
+
+    @disabled.setter
+    def disabled(self, value):
+        self._disabled = value
+        self._target_cols.disabled = value
+        self._score_cols.disabled = value
+        self._metric.disabled = value
+        self._metric_values_slider.disabled = value
+        self._metrics_to_display.disabled = value
+        self._group_by.disabled = value
+        if self.model_options_widget:
+            self.model_options_widget.disabled = value
+
+    def _on_value_changed(self, change=None):
+        new_value = {
+            "target_cols": self._target_cols.value,
+            "score_cols": self._score_cols.value,
+            "metric": self._metric.value,
+            "metric_values": self._metric_values_slider.value,
+            "metrics_to_display": self._metrics_to_display.value,
+            "group_by": self._group_by.value,
+        }
+        if self.model_options_widget:
+            new_value["model_options"] = self.model_options_widget.value
+        self.value = new_value
+
+    @property
+    def target_cols(self):
+        return self._target_cols.value
+
+    @property
+    def score_cols(self):
+        return self._score_cols.value
+
+    @property
+    def metric(self):
+        return self._metric.value
+
+    @property
+    def metric_values(self):
+        return self._metric_values_slider.value
+
+    @property
+    def metrics_to_display(self):
+        return self._metrics_to_display.value
+
+    @property
+    def group_by(self):
+        return self._group_by.value
