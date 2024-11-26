@@ -138,7 +138,7 @@ class TestPerformanceMetrics:
         with pytest.raises(
             ValueError,
             match="Invalid metric name: invalid_metric. The metric needs to be one of: "
-            "/['sensitivity', 'specificity', 'flagged', 'threshold'/]",
+            "\\['sensitivity', 'specificity', 'flagged', 'threshold'\\]",
         ):
             table_config = AnalyticsTableConfig()
             PerformanceMetrics(
@@ -177,7 +177,7 @@ class TestPerformanceMetrics:
         with pytest.raises(
             ValueError,
             match="Invalid top_level name: invalid_top_level. "
-            "The top_level needs to be one of: /['score', 'target'/]",
+            "The top_level needs to be one of: \\['score', 'target'\\]",
         ):
             PerformanceMetrics(
                 df=df,
