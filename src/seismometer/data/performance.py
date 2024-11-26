@@ -21,6 +21,7 @@ RATE_METRICS = ["Flag Rate"]
 PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
 WORKFLOW_METRICS = ["LR+", "NetBenefitScore", "NNE"]
 THRESHOLD = "Threshold"
+OVERALL_PERFORMANCE = ["Positives", "Prevalence", "AUROC", "AUPRC"]
 STATNAMES = RATE_METRICS + PERFORMANCE + WORKFLOW_METRICS + COUNTS
 
 

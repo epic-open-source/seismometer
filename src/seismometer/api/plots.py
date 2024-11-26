@@ -20,6 +20,7 @@ from seismometer.data.performance import (
 from seismometer.data.timeseries import create_metric_timeseries
 from seismometer.html import template
 from seismometer.seismogram import Seismogram
+from seismometer.table.analytics_table import ExploreAnalyticsTable
 
 logger = logging.getLogger("seismometer")
 
@@ -1073,5 +1074,7 @@ def binary_classifier_metric_evaluation(
         return HTML(stats[metrics].T.to_html())
     return plot.binary_classifier.plot_metric_list(stats, metrics)
 
+
+export(ExploreAnalyticsTable)
 
 # endregion

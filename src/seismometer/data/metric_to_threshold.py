@@ -59,16 +59,16 @@ def calculate_stats(
     row_data = {}
     metric = metric.lower()
     metrics_to_display = metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.keys())
-    metrics_to_display = [metric_to_display.lower() for metric_to_display in metrics_to_display]
+    _metrics_to_display_lower = [metric_to_display.lower() for metric_to_display in metrics_to_display]
 
     # Calculate overall statistics
-    if "positives" in metrics_to_display:
+    if "positives" in _metrics_to_display_lower:
         row_data["Positives"] = sum(y_true)
-    if "prevalence" in metrics_to_display:
+    if "prevalence" in _metrics_to_display_lower:
         row_data["Prevalence"] = sum(y_true) / len(y_true)
-    if "auroc" in metrics_to_display:
+    if "auroc" in _metrics_to_display_lower:
         row_data["AUROC"] = roc_auc_score(y_true, y_pred)
-    if "auprc" in metrics_to_display:
+    if "auprc" in _metrics_to_display_lower:
         row_data["AUPRC"] = average_precision_score(y_true, y_pred)
 
     # Order/round metric values
@@ -91,8 +91,8 @@ def calculate_stats(
     threshold_indices = np.argmin(np.abs(thresholds[:, None] - computed_thresholds), axis=0)
 
     for metric_to_display in metrics_to_display:
-        column_name = GENERATED_COLUMNS[metric_to_display]
-        if metric_to_display != metric and column_name not in row_data:
+        column_name = GENERATED_COLUMNS.get(metric_to_display.lower(), metric_to_display)
+        if metric_to_display.lower() != metric and column_name not in row_data:
             metric_data = stats[column_name].to_numpy()[threshold_indices]
             column_name = column_name.replace(" ", "\u00A0")
             row_data.update(
@@ -100,3 +100,10 @@ def calculate_stats(
             )
 
     return row_data
+
+
+def is_binary_array(arr):
+    # Convert the input to a NumPy array if it isn't already
+    arr = np.asarray(arr)
+    # Check if all elements are either 0 or 1
+    return np.all((arr == 0) | (arr == 1))
