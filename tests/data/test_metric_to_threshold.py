@@ -6,12 +6,12 @@ from seismometer.data.metric_to_threshold import calculate_stats
 
 
 class TestCalculateStats:
-    @pytest.mark.parametrize("metric", ["Sensitivity", "Specificity", "Flagged", "PPV"])
+    @pytest.mark.parametrize("metric", ["Sensitivity", "Specificity", "Flagged"])
     def test_basic(self, metric):
         y_true = np.array([0, 1, 0, 1, 1, 0, 1, 0, 1, 0])
         y_pred = np.array([0.1, 0.4, 0.35, 0.8, 0.7, 0.2, 0.9, 0.3, 0.6, 0.5])
         metric_values = [0.5, 0.7]
-        metrics = ["Sensitivity", "Specificity", "Flag\u00A0Rate", "PPV"]
+        metrics = ["Sensitivity", "Specificity", "Flag\u00A0Rate", "PPV", "Accuracy"]
         metrics.remove(metric.replace("Flagged", "Flag\u00A0Rate"))
         stats = calculate_stats(y_true, y_pred, metric, metric_values)
         assert stats["AUROC"] == roc_auc_score(y_true, y_pred)
@@ -27,7 +27,7 @@ class TestCalculateStats:
         with pytest.raises(
             ValueError,
             match="Invalid metric name: InvalidMetric. The metric needs to be one of: "
-            "\\['Sensitivity', 'Specificity', 'PPV', 'Flagged', 'Threshold'\\]",
+            "\\['Sensitivity', 'Specificity', 'Flagged', 'Threshold'\\]",
         ):
             calculate_stats(y_true, y_pred, "InvalidMetric", metric_values)
 
@@ -39,13 +39,13 @@ class TestCalculateStats:
         assert stats["Positives"] == np.sum(y_true)
         assert stats["Prevalence"] == np.mean(y_true)
 
-    @pytest.mark.parametrize("metric", ["Sensitivity", "Specificity", "Flagged", "PPV"])
+    @pytest.mark.parametrize("metric", ["Sensitivity", "Specificity", "Flagged"])
     def test_metric_values_decimals(self, metric):
         y_true = np.array([0, 1, 0, 1, 1, 0, 1, 0, 1, 0])
         y_pred = np.array([0.1, 0.4, 0.35, 0.8, 0.7, 0.2, 0.9, 0.3, 0.6, 0.5])
         metric_values = [0.534, 0.7, 0.100032, 0.1 + 0.3, 0.00002]
         expected_metric_values = [0.53, 0.7, 0.1, 0.4, 0]
-        metrics = ["Sensitivity", "Specificity", "Flag\u00A0Rate", "PPV"]
+        metrics = ["Sensitivity", "Specificity", "Flag\u00A0Rate", "PPV", "Accuracy"]
         metrics.remove(metric.replace("Flagged", "Flag\u00A0Rate"))
         stats = calculate_stats(y_true, y_pred, metric, metric_values, decimals=2)
         assert all(f"{val}_{metric}" in stats for val in expected_metric_values for metric in metrics)

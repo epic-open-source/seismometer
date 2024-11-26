@@ -27,7 +27,7 @@ def calculate_stats(
     y_pred : array_like
         Predicted probabilities or scores.
     metric : str
-        The metric ('PPV', 'Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
+        The metric ('Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
         calculated.
     metric_values : List[str]
         A list of metric values for which corresponding statistics are calculated.
