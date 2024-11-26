@@ -81,7 +81,7 @@ class PerformanceMetrics:
         metrics_to_display: Optional[List[str]] = None,
         title: str = "Model Performance Statistics",
         top_level: str = "Score",
-        table_config: AnalyticsTableConfig,
+        table_config: AnalyticsTableConfig = AnalyticsTableConfig(),
         statistics_data: Optional[pd.DataFrame] = None,
     ):
         """
@@ -141,15 +141,17 @@ class PerformanceMetrics:
         sg = Seismogram()
         self.df = df if df is not None else sg.dataframe
         self.score_columns = score_columns if score_columns else sg.output_list
-        self.target_columns = (
-            target_columns
-            if target_columns
-            else [
-                pdh.event_value(target_col)
-                for target_col in sg.target_cols
-                if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
-            ]
-        )
+        self.target_columns = target_columns
+        if sg.dataframe is not None:
+            self.target_columns = (
+                self.target_columns
+                if self.target_columns
+                else [
+                    pdh.event_value(target_col)
+                    for target_col in sg.target_cols
+                    if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
+                ]
+            )
         self.statistics_data = statistics_data
         if self.df is None and self.statistics_data is None:
             raise ValueError("At least one of 'df' or 'statistics_data' needs to be provided.")
