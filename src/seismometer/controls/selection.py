@@ -246,7 +246,9 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
             selection_value = values[dropdown_value]
             value = (dropdown_value, selection_value)
 
-        self.dropdown = Dropdown(options=[key for key in values], value=value[0], layout=DROPDOWN_LAYOUT)
+        self.dropdown = Dropdown(
+            options=[key for key in values], value=value[0], layout=DROPDOWN_LAYOUT, disabled=len(values) == 1
+        )
 
         self.dropdown.observe(self._on_selection_change, "value")
         self.selection_widgets = {}
@@ -269,7 +271,7 @@ class DisjointSelectionListsWidget(ValueWidget, VBox):
     @disabled.setter
     def disabled(self, disabled: bool):
         self._disabled = disabled
-        self.dropdown.disabled = disabled
+        self.dropdown.disabled = len(self.dropdown.options) == 1 or disabled
         for widget in self.selection_widgets.values():
             widget.disabled = disabled
 

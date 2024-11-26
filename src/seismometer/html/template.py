@@ -125,7 +125,7 @@ def render_censored_data_message(message: str) -> HTML:
     HTML
         The templated HTML.
     """
-    return render_title_message("Data is censored.", message)
+    return render_title_message("Censored", message)
 
 
 def render_title_with_image(title: str, image: SVG) -> HTML:

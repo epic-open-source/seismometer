@@ -168,7 +168,7 @@ def performance_metrics_plot(axis, sensitivity, specificity, ppv, thresholds) ->
     axis.plot(thresholds, sensitivity, label="Sensitivity")
     axis.plot(thresholds, specificity, label="Specificity")
     axis.plot(thresholds, ppv, label="PPV")
-    axis.legend(loc="lower center")
+    axis.legend(loc="lower right")
 
     axis.set_xlim([0, 1.01])
     axis.set_xlabel("Threshold")

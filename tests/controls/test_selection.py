@@ -164,16 +164,16 @@ class TestDisjointSelectionListsWidget:
 
     def test_display_text(self):
         widget = undertest.DisjointSelectionListsWidget(
-            options={"a": ["a", "b", "c"], "b": ["a", "c"]},
-            value=("a", ["a", "b"]),
+            options={"a": ["a1", "a2", "a3"], "b": ["b1", "b2"]},
+            value=("a", ["a1", "a3"]),
             title="title",
         )
-        assert widget.get_selection_text() == "a: a, b"
+        assert widget.get_selection_text() == "a: a1, a3"
 
     def test_disabled(self):
         widget = undertest.DisjointSelectionListsWidget(
-            options={"a": ["a", "b", "c"], "b": ["a", "c"]},
-            value=("a", ["a", "b"]),
+            options={"a": ["a1", "a2", "a3"], "b": ["b1", "b2"]},
+            value=("a", ["a1", "a3"]),
             title="title",
         )
         assert not widget.disabled
@@ -187,6 +187,22 @@ class TestDisjointSelectionListsWidget:
         assert not widget.dropdown.disabled
         assert not widget.selection_widgets["a"].disabled
         assert not widget.selection_widgets["b"].disabled
+
+    def test_disable_dropdown_only_one_group(self):
+        widget = undertest.DisjointSelectionListsWidget(
+            options={"a": ["a1", "a2", "a3"]},
+            value=("a", ["a1", "a2"]),
+            title="title",
+        )
+        assert not widget.disabled
+        widget.disabled = True
+        assert widget.disabled
+        assert widget.dropdown.disabled
+        assert widget.selection_widgets["a"].disabled
+        widget.disabled = False
+        assert not widget.disabled
+        assert widget.dropdown.disabled
+        assert not widget.selection_widgets["a"].disabled
 
 
 class TestMultiselectDropdownWidget:
