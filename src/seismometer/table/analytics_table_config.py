@@ -24,7 +24,6 @@ class Metric(Enum):
 
     Sensitivity = "sensitivity"
     Specificity = "specificity"
-    Accuracy = "accuracy"
     Flagged = "flagged"
     Threshold = "threshold"
 
