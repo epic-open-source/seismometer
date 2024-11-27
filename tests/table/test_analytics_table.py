@@ -87,7 +87,6 @@ class TestPerformanceMetrics:
         targets = ["target1", "target2"]
         metric_values = [0.7, 0.8]
         table_config = AnalyticsTableConfig(
-            spanner_colors=["#b29aca", "#FBBF77"],
             columns_show_bar={"AUROC": "lightblue", "PPV": "lightgreen"},
             columns_show_percentages=["Prevalence"],
             color_bar_style=1,
@@ -110,14 +109,12 @@ class TestPerformanceMetrics:
         assert pm.title == "Model Performance Statistics"
         assert pm.top_level == "Score"
         assert pm.decimals == 3
-        assert pm.spanner_colors == ["#b29aca", "#FBBF77"]
         assert pm.columns_show_percentages == ["Prevalence"]
         assert pm.columns_show_bar == {"AUROC": "lightblue", "PPV": "lightgreen"}
         assert pm.color_bar_style == 1
         assert pm.opacity == 0.5
         assert pm.style == 1
         assert pm.percentages_decimals == 0
-        assert pm.alternating_row_colors is True
         assert pm.data_bar_stroke_width == 4
         assert pm.spanner_color_index == 0
         assert pm.rows_group_length == len(targets)
@@ -143,23 +140,6 @@ class TestPerformanceMetrics:
             table_config = AnalyticsTableConfig()
             PerformanceMetrics(
                 metric="invalid_metric", df=df, score_columns=scores, target_columns=targets, table_config=table_config
-            )
-
-    def test_invalid_spanner_color(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
-        scores = ["score1", "score2"]
-        targets = ["target1", "target2"]
-        with pytest.raises(ValueError, match="Invalid color: invalid_color"):
-            table_config = AnalyticsTableConfig(spanner_colors=["invalid_color"])
-            PerformanceMetrics(
-                df=df, score_columns=scores, target_columns=targets, metric="sensitivity", table_config=table_config
             )
 
     def test_invalid_top_level(self, fake_seismo):

@@ -21,7 +21,7 @@ from seismometer.data.performance import (  # MetricGenerator,
     THRESHOLD,
     BinaryClassifierMetricGenerator,
 )
-from seismometer.plot.mpl.color_manipulation import create_bar, lighten_color
+from seismometer.plot.mpl.color_manipulation import create_bar
 from seismometer.seismogram import Seismogram
 
 from .analytics_table_config import COLORING_SCHEMA_1, GENERATED_COLUMNS, AnalyticsTableConfig, Metric
@@ -167,7 +167,6 @@ class PerformanceMetrics:
         self.metrics_to_display = metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.keys())
         self.title = title
         self.top_level = top_level
-        self.spanner_colors = table_config.spanner_colors
         self.columns_show_percentages = table_config.columns_show_percentages
         self.columns_show_bar = table_config.columns_show_bar
 
@@ -175,7 +174,6 @@ class PerformanceMetrics:
         self.opacity = table_config.opacity
         self.style = TableStyle(table_config.style).value
         self.percentages_decimals = table_config.percentages_decimals
-        self.alternating_row_colors = table_config.alternating_row_colors
         self.data_bar_stroke_width = table_config.data_bar_stroke_width
 
         self._initializing = False
@@ -350,7 +348,7 @@ class PerformanceMetrics:
                 )
         return gt
 
-    def add_coloring_parity(self, gt, columns=None, even_color="#F2F2F2", odd_color="white"):
+    def add_coloring_parity(self, gt, columns=None, even_color="white", odd_color="#F2F2F2"):
         """
         Adds alternating row colors to the specified columns in the table.
 
@@ -387,40 +385,53 @@ class PerformanceMetrics:
         return gt
 
     def group_columns_by_metric_value(self, gt, columns, value):
-        gt = (
-            gt.tab_spanner(label=f"{self.metric}={value}", columns=columns)
-            .cols_label(**{col: "_".join(col.split("_")[1:]) for col in columns})
-            .tab_style(
-                style=style.borders(sides=["left"], weight="2px", color="black"),
-                locations=loc.body(columns=[columns[0]]),
-            )
-            .tab_style(
-                style=style.borders(sides=["right"], weight="2px", color="black"),
-                locations=loc.body(columns=[columns[-1]]),
-            )
+        """
+        Groups columns by a specified metric value and adds borders.
+
+        Parameters
+        ----------
+        gt : GT
+            The table object to which the column grouping will be added.
+        columns : List[str]
+            The list of columns to be grouped.
+        value : str
+            The metric value used for grouping columns.
+
+        Returns
+        -------
+        gt : GT
+            The table object with grouped columns and added borders.
+        """
+        gt = gt.tab_spanner(label=f"{self.metric}={value}", columns=columns).cols_label(
+            **{col: "_".join(col.split("_")[1:]) for col in columns}
         )
-        gt = self.color_group_of_columns(gt, columns)
+        return self.add_borders(gt, columns[0], columns[-1])
 
-        return gt
+    def add_borders(self, gt, left_column, right_column):
+        """
+        Adds borders to the left of left_column and right of right_column in the table.
 
-    def color_group_of_columns(self, gt, columns):
-        if not self.spanner_colors:
-            return gt
-        elif self.alternating_row_colors:
-            gt = self.add_coloring_parity(
-                gt,
-                columns,
-                even_color=lighten_color(self.spanner_colors[self.spanner_color_index]),
-                odd_color=self.spanner_colors[self.spanner_color_index],
-            )
-        else:
-            gt = gt.tab_style(
-                style=style.fill(color=self.spanner_colors[self.spanner_color_index]),
-                locations=loc.body(columns=columns),
-            )
-        # increase the spanner_color_index after using spanner colors.
-        self.spanner_color_index = (self.spanner_color_index + 1) % len(self.spanner_colors)
+        Parameters
+        ----------
+        gt : GT
+            The table object to which the borders will be added.
+        left_column : str
+            The name of the left column to which the border will be added on the left.
+        right_column : str
+            The name of the right column to which the border will be added on the right.
 
+        Returns
+        -------
+        gt : GT
+            The table object with added borders.
+        """
+        gt = gt.tab_style(
+            style=style.borders(sides=["left"], weight="1px", color="lightgray"),
+            locations=loc.body(columns=[left_column]),
+        ).tab_style(
+            style=style.borders(sides=["right"], weight="1px", color="lightgray"),
+            locations=loc.body(columns=[right_column]),
+        )
         return gt
 
     def analytics_table(self):
@@ -434,47 +445,31 @@ class PerformanceMetrics:
         """
         data = self._generate_table_data()
         data = self._prepare_data(data)
-        self.spanner_color_index = 0
         self.rows_group_length = len(self.target_columns) if self.top_level == "Score" else len(self.score_columns)
         self.num_of_rows = len(self.score_columns) * len(self.target_columns)
 
         gt = self.generate_initial_table(data)
 
-        # Light gray/white alternating pattern needs to be corrected only if there are even many
-        # rows in each row-group.
-        if self.rows_group_length % 2 == 0:
-            gt = self.add_coloring_parity(gt)
-
         if self.color_bar_style == 1:
             gt = self.generate_color_bar(gt, columns=data.columns)
 
-        colored_columns = []
-        for col in data.columns:
-            if col in colored_columns:
-                continue
+        # Group columns of the form ***_value together
+        grouped_columns = []
+        for value in self.metric_values:
+            columns = [column for column in data.columns if column.startswith(f"{value}_")]
+            gt = self.group_columns_by_metric_value(gt, columns, value)
+            grouped_columns.extend(columns)
 
-            matching_values = [value for value in self.metric_values if col.startswith(f"{value}_")]
-            if matching_values:
-                value = matching_values[0]
-                columns = [column for column in data.columns if column.startswith(f"{value}_")]
-                gt = self.group_columns_by_metric_value(gt, columns, value)
-                colored_columns.extend(columns)
-            elif col in self.columns_show_bar and f"{col}_bar" in data.columns:
-                gt = (
-                    gt.tab_spanner(label=col, columns=[col, f"{col}_bar"])
-                    .tab_style(
-                        style=style.borders(sides=["left"], weight="2px", color="black"),
-                        locations=loc.body(columns=[col]),
-                    )
-                    .tab_style(
-                        style=style.borders(sides=["right"], weight="2px", color="black"),
-                        locations=loc.body(columns=[f"{col}_bar"]),
-                    )
-                )
-                gt = self.color_group_of_columns(gt, columns=[col, f"{col}_bar"])
-                colored_columns.extend([col, f"{col}_bar"])
+        # If a column is not yet grouped and col_bar has been generated, group them together
+        for col in self.columns_show_bar:
+            if col not in grouped_columns and f"{col}_bar" in data.columns:
+                gt = self.add_borders(gt, col, f"{col}_bar")
 
-        gt = gt.opt_stylize(style=self.style)
+        # Light gray/white alternating pattern needs to be corrected
+        gt = self.add_coloring_parity(gt)
+
+        gt = gt.cols_align(align="left").opt_horizontal_padding(scale=3).opt_stylize(style=self.style, color="blue")
+
         return gt
 
     def _prepare_data(self, data):
