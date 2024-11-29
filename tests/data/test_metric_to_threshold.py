@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from sklearn.metrics import auc, precision_recall_curve, roc_auc_score
 
-from seismometer.data.metric_to_threshold import calculate_stats
+from seismometer.data.binary_performance import calculate_stats
 
 
 class TestCalculateStats:

@@ -14,17 +14,16 @@ from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE  # , html_title
 from seismometer.data import pandas_helpers as pdh
-from seismometer.data.metric_to_threshold import calculate_stats, is_binary_array
+from seismometer.data.binary_performance import GENERATED_COLUMNS, Metric, calculate_stats, is_binary_array
 from seismometer.data.performance import (  # MetricGenerator,
     OVERALL_PERFORMANCE,
     STATNAMES,
     THRESHOLD,
     BinaryClassifierMetricGenerator,
 )
-from seismometer.plot.mpl.color_manipulation import create_bar
 from seismometer.seismogram import Seismogram
 
-from .analytics_table_config import COLORING_SCHEMA_1, GENERATED_COLUMNS, AnalyticsTableConfig, Metric
+from .analytics_table_config import COLORING_CONFIG_DEFAULT, AnalyticsTableConfig
 
 
 class TopLevel(Enum):
@@ -34,29 +33,6 @@ class TopLevel(Enum):
 
     Score = "score"
     Target = "target"
-
-
-class ColorBarStyle(Enum):
-    """
-    Enumeration for different color bar styles available in PerformanceMetrics class.
-    """
-
-    Style1 = 1
-    Style2 = 2
-    # Add more styles as needed
-
-
-class TableStyle(Enum):
-    """
-    Enumeration for different table styles available in great_tables package.
-    """
-
-    Style1 = 1
-    Style2 = 2
-    Style3 = 3
-    Style4 = 4
-    Style5 = 5
-    Style6 = 6
 
 
 class PerformanceMetrics:
@@ -99,32 +75,21 @@ class PerformanceMetrics:
             Performance metrics will be presented for the provided values of this metric.
         metric_values: List[float]
             Values for the specified metric to derive detailed performance statistics, by default [0.1, 0.2].
-        metric_to_display: Optional[List[str]]
-            The list of metrics *** to show in the table.
+        metrics_to_display: Optional[List[str]]
+            List of metrics to include in the table, by default None. The default behavior is to shows all columns
+            in GENERATED_COLUMNS, which is a dictionary mapping metric names to their corresponding column names.
         title: str
             The title for the performance statistics report, by default "Model Performance Statistics".
         top_level: str
             The primary grouping category in the performance report, by default 'Score'.
         decimals: int
             The number of decimal places for rounding numerical results, by default 3.
-        spanner_colors: Optional[List[str]]
-            Colors used for highlighting spanner elements in the report, by default None.
         columns_show_percentages: Union[str, List[str]]
             Columns that will display values as percentages in the report, by default "Prevalence".
         columns_show_bar: Optional[Dict[str, str]]
             Columns mapped to specific colors for bar representation in the report, by default None.
-        color_bar_style: int
-            The visual style of the color bars used in the report, by default 1.
-        style: int
-            The overall style index applied to the report's visual representation, by default 1.
-        opacity: float
-            The opacity level for color bars, affecting their transparency, by default 0.5.
         percentages_decimals: int
             The number of decimal places for percentage values in the report, by default 0.
-        alternating_row_colors: bool
-            A flag to specify if row colors should alternate, by default True.
-        data_bar_stroke_width: int
-            The stroke width of the data bars, affecting their thickness, by default 4.
         statistics_data: Optional[pd.DataFrame]
             Additional performance metrics statistics, will be joined with the statistics data generated
             by the code, by default None.
@@ -170,14 +135,10 @@ class PerformanceMetrics:
         self.columns_show_percentages = table_config.columns_show_percentages
         self.columns_show_bar = table_config.columns_show_bar
 
-        self.color_bar_style = ColorBarStyle(table_config.color_bar_style).value
-        self.opacity = table_config.opacity
-        self.style = TableStyle(table_config.style).value
         self.percentages_decimals = table_config.percentages_decimals
         self.data_bar_stroke_width = table_config.data_bar_stroke_width
 
         self._initializing = False
-        self.spanner_color_index = 0
         self.rows_group_length = len(self.target_columns) if self.top_level == "Score" else len(self.score_columns)
         self.num_of_rows = len(self.score_columns) * len(self.target_columns)
 
@@ -450,8 +411,7 @@ class PerformanceMetrics:
 
         gt = self.generate_initial_table(data)
 
-        if self.color_bar_style == 1:
-            gt = self.generate_color_bar(gt, columns=data.columns)
+        gt = self.generate_color_bar(gt, columns=data.columns)
 
         # Group columns of the form ***_value together
         grouped_columns = []
@@ -468,13 +428,13 @@ class PerformanceMetrics:
         # Light gray/white alternating pattern needs to be corrected
         gt = self.add_coloring_parity(gt)
 
-        gt = gt.cols_align(align="left").opt_horizontal_padding(scale=3).opt_stylize(style=self.style, color="blue")
+        gt = gt.cols_align(align="left").opt_horizontal_padding(scale=3).opt_stylize()
 
         return gt
 
     def _prepare_data(self, data):
         """
-        Prepares the data for display in the analytics table.
+        Prepares the data for displaying in the analytics table.
 
         Parameters
         ----------
@@ -486,23 +446,9 @@ class PerformanceMetrics:
         pd.DataFrame
             The modified DataFrame with additional columns for bar plots (if applicable).
         """
-        if self.color_bar_style == 1:
-            for data_col, col in itertools.product(data.columns, self.columns_show_bar):
-                if data_col.endswith(f"_{col}") or data_col == col:
-                    data.insert(data.columns.get_loc(data_col) + 1, data_col + "_bar", data[data_col])
-        elif self.color_bar_style == 2:
-            data = data.round(self.decimals)
-            for col in data.columns:
-                if col in self.columns_show_bar:
-                    data[col] = data[col].apply(
-                        lambda x: create_bar(x, max_width=75, height=20, color=self.columns_show_bar[col])
-                    )
-                elif any(col.endswith(f"_{val}") for val in self.columns_show_bar):
-                    data[col] = data[col].apply(
-                        lambda x: create_bar(
-                            x, max_width=75, height=20, color=self.columns_show_bar[col.split("_")[-1]]
-                        )
-                    )
+        for data_col, col in itertools.product(data.columns, self.columns_show_bar):
+            if data_col.endswith(f"_{col}") or data_col == col:
+                data.insert(data.columns.get_loc(data_col) + 1, data_col + "_bar", data[data_col])
         return data
 
     def _generate_table_data(self):
@@ -617,7 +563,7 @@ def binary_analytics_table(
     #     else sg.dataframe
     # )
     data = None
-    table_config = AnalyticsTableConfig(**COLORING_SCHEMA_1)
+    table_config = AnalyticsTableConfig(**COLORING_CONFIG_DEFAULT)
     performance_metrics = PerformanceMetrics(
         df=data,
         score_columns=score_cols,
@@ -707,7 +653,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         self.model_options_widget = model_options_widget
         self.title = title
         self.binary_targets = [
-            target_col for target_col in sg.target_cols if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
+            target_col for target_col in target_cols if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
         ]
         # Multiple select dropdowns for targets and scores
         self._target_cols = MultiselectDropdownWidget(
@@ -757,16 +703,16 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             # html_title("Analytics Table Options"),
             self._target_cols,
             self._score_cols,
+            self._metrics_to_display,
             self._metric,
             self._metric_values_slider,
-            self._metrics_to_display,
             self._group_by,
         ]
         if model_options_widget:
             v_children.insert(0, model_options_widget)
             self.model_options_widget.observe(self._on_value_changed, names="value")
 
-        grid_layout = Layout(width="100%", grid_template_columns="repeat(4, 1fr)", grid_gap="10px")  # Four columns
+        grid_layout = Layout(width="100%", grid_template_columns="repeat(3, 1fr)", grid_gap="10px")  # Four columns
 
         # Create a GridBox with the specified layout
         grid_box = GridBox(children=v_children, layout=grid_layout)
