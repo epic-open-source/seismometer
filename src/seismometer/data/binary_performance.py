@@ -1,11 +1,35 @@
+from enum import Enum
 from typing import List, Optional
 
 import numpy as np
 from numpy.typing import ArrayLike
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-from ..table.analytics_table_config import GENERATED_COLUMNS, Metric
 from . import calculate_bin_stats
+
+GENERATED_COLUMNS = {
+    "positives": "Positives",
+    "prevalence": "Prevalence",
+    "auroc": "AUROC",
+    "auprc": "AUPRC",
+    "accuracy": "Accuracy",
+    "ppv": "PPV",
+    "sensitivity": "Sensitivity",
+    "specificity": "Specificity",
+    "flagged": "Flag Rate",
+    "threshold": "Threshold",
+}
+
+
+class Metric(Enum):
+    """
+    Enumeration for available values for metric parameter in PerformanceMetrics class.
+    """
+
+    Sensitivity = "sensitivity"
+    Specificity = "specificity"
+    Flagged = "flagged"
+    Threshold = "threshold"
 
 
 def calculate_stats(
@@ -33,7 +57,7 @@ def calculate_stats(
         A list of metric values for which corresponding statistics are calculated.
     metrics_to_display : Optional[List[str]]
         List of metrics to include in the table, by default None. The default behavior is to shows all columns
-        mentioned in GENERATED_COLUMNS.
+        in GENERATED_COLUMNS, which is a dictionary mapping metric names to their corresponding column names.
     decimals: int
         The number of decimal places for rounding numerical results, by default 3.
 
@@ -76,7 +100,6 @@ def calculate_stats(
     metric_values = [0 if val == 0.0 else val for val in metric_values]
 
     stats = calculate_bin_stats(y_true, y_pred)
-    thresholds = stats["Threshold"].to_numpy()
 
     metric_data = stats[GENERATED_COLUMNS[metric]].to_numpy()
     thresholds = stats["Threshold"].to_numpy()

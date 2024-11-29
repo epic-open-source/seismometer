@@ -89,7 +89,6 @@ class TestPerformanceMetrics:
         table_config = AnalyticsTableConfig(
             columns_show_bar={"AUROC": "lightblue", "PPV": "lightgreen"},
             columns_show_percentages=["Prevalence"],
-            color_bar_style=1,
         )
         pm = PerformanceMetrics(
             df=df,
@@ -111,12 +110,8 @@ class TestPerformanceMetrics:
         assert pm.decimals == 3
         assert pm.columns_show_percentages == ["Prevalence"]
         assert pm.columns_show_bar == {"AUROC": "lightblue", "PPV": "lightgreen"}
-        assert pm.color_bar_style == 1
-        assert pm.opacity == 0.5
-        assert pm.style == 1
         assert pm.percentages_decimals == 0
         assert pm.data_bar_stroke_width == 4
-        assert pm.spanner_color_index == 0
         assert pm.rows_group_length == len(targets)
         assert pm.num_of_rows == len(scores) * len(targets)
         assert pm.statistics_data.equals(statistics_data)
@@ -307,43 +302,6 @@ class TestPerformanceMetrics:
         gt = pm.generate_color_bar(gt, data.columns)
         assert gt is not None
 
-    def test_color_bar_style_2(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
-        scores = ["score1", "score2"]
-        targets = ["target1", "target2"]
-        metric_values = [0.7, 0.8]
-        table_config = AnalyticsTableConfig(color_bar_style=2)
-        pm = PerformanceMetrics(
-            df=df,
-            score_columns=scores,
-            target_columns=targets,
-            metric="sensitivity",
-            metric_values=metric_values,
-            table_config=table_config,
-        )
-        data = pm._generate_table_data()
-        data = pm._prepare_data(data)
-
-        # Check if the bar columns are correctly created
-        for col in pm.columns_show_bar:
-            if col in data.columns:
-                assert all(data[col].apply(lambda x: isinstance(x, str)))
-            else:
-                for val in metric_values:
-                    col_name = f"{val}_{col}"
-                    assert all(data[col_name].apply(lambda x: isinstance(x, str)))
-
-        gt = pm.generate_initial_table(data)
-        gt = pm.generate_color_bar(gt, data.columns)
-        assert gt is not None
-
     def test_add_coloring_parity(self, fake_seismo):
         df = pd.DataFrame(
             {
@@ -393,30 +351,5 @@ class TestPerformanceMetrics:
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
         pm = PerformanceMetrics(df=df, score_columns=scores, target_columns=targets, metric="sensitivity")
-        gt = pm.analytics_table()
-        assert gt is not None
-
-    def test_analytics_table_with_color_bar_style_2(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
-        scores = ["score1", "score2"]
-        targets = ["target1", "target2"]
-        metric_values = [0.7, 0.8]
-
-        table_config = AnalyticsTableConfig(color_bar_style=2)
-        pm = PerformanceMetrics(
-            df=df,
-            score_columns=scores,
-            target_columns=targets,
-            metric="sensitivity",
-            metric_values=metric_values,
-            table_config=table_config,
-        )
         gt = pm.analytics_table()
         assert gt is not None
