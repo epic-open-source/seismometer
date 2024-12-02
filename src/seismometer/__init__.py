@@ -72,3 +72,45 @@ def run_startup(
     # Surface api into namespace
     s_module = importlib.import_module("seismometer._api")
     globals().update(vars(s_module))
+
+def download_example_dataset(dataset_name: str, branch_name: str = "main"):
+    """
+    Downloads an example dataset from the specified branch to local data/ directory.
+
+    Args:
+        dataset_name (str): The name of the dataset to download.
+        branch_name (str, optional): The branch from which to download the dataset. Defaults to "main".
+
+    Note:
+        This function does not depend on the seismometer initialization so singleton and loggers are not available.
+
+    Raises:
+        ValueError: If the specified dataset is not available in the example datasets.
+    """
+
+    import urllib.request
+    from pathlib import Path
+
+    datasets = set()
+    datasets.add('diabetes')
+    datasets.add('diabetes-v2')
+
+    if not dataset_name in datasets:
+        raise ValueError(f"Dataset {dataset_name} is not available in the example datasets.")
+
+    SOURCE_REPO = "epic-open-source/seismometer-data"
+    DATASET_SOURCE = f"https://raw.githubusercontent.com/{SOURCE_REPO}/refs/heads/{branch_name}/{dataset_name}"
+    files = [
+        "config.yml",
+        "usage_config.yml",
+        "data_dictionary.yml",
+        "data/predictions.parquet",
+        "data/events.parquet",
+        "data/metadata.json",
+    ]
+    Path('data').mkdir(parents=True, exist_ok=True)
+    for file in files:
+        try:
+            _ = urllib.request.urlretrieve(f"{DATASET_SOURCE}/{file}", file)
+        except:
+            pass
