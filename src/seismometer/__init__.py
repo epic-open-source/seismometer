@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from typing import Optional
+import urllib.error
 
 import pandas as pd
 
@@ -92,16 +93,9 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     import urllib.request
     from pathlib import Path
 
-    datasets = set()
-    datasets.add("diabetes")
-    datasets.add("diabetes-v2")
+    datasets = {}
 
-    if dataset_name not in datasets:
-        raise ValueError(f"Dataset {dataset_name} is not available in the example datasets.")
-
-    SOURCE_REPO = "epic-open-source/seismometer-data"
-    DATASET_SOURCE = f"https://raw.githubusercontent.com/{SOURCE_REPO}/refs/heads/{branch_name}/{dataset_name}"
-    files = [
+    datasets["diabetes-v2"] = [
         "config.yml",
         "usage_config.yml",
         "data_dictionary.yml",
@@ -109,9 +103,16 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
         "data/events.parquet",
         "data/metadata.json",
     ]
+
+    if dataset_name not in datasets:
+        raise ValueError(f"Dataset {dataset_name} is not available in the example datasets.")
+
+    SOURCE_REPO = "epic-open-source/seismometer-data"
+    DATASET_SOURCE = f"https://raw.githubusercontent.com/{SOURCE_REPO}/refs/heads/{branch_name}/{dataset_name}"
+
     Path("data").mkdir(parents=True, exist_ok=True)
-    for file in files:
+    for file in datasets[dataset_name]:
         try:
             _ = urllib.request.urlretrieve(f"{DATASET_SOURCE}/{file}", file)
-        except:
+        except urllib.error.ContentTooShortError:
             print(f"Failed to download {file} from {DATASET_SOURCE}")

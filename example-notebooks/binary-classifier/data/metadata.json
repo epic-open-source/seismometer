@@ -1,7 +1,7 @@
 {
-    "modelname": "LGBM",
+    "modelname": "30DayReadmissionRisk",
     "thresholds": [
-        0.08,
-        0.15
+        0.10,
+        0.20
     ]
 }

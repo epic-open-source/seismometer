@@ -1,8 +1,6 @@
 other_info:
   # Path to the file containing how to interpret data during run
   usage_config: "usage_config.yml"
-  # Name of the template to use during generation
-  template: "binary"
   # Directory to write info from and for the notebook run
   info_dir: "outputs"
   # These two definitions define all the columns available
