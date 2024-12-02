@@ -96,7 +96,7 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     datasets.add("diabetes")
     datasets.add("diabetes-v2")
 
-    if not dataset_name in datasets:
+    if dataset_name not in datasets:
         raise ValueError(f"Dataset {dataset_name} is not available in the example datasets.")
 
     SOURCE_REPO = "epic-open-source/seismometer-data"
@@ -114,4 +114,4 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
         try:
             _ = urllib.request.urlretrieve(f"{DATASET_SOURCE}/{file}", file)
         except:
-            pass
+            print(f"Failed to download {file} from {DATASET_SOURCE}")
