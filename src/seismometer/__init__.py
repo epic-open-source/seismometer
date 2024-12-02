@@ -73,6 +73,7 @@ def run_startup(
     s_module = importlib.import_module("seismometer._api")
     globals().update(vars(s_module))
 
+
 def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     """
     Downloads an example dataset from the specified branch to local data/ directory.
@@ -92,8 +93,8 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     from pathlib import Path
 
     datasets = set()
-    datasets.add('diabetes')
-    datasets.add('diabetes-v2')
+    datasets.add("diabetes")
+    datasets.add("diabetes-v2")
 
     if not dataset_name in datasets:
         raise ValueError(f"Dataset {dataset_name} is not available in the example datasets.")
@@ -108,7 +109,7 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
         "data/events.parquet",
         "data/metadata.json",
     ]
-    Path('data').mkdir(parents=True, exist_ok=True)
+    Path("data").mkdir(parents=True, exist_ok=True)
     for file in files:
         try:
             _ = urllib.request.urlretrieve(f"{DATASET_SOURCE}/{file}", file)
