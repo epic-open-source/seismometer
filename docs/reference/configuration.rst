@@ -29,12 +29,3 @@ Configuration DataModel
    EventTableMap
    OtherInfo
    PredictionDictionary
-
-Configuration Helper
-~~~~~~~~~~~~~~~~~~~~
-.. currentmodule:: seismometer.configuration.config_helpers
-
-.. autosummary::
-   :toctree: api/
-
-   generate_dictionary_from_parquet

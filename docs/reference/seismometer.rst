@@ -1,11 +1,11 @@
+.. currentmodule:: seismometer.api
+
 ===========
 Seismometer
 ===========
 
-Exploration APIs
-~~~~~~~~~~~~~~~~
-
-.. currentmodule:: seismometer.api
+Exploration Widgets
+~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: api/
@@ -22,10 +22,8 @@ Exploration APIs
    ExploreBinaryModelMetrics
 
 
-Public API
+Public APIs
 ~~~~~~~~~~~
-
-.. currentmodule:: seismometer.api
 
 .. autosummary::
    :toctree: api/
@@ -50,8 +48,6 @@ Public API
 Custom Visualization Controls
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. currentmodule:: seismometer.controls
-
 .. autosummary::
    :toctree: api/
 
@@ -65,12 +61,13 @@ Custom Visualization Controls
    explore.ExplorationTargetComparisonByCohortWidget
    explore.ExplorationMetricWidget
 
-Example Notebook APIs
-~~~~~~~~~~~~~~~~~~~~~
+Notebook and Configuration Helper APIs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. currentmodule:: seismometer.__init__
+.. currentmodule:: seismometer.api
 
 .. autosummary::
    :toctree: api/
 
    download_example_dataset
+   generate_dictionary_from_parquet
