@@ -3,6 +3,7 @@ from typing import Any
 from IPython.display import HTML, display
 
 from seismometer.controls.decorators import disk_cached_html_segment
+from seismometer.controls.explore import ExplorationWidget  # noqa: F401
 from seismometer.controls.explore import (
     ExplorationCohortOutcomeInterventionEvaluationWidget,
     ExplorationCohortSubclassEvaluationWidget,
@@ -10,8 +11,6 @@ from seismometer.controls.explore import (
     ExplorationScoreComparisonByCohortWidget,
     ExplorationSubpopulationWidget,
     ExplorationTargetComparisonByCohortWidget,
-    ExplorationWidget,
-    ModelFairnessAuditOptions,
 )
 from seismometer.core.decorators import export
 from seismometer.data import pandas_helpers as pdh
@@ -27,11 +26,9 @@ from .plots import (
     plot_model_score_comparison,
     plot_model_target_comparison,
 )
-from .reports import generate_fairness_audit
+
 
 # region Exploration Widgets
-
-
 @export
 class ExploreSubgroups(ExplorationSubpopulationWidget):
     """
@@ -100,7 +97,7 @@ class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
 
     Creates a 2x3 grid of individual performance metrics across cohorts.
 
-    Plots include Sensitivity, Flagged, PPV, Specificity, NPV vs Thresholds.
+    Plots include Sensitivity, Flag Rate, PPV, Specificity, NPV vs Thresholds.
     Includes a legend with cohort size.
     """
 
@@ -162,49 +159,6 @@ class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeIntervention
         Passes the plot function to the superclass.
         """
         super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
-
-
-@export
-class ExploreFairnessAudit(ExplorationWidget):
-    """
-    Exploration widget for Aequitas model fairness metrics, showing details for a given target, score, and threshold.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        title = "Fairness Audit"
-        sg = Seismogram()
-        self.cohort_columns = sg.cohort_cols
-
-        option_widget = ModelFairnessAuditOptions(
-            sg.target_cols,
-            sg.output_list,
-            score_threshold=max(sg.thresholds),
-            per_context=True,
-        )
-        super().__init__(title=title, option_widget=option_widget, plot_function=generate_fairness_audit)
-
-    def generate_plot_args(self) -> tuple[tuple, dict]:
-        """
-        Returns plot function args from the option widget
-
-        Returns
-        -------
-        tuple[tuple, dict]
-            args, and kwargs for the plot function.
-        """
-        args = (
-            self.cohort_columns,
-            self.option_widget.target,
-            self.option_widget.score,
-            self.option_widget.score_threshold,
-            self.option_widget.group_scores,
-            list(self.option_widget.metrics),
-            self.option_widget.fairness_threshold,
-        )
-        return args, {}
 
 
 # endregion

@@ -11,11 +11,27 @@ from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
 from seismometer.html.iframe import load_as_iframe
-from seismometer.report.auditing import fairness_audit_altair
+from seismometer.report.fairness import ExploreBinaryModelFairness
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
+
+
+@export
+class ExploreFairnessAudit(ExploreBinaryModelFairness):
+    """
+    Exploration widget for model fairness across cohorts for a binary classifier.
+
+    .. versionchanged:: 0.3.0
+       Uses explore controls instead of aequitas report.
+    """
+
+    def __init__(self):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__()
 
 
 # region Reports
@@ -134,44 +150,6 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     )
 
     wrapper.display_report(inline)
-
-
-@export
-def fairness_audit(metric_list: Optional[list[str]] = None, fairness_threshold: float = 1.25) -> HTML:
-    """
-    Displays the Aequitas fairness audit for a set of sensitive groups and metrics.
-
-    Parameters
-    ----------
-    metric_list : Optional[list[str]
-        The list of metrics to use in Aequitas. Chosen from:
-            "tpr",
-            "tnr",
-            "for",
-            "fdr",
-            "fpr",
-            "fnr",
-            "npv",
-            "ppr",
-            "precision",
-            "pprev".
-    fairness_threshold : float
-        The maximum ratio between sensitive groups before differential performance is considered a 'failure'.
-    """
-    sg = Seismogram()
-
-    sensitive_groups = sg.cohort_cols
-    metric_list = metric_list or ["tpr", "fpr", "pprev"]
-
-    return generate_fairness_audit(
-        sensitive_groups,
-        sg.target,
-        sg.output,
-        sg.thresholds[0],
-        per_context=True,
-        metric_list=metric_list,
-        fairness_threshold=fairness_threshold,
-    )
 
 
 @export
