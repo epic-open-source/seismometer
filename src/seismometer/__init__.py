@@ -78,29 +78,43 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     """
     Downloads an example dataset from the specified branch to local data/ directory.
 
-    Args:
-        dataset_name (str): The name of the dataset to download.
-        branch_name (str, optional): The branch from which to download the dataset. Defaults to "main".
+    Parameters
+    ----------
+        dataset_name : str 
+            The name of the dataset to download.
+        branch_name : str, optional
+            The branch from which to download the dataset. Defaults to "main".
 
-    Note:
-        This function does not depend on the seismometer initialization so singleton and loggers are not available.
-
-    Raises:
-        ValueError: If the specified dataset is not available in the example datasets.
+    Raises
+    ------
+        ValueError
+            If the specified dataset is not available in the example datasets.
     """
+
+
+    # Notes - This function does not depend on the seismometer initialization so singleton and loggers are not available.
 
     import urllib.request
     from pathlib import Path
+    from collections import namedtuple
+
+    DatasetItem = namedtuple("DatasetItem", ["source", "destination"])
 
     datasets = {}
 
+    datasets["diabetes"] = [
+        DatasetItem("data_dictionary.yml", "data_dictionary.yml"),
+        DatasetItem("predictions.parquet", "data/predictions.parquet"),
+        DatasetItem("events.parquet", "data/events.parquet"),
+    ]
+
     datasets["diabetes-v2"] = [
-        "config.yml",
-        "usage_config.yml",
-        "data_dictionary.yml",
-        "data/predictions.parquet",
-        "data/events.parquet",
-        "data/metadata.json",
+        DatasetItem("config.yml","config.yml"),
+        DatasetItem("usage_config.yml","usage_config.yml"),
+        DatasetItem("data_dictionary.yml","data_dictionary.yml"),
+        DatasetItem("data/predictions.parquet","data/predictions.parquet"),
+        DatasetItem("data/events.parquet","data/events.parquet"),
+        DatasetItem("data/metadata.json","data/metadata.json"),
     ]
 
     if dataset_name not in datasets:
@@ -110,8 +124,8 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     DATASET_SOURCE = f"https://raw.githubusercontent.com/{SOURCE_REPO}/refs/heads/{branch_name}/{dataset_name}"
 
     Path("data").mkdir(parents=True, exist_ok=True)
-    for file in datasets[dataset_name]:
+    for item in datasets[dataset_name]:
         try:
-            _ = urllib.request.urlretrieve(f"{DATASET_SOURCE}/{file}", file)
+            _ = urllib.request.urlretrieve(f"{DATASET_SOURCE}/{item.source}", item.destination)
         except urllib.error.ContentTooShortError:
-            print(f"Failed to download {file} from {DATASET_SOURCE}")
+            print(f"Failed to download {item.source} from {DATASET_SOURCE}")

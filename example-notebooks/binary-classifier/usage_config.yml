@@ -5,15 +5,7 @@ data_usage:
   context_id: encounter_id
   # Each use case must define a primary output and target
   # Output should be in the predictions table but target may be a display name of a windowed event
-  primary_output: Risk30DayReadmission
-  # This list defines available outputs for the model (scores)
-  outputs:
-   - Risk30DayReadmission
-   - Risk30DayReadmissionPercentile
-   - RiskAnyReadmission
-   - RiskLongStay
-   - ExpectedHospitalStay
-  # This list defines available outputs for the model (scores)
+  primary_output: LGBM_score
   primary_target: Readmitted within 30 Days
   # Predict time indicates the column for timestamp associated with the row
   predict_time: ScoringTime
@@ -31,12 +23,6 @@ data_usage:
       display_name: Race
     - source: gender
       display_name: Gender
-    - source: A1Cresult  
-      display_name: A1C
-    - source: insulin  
-      display_name: Taking Insulin
-    - source: metformin   
-      display_name: Taking Metformin
   # The event_table allows mapping of event columns to those expected by the tool
   # The table must have the entity_id column and may have context_id column if being used
   event_table:
@@ -46,38 +32,12 @@ data_usage:
   # Events define what types of events to merge into analyses
   # Windowing defines the range of time prior to the event where predictions are considered
   events:
-    - source: Readmitted
+    - source: TargetLabel
       display_name: Readmitted within 30 Days
-      window_hr: 720
+      window_hr: 6
       offset_hr: 0
       usage: target
-      score_rollup: max
-    - source:  Readmitted
-      display_name: Readmitted (Any)
-      window_hr: 1440
-      offset_hr: 0
-      usage: target
-      score_rollup: max
-    - source: LongHospitalStay
-      display_name: Long Hosptial Stay (>7 days)
-      window_hr: 168
-      offset_hr: 0
-      usage: target
-      score_rollup: max
-    - source: HospitalStay
-      display_name: Actual Length of Hospital Visit
-      window_hr: 720
-      offset_hr: 0
-      usage: target
-    - source: HospitalStay
-      display_name: Length of Hospital Visit
-      window_hr: 720
-      offset_hr: 0
-      usage: outcome
-    - source: TakingMetformin
-      display_name: Taking Metformin
-      window_hr: 720
-      offset_hr: 0
-      usage: intervention
+      # How to combine multiple *scores* for a context_id when analyzing this event
+      aggregation_method: max
   # Minimum group size to be included in the analysis
   censor_min_count: 10
