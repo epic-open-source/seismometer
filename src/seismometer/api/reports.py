@@ -1,16 +1,8 @@
 import logging
-from typing import Any, Optional
-
-from IPython.display import HTML, IFrame
+from typing import Optional
 
 from seismometer.core.decorators import export
-from seismometer.core.exceptions import CensoredResultException
-from seismometer.core.io import slugify
-from seismometer.core.nbhost import NotebookHost
-from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
-from seismometer.html import template
-from seismometer.html.iframe import load_as_iframe
 from seismometer.report.fairness import ExploreBinaryModelFairness
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from seismometer.seismogram import Seismogram
@@ -150,92 +142,6 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     )
 
     wrapper.display_report(inline)
-
-
-@export
-def generate_fairness_audit(
-    cohort_columns: list[str],
-    target_column: str,
-    score_column: str,
-    score_threshold: float,
-    per_context: bool = False,
-    metric_list: Optional[list[str]] = None,
-    fairness_threshold: float = 1.25,
-) -> HTML | IFrame | Any:
-    """
-    Generates the Aequitas fairness audit for a set of sensitive groups and metrics.
-
-    Parameters
-    ----------
-    cohort_columns : list[str]
-        cohort columns to investigate
-    target_column : str
-        target column to use
-    score_column : str
-        score column to use
-    score_threshold : float
-        threshold at which a score predicts a positive event
-    per_context : bool, optional
-        if scores should be grouped within a context, by default False
-    metric_list : Optional[list[str]], optional
-        list of metrics to evaluate, by default None
-    fairness_threshold : float, optional
-        allowed deviation from the default class within a cohort, by default 1.25
-
-    Returns
-    -------
-    HTML | IFrame | Altair Chart
-        IFrame holding the HTML of the audit
-    """
-
-    sg = Seismogram()
-
-    path = "aequitas_{cohorts}_with_{target}_and_{score}_gt_{threshold}_metrics_{metrics}_ratio_{ratio}".format(
-        cohorts="_".join(cohort_columns),
-        target=target_column,
-        score=score_column,
-        threshold=score_threshold,
-        metrics="_".join(metric_list),
-        ratio=fairness_threshold,
-    )
-    if per_context:
-        path += "_grouped"
-    fairness_path = sg.config.output_dir / (slugify(path) + ".html")
-    height = 200 + 100 * len(metric_list)
-
-    if NotebookHost.supports_iframe() and fairness_path.exists():
-        return load_as_iframe(fairness_path, height=height)
-    data = (
-        pdh.event_score(
-            sg.data(),
-            sg.entity_keys,
-            score=score_column,
-            ref_event=sg.predict_time,
-            aggregation_method=sg.event_aggregation_method(target_column),
-        )
-        if per_context
-        else sg.data()
-    )
-
-    target = pdh.event_value(target_column)
-    data = data[[target, score_column] + cohort_columns]
-    data = FilterRule.isin(target, (0, 1)).filter(data)
-    positive_samples = data[target].sum()
-    if min(positive_samples, len(data) - positive_samples) < sg.censor_threshold:
-        return template.render_censored_plot_message(sg.censor_threshold)
-
-    try:
-        altair_plot = fairness_audit_altair(
-            data, cohort_columns, score_column, target, score_threshold, metric_list, fairness_threshold
-        )
-    except CensoredResultException as error:
-        return template.render_censored_data_message(str(error))
-
-    if NotebookHost.supports_iframe():
-        altair_plot.save(fairness_path, format="html")
-        return load_as_iframe(fairness_path, height=height)
-
-    return altair_plot
 
 
 # endregion
