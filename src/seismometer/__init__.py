@@ -77,12 +77,14 @@ def run_startup(
 def download_example_dataset(dataset_name: str, branch_name: str = "main"):  # pragma: no cover
     """
     Downloads an example dataset from the specified branch to local data/ directory.
+    
     Parameters
     ----------
         dataset_name : str
             The name of the dataset to download.
         branch_name : str, optional
             The branch from which to download the dataset. Defaults to "main".
+    
     Raises
     ------
         ValueError
