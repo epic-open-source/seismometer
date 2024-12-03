@@ -313,7 +313,7 @@ def calculate_bin_stats(
 
         # re-implementation of metrics from med_metrics package, see _calculate_nnt for full citation
         nne = calculate_nnt(ppv, 1)
-        nnt = calculate_nnt(ppv)
+        nnt = calculate_nnt(ppv, rho=rho)
         nbs = (tps - fps * (thresholds / (100 - thresholds))) / n
 
     accuracy = (tps + tns) / n

@@ -1399,7 +1399,7 @@ class BinaryModelMetricOptions(Box, ValueWidget):
 
     @property
     def metrics(self) -> tuple[str]:
-        """selected cohorts"""
+        """selected metrics"""
         return self.metric_list.value
 
     @property

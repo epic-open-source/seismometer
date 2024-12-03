@@ -266,7 +266,7 @@ class TestBinaryMetricGenerator:
             "TN": 2.0,
             "FN": 1.0,
             "NNE": 1.0,
-            "NNT@0.2": 3.0,
+            "NNT@0.2": 5.0,
             "TP (%)": 25.0,
             "FP (%)": 0.0,
             "TN (%)": 50.0,
