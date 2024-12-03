@@ -117,7 +117,8 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     ]
 
     if dataset_name not in datasets:
-        raise ValueError(f"Dataset {dataset_name} is not available in the example datasets.")
+        msg = f"Dataset {dataset_name} is not available in the example datasets."
+        raise ValueError(msg)
 
     SOURCE_REPO = "epic-open-source/seismometer-data"
     DATASET_SOURCE = f"https://raw.githubusercontent.com/{SOURCE_REPO}/refs/heads/{branch_name}/{dataset_name}"
