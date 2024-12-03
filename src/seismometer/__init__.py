@@ -94,8 +94,8 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     # This function does not depend on the seismometer initialization so singleton and loggers are not available.
 
     import urllib.request
-    from pathlib import Path
     from collections import namedtuple
+    from pathlib import Path
 
     DatasetItem = namedtuple("DatasetItem", ["source", "destination"])
 
