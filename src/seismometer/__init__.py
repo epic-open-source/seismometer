@@ -74,7 +74,7 @@ def run_startup(
     globals().update(vars(s_module))
 
 
-def download_example_dataset(dataset_name: str, branch_name: str = "main"):
+def download_example_dataset(dataset_name: str, branch_name: str = "main"):  # pragma: no cover
     """
     Downloads an example dataset from the specified branch to local data/ directory.
     Parameters
