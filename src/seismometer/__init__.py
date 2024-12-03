@@ -73,6 +73,7 @@ def run_startup(
     s_module = importlib.import_module("seismometer._api")
     globals().update(vars(s_module))
 
+
 def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     """
     Downloads an example dataset from the specified branch to local data/ directory.
