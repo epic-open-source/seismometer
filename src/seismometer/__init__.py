@@ -80,7 +80,7 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
 
     Parameters
     ----------
-        dataset_name : str 
+        dataset_name : str
             The name of the dataset to download.
         branch_name : str, optional
             The branch from which to download the dataset. Defaults to "main".
@@ -90,7 +90,6 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
         ValueError
             If the specified dataset is not available in the example datasets.
     """
-
 
     # Notes - This function does not depend on the seismometer initialization so singleton and loggers are not available.
 
@@ -109,12 +108,12 @@ def download_example_dataset(dataset_name: str, branch_name: str = "main"):
     ]
 
     datasets["diabetes-v2"] = [
-        DatasetItem("config.yml","config.yml"),
-        DatasetItem("usage_config.yml","usage_config.yml"),
-        DatasetItem("data_dictionary.yml","data_dictionary.yml"),
-        DatasetItem("data/predictions.parquet","data/predictions.parquet"),
-        DatasetItem("data/events.parquet","data/events.parquet"),
-        DatasetItem("data/metadata.json","data/metadata.json"),
+        DatasetItem("config.yml", "config.yml"),
+        DatasetItem("usage_config.yml", "usage_config.yml"),
+        DatasetItem("data_dictionary.yml", "data_dictionary.yml"),
+        DatasetItem("data/predictions.parquet", "data/predictions.parquet"),
+        DatasetItem("data/events.parquet", "data/events.parquet"),
+        DatasetItem("data/metadata.json", "data/metadata.json"),
     ]
 
     if dataset_name not in datasets:
