@@ -302,24 +302,6 @@ class TestPerformanceMetrics:
         gt = pm.generate_color_bar(gt, data.columns)
         assert gt is not None
 
-    def test_add_coloring_parity(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
-        scores = ["score1", "score2"]
-        targets = ["target1", "target2"]
-
-        pm = PerformanceMetrics(df=df, score_columns=scores, target_columns=targets, metric="sensitivity")
-        data = pm._generate_table_data()
-        gt = pm.generate_initial_table(data)
-        gt = pm.add_coloring_parity(gt)
-        assert gt is not None
-
     def test_group_columns_by_metric_value(self, fake_seismo):
         df = pd.DataFrame(
             {
