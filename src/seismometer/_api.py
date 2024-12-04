@@ -12,6 +12,7 @@ from .controls.decorators import disk_cached_html_segment
 from .controls.explore import (
     ExplorationCohortOutcomeInterventionEvaluationWidget,
     ExplorationCohortSubclassEvaluationWidget,
+    ExplorationMetricWidget,
     ExplorationModelSubgroupEvaluationWidget,
     ExplorationScoreComparisonByCohortWidget,
     ExplorationSubpopulationWidget,
@@ -29,6 +30,7 @@ from .data import pandas_helpers as pdh
 from .data import score_target_cohort_summaries
 from .data.decorators import export
 from .data.filter import FilterRule
+from .data.performance import BinaryClassifierMetricGenerator
 from .data.timeseries import create_metric_timeseries
 from .html import template
 from .report.fairness import ExploreBinaryModelFairness as ExploreFairnessAudit
@@ -595,6 +597,46 @@ def plot_cohort_evaluation(
     )
 
 
+def get_model_scores(
+    dataframe: pd.DataFrame,
+    entity_keys: list[str],
+    score_col: str,
+    ref_time: Optional[str],
+    aggregation_method: str = "max",
+    per_context_id: bool = False,
+) -> pd.DataFrame:
+    """
+    Reduces a dataframe of all predictions to a single row of significance; such as the max or most recent value for
+    an entity.
+    Supports max/min for value only scores, and last/first if a reference timestamp is provided.
+
+    Parameters
+    ----------
+    merged_frame : pd.DataFrame
+        The dataframe with score and event data, such as those having an event added via merge_windowed_event.
+    pks : list[str]
+        A list of identifying keys on which to aggregate, such as Id.
+    score_col : str
+        The column name containing the score value.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    aggregation_method : str, optional
+        A string describing the method to select a value, by default 'max'.
+    per_context_id : bool, optional
+        If True, limits data to one row per context_id, by default False.
+
+    Returns
+    -------
+    pd.DataFrame
+        The reduced dataframe with one row per combination of pks.
+    """
+    if per_context_id:
+        return pdh.event_score(
+            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
+        )
+    return dataframe
+
+
 @disk_cached_html_segment
 def _plot_cohort_evaluation(
     dataframe: pd.DataFrame,
@@ -643,12 +685,13 @@ def _plot_cohort_evaluation(
     HTML
         _description_
     """
-    data = (
-        pdh.event_score(
-            dataframe, entity_keys, score=output, ref_event=ref_time, aggregation_method=aggregation_method
-        )
-        if per_context_id
-        else dataframe
+    data = get_model_scores(
+        dataframe,
+        entity_keys,
+        score_col=output,
+        ref_time=ref_time,
+        aggregation_method=aggregation_method,
+        per_context_id=per_context_id,
     )
 
     plot_data = get_cohort_performance_data(
@@ -784,12 +827,13 @@ def _model_evaluation(
     HTML
         Plot of model evaluation metrics
     """
-    data = (
-        pdh.event_score(
-            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
-        )
-        if per_context_id
-        else dataframe
+    data = get_model_scores(
+        dataframe,
+        entity_keys,
+        score_col=score_col,
+        ref_time=ref_time,
+        aggregation_method=aggregation_method,
+        per_context_id=per_context_id,
     )
 
     # Validate
@@ -1512,5 +1556,160 @@ class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeIntervention
 
 
 export(ExploreFairnessAudit)
+
+# endregion
+
+
+# region Explore Any Metric (NNT, etc)
+
+
+@disk_cached_html_segment
+@export
+def plot_binary_classifier_metrics(
+    metric_generator: BinaryClassifierMetricGenerator,
+    metrics: str | list[str],
+    cohort_dict: dict[str, tuple[Any]],
+    target: str,
+    score_column: str,
+    *,
+    per_context: bool = False,
+    table_only: bool = False,
+) -> HTML:
+    """
+    Generates a plot with model metrics.
+
+    Parameters
+    ----------
+    metric_generator: BinaryClassifierMetricGenerator
+        class that creates metrics for a model
+    metrics: str | list[str]
+        subset of metrics to display
+    cohort_dict : dict[str, tuple[Any]]
+        dictionary of cohort columns and values used to subselect a population for evaluation
+    target : str
+        name of the target
+    score_column : str
+        score column
+    per_context : bool, optional
+        if scores should be grouped, by default False
+    table_only : bool, optional
+        if only the table should be displayed, by default False
+
+    Returns
+    -------
+    HTML
+        an html visualization of the model evaluation metrics
+    """
+    sg = Seismogram()
+    cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
+    data = cohort_filter.filter(sg.dataframe)
+    target_event = pdh.event_value(target)
+    target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
+    return binary_classifier_metric_evaluation(
+        metric_generator,
+        metrics,
+        target_data,
+        sg.entity_keys,
+        target_event,
+        score_column,
+        sg.censor_threshold,
+        per_context,
+        sg.event_aggregation_method(target),
+        sg.predict_time,
+        table_only=table_only,
+    )
+
+
+def binary_classifier_metric_evaluation(
+    metric_generator: BinaryClassifierMetricGenerator,
+    metrics: str | list[str],
+    dataframe: pd.DataFrame,
+    entity_keys: list[str],
+    target: str,
+    score_col: str,
+    censor_threshold: int = 10,
+    per_context_id: bool = False,
+    aggregation_method: str = "max",
+    ref_time: str = None,
+    table_only: bool = False,
+) -> HTML:
+    """
+    plots common model evaluation metrics
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        source data
+    entity_keys : list[str]
+        columns to use for aggregation
+    target : str
+        target column
+    score_col : str
+        score column
+    censor_threshold : int, optional
+        minimum rows to allow in a plot, by default 10
+    per_context_id : bool, optional
+        report only the max score for a given entity context, by default False
+    aggregation_method : str, optional
+        method to reduce multiple scores into a single value before calculation of performance, by default "max"
+        ignored if per_context_id is False
+    ref_time : str, optional
+        reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
+    table_only : bool, optional
+        if only the table should be displayed, by default False
+
+    Returns
+    -------
+    HTML
+        Plot of model evaluation metrics
+    """
+
+    data = get_model_scores(
+        dataframe,
+        entity_keys,
+        score_col=score_col,
+        ref_time=ref_time,
+        aggregation_method=aggregation_method,
+        per_context_id=per_context_id,
+    )
+
+    # Validate
+    requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
+    data = requirements.filter(data)
+    if len(data.index) < censor_threshold:
+        return template.render_censored_plot_message(censor_threshold)
+    if (lcount := data[target].nunique()) != 2:
+        return template.render_title_message(
+            "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
+        )
+    if isinstance(metrics, str):
+        metrics = [metrics]
+
+    stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)
+
+    if table_only:
+        return HTML(stats[metrics].T.to_html())
+    return plot.binary_classifier.plot_metric_list(stats, metrics)
+
+
+@export
+class ExploreBinaryModelMetrics(ExplorationMetricWidget):
+    """
+    Explore the models performance metrics based on a selected metric.
+    """
+
+    def __init__(self, rho: Optional[float] = None):
+        """
+        Passes the plot function to the superclass.
+
+        Parameters
+        ----------
+
+        rho: float between 0 and 1
+           Probability of a treatment being effective
+        """
+        metric_generator = BinaryClassifierMetricGenerator(rho=rho)
+        super().__init__("Model Metric Evaluation", metric_generator, plot_binary_classifier_metrics)
+
 
 # endregion

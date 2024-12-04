@@ -19,6 +19,7 @@ Exploration APIs
    ExploreFairnessAudit
    ExploreModelScoreComparison
    ExploreModelTargetComparison
+   ExploreBinaryModelMetrics
    
 
 Public API
@@ -37,6 +38,7 @@ Public API
    plot_cohort_evaluation
    plot_cohort_hist
    plot_leadtime_enc
+   plot_binary_classifier_metrics
    plot_trend_intervention_outcome
    show_info
    show_cohort_summaries
@@ -61,6 +63,7 @@ Custom Visualization Controls
    explore.ExplorationCohortOutcomeInterventionEvaluationWidget
    explore.ExplorationScoreComparisonByCohortWidget
    explore.ExplorationTargetComparisonByCohortWidget
+   explore.ExplorationMetricWidget
 
 Example Notebook APIs
 ~~~~~~~~~~~~~~~~~~~~~
