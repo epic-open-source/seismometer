@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import numpy as np
 from numpy.typing import ArrayLike
-from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.metrics import auc
 
 from . import calculate_bin_stats
 
@@ -69,7 +69,7 @@ def calculate_stats(
             - 'Prevalence': Prevalence of positive samples.
             - 'AUROC': Area under the receiver operating characteristic curve.
             - 'AUPRC': Area under the precision-recall curve.
-            - Additional metrics (PPV, Flag Rate, Sensitivity, Specificity, Threshold).
+            - Additional metrics (PPV, Flag Rate, Sensitivity, Specificity, Threshold, etc.).
     """
     # Check if metric is a valid name.
     try:
@@ -85,21 +85,21 @@ def calculate_stats(
     metrics_to_display = metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.keys())
     _metrics_to_display_lower = [metric_to_display.lower() for metric_to_display in metrics_to_display]
 
+    stats = calculate_bin_stats(y_true, y_pred)
+
     # Calculate overall statistics
     if "positives" in _metrics_to_display_lower:
-        row_data["Positives"] = sum(y_true)
+        row_data["Positives"] = stats["TP"].iloc[-1]
     if "prevalence" in _metrics_to_display_lower:
-        row_data["Prevalence"] = sum(y_true) / len(y_true)
+        row_data["Prevalence"] = stats["TP"].iloc[-1] / len(y_true)
     if "auroc" in _metrics_to_display_lower:
-        row_data["AUROC"] = roc_auc_score(y_true, y_pred)
+        row_data["AUROC"] = auc(1 - stats["Specificity"], stats["Sensitivity"])
     if "auprc" in _metrics_to_display_lower:
-        row_data["AUPRC"] = average_precision_score(y_true, y_pred)
+        row_data["AUPRC"] = auc(stats["Sensitivity"], stats["PPV"])
 
     # Order/round metric values
     metric_values = sorted([round(num, decimals) for num in metric_values])
     metric_values = [0 if val == 0.0 else val for val in metric_values]
-
-    stats = calculate_bin_stats(y_true, y_pred)
 
     metric_data = stats[GENERATED_COLUMNS[metric]].to_numpy()
     thresholds = stats["Threshold"].to_numpy()
@@ -123,10 +123,3 @@ def calculate_stats(
             )
 
     return row_data
-
-
-def is_binary_array(arr):
-    # Convert the input to a NumPy array if it isn't already
-    arr = np.asarray(arr)
-    # Check if all elements are either 0 or 1
-    return np.all((arr == 0) | (arr == 1))
