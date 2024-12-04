@@ -51,7 +51,6 @@ Custom Visualization Controls
 .. autosummary::
    :toctree: api/
 
-
    explore.ExplorationWidget
    explore.ExplorationSubpopulationWidget
    explore.ExplorationModelSubgroupEvaluationWidget

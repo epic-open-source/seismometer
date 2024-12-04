@@ -1,12 +1,13 @@
-from typing import Any
+from typing import Any, Optional
 
 from IPython.display import HTML, display
 
 from seismometer.controls.decorators import disk_cached_html_segment
-from seismometer.controls.explore import ExplorationWidget  # noqa: F401
+from seismometer.controls.explore import ExplorationWidget  # noqa:
 from seismometer.controls.explore import (
     ExplorationCohortOutcomeInterventionEvaluationWidget,
     ExplorationCohortSubclassEvaluationWidget,
+    ExplorationMetricWidget,
     ExplorationModelSubgroupEvaluationWidget,
     ExplorationScoreComparisonByCohortWidget,
     ExplorationSubpopulationWidget,
@@ -14,10 +15,12 @@ from seismometer.controls.explore import (
 )
 from seismometer.core.decorators import export
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data.performance import BinaryClassifierMetricGenerator
 from seismometer.html import template
 from seismometer.seismogram import Seismogram
 
 from .plots import (
+    plot_binary_classifier_metrics,
     plot_cohort_evaluation,
     plot_cohort_group_histograms,
     plot_cohort_lead_time,
@@ -146,6 +149,24 @@ class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
             threshold_handling="min",
             ignore_grouping=True,
         )
+
+
+@export
+class ExploreBinaryModelMetrics(ExplorationMetricWidget):
+    """
+    Explore the models performance metrics based on a selected metric.
+    """
+
+    def __init__(self, rho: Optional[float] = None):
+        """
+        Passes the plot function to the superclass.
+        Parameters
+        ----------
+        rho: float between 0 and 1
+           Probability of a treatment being effective
+        """
+        metric_generator = BinaryClassifierMetricGenerator(rho=rho)
+        super().__init__("Model Metric Evaluation", metric_generator, plot_binary_classifier_metrics)
 
 
 @export

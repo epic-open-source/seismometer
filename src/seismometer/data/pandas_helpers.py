@@ -483,6 +483,44 @@ def event_score(
     return merged_frame.loc[ix]
 
 
+def get_model_scores(
+    dataframe: pd.DataFrame,
+    entity_keys: list[str],
+    score_col: str,
+    ref_time: Optional[str],
+    aggregation_method: str = "max",
+    per_context_id: bool = False,
+) -> pd.DataFrame:
+    """
+    Reduces a dataframe of all predictions to a single row of significance; such as the max or most recent value for
+    an entity.
+    Supports max/min for value only scores, and last/first if a reference timestamp is provided.
+    Parameters
+    ----------
+    merged_frame : pd.DataFrame
+        The dataframe with score and event data, such as those having an event added via merge_windowed_event.
+    pks : list[str]
+        A list of identifying keys on which to aggregate, such as Id.
+    score_col : str
+        The column name containing the score value.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    aggregation_method : str, optional
+        A string describing the method to select a value, by default 'max'.
+    per_context_id : bool, optional
+        If True, limits data to one row per context_id, by default False.
+    Returns
+    -------
+    pd.DataFrame
+        The reduced dataframe with one row per combination of pks.
+    """
+    if per_context_id:
+        return event_score(
+            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
+        )
+    return dataframe
+
+
 # region Core Methods
 def event_value(event: str) -> str:
     """Converts an event name into the value column name."""
