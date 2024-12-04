@@ -495,6 +495,7 @@ def get_model_scores(
     Reduces a dataframe of all predictions to a single row of significance; such as the max or most recent value for
     an entity.
     Supports max/min for value only scores, and last/first if a reference timestamp is provided.
+
     Parameters
     ----------
     merged_frame : pd.DataFrame
@@ -509,6 +510,7 @@ def get_model_scores(
         A string describing the method to select a value, by default 'max'.
     per_context_id : bool, optional
         If True, limits data to one row per context_id, by default False.
+
     Returns
     -------
     pd.DataFrame

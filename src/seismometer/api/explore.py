@@ -160,6 +160,7 @@ class ExploreBinaryModelMetrics(ExplorationMetricWidget):
     def __init__(self, rho: Optional[float] = None):
         """
         Passes the plot function to the superclass.
+
         Parameters
         ----------
         rho: float between 0 and 1
@@ -225,7 +226,6 @@ def cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
     ----------
     cohort_dict : dict[str, tuple[Any]]
         dictionary of cohort columns and values used to subselect a population for evaluation
-
 
     Returns
     -------

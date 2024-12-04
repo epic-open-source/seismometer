@@ -963,6 +963,7 @@ def plot_binary_classifier_metrics(
 ) -> HTML:
     """
     Generates a plot with model metrics.
+
     Parameters
     ----------
     metric_generator: BinaryClassifierMetricGenerator
@@ -979,6 +980,7 @@ def plot_binary_classifier_metrics(
         if scores should be grouped, by default False
     table_only : bool, optional
         if only the table should be displayed, by default False
+
     Returns
     -------
     HTML
@@ -1019,6 +1021,7 @@ def binary_classifier_metric_evaluation(
 ) -> HTML:
     """
     plots common model evaluation metrics
+
     Parameters
     ----------
     dataframe : pd.DataFrame
@@ -1040,6 +1043,7 @@ def binary_classifier_metric_evaluation(
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
     table_only : bool, optional
         if only the table should be displayed, by default False
+
     Returns
     -------
     HTML

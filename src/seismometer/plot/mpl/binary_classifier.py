@@ -414,6 +414,7 @@ def plot_metric_list(
         The table of performance metrics with the index being threshold percentiles.
     metrics : list[str]
         The performance metrics to plot, must be columns in the stats dataframe.
+
     Returns
     -------
     plt.Figure
