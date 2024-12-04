@@ -45,8 +45,8 @@ class Seismogram(object, metaclass=Singleton):
 
     def __init__(
         self,
-        config: ConfigProvider,
-        dataloader: SeismogramLoader,
+        config: ConfigProvider = None,
+        dataloader: SeismogramLoader = None,
     ):
         """
         Constructor for Seismogram, which can only be instantiated once.
@@ -61,6 +61,9 @@ class Seismogram(object, metaclass=Singleton):
             A loader instance for defining the data loading pipeline.
 
         """
+        if config is None or dataloader is None:
+            raise ValueError("Seismogram has not been initialized; requires Config and dataloader on initial call.")
+
         self.config = config
         self.dataloader = dataloader
 

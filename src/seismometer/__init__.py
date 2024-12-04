@@ -1,12 +1,18 @@
+# flake8: noqa: F403, F405 -- allow * from api
+import importlib.metadata
+
+# typing
 import logging
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 
-from seismometer._version import __version__
-from seismometer.configuration import ConfigProvider
-from seismometer.core.logger import add_log_formatter, set_default_logger_config
+# API
+from seismometer.api import *
+
+__version__ = importlib.metadata.version("seismometer")
+logger = logging.getLogger("seismometer")
 
 
 def run_startup(
@@ -47,17 +53,7 @@ def run_startup(
     reset : bool, optional
         A flag when True, will reset the Seismogram instance before loading configuration and data, by default False.
     """
-    import importlib
-
-    from seismometer.configuration import ConfigProvider
-    from seismometer.data.loader import loader_factory
-    from seismometer.seismogram import Seismogram
-
-    set_default_logger_config()
-
-    logger = logging.getLogger("seismometer")
-    add_log_formatter(logger)
-
+    _ = init_logger()
     logger.setLevel(log_level)
     logger.info(f"seismometer version {__version__} starting")
 
@@ -68,63 +64,3 @@ def run_startup(
     loader = loader_factory(config)
     sg = Seismogram(config, loader)
     sg.load_data(predictions=predictions_frame, events=events_frame)
-
-    # Surface api into namespace
-    s_module = importlib.import_module("seismometer._api")
-    globals().update(vars(s_module))
-
-
-def download_example_dataset(dataset_name: str, branch_name: str = "main"):  # pragma: no cover
-    """
-    Downloads an example dataset from the specified branch to local data/ directory.
-
-    Parameters
-    ----------
-        dataset_name : str
-            The name of the dataset to download.
-        branch_name : str, optional
-            The branch from which to download the dataset. Defaults to "main".
-
-    Raises
-    ------
-        ValueError
-            If the specified dataset is not available in the example datasets.
-    """
-
-    # This function does not depend on the seismometer initialization so singleton and loggers are not available.
-
-    import urllib.request
-    from collections import namedtuple
-    from pathlib import Path
-
-    DatasetItem = namedtuple("DatasetItem", ["source", "destination"])
-
-    datasets = {}
-
-    datasets["diabetes"] = [
-        DatasetItem("data_dictionary.yml", "data_dictionary.yml"),
-        DatasetItem("predictions.parquet", "data/predictions.parquet"),
-        DatasetItem("events.parquet", "data/events.parquet"),
-    ]
-
-    datasets["diabetes-v2"] = [
-        DatasetItem("config.yml", "config.yml"),
-        DatasetItem("usage_config.yml", "usage_config.yml"),
-        DatasetItem("data_dictionary.yml", "data_dictionary.yml"),
-        DatasetItem("data/predictions.parquet", "data/predictions.parquet"),
-        DatasetItem("data/events.parquet", "data/events.parquet"),
-        DatasetItem("data/metadata.json", "data/metadata.json"),
-    ]
-
-    if dataset_name not in datasets:
-        raise ValueError(f"Dataset {dataset_name} is not available in the example datasets.")
-
-    SOURCE_REPO = "epic-open-source/seismometer-data"
-    DATASET_SOURCE = f"https://raw.githubusercontent.com/{SOURCE_REPO}/refs/heads/{branch_name}/{dataset_name}"
-
-    Path("data").mkdir(parents=True, exist_ok=True)
-    for item in datasets[dataset_name]:
-        try:
-            _ = urllib.request.urlretrieve(f"{DATASET_SOURCE}/{item.source}", item.destination)
-        except urllib.error.ContentTooShortError:
-            print(f"Failed to download {item.source} from {DATASET_SOURCE}")

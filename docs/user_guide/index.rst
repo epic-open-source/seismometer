@@ -226,7 +226,7 @@ on a predetermined set while remaining aware of the others.
 
 This audit should be used by experts with a deep understanding of the
 model and the context in which the predictions are used. Even when a
-metric is flagged as a deviation in the fairness audit, the context 
+metric is flagged as a deviation in the fairness audit, the context
 might explain or even predict the difference. Like many
 concepts, a single parity concept can have several different names;
 notably, parity of true positive rate is equal opportunity, parity of
@@ -238,17 +238,17 @@ for each cohort attribute. The majority group is the
 baseline and a statistic for all observations in the other groups is
 compared. A fairness threshold such as 25% is then used to classify the
 ratio of each group to the reference. The metric of interest is calculated on the default
-group and the cohort under comparison. The resulting ratio (comparison/default) is then 
+group and the cohort under comparison. The resulting ratio (comparison/default) is then
 compared against the allowed bounds determined by the fairness threshold.
 The bound determined by 1 + threshold above, and 1 / (1 + threshold) below,
 so that a fairness threshold of 0.25 sets the upper bound at 1.25 times larger,
 or a 25% increase in the metric. Since the lower bound is checked
 with the reciprocal, this would result in a 20% decrease.
 
-The visualization is a table showing the overall metrics, and icons 
+The visualization is a table showing the overall metrics, and icons
 indicating default, within bounds, or out of bounds. Note that comparison
 across columns is not always exact due to potential differences in the
-included observations from missing information. 
+included observations from missing information.
 
 .. image:: media/fairness_table_binary_classifier.png
    :alt: A table of metrics showing variation across cohort subgroups
@@ -490,19 +490,16 @@ Then, follow the pattern of normal startup but specify your function in the :py:
 
 .. code-block:: python
 
-   from seismometer.configuration import ConfigProvider
-   from seismometer.data.loader import loader_factory
-   from seismometer.seismogram import Seismogram
-   import seismometer._api as sm
+   import seismometer as sm
 
-   def custom_post_load_fn(config: ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
+   def custom_post_load_fn(config: sm.ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
       df["SameAB"] = df["A"] == df["B"]
       return df
 
    def my_startup(config_path="."):
-      config = ConfigProvider(config_path)
+      config = sm.ConfigProvider(config_path)
       loader = loader_factory(config, post_load_fn=custom_post_load_fn)
-      sg = Seismogram(config, loader)
+      sg = sm.Seismogram(config, loader)
       sg.load_data()
 
 The benefit of this approach over manipulating the frame later is that the Seismogram can be considered frozen.
@@ -533,7 +530,7 @@ The following example shows how to create the visualization above.
    import matplotlib.pyplot as plt
 
    # Control allowing users to specify a score, target, threshold, and cohort.
-   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget
+   from seismometer.api.explore import ExplorationModelSubgroupEvaluationWidget
    # Converts matplotlib figure to SVG for display within the control's output
    from seismometer.plot.mpl.decorators import render_as_svg
    # Filter our data based on a specified cohort

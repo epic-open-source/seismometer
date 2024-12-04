@@ -3,266 +3,27 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from IPython.display import HTML, SVG, display
-from pandas.io.formats.style import Styler
+from IPython.display import HTML, SVG
 
 import seismometer.plot as plot
-
-from .controls.decorators import disk_cached_html_segment
-from .controls.explore import (
-    ExplorationCohortOutcomeInterventionEvaluationWidget,
-    ExplorationCohortSubclassEvaluationWidget,
-    ExplorationMetricWidget,
-    ExplorationModelSubgroupEvaluationWidget,
-    ExplorationScoreComparisonByCohortWidget,
-    ExplorationSubpopulationWidget,
-    ExplorationTargetComparisonByCohortWidget,
-)
-from .data import (
+from seismometer.controls.decorators import disk_cached_html_segment
+from seismometer.core.decorators import export
+from seismometer.data import get_cohort_data, get_cohort_performance_data
+from seismometer.data import pandas_helpers as pdh
+from seismometer.data.filter import FilterRule
+from seismometer.data.performance import (
+    BinaryClassifierMetricGenerator,
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
     calculate_eval_ci,
-    default_cohort_summaries,
-    get_cohort_data,
-    get_cohort_performance_data,
 )
-from .data import pandas_helpers as pdh
-from .data import score_target_cohort_summaries
-from .data.decorators import export
-from .data.filter import FilterRule
-from .data.performance import BinaryClassifierMetricGenerator
-from .data.timeseries import create_metric_timeseries
-from .html import template
-from .report.fairness import ExploreBinaryModelFairness as ExploreFairnessAudit
-from .report.profiling import ComparisonReportWrapper, SingleReportWrapper
-from .seismogram import Seismogram
+from seismometer.data.timeseries import create_metric_timeseries
+from seismometer.html import template
+from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 
 
-# region Reports
-@export
-def feature_alerts(exclude_cols: Optional[list[str]] = None):
-    """
-    Generates (or loads from disk) the `ydata-profiling` report feature quality alerts.
-
-    Note: Does not regenerate the report if one exists on disk.
-
-    Parameters
-    ----------
-    exclude_cols : Optional[list[str]], optional
-        Columns to exclude from profiling. If None, defaults to excluding the identifiers in the dataset,
-        by default None.
-    """
-    sg = Seismogram()
-    exclude_cols = exclude_cols or sg.entity_keys
-
-    SingleReportWrapper(
-        df=sg.dataframe,
-        output_path=sg.config.output_dir,
-        exclude_cols=exclude_cols,
-        title="Feature Report",
-        alert_config=sg.alert_config,
-    ).display_alerts()
-
-
-def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = False):
-    """
-    Generates (or loads from disk) the `ydata-profiling` report.
-
-    Note: Does not regenerate the report if one exists on disk.
-
-    Parameters
-    ----------
-    exclude_cols : Optional[list[str]], optional
-        Columns to exclude from profiling. If None, defaults to excluding the identifiers in the dataset,
-        by default None.
-    inline : bool, optional
-        If True, shows the `ydata-profiling` report inline, by default False; displaying a link instead.
-    """
-    sg = Seismogram()
-    exclude_cols = exclude_cols or sg.entity_keys
-
-    SingleReportWrapper(
-        df=sg.dataframe,
-        output_path=sg.config.output_dir,
-        exclude_cols=exclude_cols,
-        title="Feature Report",
-        alert_config=sg.alert_config,
-    ).display_report(inline)
-
-
-@export
-def cohort_comparison_report(exclude_cols: list[str] = None):
-    """
-    Generates (or loads from disk) the `ydata-profiling` report stratified by the selected cohort variable.
-
-    Note: Does not regenerate the report if one exists on disk.
-
-    Parameters
-    ----------
-    exclude_cols : Optional[list[str]], optional
-        Columns to exclude from profiling. If None, defaults to excluding the identifiers in the dataset,
-        by default None.
-    """
-    sg = Seismogram()
-    from .controls.cohort_comparison import ComparisonReportGenerator
-
-    comparison_selections = ComparisonReportGenerator(sg.available_cohort_groups, exclude_cols=exclude_cols)
-    comparison_selections.show()
-
-
-@export
-def target_feature_summary(exclude_cols: list[str] = None, inline=False):
-    """
-    Generates (or loads from disk) the `ydata-profiling` report stratified by the target variable.
-
-    Note: Does not regenerate the report if one exists on disk.
-
-    Parameters
-    ----------
-    exclude_cols : Optional[list[str]], optional
-        Columns to exclude from profiling. If None, defaults to excluding the identifiers in the dataset,
-        by default None.
-    inline : bool, optional
-        True to show the `ydata-profiling` report inline, by default False; displaying a link instead.
-    """
-    sg = Seismogram()
-
-    exclude_cols = exclude_cols or sg.entity_keys
-    positive_target = FilterRule.eq(sg.target, 1)
-    negative_target = ~positive_target
-
-    negative_target_df = negative_target.filter(sg.dataframe)
-    positive_target_df = positive_target.filter(sg.dataframe)
-
-    if negative_target_df.empty:
-        logger.warning("No comparison report generated. The negative target has no data to profile.")
-        return
-
-    if positive_target_df.empty:
-        logger.warning("No comparison report generated. The positive target has no data to profile.")
-        return
-
-    wrapper = ComparisonReportWrapper(
-        l_df=negative_target_df,
-        r_df=positive_target_df,
-        output_path=sg.output_path,
-        l_title=f"{sg.target}=0",
-        r_title=f"{sg.target}=1",
-        exclude_cols=exclude_cols,
-        base_title="Target Comparison Report",
-    )
-
-    wrapper.display_report(inline)
-
-
-# endregion
-
-# region notebook IPWidgets
-
-
-@export
-class ExploreSubgroups(ExplorationSubpopulationWidget):
-    """
-    Explore the models base statistics based on a selected subpopulation.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__("Subpopulation Statistics", cohort_list_details)
-
-
-@export
-def cohort_list():
-    """
-    Displays an exhaustive list of available cohorts for analysis.
-    """
-    sg = Seismogram()
-    from ipywidgets import Output, VBox
-
-    from .controls.selection import MultiSelectionListWidget
-    from .controls.styles import BOX_GRID_LAYOUT
-
-    options = sg.available_cohort_groups
-
-    comparison_selections = MultiSelectionListWidget(options, title="Cohort", show_all=True)
-    output = Output()
-
-    def on_widget_value_changed(*args):
-        with output:
-            display("Recalculating...", clear=True)
-            html = cohort_list_details(comparison_selections.value)
-            display(html, clear=True)
-
-    comparison_selections.observe(on_widget_value_changed, "value")
-
-    # get initial value
-    on_widget_value_changed()
-
-    return VBox(children=[comparison_selections, output], layout=BOX_GRID_LAYOUT)
-
-
-@disk_cached_html_segment
-@export
-def cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
-    """
-    Generates a HTML table of cohort details.
-
-    Parameters
-    ----------
-    cohort_dict : dict[str, tuple[Any]]
-        dictionary of cohort columns and values used to subselect a population for evaluation
-
-
-    Returns
-    -------
-    HTML
-        able indexed by targets, with counts of unique entities, and mean values of the output columns.
-    """
-    from .data.filter import filter_rule_from_cohort_dictionary
-
-    sg = Seismogram()
-    cfg = sg.config
-    target_cols = [pdh.event_value(x) for x in cfg.targets]
-    intervention_cols = [pdh.event_value(x) for x in cfg.interventions]
-    outcome_cols = [pdh.event_value(x) for x in cfg.outcomes]
-
-    rule = filter_rule_from_cohort_dictionary(cohort_dict)
-    data = rule.filter(sg.dataframe)[
-        cfg.entity_keys + cfg.output_list + intervention_cols + outcome_cols + target_cols
-    ]
-    cohort_count = data[sg.entity_keys[0]].nunique()
-    if cohort_count < sg.censor_threshold:
-        return template.render_censored_plot_message(sg.censor_threshold)
-
-    groups = data.groupby(target_cols)
-    float_cols = list(data[intervention_cols + outcome_cols].select_dtypes(include=float))
-
-    stat_dict = {k: ["mean"] for k in float_cols}
-    stat_dict.update({cfg.entity_id: ["nunique", "count"], cfg.context_id: ["nunique"]})
-
-    groupstats = groups.agg(stat_dict)
-    groupstats.columns = [pdh.event_name(x) for x in float_cols] + [
-        f"Unique {cfg.entity_id}",
-        f"{cfg.entity_id} Count",
-        f"Unique {cfg.context_id}",
-    ]
-    new_names = [pdh.event_name(x) for x in target_cols]
-    if len(new_names) == 1:
-        new_names = new_names[0]  # because pandas Index only accepts a string for rename.
-    groupstats.index.rename(new_names, inplace=True)
-    html_table = groupstats.to_html()
-    title = "Summary"
-    return template.render_title_message(title, html_table)
-
-
-# endregion
-
-
-# region plot accessors
 @export
 def plot_cohort_hist():
     """Display a histogram plot of predicted probabilities for all cohorts in the selected attribute."""
@@ -597,46 +358,6 @@ def plot_cohort_evaluation(
     )
 
 
-def get_model_scores(
-    dataframe: pd.DataFrame,
-    entity_keys: list[str],
-    score_col: str,
-    ref_time: Optional[str],
-    aggregation_method: str = "max",
-    per_context_id: bool = False,
-) -> pd.DataFrame:
-    """
-    Reduces a dataframe of all predictions to a single row of significance; such as the max or most recent value for
-    an entity.
-    Supports max/min for value only scores, and last/first if a reference timestamp is provided.
-
-    Parameters
-    ----------
-    merged_frame : pd.DataFrame
-        The dataframe with score and event data, such as those having an event added via merge_windowed_event.
-    pks : list[str]
-        A list of identifying keys on which to aggregate, such as Id.
-    score_col : str
-        The column name containing the score value.
-    ref_time : Optional[str], optional
-        The column name containing the time to consider, by default None.
-    aggregation_method : str, optional
-        A string describing the method to select a value, by default 'max'.
-    per_context_id : bool, optional
-        If True, limits data to one row per context_id, by default False.
-
-    Returns
-    -------
-    pd.DataFrame
-        The reduced dataframe with one row per combination of pks.
-    """
-    if per_context_id:
-        return pdh.event_score(
-            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
-        )
-    return dataframe
-
-
 @disk_cached_html_segment
 def _plot_cohort_evaluation(
     dataframe: pd.DataFrame,
@@ -685,7 +406,7 @@ def _plot_cohort_evaluation(
     HTML
         _description_
     """
-    data = get_model_scores(
+    data = pdh.get_model_scores(
         dataframe,
         entity_keys,
         score_col=output,
@@ -827,7 +548,7 @@ def _model_evaluation(
     HTML
         Plot of model evaluation metrics
     """
-    data = get_model_scores(
+    data = pdh.get_model_scores(
         dataframe,
         entity_keys,
         score_col=score_col,
@@ -859,6 +580,7 @@ def _model_evaluation(
     return template.render_title_with_image(title, svg)
 
 
+@export
 def plot_trend_intervention_outcome() -> HTML:
     """
     Plots two timeseries based on selectors; an outcome and then an intervention.
@@ -1100,211 +822,6 @@ def _plot_ts_cohort(
     )
 
 
-# endregion
-
-# region Templates
-
-
-def _get_info_dict(plot_help: bool) -> dict[str, str | list[str]]:
-    """
-    Gets the required data dictionary for the info template.
-
-    Parameters
-    ----------
-    plot_help : bool
-        If True, displays additional information about available plotting utilities, by default False.
-
-    Returns
-    -------
-    dict[str, str | list[str]]
-        The data dictionary.
-    """
-    sg = Seismogram()
-
-    info_vals = {
-        "tables": [
-            {
-                "name": "predictions",
-                "description": "Scores, features, configured demographics, and merged events for each prediction",
-                "num_rows": sg.prediction_count,
-                "num_cols": sg.feature_count,
-            }
-        ],
-        "num_predictions": sg.prediction_count,
-        "num_entities": sg.entity_count,
-        "start_date": sg.start_time.strftime("%Y-%m-%d"),
-        "end_date": sg.end_time.strftime("%Y-%m-%d"),
-        "plot_help": plot_help,
-    }
-
-    return info_vals
-
-
-@disk_cached_html_segment
-@export
-def show_info(plot_help: bool = False) -> HTML:
-    """
-    Displays information about the dataset
-
-    Parameters
-    ----------
-    plot_help : bool, optional
-        If True, displays additional information about available plotting utilities, by default False.
-    """
-
-    info_vals = _get_info_dict(plot_help)
-
-    return template.render_info_template(info_vals)
-
-
-def _style_cohort_summaries(df: pd.DataFrame, attribute: str) -> Styler:
-    """
-    Adds required styling to a cohort dataframe.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The output of default_cohort_summaries().
-    attribute : str
-        The display name of the cohort.
-
-    Returns
-    -------
-    Styler
-        Styled dataframe.
-    """
-    df.index = df.index.rename("Cohort")
-    style = df.style.format(precision=2)
-    style = style.format_index(precision=2)
-    return style.set_caption(f"Counts by {attribute}")
-
-
-def _score_target_levels_and_index(
-    selected_attribute: str, by_target: bool, by_score: bool
-) -> tuple[list[str], list[str], list[str]]:
-    """
-    Gets the summary levels for the cohort summary tables.
-
-    Parameters
-    ----------
-    selected_attribute : str
-        The name of the current attribute to generate summary levels for.
-    by_target : bool
-        If True, adds an additional summary table to break down the population by target prevalence.
-    by_score : bool
-        If True, adds an additional summary table to break down the population by model output.
-
-    Returns
-    -------
-    tuple[list[str], list[str], list[str]]
-        groupby_groups: The levels in the dataframe to groupby when summarizing
-        grab_groups: The columns in the dataframe to grab to summarize
-        index_rename: The display names for the indices
-    """
-    sg = Seismogram()
-
-    score_bins = sg.score_bins()
-    cut_bins = pd.cut(sg.dataframe[sg.output], score_bins)
-
-    groupby_groups = [selected_attribute]
-    grab_groups = [selected_attribute]
-    index_rename = ["Cohort"]
-
-    if by_score:
-        groupby_groups.append(cut_bins)
-        grab_groups.append(sg.output)
-        index_rename.append(sg.output)
-
-    if by_target:
-        groupby_groups.append(sg.target)
-        grab_groups.append(sg.target)
-        index_rename.append(sg.target.strip("_Value"))
-
-    return groupby_groups, grab_groups, index_rename
-
-
-def _style_score_target_cohort_summaries(df: pd.DataFrame, index_rename: list[str], cohort: str) -> Styler:
-    """
-    Adds required styling to a multiple summary level cohort summary dataframe.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The output of score_target_cohort_summaries.
-    index_rename : list[str]
-        The display names to put in the index from _score_target_levels_and_index().
-    cohort : str
-        The display name of the cohort.
-
-    Returns
-    -------
-    Styler
-        Styled dataframe.
-    """
-    df.index = df.index.rename(index_rename)
-    style = df.style.format(precision=2)
-    style = style.format_index(precision=2)
-    return style.set_caption(f"Counts by {cohort}")
-
-
-def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str, list[str]]:
-    """
-    Gets the formatted summary cohort dataframes to display in the cohort summary template.
-
-    Parameters
-    ----------
-    by_target : bool
-        If True, adds an additional summary table to break down the population by target prevalence.
-    by_score : bool
-        If True, adds an additional summary table to break down the population by model output.
-
-    Returns
-    -------
-    dict[str, list[str]]
-        The dictionary, indexed by cohort attribute (e.g. Race), of summary dataframes.
-    """
-    sg = Seismogram()
-
-    dfs: dict[str, list[str]] = {}
-
-    available_cohort_groups = sg.available_cohort_groups
-
-    for attribute, options in available_cohort_groups.items():
-        df = default_cohort_summaries(sg.dataframe, attribute, options, sg.config.entity_id)
-        styled = _style_cohort_summaries(df, attribute)
-
-        dfs[attribute] = [styled.to_html()]
-
-        if by_score or by_target:
-            groupby_groups, grab_groups, index_rename = _score_target_levels_and_index(attribute, by_target, by_score)
-
-            results = score_target_cohort_summaries(sg.dataframe, groupby_groups, grab_groups, sg.config.entity_id)
-            results_styled = _style_score_target_cohort_summaries(results, index_rename, attribute)
-
-            dfs[attribute].append(results_styled.to_html())
-
-    return dfs
-
-
-@disk_cached_html_segment
-@export
-def show_cohort_summaries(by_target: bool = False, by_score: bool = False) -> HTML:
-    """
-    Displays a table of selectable attributes and their associated counts.
-    Use `by_target` and `by_score` to add additional summary levels to the tables.
-
-    Parameters
-    ----------
-    by_target : bool, optional
-        If True, adds an additional summary table to break down the population by target prevalence, by default False.
-    by_score : bool, optional
-        If True, adds an additional summary table to break down the population by model output, by default False.
-    """
-    dfs = _get_cohort_summary_dataframes(by_target, by_score)
-
-    return template.render_cohort_summary_template(dfs)
-
-
 @disk_cached_html_segment
 @export
 def plot_model_score_comparison(
@@ -1431,138 +948,7 @@ def plot_model_target_comparison(
     return template.render_title_with_image(title, svg)
 
 
-# endregion
-
-# region Exploration Widgets
-
-
-@export
-class ExploreModelEvaluation(ExplorationModelSubgroupEvaluationWidget):
-    """
-    Exploration widget for model evaluation, showing model performance for a specific subpopulation.
-
-    This includes the ROC, recall vs predicted condition prevalence, calibration,
-    PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__("Model Performance", plot_model_evaluation)
-
-
-@export
-class ExploreModelScoreComparison(ExplorationScoreComparisonByCohortWidget):
-    """
-    Exploration widget for model evaluation, showing model performance for a specific subpopulation.
-
-    This includes the ROC, recall vs predicted condition prevalence, calibration,
-    PPV vs sensitivity, sensitivity/specificity/ppv, and a histogram.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__("Model Score Comparison", plot_model_score_comparison)
-
-
-@export
-class ExploreModelTargetComparison(ExplorationTargetComparisonByCohortWidget):
-    """
-    Exploration widget for model target evaluation, showing model performance for a specific subpopulation.
-
-    This includes the ROC, recall vs predicted condition prevalence, calibration,
-    PPV vs sensitivity, sensitivity/specificity/PPV, and a histogram.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__("Model Target Comparison", plot_model_target_comparison)
-
-
-@export
-class ExploreCohortEvaluation(ExplorationCohortSubclassEvaluationWidget):
-    """
-    Exploration widget for cohort evaluation, showing model performance across thresholds and cohort subgroups.
-
-    Creates a 2x3 grid of individual performance metrics across cohorts.
-
-    Plots include Sensitivity, Flag Rate, PPV, Specificity, NPV vs Thresholds.
-    Includes a legend with cohort size.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__("Cohort Group Performance", plot_cohort_evaluation)
-
-
-@export
-class ExploreCohortHistograms(ExplorationCohortSubclassEvaluationWidget):
-    """
-    Exploration widget to show the true positives and negative by model score.
-
-    Shows a distribution of scores for each category in a cohort group.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__(
-            "Cohort Group Score Histograms",
-            plot_cohort_group_histograms,
-            threshold_handling=None,
-            ignore_grouping=True,
-        )
-
-
-@export
-class ExploreCohortLeadTime(ExplorationCohortSubclassEvaluationWidget):
-    """
-    Exploration widget for the lead time between a model prediction and an event of interest.
-
-    Shows the amount of lead time for each category in the cohort group.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__(
-            "Leadtime Analysis",
-            plot_cohort_lead_time,
-            threshold_handling="min",
-            ignore_grouping=True,
-        )
-
-
-@export
-class ExploreCohortOutcomeInterventionTimes(ExplorationCohortOutcomeInterventionEvaluationWidget):
-    """
-    Exploration widget for viewing rates of interventions and outcomes across categories in a cohort group.
-    """
-
-    def __init__(self):
-        """
-        Passes the plot function to the superclass.
-        """
-        super().__init__("Outcome / Intervention Analysis", plot_intervention_outcome_timeseries)
-
-
-export(ExploreFairnessAudit)
-
-# endregion
-
-
 # region Explore Any Metric (NNT, etc)
-
-
 @disk_cached_html_segment
 @export
 def plot_binary_classifier_metrics(
@@ -1663,8 +1049,7 @@ def binary_classifier_metric_evaluation(
     HTML
         Plot of model evaluation metrics
     """
-
-    data = get_model_scores(
+    data = pdh.get_model_scores(
         dataframe,
         entity_keys,
         score_col=score_col,
@@ -1672,7 +1057,6 @@ def binary_classifier_metric_evaluation(
         aggregation_method=aggregation_method,
         per_context_id=per_context_id,
     )
-
     # Validate
     requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
     data = requirements.filter(data)
@@ -1684,32 +1068,10 @@ def binary_classifier_metric_evaluation(
         )
     if isinstance(metrics, str):
         metrics = [metrics]
-
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)
-
     if table_only:
         return HTML(stats[metrics].T.to_html())
     return plot.binary_classifier.plot_metric_list(stats, metrics)
-
-
-@export
-class ExploreBinaryModelMetrics(ExplorationMetricWidget):
-    """
-    Explore the models performance metrics based on a selected metric.
-    """
-
-    def __init__(self, rho: Optional[float] = None):
-        """
-        Passes the plot function to the superclass.
-
-        Parameters
-        ----------
-
-        rho: float between 0 and 1
-           Probability of a treatment being effective
-        """
-        metric_generator = BinaryClassifierMetricGenerator(rho=rho)
-        super().__init__("Model Metric Evaluation", metric_generator, plot_binary_classifier_metrics)
 
 
 # endregion

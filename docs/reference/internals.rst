@@ -65,6 +65,7 @@ Pandas Helpers
    pandas_helpers.event_score
    pandas_helpers.event_time
    pandas_helpers.event_value
+   pandas_helpers.get_model_scores
    pandas_helpers.post_process_event
    pandas_helpers.merge_windowed_event
    pandas_helpers.is_valid_event
