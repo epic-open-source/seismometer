@@ -63,8 +63,6 @@ Custom Visualization Controls
 Notebook and Configuration Helper APIs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. currentmodule:: seismometer.api
-
 .. autosummary::
    :toctree: api/
 
