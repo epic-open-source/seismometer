@@ -1,1 +1,0 @@
-Fixes scaling issue for binary classfier scores that use the range 0-100 rather than 0-1.
