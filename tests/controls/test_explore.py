@@ -254,6 +254,17 @@ class TestModelOptionsWidget:
         assert widget.per_context_checkbox.disabled
         assert widget.disabled
 
+    def test_disabled_by_list_size(self):
+        widget = undertest.ModelOptionsWidget(
+            target_names=["T1"], score_names=["S1"], thresholds={"T1": 0.1, "T2": 0.2}, per_context=False
+        )
+        widget.disabled = False
+        assert widget.target_list.disabled
+        assert widget.score_list.disabled
+        assert not widget.threshold_list.disabled
+        assert not widget.per_context_checkbox.disabled
+        assert not widget.disabled
+
 
 class TestModelOptionsAndCohortsWidget:
     def test_init(self):
@@ -388,6 +399,12 @@ class TestModelScoreComparisonOptionsWidget:
         assert widget.score_list.disabled
         assert widget.disabled
 
+    def test_disabled_by_list_size(self):
+        widget = undertest.ModelScoreComparisonOptionsWidget(target_names=["T1"], score_names=["S1", "S2"])
+        widget.disabled = False
+        assert widget.target_list.disabled  # only one target
+        assert not widget.disabled
+
     def test_init_per_context(self):
         widget = undertest.ModelScoreComparisonOptionsWidget(
             target_names=["T1", "T2"], score_names=["S1", "S2", "S3", "S4"], per_context=True
@@ -456,6 +473,12 @@ class TestModelTargetComparisonOptionsWidget:
         assert widget.score_list.disabled
         assert widget.per_context_checkbox.disabled
         assert widget.disabled
+
+    def test_disabled_by_list_size(self):
+        widget = undertest.ModelTargetComparisonOptionsWidget(target_names=["T1", "T2"], score_names=["S1"])
+        widget.disabled = False
+        assert widget.score_list.disabled  # only one score
+        assert not widget.disabled
 
 
 class TestModelScoreComparisonAndCohortsWidget:

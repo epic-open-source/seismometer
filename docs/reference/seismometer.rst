@@ -64,3 +64,13 @@ Custom Visualization Controls
    explore.ExplorationScoreComparisonByCohortWidget
    explore.ExplorationTargetComparisonByCohortWidget
    explore.ExplorationMetricWidget
+
+Example Notebook APIs
+~~~~~~~~~~~~~~~~~~~~~
+
+.. currentmodule:: seismometer.__init__
+
+.. autosummary::
+   :toctree: api/
+
+   download_example_dataset

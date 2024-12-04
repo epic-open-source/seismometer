@@ -17,6 +17,10 @@ from seismometer.data.performance import BinaryClassifierMetricGenerator, Metric
 
 logger = logging.getLogger("seismometer")
 
+COUNT = "Count"
+COHORT = "Cohort"
+CLASS = "Class"
+
 
 # region Fairness Icons
 class FairnessIcons(Enum):
@@ -33,25 +37,25 @@ class FairnessIcons(Enum):
     CRITICAL_LOW = "🔻"
 
     @classmethod
-    def get_fairness_legend(cls, limit: float = 0.25, *, open: bool = False, censor_threshold: int = 10) -> str:
+    def get_fairness_legend(cls, limit: float = 0.25, *, open: bool = True, censor_threshold: int = 10) -> str:
         return html(
             f"""
-<details {'open' if open else ''}><summary>Legend</summary>
+<details {'open' if open else ''}><summary><span style="font-size: 100%; font-weight: bold;">Legend</span></summary>
 <table>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.DEFAULT.value} the default cohort for the category</td>
-<td style="text-align: left;">{cls.GOOD.value} within {limit:.2%} of the default cohort</td>
+<td style="text-align: left;">{cls.DEFAULT.value} The default cohort for the category.</td>
+<td style="text-align: left;">{cls.GOOD.value} Within {limit:.2%} of the default cohort.</td>
 </tr>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.WARNING_LOW.value} within {2*limit:.2%} lower than the default cohort</td>
-<td style="text-align: left;">{cls.WARNING_HIGH.value} within {2*limit:.2%} greater than the default cohort</td>
+<td style="text-align: left;">{cls.WARNING_LOW.value} Within {2*limit:.2%} lower than the default cohort.</td>
+<td style="text-align: left;">{cls.WARNING_HIGH.value} Within {2*limit:.2%} greater than the default cohort.</td>
 </tr>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.CRITICAL_LOW.value} more than {2*limit:.2%} lower than the default cohort</td>
-<td style="text-align: left;">{cls.CRITICAL_HIGH.value} more than {2*limit:.2%} greater than the default cohort</td>
+<td style="text-align: left;">{cls.CRITICAL_LOW.value} More than {2*limit:.2%} lower than the default cohort.</td>
+<td style="text-align: left;">{cls.CRITICAL_HIGH.value} More than {2*limit:.2%} greater than the default cohort.</td>
 </tr>
 <tr style="background: none;">
-<td style="text-align: left;">{cls.UNKNOWN.value} fewer than {censor_threshold} observations, data was censored</td>
+<td style="text-align: left;">{cls.UNKNOWN.value} Censored, fewer than {censor_threshold} observations.</td>
 </tr>
 </details>"""
         )
@@ -127,7 +131,7 @@ def sort_fairness_table(dataframe: pd.DataFrame, cohort_groups: tuple[str]):
             case _:
                 return key
 
-    return dataframe.sort_values(by=["Cohort", "Count"], key=fairness_sort_key)
+    return dataframe.sort_values(by=[COHORT, COUNT], key=fairness_sort_key)
 
 
 def fairness_table(
@@ -196,20 +200,20 @@ def fairness_table(
             cohort_filter = FilterRule.eq(cohort_column, cohort_class)
             cohort_dataframe = cohort_filter.filter(dataframe)
 
-            index_value = {"Count": len(cohort_dataframe)}
+            index_value = {COUNT: len(cohort_dataframe)}
             metrics = metric_fn(cohort_dataframe, metric_list, **kwargs)
             index_value.update(metrics)
 
             cohort_values.append(index_value)
         cohort_data = pd.DataFrame.from_records(
-            cohort_values, index=pd.MultiIndex.from_tuples(cohort_indices, names=["Cohort", "Class"])
+            cohort_values, index=pd.MultiIndex.from_tuples(cohort_indices, names=[COHORT, CLASS])
         )
-        cohort_ratios = cohort_data.div(cohort_data.loc[cohort_data["Count"].idxmax()], axis=1)
+        cohort_ratios = cohort_data.div(cohort_data.loc[cohort_data[COUNT].idxmax()], axis=1)
 
-        cohort_icons = cohort_ratios.drop("Count", axis=1).applymap(
+        cohort_icons = cohort_ratios.drop(COUNT, axis=1).applymap(
             lambda ratio: FairnessIcons.get_fairness_icon(ratio, fairness_ratio)
         )
-        cohort_icons["Count"] = cohort_data["Count"]
+        cohort_icons[COUNT] = cohort_data[COUNT]
 
         fairness_groups.append(cohort_ratios)
         icon_groups.append(cohort_icons)
@@ -220,8 +224,8 @@ def fairness_table(
     fairness_icons = pd.concat(icon_groups)
 
     for cohort_column, cohort_class in metric_data.index:
-        if metric_data.loc[(cohort_column, cohort_class), "Count"] < censor_threshold:
-            fairness_icons.loc[(cohort_column, cohort_class), "Count"] = FairnessIcons.UNKNOWN.value
+        if metric_data.loc[(cohort_column, cohort_class), COUNT] < censor_threshold:
+            fairness_icons.loc[(cohort_column, cohort_class), COUNT] = FairnessIcons.UNKNOWN.value
             for metric in metric_list:
                 fairness_icons.loc[(cohort_column, cohort_class), metric] = FairnessIcons.UNKNOWN
                 metric_data.loc[(cohort_column, cohort_class), metric] = np.nan
@@ -238,23 +242,27 @@ def fairness_table(
 
     legend = FairnessIcons.get_fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
 
-    table_data = fairness_icons.reset_index()[["Cohort", "Class", "Count"] + metric_list]
+    table_data = fairness_icons.reset_index()[[COHORT, CLASS, COUNT] + metric_list]
     table_data = sort_fairness_table(table_data, list(cohort_dict.keys()))
 
     table_html = (
         GT(table_data)
-        .tab_stub(groupname_col="Cohort", rowname_col="Class")
+        .tab_stub(groupname_col=COHORT, rowname_col=CLASS)
+        .tab_style(
+            style=style.text(align="center"),
+            locations=loc.column_header(),
+        )
         .tab_style(
             style=style.borders(sides=["right"], weight="1px", color="#D3D3D3"),
-            locations=loc.body(columns=metric_list),
+            locations=loc.body(columns=[COUNT] + metric_list),
         )
-        .cols_align(align="left")
-        .cols_align(align="right", columns=["Count"])
         .tab_source_note(source_note=legend)
         .opt_horizontal_padding(scale=3)
         .tab_options(row_group_font_weight="bold")
+        .cols_align(align="left")
+        .cols_align(align="right", columns=[COUNT])
     ).as_raw_html()
-    return HTML(table_html)
+    return HTML(table_html, layout=Layout(max_height="800px"))
 
 
 # region Fairness Table Wrapper
