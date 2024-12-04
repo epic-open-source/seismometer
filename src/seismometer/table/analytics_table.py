@@ -1,6 +1,6 @@
 import itertools
 from enum import Enum
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import pandas as pd
 
@@ -14,7 +14,7 @@ from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 from seismometer.data import pandas_helpers as pdh
-from seismometer.data.binary_performance import GENERATED_COLUMNS, Metric, calculate_stats, is_binary_array
+from seismometer.data.binary_performance import GENERATED_COLUMNS, Metric, calculate_stats
 from seismometer.data.performance import (  # MetricGenerator,
     OVERALL_PERFORMANCE,
     STATNAMES,
@@ -109,15 +109,7 @@ class PerformanceMetrics:
         self.score_columns = score_columns if score_columns else sg.output_list
         self.target_columns = target_columns
         if sg.dataframe is not None:
-            self.target_columns = (
-                self.target_columns
-                if self.target_columns
-                else [
-                    pdh.event_value(target_col)
-                    for target_col in sg.target_cols
-                    if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
-                ]
-            )
+            self.target_columns = self.target_columns if self.target_columns else sg.get_binary_targets()
         self.statistics_data = statistics_data
         if self.df is None and self.statistics_data is None:
             raise ValueError("At least one of 'df' or 'statistics_data' needs to be provided.")
@@ -143,20 +135,6 @@ class PerformanceMetrics:
         self.rows_group_length = len(self.target_columns) if self.top_level == "Score" else len(self.score_columns)
         self.num_of_rows = len(self.score_columns) * len(self.target_columns)
         self.per_context = per_context
-
-        # If polars package is not installed, overwrite is_na function in great_tables package to treat Agnostic
-        # as pandas dataframe.
-        try:
-            import polars as pl
-
-            # Use 'pl' to avoid the F401 error
-            _ = pl.DataFrame()
-        except ImportError:
-            from great_tables._tbl_data import Agnostic, PdDataFrame, is_na
-
-            @is_na.register(Agnostic)
-            def _(df: PdDataFrame, x: Any) -> bool:
-                return pd.isna(x)
 
     def _validate_df_statistics_data(self):
         if not self._initializing:  # Skip validation during initial setup
@@ -506,15 +484,6 @@ def binary_analytics_table(
     HTML
         The HTML table for the fairness evaluation.
     """
-    from seismometer.seismogram import Seismogram
-
-    sg = Seismogram()
-    target_cols = [
-        pdh.event_value(target_col)
-        for target_col in target_cols
-        if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
-    ]
-
     table_config = AnalyticsTableConfig(**COLORING_CONFIG_DEFAULT)
     performance_metrics = PerformanceMetrics(
         df=None,
@@ -607,13 +576,11 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         sg = Seismogram()
         self.model_options_widget = model_options_widget
         self.title = title
-        self.binary_targets = [
-            target_col for target_col in target_cols if is_binary_array(sg.dataframe[[pdh.event_value(target_col)]])
-        ]
+
         # Multiple select dropdowns for targets and scores
         self._target_cols = MultiselectDropdownWidget(
-            self.binary_targets,
-            value=self.binary_targets,
+            sg.get_binary_targets(),
+            value=sg.get_binary_targets(),
             title="Targets",
         )
         self._score_cols = MultiselectDropdownWidget(
