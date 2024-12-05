@@ -304,7 +304,7 @@ def calculate_bin_stats(
         fpr = fps / total_negatives
 
         ppv = tps / (tps + fps)
-        ppv[np.isnan(ppv)] = 0
+        ppv[np.isnan(ppv)] = 1
 
         # TN / TN + FN
         npv = np.divide(tns, tns + fns)
