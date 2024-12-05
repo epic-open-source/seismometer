@@ -1,0 +1,14 @@
+other_info:
+  # Path to the file containing how to interpret data during run
+  usage_config: "usage_config.yml"
+  # Name of the template to use during generation
+  template: "feedback"
+  # Directory to write info from and for the notebook run
+  info_dir: "outputs"
+  # These two definitions define all the columns available
+  event_definition: "data_dictionary.yml"
+  prediction_definition: "data_dictionary.yml"
+  # These are the paths to the data itself; currently expect typed parquet
+  data_dir: "data"
+  prediction_path: "feedback.parquet"
+  metadata_path: "metadata.json"
