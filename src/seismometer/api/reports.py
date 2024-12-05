@@ -6,6 +6,7 @@ from seismometer.data.filter import FilterRule
 from seismometer.report.fairness import ExploreBinaryModelFairness
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from seismometer.seismogram import Seismogram
+from seismometer.table.analytics_table import ExploreBinaryModelAnalytics
 
 logger = logging.getLogger("seismometer")
 
@@ -17,6 +18,19 @@ class ExploreFairnessAudit(ExploreBinaryModelFairness):
 
     .. versionchanged:: 0.3.0
        Uses explore controls instead of aequitas report.
+    """
+
+    def __init__(self):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__()
+
+
+@export
+class ExploreAnalyticsTable(ExploreBinaryModelAnalytics):
+    """
+    Exploration widget for model comparison across cohorts / binary classifiers / targets.
     """
 
     def __init__(self):
