@@ -515,7 +515,7 @@ def binary_analytics_table(
     return performance_metrics.analytics_table()
 
 
-class ExploreAnalyticsTable(ExplorationWidget):
+class ExploreBinaryModelAnalytics(ExplorationWidget):
     def __init__(self, title: Optional[str] = None, *, per_context: bool = False):
         from seismometer.seismogram import Seismogram
 
