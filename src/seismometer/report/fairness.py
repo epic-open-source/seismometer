@@ -210,7 +210,7 @@ def fairness_table(
         )
         cohort_ratios = cohort_data.div(cohort_data.loc[cohort_data[COUNT].idxmax()], axis=1)
 
-        cohort_icons = cohort_ratios.drop(COUNT, axis=1).applymap(
+        cohort_icons = cohort_ratios.drop(COUNT, axis=1).map(
             lambda ratio: FairnessIcons.get_fairness_icon(ratio, fairness_ratio)
         )
         cohort_icons[COUNT] = cohort_data[COUNT]
@@ -231,13 +231,13 @@ def fairness_table(
                 metric_data.loc[(cohort_column, cohort_class), metric] = np.nan
                 fairness_data.loc[(cohort_column, cohort_class), metric] = np.nan
 
-    fairness_icons[metric_list] = fairness_icons[metric_list].applymap(
+    fairness_icons[metric_list] = fairness_icons[metric_list].map(
         lambda x: x.value if x != FairnessIcons.UNKNOWN else "--"
     )
     fairness_icons[metric_list] = (
         fairness_icons[metric_list]
-        + metric_data[metric_list].applymap(lambda x: f"  {x:.2f}  " if not np.isnan(x) else "")
-        + fairness_data[metric_list].applymap(lambda x: f"  ({x-1:.2%})  " if (np.isfinite(x) and x != 1.0) else "")
+        + metric_data[metric_list].map(lambda x: f"  {x:.2f}  " if not np.isnan(x) else "")
+        + fairness_data[metric_list].map(lambda x: f"  ({x-1:.2%})  " if (np.isfinite(x) and x != 1.0) else "")
     )
 
     legend = FairnessIcons.get_fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
