@@ -1,1 +1,0 @@
-Remove NotebookHost class that was no longer in use.

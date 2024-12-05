@@ -1,1 +1,0 @@
-Reorganize methods making initial import and public api more standard
