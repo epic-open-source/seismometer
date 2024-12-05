@@ -211,7 +211,7 @@ class TestMetricGenerator:
     def test_generate_metrics_empty_dataframe(self):
         metric = undertest.MetricGenerator(["test_metric"], lambda data, names: {"test_metric": 1})
         assert metric.metric_names == ["test_metric"]
-        assert metric(pd.DataFrame()) == {"test_metric": np.NaN}
+        assert metric(pd.DataFrame()) == {"test_metric": np.nan}
 
     def test_generate_named_metrics(self):
         metric = undertest.MetricGenerator(["metric1", "metric2"], lambda data, names: {name: 1 for name in names})

@@ -77,7 +77,7 @@ class MetricGenerator:
             raise ValueError(f"Invalid metric names: {set(metric_names) - set(self.metric_names)}")
         if len(dataframe) == 0:
             # Universal defaults, if no data frame, return NaN
-            return {name: np.NaN for name in metric_names}
+            return {name: np.nan for name in metric_names}
         full_metrics = self.delegate_call(dataframe, metric_names, **kwargs)
         filtered_metrics = {k: v for k, v in full_metrics.items() if k in metric_names}
         return filtered_metrics
