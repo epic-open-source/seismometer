@@ -132,8 +132,6 @@ class PerformanceMetrics:
         self.data_bar_stroke_width = table_config.data_bar_stroke_width
 
         self._initializing = False
-        self.rows_group_length = len(self.target_columns) if self.top_level == "Score" else len(self.score_columns)
-        self.num_of_rows = len(self.score_columns) * len(self.target_columns)
         self.per_context = per_context
         # If polars package is not installed, overwrite is_na function in great_tables package to treat Agnostic
         # as pandas dataframe.
@@ -273,6 +271,12 @@ class PerformanceMetrics:
                 decimals=self.decimals,
             )
             .fmt_percent(columns=self.columns_show_percentages, decimals=self.percentages_decimals)
+            .tab_style(
+                style=[
+                    style.text(align="center !important"),
+                ],
+                locations=loc.title(),
+            )
         )
         return gt
 
@@ -295,7 +299,7 @@ class PerformanceMetrics:
         for data_col, col in itertools.product(columns, self.columns_show_bar):
             if data_col.endswith(f"_{col}_bar") or data_col == f"{col}_bar":
                 gt = gt.fmt_nanoplot(
-                    f"{data_col}",
+                    data_col,
                     plot_type="bar",
                     options=nanoplot_options(
                         data_bar_fill_color=self.columns_show_bar[col],
@@ -349,10 +353,10 @@ class PerformanceMetrics:
             The table object with added borders.
         """
         gt = gt.tab_style(
-            style=style.borders(sides=["left"], weight="1px", color="lightgray"),
+            style=style.borders(sides=["left"], weight="1px", color="#D3D3D3"),
             locations=loc.body(columns=[left_column]),
         ).tab_style(
-            style=style.borders(sides=["right"], weight="1px", color="lightgray"),
+            style=style.borders(sides=["right"], weight="1px", color="#D3D3D3"),
             locations=loc.body(columns=[right_column]),
         )
         return gt
@@ -367,13 +371,12 @@ class PerformanceMetrics:
             A `GT` (from great_tables package) object representing the formatted analytics table.
         """
         data = self._generate_table_data()
-        data = self._prepare_data(data)
-        self.rows_group_length = len(self.target_columns) if self.top_level == "Score" else len(self.score_columns)
-        self.num_of_rows = len(self.score_columns) * len(self.target_columns)
+        data = self._prepare_data(data) if self.columns_show_bar else data
 
         gt = self.generate_initial_table(data)
 
-        gt = self.generate_color_bar(gt, columns=data.columns)
+        if self.columns_show_bar:
+            gt = self.generate_color_bar(gt, columns=data.columns)
 
         # Group columns of the form value_*** together
         grouped_columns = []
@@ -382,14 +385,30 @@ class PerformanceMetrics:
             gt = self.group_columns_by_metric_value(gt, columns, value)
             grouped_columns.extend(columns)
 
-        # If a column is not yet grouped and col_bar has been generated, group them together
+        # If a column is not grouped by a metric value and col_bar has been generated (col and col_bar
+        # are grouped together), add borders to the sides.
         for col in self.columns_show_bar:
             if col not in grouped_columns and f"{col}_bar" in data.columns:
                 gt = self.add_borders(gt, col, f"{col}_bar")
 
-        gt = gt.opt_horizontal_padding(scale=3).tab_options(row_group_font_weight="bold")
+        gt = (
+            gt.opt_horizontal_padding(scale=3)
+            .tab_options(row_group_font_weight="bold")
+            .tab_style(
+                style=[
+                    style.text(align="center !important"),
+                ],
+                locations=loc.column_header(),
+            )
+            .tab_style(
+                style=[
+                    style.text(align="center !important"),
+                ],
+                locations=loc.body(),
+            )
+        )
 
-        return HTML(gt.as_raw_html())
+        return HTML(gt.as_raw_html(), layout=Layout(max_height="800px"))
 
     def _prepare_data(self, data):
         """
@@ -485,7 +504,7 @@ def binary_analytics_table(
     group_by: str,
     *,
     title: str = None,
-    per_context=False,
+    per_context: bool = False,
 ) -> HTML:
     """
     Binary fairness metrics table
@@ -507,7 +526,7 @@ def binary_analytics_table(
         metric=metric,
         metric_values=metric_values,
         metrics_to_display=metrics_to_display,
-        title=title if title else "Model Performance Statistics",
+        title=title or "Model Performance Statistics",
         top_level=group_by,
         table_config=table_config,
         per_context=per_context,
@@ -527,7 +546,7 @@ class ExploreBinaryModelAnalytics(ExplorationWidget):
         super().__init__(
             title="Model Performance Comparison",
             option_widget=AnalyticsTableOptionsWidget(
-                sg.target_cols,
+                sg.get_binary_targets(),
                 sg.output_list,
                 metric="Threshold",
                 metric_values=None,
@@ -595,7 +614,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         # Multiple select dropdowns for targets and scores
         self._target_cols = MultiselectDropdownWidget(
             sg.get_binary_targets(),
-            value=sg.get_binary_targets(),
+            value=target_cols or sg.get_binary_targets(),
             title="Targets",
         )
         self._score_cols = MultiselectDropdownWidget(
@@ -618,7 +637,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             min=0.01,
             max=1.00,
             step=0.01,
-            value=metric_values if metric_values else [0.2, 0.8],
+            value=metric_values or [0.2, 0.8],
             description="Metric Values",
             style=WIDE_LABEL_STYLE,
         )
@@ -648,7 +667,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             v_children.insert(0, model_options_widget)
             self.model_options_widget.observe(self._on_value_changed, names="value")
 
-        grid_layout = Layout(width="100%", grid_template_columns="repeat(3, 1fr)", grid_gap="10px")  # Four columns
+        grid_layout = Layout(width="100%", grid_template_columns="repeat(3, 1fr)", grid_gap="10px")  # Three columns
 
         # Create a GridBox with the specified layout
         grid_box = GridBox(children=v_children, layout=grid_layout)

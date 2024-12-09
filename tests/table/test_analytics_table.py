@@ -112,8 +112,6 @@ class TestPerformanceMetrics:
         assert pm.columns_show_bar == {"AUROC": "lightblue", "PPV": "lightgreen"}
         assert pm.percentages_decimals == 0
         assert pm.data_bar_stroke_width == 4
-        assert pm.rows_group_length == len(targets)
-        assert pm.num_of_rows == len(scores) * len(targets)
         assert pm.statistics_data.equals(statistics_data)
 
     def test_invalid_metric(self, fake_seismo):

@@ -249,7 +249,7 @@ def fairness_table(
         GT(table_data)
         .tab_stub(groupname_col=COHORT, rowname_col=CLASS)
         .tab_style(
-            style=style.text(align="center"),
+            style=style.text(align="center !important"),
             locations=loc.column_header(),
         )
         .tab_style(
@@ -259,8 +259,18 @@ def fairness_table(
         .tab_source_note(source_note=legend)
         .opt_horizontal_padding(scale=3)
         .tab_options(row_group_font_weight="bold")
-        .cols_align(align="left")
-        .cols_align(align="right", columns=[COUNT])
+        .tab_style(
+            style=[
+                style.text(align="left !important"),
+            ],
+            locations=loc.body(),
+        )
+        .tab_style(
+            style=[
+                style.text(align="right !important"),
+            ],
+            locations=loc.body(columns=[COUNT]),
+        )
     ).as_raw_html()
     return HTML(table_html, layout=Layout(max_height="800px"))
 
