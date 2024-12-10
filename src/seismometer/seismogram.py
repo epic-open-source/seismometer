@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
@@ -375,5 +376,18 @@ class Seismogram(object, metaclass=Singleton):
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
+
+    def _is_binary_array(self, arr):
+        # Convert the input to a NumPy array if it isn't already
+        arr = np.asarray(arr)
+        # Check if all elements are either 0 or 1
+        return np.all((arr == 0) | (arr == 1))
+
+    def get_binary_targets(self):
+        return [
+            pdh.event_value(target_col)
+            for target_col in self.target_cols
+            if self._is_binary_array(self.dataframe[[pdh.event_value(target_col)]])
+        ]
 
     # endregion
