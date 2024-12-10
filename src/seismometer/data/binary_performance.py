@@ -16,7 +16,7 @@ GENERATED_COLUMNS = {
     "ppv": "PPV",
     "sensitivity": "Sensitivity",
     "specificity": "Specificity",
-    "flagged": "Flag Rate",
+    "flagrate": "Flag Rate",
     "threshold": "Threshold",
 }
 
@@ -28,7 +28,7 @@ class Metric(Enum):
 
     Sensitivity = "sensitivity"
     Specificity = "specificity"
-    Flagged = "flagged"
+    FlagRate = "flagrate"
     Threshold = "threshold"
 
 
