@@ -10,7 +10,7 @@ from great_tables import GT, loc, nanoplot_options, style
 from ipywidgets import HTML, Box, Dropdown, FloatRangeSlider, GridBox, Layout
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
-from seismometer.controls.explore import ExplorationWidget
+from seismometer.controls.explore import ExplorationWidget, _combine_scores_checkbox
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 from seismometer.data import pandas_helpers as pdh
@@ -24,6 +24,8 @@ from seismometer.data.performance import (  # MetricGenerator,
 from seismometer.seismogram import Seismogram
 
 from .analytics_table_config import COLORING_CONFIG_DEFAULT, AnalyticsTableConfig
+
+# region Analytics Table
 
 
 class TopLevel(Enum):
@@ -495,6 +497,10 @@ class PerformanceMetrics:
         return data
 
 
+# endregion
+# region Analytics Table Wrapper
+
+
 def binary_analytics_table(
     target_cols: list[str],
     score_cols: list[str],
@@ -534,6 +540,10 @@ def binary_analytics_table(
     return performance_metrics.analytics_table()
 
 
+# endregion
+# region Analytics Table Controls
+
+
 class ExploreBinaryModelAnalytics(ExplorationWidget):
     def __init__(self, title: Optional[str] = None, *, per_context: bool = False):
         from seismometer.seismogram import Seismogram
@@ -567,7 +577,7 @@ class ExploreBinaryModelAnalytics(ExplorationWidget):
             list(self.option_widget.metrics_to_display),  # Updated to use metrics_to_display
             self.option_widget.group_by,  # Updated to use group_by
         )
-        kwargs = {"title": self.title, "per_context": self.per_context}
+        kwargs = {"title": self.title, "per_context": self.option_widget.group_scores}
         return args, kwargs
 
 
@@ -647,6 +657,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             description="Group By",
             style=WIDE_LABEL_STYLE,
         )
+        self.per_context_checkbox = _combine_scores_checkbox(per_context=False)
 
         self._target_cols.observe(self._on_value_changed, names="value")
         self._score_cols.observe(self._on_value_changed, names="value")
@@ -654,6 +665,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         self._metric_values_slider.observe(self._on_value_changed, names="value")
         self._metrics_to_display.observe(self._on_value_changed, names="value")
         self._group_by.observe(self._on_value_changed, names="value")
+        self.per_context_checkbox.observe(self._on_value_changed, names="value")
 
         v_children = [
             self._target_cols,
@@ -662,6 +674,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             self._metric,
             self._metric_values_slider,
             self._group_by,
+            self.per_context_checkbox,
         ]
         if model_options_widget:
             v_children.insert(0, model_options_widget)
@@ -693,6 +706,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         self._metric_values_slider.disabled = value
         self._metrics_to_display.disabled = value
         self._group_by.disabled = value
+        self.per_context_checkbox.disabled = value
         if self.model_options_widget:
             self.model_options_widget.disabled = value
 
@@ -704,6 +718,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             "metric_values": self._metric_values_slider.value,
             "metrics_to_display": self._metrics_to_display.value,
             "group_by": self._group_by.value,
+            "group_scores": self.per_context_checkbox.value,
         }
         if self.model_options_widget:
             new_value["model_options"] = self.model_options_widget.value
@@ -732,3 +747,10 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
     @property
     def group_by(self):
         return self._group_by.value
+
+    @property
+    def group_scores(self):
+        return self.per_context_checkbox.value
+
+
+# endregion
