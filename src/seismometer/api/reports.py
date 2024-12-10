@@ -3,10 +3,10 @@ from typing import Optional
 
 from seismometer.core.decorators import export
 from seismometer.data.filter import FilterRule
-from seismometer.report.fairness import ExploreBinaryModelFairness
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from seismometer.seismogram import Seismogram
 from seismometer.table.analytics_table import ExploreBinaryModelAnalytics
+from seismometer.table.fairness import ExploreBinaryModelFairness
 
 logger = logging.getLogger("seismometer")
 

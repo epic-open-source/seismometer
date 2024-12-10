@@ -60,7 +60,7 @@ def fake_seismo(tmp_path):
     loader = get_test_loader(config)
     sg = Seismogram(config, loader)
     sg.dataframe = get_test_data()
-    yield
+    yield sg
 
     Seismogram.kill()
 
@@ -128,7 +128,7 @@ class TestPerformanceMetrics:
         with pytest.raises(
             ValueError,
             match="Invalid metric name: invalid_metric. The metric needs to be one of: "
-            "\\['sensitivity', 'specificity', 'flagged', 'threshold'\\]",
+            "\\['sensitivity', 'specificity', 'flagrate', 'threshold'\\]",
         ):
             table_config = AnalyticsTableConfig()
             PerformanceMetrics(
