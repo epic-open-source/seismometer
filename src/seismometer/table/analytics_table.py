@@ -25,16 +25,16 @@ from .analytics_table_config import COLORING_CONFIG_DEFAULT, AnalyticsTableConfi
 
 class TopLevel(Enum):
     """
-    Enumeration for available values for top_level parameter in PerformanceMetrics class.
+    Enumeration for available values for top_level parameter in AnalyticsTable class.
     """
 
     Score = "score"
     Target = "target"
 
 
-class PerformanceMetrics:
+class AnalyticsTable:
     """
-    A class to calculate and provide overall performance statistics and threshold-specific statistics
+    A class to provide a table that displays overall performance statistics and threshold-specific statistics
     across a list of models (scores) and targets.
     """
 
@@ -58,7 +58,7 @@ class PerformanceMetrics:
         per_context: bool = False,
     ):
         """
-        Initializes the PerformanceMetrics object with the necessary data and parameters.
+        Initializes the AnalyticsTable object with the necessary data and parameters.
 
         Parameters
         ----------
@@ -102,7 +102,7 @@ class PerformanceMetrics:
         self.df = sg.dataframe
         self.score_columns = score_columns or sg.output_list
         self.target_columns = target_columns
-        if sg.dataframe is not None:
+        if sg.dataframe is not None and sg.target_cols:
             self.target_columns = self.target_columns or sg.get_binary_targets()
         self.statistics_data = statistics_data
         if self.df is None and self.statistics_data is None:
@@ -323,6 +323,7 @@ class PerformanceMetrics:
         gt : GT
             The table object with grouped columns and added borders.
         """
+        value = value * 100 if self.metric.lower() == "threshold" else value
         gt = gt.tab_spanner(label=f"{self.metric}={value}", columns=columns).cols_label(
             **{col: "_".join(col.split("_")[1:]) for col in columns}
         )
@@ -517,7 +518,7 @@ def binary_analytics_table(
         The HTML table for the fairness evaluation.
     """
     table_config = AnalyticsTableConfig(**COLORING_CONFIG_DEFAULT)
-    performance_metrics = PerformanceMetrics(
+    performance_metrics = AnalyticsTable(
         score_columns=score_cols,
         target_columns=target_cols,
         metric=metric,
