@@ -14,13 +14,8 @@ from seismometer.controls.explore import ExplorationWidget, _combine_scores_chec
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 from seismometer.data import pandas_helpers as pdh
-from seismometer.data.binary_performance import GENERATED_COLUMNS, Metric, calculate_stats
-from seismometer.data.performance import (  # MetricGenerator,
-    OVERALL_PERFORMANCE,
-    STATNAMES,
-    THRESHOLD,
-    BinaryClassifierMetricGenerator,
-)
+from seismometer.data.binary_performance import GENERATED_COLUMNS, MonotonicMetric, calculate_stats
+from seismometer.data.performance import OVERALL_PERFORMANCE, STATNAMES, THRESHOLD, BinaryClassifierMetricGenerator
 from seismometer.seismogram import Seismogram
 
 from .analytics_table_config import COLORING_CONFIG_DEFAULT, AnalyticsTableConfig
@@ -50,7 +45,6 @@ class PerformanceMetrics:
 
     def __init__(
         self,
-        df: Optional[pd.DataFrame] = None,
         score_columns: Optional[List[str]] = None,
         target_columns: Optional[List[str]] = None,
         *,
@@ -68,8 +62,6 @@ class PerformanceMetrics:
 
         Parameters
         ----------
-        df: Optional[pd.DataFrame]
-            The DataFrame containing the model's predictions and targets, by default None.
         score_columns: Optional[List[str]]
             A list of column names corresponding to model prediction scores to be evaluated, by default None.
         target_columns: Optional[List[str]]
@@ -107,11 +99,11 @@ class PerformanceMetrics:
             If the provided top_level name is not "Score" or "Target".
         """
         sg = Seismogram()
-        self.df = df if df is not None else sg.dataframe
-        self.score_columns = score_columns if score_columns else sg.output_list
+        self.df = sg.dataframe
+        self.score_columns = score_columns or sg.output_list
         self.target_columns = target_columns
         if sg.dataframe is not None:
-            self.target_columns = self.target_columns if self.target_columns else sg.get_binary_targets()
+            self.target_columns = self.target_columns or sg.get_binary_targets()
         self.statistics_data = statistics_data
         if self.df is None and self.statistics_data is None:
             raise ValueError("At least one of 'df' or 'statistics_data' needs to be provided.")
@@ -204,11 +196,11 @@ class PerformanceMetrics:
     @metric.setter
     def metric(self, value):
         try:
-            self._metric = Metric(value.lower()).name
+            self._metric = MonotonicMetric(value.lower()).name
         except ValueError as e:
             raise ValueError(
                 f"Invalid metric name: {value}. The metric needs to be one of: "
-                f"{[member.value for member in Metric]}"
+                f"{[member.value for member in MonotonicMetric]}"
             ) from e
 
     @property
@@ -526,7 +518,6 @@ def binary_analytics_table(
     """
     table_config = AnalyticsTableConfig(**COLORING_CONFIG_DEFAULT)
     performance_metrics = PerformanceMetrics(
-        df=None,
         score_columns=score_cols,
         target_columns=target_cols,
         metric=metric,
@@ -633,7 +624,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             title="Scores",
         )
         self._metric = Dropdown(
-            options=["Threshold"] + [val.name for val in Metric],
+            options=["Threshold"] + [val.name for val in MonotonicMetric],
             value=metric,
             description="Metric",
             style=WIDE_LABEL_STYLE,
