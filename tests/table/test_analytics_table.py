@@ -16,7 +16,8 @@ def get_test_config(tmp_path):
     mock_config.output_dir.return_value
     mock_config.events = {
         "event1": Event(source="event1", display_name="event1", window_hr=1),
-        "event2": Event(source="event1", display_name="event1", window_hr=2, aggregation_method="min"),
+        "event2": Event(source="event2", display_name="event2", window_hr=2, aggregation_method="min"),
+        "event3": Event(source="event3", display_name="event3", window_hr=1),
     }
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity"]
@@ -25,7 +26,7 @@ def get_test_config(tmp_path):
     mock_config.features = ["one"]
     mock_config.config_dir = tmp_path / "config"
     mock_config.censor_min_count = 0
-    mock_config.targets = ["event1"]
+    mock_config.targets = ["event1", "event2", "event3"]
     mock_config.output_list = ["prediction"]
 
     return mock_config
@@ -48,6 +49,8 @@ def get_test_data():
             "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2021-12-31"],
             "event2_Value": [0, 1, 0, 1],
             "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "event3_Value": [0, 2, 5, 1],
+            "event3_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "cohort1": [1, 0, 1, 0],
             "cohort2": [0, 1, 0, 1],
         }
@@ -67,14 +70,6 @@ def fake_seismo(tmp_path):
 
 class TestPerformanceMetrics:
     def test_initialization(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
         statistics_data = pd.DataFrame(
             {
                 "Score": ["score1", "score1", "score2", "score2"],
@@ -91,7 +86,6 @@ class TestPerformanceMetrics:
             columns_show_percentages=["Prevalence"],
         )
         pm = PerformanceMetrics(
-            df=df,
             score_columns=scores,
             target_columns=targets,
             metric="sensitivity",
@@ -100,7 +94,6 @@ class TestPerformanceMetrics:
             table_config=table_config,
         )
 
-        assert pm.df.equals(df)
         assert pm.score_columns == scores
         assert pm.target_columns == targets
         assert pm.metric == "Sensitivity"
@@ -115,35 +108,15 @@ class TestPerformanceMetrics:
         assert pm.statistics_data.equals(statistics_data)
 
     def test_invalid_metric(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
-        scores = ["score1", "score2"]
-        targets = ["target1", "target2"]
         with pytest.raises(
             ValueError,
             match="Invalid metric name: invalid_metric. The metric needs to be one of: "
             "\\['sensitivity', 'specificity', 'flagrate', 'threshold'\\]",
         ):
             table_config = AnalyticsTableConfig()
-            PerformanceMetrics(
-                metric="invalid_metric", df=df, score_columns=scores, target_columns=targets, table_config=table_config
-            )
+            PerformanceMetrics(metric="invalid_metric", table_config=table_config)
 
     def test_invalid_top_level(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
         metric_values = [0.7, 0.8]
@@ -153,7 +126,6 @@ class TestPerformanceMetrics:
             "The top_level needs to be one of: \\['score', 'target'\\]",
         ):
             PerformanceMetrics(
-                df=df,
                 score_columns=scores,
                 target_columns=targets,
                 metric="sensitivity",
@@ -177,30 +149,22 @@ class TestPerformanceMetrics:
             }
         )
         sg = Seismogram()
-        sg.dataframe = None
+        sg.dataframe = df
         sg.output_list = None
         with pytest.raises(
             ValueError,
             match="When df is provided, both 'score_columns' and 'target_columns' need " "to be provided as well.",
         ):
-            PerformanceMetrics(df=df, target_columns=["target1", "target2"], metric="sensitivity")
+            PerformanceMetrics(target_columns=["target1", "target2"], metric="sensitivity")
 
     def test_non_empty_df_empty_targets(self, fake_seismo):
-        df = pd.DataFrame(
-            {
-                "score1": [0.1, 0.4, 0.35, 0.8],
-                "score2": [0.2, 0.5, 0.3, 0.7],
-                "target1": [0, 1, 0, 1],
-                "target2": [1, 0, 1, 0],
-            }
-        )
         sg = Seismogram()
-        sg.dataframe = None
+        sg.config.targets = ["event3"]
         with pytest.raises(
             ValueError,
             match="When df is provided, both 'score_columns' and 'target_columns' " "need to be provided as well.",
         ):
-            PerformanceMetrics(df=df, score_columns=["score1", "score2"], metric="sensitivity")
+            PerformanceMetrics(score_columns=["score1", "score2"], metric="sensitivity")
 
     def test_analytics_table_with_statistics_data(self, fake_seismo):
         df = pd.DataFrame(
@@ -219,11 +183,12 @@ class TestPerformanceMetrics:
                 "extra-stats-2": [0.6, 0.7, 0.55, 0.75],
             }
         )
+        sg = Seismogram()
+        sg.dataframe = df
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
         metric_values = [0.7, 0.8]
         pm = PerformanceMetrics(
-            df=df,
             score_columns=scores,
             target_columns=targets,
             metric="sensitivity",
@@ -259,7 +224,9 @@ class TestPerformanceMetrics:
         )
         scores = ["score1", "score2"]
         targets = ["target1", "target2", "target3"]
-        pm = PerformanceMetrics(df=df, score_columns=scores, target_columns=targets, metric="sensitivity")
+        sg = Seismogram()
+        sg.dataframe = df
+        pm = PerformanceMetrics(score_columns=scores, target_columns=targets, metric="sensitivity")
         data = pm._generate_table_data()
         gt = pm.generate_initial_table(data)
         assert gt is not None
@@ -276,9 +243,9 @@ class TestPerformanceMetrics:
         )
         scores = ["score1", "score2"]
         targets = ["target1", "target2", "target3"]
-        pm = PerformanceMetrics(
-            df=df, score_columns=scores, target_columns=targets, top_level="Target", metric="sensitivity"
-        )
+        sg = Seismogram()
+        sg.dataframe = df
+        pm = PerformanceMetrics(score_columns=scores, target_columns=targets, top_level="Target", metric="sensitivity")
         data = pm._generate_table_data()
         gt = pm.generate_initial_table(data)
         assert gt is not None
@@ -294,7 +261,9 @@ class TestPerformanceMetrics:
         )
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
-        pm = PerformanceMetrics(df=df, score_columns=scores, target_columns=targets, metric="sensitivity")
+        sg = Seismogram()
+        sg.dataframe = df
+        pm = PerformanceMetrics(score_columns=scores, target_columns=targets, metric="sensitivity")
         data = pm._generate_table_data()
         gt = pm.generate_initial_table(data)
         gt = pm.generate_color_bar(gt, data.columns)
@@ -311,7 +280,9 @@ class TestPerformanceMetrics:
         )
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
-        pm = PerformanceMetrics(df=df, score_columns=scores, target_columns=targets, metric="sensitivity")
+        sg = Seismogram()
+        sg.dataframe = df
+        pm = PerformanceMetrics(score_columns=scores, target_columns=targets, metric="sensitivity")
         data = pm._generate_table_data()
         gt = pm.generate_initial_table(data)
         for value in pm.metric_values:
@@ -330,6 +301,8 @@ class TestPerformanceMetrics:
         )
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
-        pm = PerformanceMetrics(df=df, score_columns=scores, target_columns=targets, metric="sensitivity")
+        sg = Seismogram()
+        sg.dataframe = df
+        pm = PerformanceMetrics(score_columns=scores, target_columns=targets, metric="sensitivity")
         gt = pm.analytics_table()
         assert gt is not None

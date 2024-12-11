@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import List, Optional
 
 import numpy as np
@@ -6,6 +5,7 @@ from numpy.typing import ArrayLike
 from sklearn.metrics import auc
 
 from . import calculate_bin_stats
+from .performance import MonotonicMetric
 
 GENERATED_COLUMNS = {
     "positives": "Positives",
@@ -21,17 +21,6 @@ GENERATED_COLUMNS = {
 }
 
 
-class Metric(Enum):
-    """
-    Enumeration for available values for metric parameter in PerformanceMetrics class.
-    """
-
-    Sensitivity = "sensitivity"
-    Specificity = "specificity"
-    FlagRate = "flagrate"
-    Threshold = "threshold"
-
-
 def calculate_stats(
     y_true: ArrayLike,
     y_pred: ArrayLike,
@@ -42,7 +31,7 @@ def calculate_stats(
 ):
     """
     Calculates overall performance statistics such as AUROC and threshold-specific statistics
-    such as sensitivity and specificity.
+    such as sensitivity and specificity for the provided list of metric values.
 
     Parameters
     ----------
@@ -51,7 +40,7 @@ def calculate_stats(
     y_pred : array_like
         Predicted probabilities or scores.
     metric : str
-        The metric ('Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
+        The metric ('FlagRate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
         calculated.
     metric_values : List[str]
         A list of metric values for which corresponding statistics are calculated.
@@ -73,16 +62,16 @@ def calculate_stats(
     """
     # Check if metric is a valid name.
     try:
-        _ = Metric(metric.lower())
+        _ = MonotonicMetric(metric.lower())
     except ValueError:
         raise ValueError(
-            f"Invalid metric name: {metric}. The metric needs to be one of: {list(Metric.__members__.keys())}"
+            f"Invalid metric name: {metric}. The metric needs to be one of: {list(MonotonicMetric.__members__.keys())}"
         )
 
     # Initializing row data, to be populated with data specified in metrics_to_display.
     row_data = {}
     metric = metric.lower()
-    metrics_to_display = metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.keys())
+    metrics_to_display = metrics_to_display or list(GENERATED_COLUMNS.keys())
     _metrics_to_display_lower = [metric_to_display.lower() for metric_to_display in metrics_to_display]
 
     stats = calculate_bin_stats(y_true, y_pred)
@@ -109,6 +98,7 @@ def calculate_stats(
         computed_thresholds = thresholds[indices]
     else:
         computed_thresholds = np.array(metric_values) * 100
+        computed_thresholds = computed_thresholds.astype(int)
 
     # Find indices corresponding to the provided metric values
     threshold_indices = np.argmin(np.abs(thresholds[:, None] - computed_thresholds), axis=0)
