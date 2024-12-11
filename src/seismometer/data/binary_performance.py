@@ -75,6 +75,7 @@ def calculate_stats(
     _metrics_to_display_lower = [metric_to_display.lower() for metric_to_display in metrics_to_display]
 
     stats = calculate_bin_stats(y_true, y_pred)
+    stats["Threshold"] = stats["Threshold"].astype(int)
 
     # Calculate overall statistics
     if "positives" in _metrics_to_display_lower:
@@ -98,7 +99,6 @@ def calculate_stats(
         computed_thresholds = thresholds[indices]
     else:
         computed_thresholds = np.array(metric_values) * 100
-        computed_thresholds = computed_thresholds.astype(int)
 
     # Find indices corresponding to the provided metric values
     threshold_indices = np.argmin(np.abs(thresholds[:, None] - computed_thresholds), axis=0)

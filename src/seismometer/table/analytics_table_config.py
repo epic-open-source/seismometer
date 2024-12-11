@@ -5,7 +5,7 @@ from seismometer.data.binary_performance import GENERATED_COLUMNS
 
 class AnalyticsTableConfig:
     """
-    Configuration class for table settings in the PerformanceMetrics class.
+    Configuration class for table settings in the AnalyticsTable class.
     """
 
     def __init__(
