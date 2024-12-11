@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from numbers import Number
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
@@ -21,7 +22,19 @@ RATE_METRICS = ["Flag Rate"]
 PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
 WORKFLOW_METRICS = ["LR+", "NetBenefitScore", "NNE"]
 THRESHOLD = "Threshold"
+OVERALL_PERFORMANCE = ["Positives", "Prevalence", "AUROC", "AUPRC"]
 STATNAMES = RATE_METRICS + PERFORMANCE + WORKFLOW_METRICS + COUNTS
+
+
+class MonotonicMetric(Enum):
+    """
+    Enumeration for performance metrics that vary monotonically with threshold.
+    """
+
+    Sensitivity = "sensitivity"
+    Specificity = "specificity"
+    FlagRate = "flagrate"
+    Threshold = "threshold"
 
 
 @export
@@ -303,7 +316,7 @@ def calculate_bin_stats(
         fpr = fps / total_negatives
 
         ppv = tps / (tps + fps)
-        ppv[np.isnan(ppv)] = 0
+        ppv[np.isnan(ppv)] = 1
 
         # TN / TN + FN
         npv = np.divide(tns, tns + fns)

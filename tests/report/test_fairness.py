@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import seismometer.report.fairness as undertest
+import seismometer.table.fairness as undertest
 from seismometer.data.performance import MetricGenerator
 
 
