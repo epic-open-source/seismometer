@@ -1,12 +1,11 @@
 import logging
-from enum import Enum
 from numbers import Number
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import sklearn.metrics as metrics
+from sklearn.metrics import auc
 
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
 from .decorators import export
@@ -22,19 +21,9 @@ RATE_METRICS = ["Flag Rate"]
 PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
 WORKFLOW_METRICS = ["LR+", "NetBenefitScore", "NNE"]
 THRESHOLD = "Threshold"
+MONOTONIC_METRICS = ["Sensitivity", "Specificity", "Flag Rate"]
 OVERALL_PERFORMANCE = ["Positives", "Prevalence", "AUROC", "AUPRC"]
 STATNAMES = RATE_METRICS + PERFORMANCE + WORKFLOW_METRICS + COUNTS
-
-
-class MonotonicMetric(Enum):
-    """
-    Enumeration for performance metrics that vary monotonically with threshold.
-    """
-
-    Sensitivity = "sensitivity"
-    Specificity = "specificity"
-    FlagRate = "flagrate"
-    Threshold = "threshold"
 
 
 @export
@@ -170,7 +159,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names)
+        stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names)[0]
         score_threshold_integer = int(score_threshold * 100)
         stats = stats.loc[score_threshold_integer]
         return stats.to_dict()
@@ -187,8 +176,6 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             The column in the dataframe that contains the true labels.
         score_col : str
             The column in the dataframe that contains the predicted scores.
-        score_threshold : float, optional
-            The threshold to use for binary classification, by default 0.5.
         metrics: list[str], optional
             List of metrics to filter down to.
         """
@@ -197,9 +184,18 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         stats = calculate_bin_stats(y_true, y_pred, rho=self.rho).round(5).set_index(THRESHOLD)
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
+
+        # Calculate overall statistics
+        overall_stats = {}
+        overall_stats["Positives"] = stats["TP"].iloc[-1]
+        overall_stats["Prevalence"] = stats["TP"].iloc[-1] / len(dataframe)
+        overall_stats["AUROC"] = auc(1 - stats["Specificity"], stats["Sensitivity"])
+        overall_stats["AUPRC"] = auc(stats["Sensitivity"], stats["PPV"])
+
         if metrics:
-            return stats[list(metrics)]
-        return stats
+            _metrics = [metric for metric in metrics if metric not in OVERALL_PERFORMANCE + [THRESHOLD]]
+            return stats[list(_metrics)], overall_stats
+        return stats, overall_stats
 
     def __repr__(self):
         return f"BinaryClassifierMetricGenerator(rho={self.rho})"
@@ -439,7 +435,7 @@ def calculate_eval_ci(stats: pd.DataFrame, truth: pd.Series, output: pd.Series, 
         # pr
         aucpr_interval = aucpr_conf.interval(
             aucpr_conf,
-            metrics.auc(stats.Sensitivity, stats.PPV),
+            auc(stats.Sensitivity, stats.PPV),
             stats[["TP", "FP", "TN", "FN"]].iloc[0].sum(),
         )
 

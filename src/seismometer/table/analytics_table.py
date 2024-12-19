@@ -1,4 +1,3 @@
-import itertools
 from enum import Enum
 from typing import List, Optional
 
@@ -6,16 +5,21 @@ import pandas as pd
 
 # import ipywidgets as widgets
 import traitlets
-from great_tables import GT, loc, nanoplot_options, style
+from great_tables import GT, loc, style
 from ipywidgets import HTML, Box, Dropdown, FloatRangeSlider, GridBox, Layout
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
 from seismometer.controls.explore import ExplorationWidget, _combine_scores_checkbox
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
-from seismometer.data import pandas_helpers as pdh
-from seismometer.data.binary_performance import GENERATED_COLUMNS, MonotonicMetric, calculate_stats
-from seismometer.data.performance import OVERALL_PERFORMANCE, STATNAMES, THRESHOLD, BinaryClassifierMetricGenerator
+from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
+from seismometer.data.performance import (
+    MONOTONIC_METRICS,
+    OVERALL_PERFORMANCE,
+    STATNAMES,
+    THRESHOLD,
+    BinaryClassifierMetricGenerator,
+)
 from seismometer.seismogram import Seismogram
 
 from .analytics_table_config import COLORING_CONFIG_DEFAULT, AnalyticsTableConfig
@@ -81,8 +85,6 @@ class AnalyticsTable:
             The number of decimal places for rounding numerical results, by default 3.
         columns_show_percentages: Union[str, List[str]]
             Columns that will display values as percentages in the report, by default "Prevalence".
-        columns_show_bar: Optional[Dict[str, str]]
-            Columns mapped to specific colors for bar representation in the report, by default None.
         percentages_decimals: int
             The number of decimal places for percentage values in the report, by default 0.
         statistics_data: Optional[pd.DataFrame]
@@ -116,11 +118,10 @@ class AnalyticsTable:
         self.decimals = table_config.decimals
         self.metric = metric
         self.metric_values = metric_values
-        self.metrics_to_display = metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.keys())
+        self.metrics_to_display = metrics_to_display if metrics_to_display else GENERATED_COLUMNS
         self.title = title
         self.top_level = top_level
         self.columns_show_percentages = table_config.columns_show_percentages
-        self.columns_show_bar = table_config.columns_show_bar
 
         self.percentages_decimals = table_config.percentages_decimals
         self.data_bar_stroke_width = table_config.data_bar_stroke_width
@@ -195,13 +196,11 @@ class AnalyticsTable:
 
     @metric.setter
     def metric(self, value):
-        try:
-            self._metric = MonotonicMetric(value.lower()).name
-        except ValueError as e:
+        if value not in MONOTONIC_METRICS + [THRESHOLD]:
             raise ValueError(
-                f"Invalid metric name: {value}. The metric needs to be one of: "
-                f"{[member.value for member in MonotonicMetric]}"
-            ) from e
+                f"Invalid metric name: {value}. The metric needs to be one of: " f"{MONOTONIC_METRICS + [THRESHOLD]}"
+            )
+        self._metric = value
 
     @property
     def metrics_to_display(self):
@@ -210,11 +209,9 @@ class AnalyticsTable:
     @metrics_to_display.setter
     def metrics_to_display(self, value):
         for metric in value:
-            if metric.lower() not in GENERATED_COLUMNS and metric not in [THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE:
-                raise ValueError(
-                    f"Invalid metric name: {value}. The metric needs to be one of: {GENERATED_COLUMNS.keys()}"
-                )
-        self._metrcis_to_display = value if value else list(GENERATED_COLUMNS.keys())
+            if metric not in GENERATED_COLUMNS and metric not in [THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE:
+                raise ValueError(f"Invalid metric name: {value}. The metric needs to be one of: {GENERATED_COLUMNS}")
+        self._metrcis_to_display = value if value else GENERATED_COLUMNS
 
     @property
     def metric_values(self):
@@ -267,42 +264,11 @@ class AnalyticsTable:
             .fmt_percent(columns=self.columns_show_percentages, decimals=self.percentages_decimals)
             .tab_style(
                 style=[
-                    style.text(align="center !important"),
+                    style.text(align="center"),
                 ],
                 locations=loc.title(),
             )
         )
-        return gt
-
-    def generate_color_bar(self, gt, columns):
-        """
-        Adds color bars corresponding to the specified columns in the table.
-
-        Parameters
-        ----------
-        gt : GT
-            The table object to which the color bars will be added.
-        columns : List[str]
-            The list of columns to which the color bars will be applied.
-
-        Returns
-        -------
-        gt : GT
-            The table object with color bars added.
-        """
-        for data_col, col in itertools.product(columns, self.columns_show_bar):
-            if data_col.endswith(f"_{col}_bar") or data_col == f"{col}_bar":
-                gt = gt.fmt_nanoplot(
-                    data_col,
-                    plot_type="bar",
-                    options=nanoplot_options(
-                        data_bar_fill_color=self.columns_show_bar[col],
-                        data_bar_stroke_width=self.data_bar_stroke_width,
-                    ),
-                )
-            # If col and col_bar are not grouped under a metric value, group them together.
-            if data_col == f"{col}_bar":
-                gt = gt.tab_spanner(label=col, columns=[col, f"{col}_bar"])
         return gt
 
     def group_columns_by_metric_value(self, gt, columns, value):
@@ -323,7 +289,7 @@ class AnalyticsTable:
         gt : GT
             The table object with grouped columns and added borders.
         """
-        value = value * 100 if self.metric.lower() == "threshold" else value
+        value = value * 100 if self.metric == "Threshold" else value
         gt = gt.tab_spanner(label=f"{self.metric}={value}", columns=columns).cols_label(
             **{col: "_".join(col.split("_")[1:]) for col in columns}
         )
@@ -366,12 +332,8 @@ class AnalyticsTable:
             A `GT` (from great_tables package) object representing the formatted analytics table.
         """
         data = self._generate_table_data()
-        data = self._prepare_data(data) if self.columns_show_bar else data
 
         gt = self.generate_initial_table(data)
-
-        if self.columns_show_bar:
-            gt = self.generate_color_bar(gt, columns=data.columns)
 
         # Group columns of the form value_*** together
         grouped_columns = []
@@ -380,49 +342,24 @@ class AnalyticsTable:
             gt = self.group_columns_by_metric_value(gt, columns, value)
             grouped_columns.extend(columns)
 
-        # If a column is not grouped by a metric value and col_bar has been generated (col and col_bar
-        # are grouped together), add borders to the sides.
-        for col in self.columns_show_bar:
-            if col not in grouped_columns and f"{col}_bar" in data.columns:
-                gt = self.add_borders(gt, col, f"{col}_bar")
-
         gt = (
             gt.opt_horizontal_padding(scale=3)
             .tab_options(row_group_font_weight="bold")
             .tab_style(
                 style=[
-                    style.text(align="center !important"),
+                    style.text(align="center"),
                 ],
                 locations=loc.column_header(),
             )
             .tab_style(
                 style=[
-                    style.text(align="center !important"),
+                    style.text(align="center"),
                 ],
                 locations=loc.body(),
             )
         )
 
         return HTML(gt.as_raw_html(), layout=Layout(max_height="800px"))
-
-    def _prepare_data(self, data):
-        """
-        Prepares the data for displaying in the analytics table.
-
-        Parameters
-        ----------
-        data: pd.DataFrame
-            The input DataFrame containing relevant statistics data.
-
-        Returns
-        -------
-        pd.DataFrame
-            The modified DataFrame with additional columns for bar plots (if applicable).
-        """
-        for data_col, col in itertools.product(data.columns, self.columns_show_bar):
-            if data_col.endswith(f"_{col}") or data_col == col:
-                data.insert(data.columns.get_loc(data_col) + 1, data_col + "_bar", data[data_col])
-        return data
 
     def _generate_table_data(self):
         """
@@ -434,41 +371,16 @@ class AnalyticsTable:
             A DataFrame containing the calculated statistics for each combination of scores and targets.
             This data will be used to generate the GT (from great_tables) object.
         """
-        data = None
-        if self.df is not None:
-            rows_list = []
-            product = (
-                itertools.product(self.score_columns, self.target_columns)
-                if self.top_level == "Score"
-                else itertools.product(self.target_columns, self.score_columns)
-            )
-            for first, second in product:
-                current_row = {self.top_level: first, self._get_second_level[self.top_level]: second}
-                (score, target) = (first, second) if self.top_level == "Score" else (second, first)
-                if self.per_context:
-                    sg = Seismogram()
-                    data = pdh.event_score(
-                        sg.dataframe,
-                        sg.entity_keys,
-                        score=score,
-                        ref_event=sg.predict_time,
-                        aggregation_method=sg.event_aggregation_method(target),
-                    )
-                else:
-                    data = self.df
-                current_row.update(
-                    calculate_stats(
-                        data[target],
-                        data[score],
-                        self.metric,
-                        self.metric_values,
-                        self.metrics_to_display,
-                        self.decimals,
-                    )
-                )
-                rows_list.append(current_row)
-            # Create a DataFrame from the rows data
-            data = pd.DataFrame(rows_list)
+        data = generate_analytics_data(
+            self.target_columns,
+            self.score_columns,
+            self.metric,
+            self.metric_values,
+            top_level=self.top_level,
+            per_context=self.per_context,
+            metrics_to_display=self.metrics_to_display,
+            decimals=self.decimals,
+        )
 
         # Add statistics_data if provided.
         if self.statistics_data is not None:
@@ -625,14 +537,14 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             title="Scores",
         )
         self._metric = Dropdown(
-            options=["Threshold"] + [val.name for val in MonotonicMetric],
+            options=[THRESHOLD] + MONOTONIC_METRICS,
             value=metric,
             description="Metric",
             style=WIDE_LABEL_STYLE,
         )
         self._metrics_to_display = MultiselectDropdownWidget(
             options=[THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE,
-            value=metrics_to_display if metrics_to_display else list(GENERATED_COLUMNS.values()),
+            value=metrics_to_display if metrics_to_display else GENERATED_COLUMNS,
             title="Performance Metrics to Display",
         )
         self._metric_values_slider = FloatRangeSlider(

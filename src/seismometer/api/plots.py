@@ -1068,7 +1068,7 @@ def binary_classifier_metric_evaluation(
         )
     if isinstance(metrics, str):
         metrics = [metrics]
-    stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)
+    stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
     if table_only:
         return HTML(stats[metrics].T.to_html())
     return plot.binary_classifier.plot_metric_list(stats, metrics)
