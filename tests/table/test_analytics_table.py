@@ -82,13 +82,12 @@ class TestAnalyticsTable:
         targets = ["target1", "target2"]
         metric_values = [0.7, 0.8]
         table_config = AnalyticsTableConfig(
-            columns_show_bar={"AUROC": "lightblue", "PPV": "lightgreen"},
             columns_show_percentages=["Prevalence"],
         )
         table = AnalyticsTable(
             score_columns=scores,
             target_columns=targets,
-            metric="sensitivity",
+            metric="Sensitivity",
             metric_values=metric_values,
             statistics_data=statistics_data,
             table_config=table_config,
@@ -102,7 +101,6 @@ class TestAnalyticsTable:
         assert table.top_level == "Score"
         assert table.decimals == 3
         assert table.columns_show_percentages == ["Prevalence"]
-        assert table.columns_show_bar == {"AUROC": "lightblue", "PPV": "lightgreen"}
         assert table.percentages_decimals == 0
         assert table.data_bar_stroke_width == 4
         assert table.statistics_data.equals(statistics_data)
@@ -111,7 +109,7 @@ class TestAnalyticsTable:
         with pytest.raises(
             ValueError,
             match="Invalid metric name: invalid_metric. The metric needs to be one of: "
-            "\\['sensitivity', 'specificity', 'flagrate', 'threshold'\\]",
+            "\\['Sensitivity', 'Specificity', 'Flag Rate', 'Threshold'\\]",
         ):
             table_config = AnalyticsTableConfig()
             AnalyticsTable(metric="invalid_metric", table_config=table_config)
@@ -128,7 +126,7 @@ class TestAnalyticsTable:
             AnalyticsTable(
                 score_columns=scores,
                 target_columns=targets,
-                metric="sensitivity",
+                metric="Sensitivity",
                 metric_values=metric_values,
                 top_level="invalid_top_level",
             )
@@ -137,7 +135,7 @@ class TestAnalyticsTable:
         sg = Seismogram()
         sg.dataframe = None
         with pytest.raises(ValueError, match="At least one of 'df' or 'statistics_data' needs to be provided."):
-            AnalyticsTable(metric="sensitivity")
+            AnalyticsTable(metric="Sensitivity")
 
     def test_non_empty_df_empty_scores(self, fake_seismo):
         df = pd.DataFrame(
@@ -155,7 +153,7 @@ class TestAnalyticsTable:
             ValueError,
             match="When df is provided, both 'score_columns' and 'target_columns' need " "to be provided as well.",
         ):
-            AnalyticsTable(target_columns=["target1", "target2"], metric="sensitivity")
+            AnalyticsTable(target_columns=["target1", "target2"], metric="Sensitivity")
 
     def test_non_empty_df_empty_targets(self, fake_seismo):
         sg = Seismogram()
@@ -164,7 +162,7 @@ class TestAnalyticsTable:
             ValueError,
             match="When df is provided, both 'score_columns' and 'target_columns' " "need to be provided as well.",
         ):
-            AnalyticsTable(score_columns=["score1", "score2"], metric="sensitivity")
+            AnalyticsTable(score_columns=["score1", "score2"], metric="Sensitivity")
 
     def test_analytics_table_with_statistics_data(self, fake_seismo):
         df = pd.DataFrame(
@@ -191,7 +189,7 @@ class TestAnalyticsTable:
         table = AnalyticsTable(
             score_columns=scores,
             target_columns=targets,
-            metric="sensitivity",
+            metric="Sensitivity",
             metric_values=metric_values,
             statistics_data=statistics_data,
         )
@@ -205,7 +203,7 @@ class TestAnalyticsTable:
         metric_values = [0.7, 0.8]
 
         table = AnalyticsTable(
-            metric="sensitivity",
+            metric="Sensitivity",
             metric_values=metric_values,
             statistics_data=statistics_data,
         )
@@ -226,7 +224,7 @@ class TestAnalyticsTable:
         targets = ["target1", "target2", "target3"]
         sg = Seismogram()
         sg.dataframe = df
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="sensitivity")
+        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity")
         data = table._generate_table_data()
         gt = table.generate_initial_table(data)
         assert gt is not None
@@ -245,7 +243,7 @@ class TestAnalyticsTable:
         targets = ["target1", "target2", "target3"]
         sg = Seismogram()
         sg.dataframe = df
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, top_level="Target", metric="sensitivity")
+        table = AnalyticsTable(score_columns=scores, target_columns=targets, top_level="Target", metric="Sensitivity")
         data = table._generate_table_data()
         gt = table.generate_initial_table(data)
         assert gt is not None
@@ -263,10 +261,9 @@ class TestAnalyticsTable:
         targets = ["target1", "target2"]
         sg = Seismogram()
         sg.dataframe = df
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="sensitivity")
+        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity")
         data = table._generate_table_data()
         gt = table.generate_initial_table(data)
-        gt = table.generate_color_bar(gt, data.columns)
         assert gt is not None
 
     def test_group_columns_by_metric_value(self, fake_seismo):
@@ -282,7 +279,7 @@ class TestAnalyticsTable:
         targets = ["target1", "target2"]
         sg = Seismogram()
         sg.dataframe = df
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="sensitivity")
+        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity")
         data = table._generate_table_data()
         gt = table.generate_initial_table(data)
         for value in table.metric_values:
@@ -303,6 +300,6 @@ class TestAnalyticsTable:
         targets = ["target1", "target2"]
         sg = Seismogram()
         sg.dataframe = df
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="sensitivity")
+        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity")
         gt = table.analytics_table()
         assert gt is not None

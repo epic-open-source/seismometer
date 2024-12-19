@@ -1,29 +1,33 @@
+import itertools
 from typing import List, Optional
 
 import numpy as np
-from numpy.typing import ArrayLike
-from sklearn.metrics import auc
+import pandas as pd
 
-from . import calculate_bin_stats
-from .performance import MonotonicMetric
+from seismometer.data import pandas_helpers as pdh
+from seismometer.seismogram import Seismogram
 
-GENERATED_COLUMNS = {
-    "positives": "Positives",
-    "prevalence": "Prevalence",
-    "auroc": "AUROC",
-    "auprc": "AUPRC",
-    "accuracy": "Accuracy",
-    "ppv": "PPV",
-    "sensitivity": "Sensitivity",
-    "specificity": "Specificity",
-    "flagrate": "Flag Rate",
-    "threshold": "Threshold",
-}
+from . import BinaryClassifierMetricGenerator
+from .performance import MONOTONIC_METRICS, THRESHOLD
+
+GENERATED_COLUMNS = [
+    "Positives",
+    "Prevalence",
+    "AUROC",
+    "AUPRC",
+    "Accuracy",
+    "PPV",
+    "Sensitivity",
+    "Specificity",
+    "Flag Rate",
+    "Threshold",
+]
 
 
 def calculate_stats(
-    y_true: ArrayLike,
-    y_pred: ArrayLike,
+    df: pd.DataFrame,
+    target_col: str,
+    score_col: str,
     metric: str,
     metric_values: List[str],
     metrics_to_display: Optional[List[str]] = None,
@@ -40,7 +44,7 @@ def calculate_stats(
     y_pred : array_like
         Predicted probabilities or scores.
     metric : str
-        The metric ('FlagRate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
+        The metric ('Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
         calculated.
     metric_values : List[str]
         A list of metric values for which corresponding statistics are calculated.
@@ -61,40 +65,36 @@ def calculate_stats(
             - Additional metrics (PPV, Flag Rate, Sensitivity, Specificity, Threshold, etc.).
     """
     # Check if metric is a valid name.
-    try:
-        _ = MonotonicMetric(metric.lower())
-    except ValueError:
+    if metric not in MONOTONIC_METRICS + [THRESHOLD]:
         raise ValueError(
-            f"Invalid metric name: {metric}. The metric needs to be one of: {list(MonotonicMetric.__members__.keys())}"
+            f"Invalid metric name: {metric}. The metric needs to be one of: {MONOTONIC_METRICS + [THRESHOLD]}"
         )
 
     # Initializing row data, to be populated with data specified in metrics_to_display.
     row_data = {}
-    metric = metric.lower()
-    metrics_to_display = metrics_to_display or list(GENERATED_COLUMNS.keys())
-    _metrics_to_display_lower = [metric_to_display.lower() for metric_to_display in metrics_to_display]
+    metrics_to_display = metrics_to_display or GENERATED_COLUMNS
+    metrics_to_display = metrics_to_display if metric in metrics_to_display else metrics_to_display + [metric]
 
-    stats = calculate_bin_stats(y_true, y_pred)
-    stats["Threshold"] = stats["Threshold"].astype(int)
+    stats, overall_stats = BinaryClassifierMetricGenerator().calculate_binary_stats(
+        dataframe=df,
+        target_col=target_col,
+        score_col=score_col,
+        metrics=metrics_to_display,
+    )
+    stats = stats.reset_index()
 
-    # Calculate overall statistics
-    if "positives" in _metrics_to_display_lower:
-        row_data["Positives"] = stats["TP"].iloc[-1]
-    if "prevalence" in _metrics_to_display_lower:
-        row_data["Prevalence"] = stats["TP"].iloc[-1] / len(y_true)
-    if "auroc" in _metrics_to_display_lower:
-        row_data["AUROC"] = auc(1 - stats["Specificity"], stats["Sensitivity"])
-    if "auprc" in _metrics_to_display_lower:
-        row_data["AUPRC"] = auc(stats["Sensitivity"], stats["PPV"])
+    # Add overall stats that should be displayed in the table.
+    overall_stats = dict((stat, overall_stats[stat]) for stat in overall_stats if stat in metrics_to_display)
+    row_data.update(overall_stats)
 
     # Order/round metric values
     metric_values = sorted([round(num, decimals) for num in metric_values])
     metric_values = [0 if val == 0.0 else val for val in metric_values]
 
-    metric_data = stats[GENERATED_COLUMNS[metric]].to_numpy()
+    metric_data = stats[metric].to_numpy()
     thresholds = stats["Threshold"].to_numpy()
 
-    if metric != "threshold":
+    if metric != "Threshold":
         indices = np.argmin(np.abs(metric_data[:, None] - metric_values), axis=0)
         computed_thresholds = thresholds[indices]
     else:
@@ -104,12 +104,62 @@ def calculate_stats(
     threshold_indices = np.argmin(np.abs(thresholds[:, None] - computed_thresholds), axis=0)
 
     for metric_to_display in metrics_to_display:
-        column_name = GENERATED_COLUMNS.get(metric_to_display.lower(), metric_to_display)
-        if metric_to_display.lower() != metric and column_name not in row_data:
-            metric_data = stats[column_name].to_numpy()[threshold_indices]
-            column_name = column_name.replace(" ", "\u00A0")
+        if metric_to_display != metric and metric_to_display not in overall_stats:
+            metric_data = stats[metric_to_display].to_numpy()[threshold_indices]
+            metric_to_display = metric_to_display.replace(" ", "\u00A0")
             row_data.update(
-                {f"{metric_value}_{column_name}": value for metric_value, value in zip(metric_values, metric_data)}
+                {
+                    f"{metric_value}_{metric_to_display}": value
+                    for metric_value, value in zip(metric_values, metric_data)
+                }
             )
-
     return row_data
+
+
+def generate_analytics_data(
+    target_columns: str,
+    score_columns: str,
+    metric: str,
+    metric_values: List[str],
+    *,
+    top_level: str = "Score",
+    per_context: bool = False,
+    metrics_to_display: Optional[List[str]] = None,
+    decimals: int = 3,
+):
+    rows_list = []
+    product = (
+        itertools.product(score_columns, target_columns)
+        if top_level == "Score"
+        else itertools.product(target_columns, score_columns)
+    )
+    second_level = "Target" if top_level == "Score" else "Score"
+    sg = Seismogram()
+    for first, second in product:
+        current_row = {top_level: first, second_level: second}
+        (score, target) = (first, second) if top_level == "Score" else (second, first)
+        if per_context:
+            data = pdh.event_score(
+                sg.dataframe,
+                sg.entity_keys,
+                score=score,
+                ref_event=sg.predict_time,
+                aggregation_method=sg.event_aggregation_method(target),
+            )
+        else:
+            data = sg.dataframe
+        current_row.update(
+            calculate_stats(
+                data[[target, score]],
+                target_col=target,
+                score_col=score,
+                metric=metric,
+                metric_values=metric_values,
+                metrics_to_display=metrics_to_display,
+                decimals=decimals,
+            )
+        )
+        rows_list.append(current_row)
+    # Create a DataFrame from the rows data
+    data = pd.DataFrame(rows_list)
+    return data
