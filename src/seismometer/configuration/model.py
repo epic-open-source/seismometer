@@ -10,6 +10,7 @@ FileLike = str | Path
 DirLike = str | Path
 AggregationStrategies = Literal["min", "max", "first", "last"]
 MergeStrategies = Literal["first", "last", "nearest", "forward", "count"]
+MetricTypes = Literal["binary_classification", "ordinal_categorical"]
 
 
 class OtherInfo(BaseModel):
@@ -196,6 +197,27 @@ class Cohort(BaseModel):
         """Ensures that display_name exists, setting it to the source name if not provided."""
         return display_name or values.data.get("source")
 
+class Metric(BaseModel):
+    """
+    The definition of an expected cohort attribute.
+
+    This structure defines a cohort attribute that should be available for selection in a notebook.
+    For a categorical data, the splits should all be existing values and the list limits the selections available.
+    For numerical data, the splits should be the inner boundaries of bucketing; with a high and low being added
+    outside theses values.
+    """
+
+    source: str
+    """ The source column name for a cohort. """
+    display_name: str = Field(default="", validate_default=True)
+    metric_type: Optional[MetricTypes] = Field(default="binary_classification", validate_default=True)
+    group_key: str = Field(default="", validate_default=True)
+    
+
+    @field_validator("display_name")
+    def default_display_name(cls, display_name: str, values: dict) -> str:
+        """Ensures that display_name exists, setting it to the source name if not provided."""
+        return display_name or values.data.get("source")
 
 class Event(BaseModel):
     """
@@ -327,6 +349,8 @@ class DataUsage(BaseModel):
     outputs: list[str] = []
     """ A list of all columns to consider outputs; does not need to include primary_output. """
     cohorts: list[Cohort] = []
+    """ A list of all cohort attributes to make available in selections. """
+    metrics: list[Metric] = []
     """ A list of all cohort attributes to make available in selections. """
     features: list[str] = []
     """
