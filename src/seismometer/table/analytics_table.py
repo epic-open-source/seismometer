@@ -13,13 +13,7 @@ from seismometer.controls.explore import ExplorationWidget, _combine_scores_chec
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
-from seismometer.data.performance import (
-    MONOTONIC_METRICS,
-    OVERALL_PERFORMANCE,
-    STATNAMES,
-    THRESHOLD,
-    BinaryClassifierMetricGenerator,
-)
+from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
 from seismometer.seismogram import Seismogram
 
 from .analytics_table_config import COLORING_CONFIG_DEFAULT, AnalyticsTableConfig
@@ -118,7 +112,7 @@ class AnalyticsTable:
         self.decimals = table_config.decimals
         self.metric = metric
         self.metric_values = metric_values
-        self.metrics_to_display = metrics_to_display if metrics_to_display else GENERATED_COLUMNS
+        self.metrics_to_display = metrics_to_display or GENERATED_COLUMNS
         self.title = title
         self.top_level = top_level
         self.columns_show_percentages = table_config.columns_show_percentages
@@ -449,13 +443,11 @@ def binary_analytics_table(
 
 
 class ExploreBinaryModelAnalytics(ExplorationWidget):
-    def __init__(self, title: Optional[str] = None, *, per_context: bool = False):
+    def __init__(self, title: Optional[str] = None):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        self.metric_generator = BinaryClassifierMetricGenerator()
         self.title = title
-        self.per_context = per_context
 
         super().__init__(
             title="Model Performance Comparison",
@@ -544,7 +536,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         )
         self._metrics_to_display = MultiselectDropdownWidget(
             options=[THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE,
-            value=metrics_to_display if metrics_to_display else GENERATED_COLUMNS,
+            value=metrics_to_display or GENERATED_COLUMNS,
             title="Performance Metrics to Display",
         )
         self._metric_values_slider = FloatRangeSlider(
@@ -584,7 +576,9 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             v_children.insert(0, model_options_widget)
             self.model_options_widget.observe(self._on_value_changed, names="value")
 
-        grid_layout = Layout(width="100%", grid_template_columns="repeat(3, 1fr)", grid_gap="10px")  # Three columns
+        grid_layout = Layout(
+            width="80%", grid_template_columns="repeat(3, 1fr)", justify_items="flex-end", grid_gap="10px"
+        )  # Three columns
 
         # Create a GridBox with the specified layout
         grid_box = GridBox(children=v_children, layout=grid_layout)
