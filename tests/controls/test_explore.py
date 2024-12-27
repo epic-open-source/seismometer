@@ -6,6 +6,7 @@ import pytest
 import seismometer.controls.explore as undertest
 from seismometer import seismogram
 from seismometer.data.performance import MetricGenerator
+from seismometer.table.analytics_table import AnalyticsTableOptionsWidget, ExploreBinaryModelAnalytics
 
 
 # region Test Base Classes
@@ -838,6 +839,247 @@ class TestExplorationMetricWidget:
             + "('F1',), {}, 'T2', 'S2', per_context=False)"
         )
         plot_function.assert_called_with(metric_generator, ("F1",), {}, "T2", "S2", per_context=False)
+
+
+class TestExploreBinaryModelAnalytics:
+    @patch("seismometer.table.analytics_table.binary_analytics_table", return_value="some result")
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo, mock_plot_function):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        mock_plot_function.__name__ = "plot_function"
+        mock_plot_function.__module__ = "test_explore"
+
+        widget = ExploreBinaryModelAnalytics(title="Unit Test Title")
+
+        assert widget.disabled is False
+        assert widget.current_plot_code == "No plot generated."
+        widget.update_plot()
+        assert (
+            widget.current_plot_code
+            == "test_explore.plot_function(('T1', 'T2'), ('S1', 'S2'), 'Threshold', (0.2, 0.8), "
+            + "['Positives', 'Prevalence', 'AUROC', 'AUPRC', 'Accuracy', 'PPV', 'Sensitivity', "
+            + "'Specificity', 'Flag Rate', 'Threshold'], 'Score', title='Unit Test Title', per_context=False)"
+        )
+        mock_plot_function.assert_called_once_with(
+            ("T1", "T2"),
+            ("S1", "S2"),
+            "Threshold",
+            (0.2, 0.8),
+            [
+                "Positives",
+                "Prevalence",
+                "AUROC",
+                "AUPRC",
+                "Accuracy",
+                "PPV",
+                "Sensitivity",
+                "Specificity",
+                "Flag Rate",
+                "Threshold",
+            ],
+            "Score",
+            title="Unit Test Title",
+            per_context=False,
+        )
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_generate_plot_args(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        widget = ExploreBinaryModelAnalytics(title="Unit Test Title")
+
+        args, kwargs = widget.generate_plot_args()
+        assert args == (
+            ("T1", "T2"),
+            ("S1", "S2"),
+            "Threshold",
+            (0.2, 0.8),
+            [
+                "Positives",
+                "Prevalence",
+                "AUROC",
+                "AUPRC",
+                "Accuracy",
+                "PPV",
+                "Sensitivity",
+                "Specificity",
+                "Flag Rate",
+                "Threshold",
+            ],
+            "Score",
+        )
+        assert kwargs == {"title": "Unit Test Title", "per_context": False}
+
+
+class TestAnalyticsTableOptionsWidget:
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        widget = AnalyticsTableOptionsWidget(
+            target_cols=("T1", "T2"),
+            score_cols=("S1", "S2"),
+            metric="Threshold",
+            metric_values=[0.2, 0.8],
+            metrics_to_display=("Accuracy", "PPV"),
+            title="Unit Test Title",
+        )
+
+        assert widget._target_cols.value == ("T1", "T2")
+        assert widget._score_cols.value == ("S1", "S2")
+        assert widget._metric.value == "Threshold"
+        assert widget._metric_values_slider.value == (0.2, 0.8)
+        assert widget._metrics_to_display.value == ("Accuracy", "PPV")
+        assert widget._group_by.value == "Score"
+        assert widget.per_context_checkbox.value is False
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_disabled_property(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        widget = AnalyticsTableOptionsWidget(target_cols=("T1", "T2"), score_cols=("S1", "S2"), metric="Threshold")
+        widget.disabled = True
+        assert widget._target_cols.disabled is True
+        assert widget._score_cols.disabled is True
+        assert widget._metric.disabled is True
+        assert widget._metric_values_slider.disabled is True
+        assert widget._metrics_to_display.disabled is True
+        assert widget._group_by.disabled is True
+        assert widget.per_context_checkbox.disabled is True
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_on_value_changed(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        widget = AnalyticsTableOptionsWidget(target_cols=("T1", "T2"), score_cols=("S1", "S2"), metric="Threshold")
+        widget._target_cols.value = ("T1",)
+        widget._score_cols.value = ("S1",)
+        widget._metric.value = "Sensitivity"
+        widget._metric_values_slider.value = [0.1, 0.9]
+        widget._metrics_to_display.value = ("Accuracy",)
+        widget._group_by.value = "Target"
+        widget.per_context_checkbox.value = True
+
+        expected_value = {
+            "target_cols": ("T1",),
+            "score_cols": ("S1",),
+            "metric": "Sensitivity",
+            "metric_values": (0.1, 0.9),
+            "metrics_to_display": ("Accuracy",),
+            "group_by": "Target",
+            "group_scores": True,
+        }
+        assert widget.value == expected_value
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_model_options_widget(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        model_options_widget = ipywidgets.Dropdown(
+            options=["Val1", "Val2"],
+            value="Val1",
+            description="Test model options",
+        )
+        widget = AnalyticsTableOptionsWidget(
+            target_cols=("T1", "T2"),
+            score_cols=("S1", "S2"),
+            metric="Threshold",
+            model_options_widget=model_options_widget,
+        )
+        assert widget.model_options_widget == model_options_widget
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_group_scores(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        widget = AnalyticsTableOptionsWidget(target_cols=("T1", "T2"), score_cols=("S1", "S2"), metric="Threshold")
+        widget.per_context_checkbox.value = True
+        assert widget.group_scores is True
+
+        widget.per_context_checkbox.value = False
+        assert widget.group_scores is False
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_edge_cases(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = []
+        fake_seismo.output_list = []
+
+        widget = AnalyticsTableOptionsWidget(
+            target_cols=(),
+            score_cols=(),
+            metric="Threshold",
+            metric_values=[],
+            metrics_to_display=(),
+            title="Unit Test Title",
+        )
+
+        assert widget._target_cols.value == ()
+        assert widget._score_cols.value == ()
+        assert widget._metric.value == "Threshold"
+        assert widget._metric_values_slider.value == (0.2, 0.8)
+        assert widget._metrics_to_display.value == (
+            "Positives",
+            "Prevalence",
+            "AUROC",
+            "AUPRC",
+            "Accuracy",
+            "PPV",
+            "Sensitivity",
+            "Specificity",
+            "Flag Rate",
+            "Threshold",
+        )
+        assert widget._group_by.value == "Score"
+        assert widget.per_context_checkbox.value is False
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_state_changes(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+
+        widget = AnalyticsTableOptionsWidget(
+            target_cols=("T1", "T2"),
+            score_cols=("S1", "S2"),
+            metric="Threshold",
+            metric_values=[0.2, 0.8],
+            metrics_to_display=("Accuracy", "PPV"),
+            title="Unit Test Title",
+        )
+
+        # Change the state of the widget
+        widget._target_cols.value = ("T2",)
+        widget._score_cols.value = ("S2",)
+        widget._metric.value = "Sensitivity"
+        widget._metric_values_slider.value = [0.1, 0.9]
+        widget._metrics_to_display.value = ("PPV",)
+        widget._group_by.value = "Target"
+        widget.per_context_checkbox.value = True
+
+        # Verify the state changes
+        assert widget._target_cols.value == ("T2",)
+        assert widget._score_cols.value == ("S2",)
+        assert widget._metric.value == "Sensitivity"
+        assert widget._metric_values_slider.value == (0.1, 0.9)
+        assert widget._metrics_to_display.value == ("PPV",)
+        assert widget._group_by.value == "Target"
+        assert widget.per_context_checkbox.value is True
 
 
 # endregion
