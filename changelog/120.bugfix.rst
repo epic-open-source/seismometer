@@ -1,1 +1,1 @@
-Initialize Seismogram values to prevent AttributeErrors like availablet-cohort_group
+Initialize Seismogram values to prevent AttributeErrors like available_cohort_group
