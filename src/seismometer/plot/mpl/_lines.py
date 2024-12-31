@@ -251,14 +251,13 @@ def add_radial_score_thresholds(
     y : np.ndarray
         Array of y-values.
     labels : list[str]
-        Array of thresholds to display.
-    colorIx : int, optional
-        Index of line being annotated in order to match color, by default 0.
-    n_scores : int, optional
-        Integer number of scores to display, if length of arrays is greater, will automatically
-        select 10 values to shows based on an assumed range of labels being 0-1 (default: 10).
+        Array of labels to display.
+    thresholds : list[Number]
+        List of threshold points to label.
     Q : int, optional
         The quadrant 1-4 to assume for offsets, by default 1.
+    colorIx : int, optional
+        Index of line being annotated in order to match color, by default 0.
     """
     if labels is None:
         return
