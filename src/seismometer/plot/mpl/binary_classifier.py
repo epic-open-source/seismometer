@@ -61,10 +61,15 @@ def evaluation(
         prevalence = prevalence / stats.loc[0, ["TP", "FP", "TN", "FN"]].sum()
 
     roc_data = ci_data["roc"]
+    roc_thresholds = roc_data["Threshold"]
+    # Normalize roc_data like stats; ignore infs inserted at beginning
+    if not (roc_thresholds[2:] > 2).any():
+        roc_thresholds = roc_thresholds * 100
+
     singleROC(
         roc_data["TPR"],
         roc_data["FPR"],
-        roc_data["Threshold"],
+        roc_thresholds,
         conf_region=roc_data["region"],
         conf_interval=roc_data["interval"],
         axis=ax1,
