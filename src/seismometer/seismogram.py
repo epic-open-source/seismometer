@@ -64,6 +64,8 @@ class Seismogram(object, metaclass=Singleton):
         if config is None or dataloader is None:
             raise ValueError("Seismogram has not been initialized; requires Config and dataloader on initial call.")
 
+        self._initialize_attrs()
+
         self.config = config
         self.dataloader = dataloader
 
@@ -71,6 +73,23 @@ class Seismogram(object, metaclass=Singleton):
         self.cohort_cols: list[str] = []
 
         self.copy_config_metadata()
+
+    def _initialize_attrs(self):
+        """
+        Initialize attributes
+        """
+        # _df_counts
+        self._start_time = None
+        self._end_time = None
+        self._prediction_count = 0
+        self._entity_count = 0
+        self._event_types_count = 0
+        self._cohort_attribute_count = 0
+        self._feature_counts = 0
+
+        # load data
+        self.available_cohort_groups = dict()
+        self.selected_cohort = (None, None)  # column, values
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
