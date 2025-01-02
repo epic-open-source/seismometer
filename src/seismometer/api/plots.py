@@ -566,8 +566,10 @@ def _model_evaluation(
         return template.render_title_message(
             "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
         )
+
+    # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
     stats = calculate_bin_stats(data[target], data[score_col])
-    ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95)
+    ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95, force_percentages=True)
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,

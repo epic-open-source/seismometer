@@ -151,7 +151,7 @@ def singleROC(
     lines.roc_plot(axis, fpr, tpr, label=modelLabel)
 
     if annotate:
-        lines.add_radial_score_labels(axis, fpr, tpr, thresholds, highlight=highlight)
+        lines._add_radial_score_labels(axis, fpr, tpr, thresholds, highlight=highlight)
     return axis.get_figure()
 
 
@@ -193,7 +193,7 @@ def recall_condition(
     lines.recall_condition_plot(axis, ppcr, recall, prevalence, show_reference)
 
     if annotate:
-        lines.add_radial_score_labels(axis, ppcr, recall, thresholds, highlight=highlight)
+        lines._add_radial_score_labels(axis, ppcr, recall, thresholds, highlight=highlight)
     return axis.get_figure()
 
 
@@ -321,7 +321,7 @@ def ppv_vs_sensitivity(
     lines.ppv_sensitivity_curve(axis, sensitivity, ppv, label=aucpr)
 
     if highlight is not None:
-        lines.add_radial_score_thresholds(axis, sensitivity, ppv, thresholds, thresholds=highlight, Q=4)
+        lines._add_radial_score_thresholds(axis, sensitivity, ppv, thresholds, thresholds=highlight, Q=4)
     return axis.get_figure()
 
 
