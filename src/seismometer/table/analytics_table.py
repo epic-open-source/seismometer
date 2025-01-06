@@ -51,7 +51,7 @@ class AnalyticsTable:
         metrics_to_display: Optional[List[str]] = None,
         title: str = "Model Performance Statistics",
         top_level: str = "Score",
-        table_config: AnalyticsTableConfig = AnalyticsTableConfig(),
+        table_config: Optional[AnalyticsTableConfig] = AnalyticsTableConfig(),
         statistics_data: Optional[pd.DataFrame] = None,
         per_context: bool = False,
     ):
@@ -61,36 +61,35 @@ class AnalyticsTable:
         Parameters
         ----------
         score_columns: Optional[List[str]]
-            A list of column names corresponding to model prediction scores to be evaluated, by default None.
+            A list of column names corresponding to model prediction scores, by default None.
         target_columns: Optional[List[str]]
-            A list of column names corresponding to targets, by default None.
+            A list of column names corresponding to (binary) targets, by default None.
         metric: str
             Performance metrics will be presented for the provided values of this metric.
         metric_values: List[float]
             Values for the specified metric to derive detailed performance statistics, by default [0.1, 0.2].
         metrics_to_display: Optional[List[str]]
-            List of metrics to include in the table, by default None. The default behavior is to shows all columns
-            in GENERATED_COLUMNS, which is a dictionary mapping metric names to their corresponding column names.
+            List of metrics to include in the table, by default None. The default behavior is to show all columns
+            in GENERATED_COLUMNS.
         title: str
-            The title for the performance statistics report, by default "Model Performance Statistics".
+            The title for the performance statistics table, by default "Model Performance Statistics".
         top_level: str
-            The primary grouping category in the performance report, by default 'Score'.
+            The primary grouping category in the performance table, by default 'Score'.
         decimals: int
             The number of decimal places for rounding numerical results, by default 3.
-        columns_show_percentages: Union[str, List[str]]
-            Columns that will display values as percentages in the report, by default "Prevalence".
-        percentages_decimals: int
-            The number of decimal places for percentage values in the report, by default 0.
+        table_config: Optional[AnalyticsTableConfig]
+            Configuration for the analytics table, including formatting and display options.
         statistics_data: Optional[pd.DataFrame]
             Additional performance metrics statistics, will be joined with the statistics data generated
             by the code, by default None.
+        per_context : bool
+            If scores should be grouped by context, by default False.
 
         Raises
         ------
         ValueError
-            If any of the provided spanner colors are not recognized as valid color names.
-            If neither "df" nor "statistics_data" is provided.
-            If "df" is provided but either "score_columns" or "target_columns" is not provided.
+            If neither "sg.dataframe" nor "statistics_data" has data.
+            If "sg.dataframe" has data but either "score_columns" or "target_columns" is not provided.
             If the provided metric name is not recognized.
             If the provided top_level name is not "Score" or "Target".
         """
@@ -198,14 +197,14 @@ class AnalyticsTable:
 
     @property
     def metrics_to_display(self):
-        return self._metrcis_to_display
+        return self._metrics_to_display
 
     @metrics_to_display.setter
     def metrics_to_display(self, value):
         for metric in value:
             if metric not in GENERATED_COLUMNS and metric not in [THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE:
                 raise ValueError(f"Invalid metric name: {value}. The metric needs to be one of: {GENERATED_COLUMNS}")
-        self._metrcis_to_display = value if value else GENERATED_COLUMNS
+        self._metrics_to_display = value if value else GENERATED_COLUMNS
 
     @property
     def metric_values(self):
@@ -366,8 +365,8 @@ class AnalyticsTable:
             This data will be used to generate the GT (from great_tables) object.
         """
         data = generate_analytics_data(
-            self.target_columns,
             self.score_columns,
+            self.target_columns,
             self.metric,
             self.metric_values,
             top_level=self.top_level,
@@ -416,7 +415,22 @@ def binary_analytics_table(
 
     Parameters
     ----------
-
+    target_cols : list[str]
+        A list of column names corresponding to a subset of (binary) targets in sg.target_cols.
+    score_cols : list[str]
+        A list of column names corresponding to a subset of scores in sg.output_list.
+    metric : str
+        Performance metrics will be presented for the provided values of this metric.
+    metric_values : list[float]
+        Values for the specified metric to derive detailed performance statistics.
+    metrics_to_display : list[str]
+        List of performance metrics to include in the table.
+    group_by : str
+        The primary grouping category in the performance table. It could be "Score" or "Target".
+    title : str, optional
+        The title for the performance statistics table, by default None.
+    per_context : bool, optional
+        If scores should be grouped by context, by default False.
 
     Returns
     -------
@@ -497,19 +511,19 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         Parameters
         ----------
         target_cols : tuple[str]
-            Available target columns.
+            Available (binary) target columns.
         score_cols : tuple[str]
             Available score columns.
         metric : str
-            Default metric.
-        model_options_widget : widget, optional
-            Additional model options widget.
-        metric_values : list[float], optional
-            Default metric values for the slider.
-        metrics_to_display : tuple[str], optional
-            Metrics to show.
-        title : str, optional
-            Title of the widget.
+            Available metrics. Performance metrics will be presented for the provided values of this metric.
+        model_options_widget : Optional[widget]
+            Additional model options widget, by default None.
+        metric_values : Optional[list[float]]
+            Metric values for which performance metric will be computed, by default None.
+        metrics_to_display : Optional[tuple[str]]
+            Metrics to include in the analytics table, by default None.
+        title : Optional[str]
+            Title of the widget, by default None.
         """
         from seismometer.seismogram import Seismogram
 

@@ -12,17 +12,24 @@ class AnalyticsTableConfig:
         decimals: int = 3,
         columns_show_percentages: Union[str, List[str]] = "Prevalence",
         percentages_decimals: int = 0,
-        alternating_row_colors: bool = True,
-        data_bar_stroke_width: int = 4,
     ):
+        """
+        Initializes the AnalyticsTableConfig class with provided parameters.
+
+        Parameters
+        ----------
+        decimals : int, optional
+            The number of decimal places for rounding numerical results, by default 3.
+        columns_show_percentages : Union[str, List[str]], optional
+            Columns that will display values as percentages in the analytics table, by default "Prevalence".
+        percentages_decimals : int, optional
+            The number of decimal places for percentage values in the analytics table, by default 0.
+        """
+
         self.decimals = decimals
         self.columns_show_percentages = columns_show_percentages
 
         self.percentages_decimals = percentages_decimals
-        self.alternating_row_colors = alternating_row_colors
-        self.data_bar_stroke_width = data_bar_stroke_width
-
-        self._initializing = False
 
     @classmethod
     def from_dict(cls, config_dict):
