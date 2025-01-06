@@ -39,18 +39,19 @@ def calculate_stats(
 
     Parameters
     ----------
-    y_true : array_like
-        True binary labels (ground truth).
-    y_pred : array_like
-        Predicted probabilities or scores.
+    df : pd.DataFrame
+        DataFrame containing the data.
+    target_col : str
+        Column name corresponding to the (binary) target.
+    score_col : str
+        Column name corresponding to the score.
     metric : str
-        The metric ('Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are
-        calculated.
+        The metric ('Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are calculated.
     metric_values : List[str]
         A list of metric values for which corresponding statistics are calculated.
     metrics_to_display : Optional[List[str]]
-        List of metrics to include in the table, by default None. The default behavior is to shows all columns
-        in GENERATED_COLUMNS, which is a dictionary mapping metric names to their corresponding column names.
+        List of metrics to include in the table, by default None. The default behavior is to show all columns
+        in GENERATED_COLUMNS.
     decimals: int
         The number of decimal places for rounding numerical results, by default 3.
 
@@ -117,16 +118,44 @@ def calculate_stats(
 
 
 def generate_analytics_data(
-    target_columns: str,
-    score_columns: str,
+    score_columns: List[str],
+    target_columns: List[str],
     metric: str,
-    metric_values: List[str],
+    metric_values: List[float],
     *,
     top_level: str = "Score",
     per_context: bool = False,
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
 ):
+    """
+    Generates a DataFrame containing calculated statistics for each combination of scores and targets.
+
+    Parameters
+    ----------
+    score_columns : List[str]
+        A list of column names corresponding to model prediction scores.
+    target_columns : List[str]
+        A list of column names corresponding to (binary) targets, by default None.
+    metric : str
+        The metric ('Flag Rate', 'Sensitivity', 'Specificity', 'Threshold') for which statistics are calculated.
+    metric_values : List[float]
+        A list of metric values for which corresponding statistics are calculated.
+    top_level : str, optional
+        The primary grouping category in the performance table, by default "Score".
+    per_context : bool
+        If scores should be grouped by context, by default False.
+    metrics_to_display : Optional[List[str]], optional
+        List of metrics to include in the table, by default None. The default behavior is to show all columns
+        in GENERATED_COLUMNS.
+    decimals : int, optional
+        The number of decimal places for rounding numerical results, by default 3.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the calculated statistics for each combination of scores and targets.
+    """
     rows_list = []
     product = (
         itertools.product(score_columns, target_columns)
