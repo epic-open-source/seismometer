@@ -102,7 +102,6 @@ class TestAnalyticsTable:
         assert table.decimals == 3
         assert table.columns_show_percentages == ["Prevalence"]
         assert table.percentages_decimals == 0
-        assert table.data_bar_stroke_width == 4
         assert table.statistics_data.equals(statistics_data)
 
     def test_invalid_metric(self, fake_seismo):

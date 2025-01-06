@@ -117,7 +117,6 @@ class AnalyticsTable:
         self.columns_show_percentages = table_config.columns_show_percentages
 
         self.percentages_decimals = table_config.percentages_decimals
-        self.data_bar_stroke_width = table_config.data_bar_stroke_width
 
         self._initializing = False
         self.per_context = per_context
