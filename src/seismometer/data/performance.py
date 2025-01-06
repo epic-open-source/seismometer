@@ -390,7 +390,9 @@ def calculate_nnt(arr: np.ndarray, rho: Optional[Number | None] = None) -> np.nd
 
 
 @export
-def calculate_eval_ci(stats: pd.DataFrame, truth: pd.Series, output: pd.Series, conf: Number = 0.95) -> dict:
+def calculate_eval_ci(
+    stats: pd.DataFrame, truth: pd.Series, output: pd.Series, conf: Number = 0.95, force_percentages=False
+) -> dict:
     """
     Calculate confidence intervals for ROC, PR, and other performance metrics from a stats frame.
 
@@ -404,6 +406,8 @@ def calculate_eval_ci(stats: pd.DataFrame, truth: pd.Series, output: pd.Series, 
         The series of model output associated with the stats frame.
     conf : Number, optional
         The confidence level for calculation, by default 0.95.
+    force_percentages : bool, optional
+        Flag to indicate that outputs should be converted to percentages (0-100), by default False.
 
     Returns
     -------
@@ -416,6 +420,9 @@ def calculate_eval_ci(stats: pd.DataFrame, truth: pd.Series, output: pd.Series, 
     conf = confidence_dict(conf)
     if truth is None or output is None:
         return conf, None, None, None
+
+    if force_percentages:
+        output = as_percentages(output)
 
     roc_conf = ROCConfidenceParam(conf)
     aucpr_conf = PRConfidenceParam(conf)
