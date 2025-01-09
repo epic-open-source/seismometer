@@ -12,6 +12,7 @@ from pandas.api.types import is_integer_dtype, is_numeric_dtype
 from seismometer.controls.explore import ExplorationWidget, _combine_scores_checkbox
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
+from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
 from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
 from seismometer.seismogram import Seismogram
@@ -110,7 +111,7 @@ class AnalyticsTable:
 
         self.decimals = table_config.decimals
         self.metric = metric
-        self.metric_values = metric_values
+        self.metric_values = list(set(metric_values))
         self.metrics_to_display = metrics_to_display or GENERATED_COLUMNS
         self.title = title
         self.top_level = top_level
@@ -328,11 +329,9 @@ class AnalyticsTable:
         gt = self.generate_initial_table(data)
 
         # Group columns of the form value_*** together
-        grouped_columns = []
         for value in self.metric_values:
             columns = [column for column in data.columns if column.startswith(f"{value}_")]
             gt = self.group_columns_by_metric_value(gt, columns, value)
-            grouped_columns.extend(columns)
 
         gt = (
             gt.opt_horizontal_padding(scale=3)
@@ -373,6 +372,9 @@ class AnalyticsTable:
             metrics_to_display=self.metrics_to_display,
             decimals=self.decimals,
         )
+
+        # Update target columns name to drop possible _Value at the end
+        data["Target"] = data["Target"].apply(pdh.event_name)
 
         # Add statistics_data if provided.
         if self.statistics_data is not None:
@@ -465,7 +467,7 @@ class ExploreBinaryModelAnalytics(ExplorationWidget):
         super().__init__(
             title="Model Performance Comparison",
             option_widget=AnalyticsTableOptionsWidget(
-                sg.get_binary_targets(),
+                tuple(map(pdh.event_name, sg.get_binary_targets())),
                 sg.output_list,
                 metric="Threshold",
                 metric_values=None,
@@ -479,7 +481,7 @@ class ExploreBinaryModelAnalytics(ExplorationWidget):
     def generate_plot_args(self) -> tuple[tuple, dict]:
         """Generates the plot arguments for the analytics table."""
         args = (
-            self.option_widget.target_cols,  # Updated to use target_columns
+            tuple(map(pdh.event_value, self.option_widget.target_cols)),  # Updated to use target_columns
             self.option_widget.score_cols,  # Updated to use score_columns
             self.option_widget.metric,  # Updated to use metric
             self.option_widget.metric_values,  # Updated to use metric_values
@@ -532,8 +534,8 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
 
         # Multiple select dropdowns for targets and scores
         self._target_cols = MultiselectDropdownWidget(
-            sg.get_binary_targets(),
-            value=target_cols or sg.get_binary_targets(),
+            tuple(map(pdh.event_name, sg.get_binary_targets())),
+            value=target_cols or tuple(map(pdh.event_name, sg.get_binary_targets())),
             title="Targets",
         )
         self._score_cols = MultiselectDropdownWidget(
