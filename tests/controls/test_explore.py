@@ -846,7 +846,7 @@ class TestExploreBinaryModelAnalytics:
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_init(self, mock_seismo, mock_plot_function):
         fake_seismo = mock_seismo()
-        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.get_binary_targets.return_value = ["T1_Value", "T2_Value"]
         fake_seismo.output_list = ["S1", "S2"]
 
         mock_plot_function.__name__ = "plot_function"
@@ -859,12 +859,12 @@ class TestExploreBinaryModelAnalytics:
         widget.update_plot()
         assert (
             widget.current_plot_code
-            == "test_explore.plot_function(('T1', 'T2'), ('S1', 'S2'), 'Threshold', (0.2, 0.8), "
-            + "['Positives', 'Prevalence', 'AUROC', 'AUPRC', 'Accuracy', 'PPV', 'Sensitivity', "
-            + "'Specificity', 'Flag Rate', 'Threshold'], 'Score', title='Unit Test Title', per_context=False)"
+            == "test_explore.plot_function(('T1_Value', 'T2_Value'), ('S1', 'S2'), 'Threshold', (0.2, 0.8), "
+            + "['Positives', 'Prevalence', 'AUROC', 'AUPRC', 'Accuracy', 'PPV', 'Sensitivity', 'Specificity', "
+            + "'Flag Rate', 'Threshold'], 'Score', title='Unit Test Title', per_context=False)"
         )
         mock_plot_function.assert_called_once_with(
-            ("T1", "T2"),
+            ("T1_Value", "T2_Value"),
             ("S1", "S2"),
             "Threshold",
             (0.2, 0.8),
@@ -888,14 +888,14 @@ class TestExploreBinaryModelAnalytics:
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_generate_plot_args(self, mock_seismo):
         fake_seismo = mock_seismo()
-        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.get_binary_targets.return_value = ["T1_Value", "T2_Value"]
         fake_seismo.output_list = ["S1", "S2"]
 
         widget = ExploreBinaryModelAnalytics(title="Unit Test Title")
 
         args, kwargs = widget.generate_plot_args()
         assert args == (
-            ("T1", "T2"),
+            ("T1_Value", "T2_Value"),
             ("S1", "S2"),
             "Threshold",
             (0.2, 0.8),
