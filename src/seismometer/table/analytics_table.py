@@ -121,21 +121,6 @@ class AnalyticsTable:
 
         self._initializing = False
         self.per_context = per_context
-        # If polars package is not installed, overwrite is_na function in great_tables package to treat Agnostic
-        # as pandas dataframe.
-        try:
-            import polars as pl
-
-            # Use 'pl' to avoid the F401 error
-            _ = pl.DataFrame()
-        except ImportError:
-            from typing import Any
-
-            from great_tables._tbl_data import Agnostic, PdDataFrame, is_na
-
-            @is_na.register(Agnostic)
-            def _(df: PdDataFrame, x: Any) -> bool:
-                return pd.isna(x)
 
     def _validate_df_statistics_data(self):
         if not self._initializing:  # Skip validation during initial setup
