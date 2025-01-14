@@ -213,6 +213,52 @@ the true positives without identifying too many of the true negatives.
 .. image:: media/predicted_count.png
    :width: 3.5in
 
+Analytics Table
+~~~~~~~~~~~~~~~
+
+Provides a table of performance statistics to compare performance across
+multiple models/scores and targets centered around two values selected
+for a specific monotonic (with respect to Threshold) performance metric.
+
+The Analytics Table is customizable, allowing users to select the metrics
+and values that are most relevant to their analysis. Users can easily
+switch between different metrics and adjust the metric values (essentially
+change threshold by other means) to see how performance statistics change.
+This flexibility makes it a useful tool for model evaluation and comparison.
+
+*Metric:*
+
+The table provides performance statistics for specified values
+(two values that users can specify) of metric. This could be one of 
+Sensitivity, Specificity, Flag Rate, or Threshold. Users can select the
+metric that best suits their analysis needs, allowing for a focused
+comparison of model performance based on the chosen criteria.
+
+*Generated Statistics:*
+
+The table provides a combination of overall (e.g., Prevalence and AUROC)
+and threshold specific (e.g., Sensitivity, Flag Rate, Specificity, etc.)
+performance statistics. These statistics offer a comprehensive view of
+model performance, highlighting both general trends and specific behaviors
+at the selected metric values. This dual perspective enables users to make
+informed decisions about model effectiveness and areas for improvement.
+
+*Example:* 
+
+Consider a scenario where you want to evaluate the performance of different
+models based on the Sensitivity metric at two specific values, 0.7 and 0.8.
+The following table is generated to compare the performance statistics:
+
+.. image:: media/analytics_table.png
+   :width: 7in
+
+In this example, the table displays various performance statistics such as
+Sensitivity, Specificity, Flag Rate, and Threshold for the specified values.
+By adjusting these values, users can observe how the performance metrics
+change, providing valuable insights into the strengths and weaknesses of
+each model. This allows for a more informed decision-making process when
+selecting the best model for a given task.
+
 Fairness Audit
 --------------
 

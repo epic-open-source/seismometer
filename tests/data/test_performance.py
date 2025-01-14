@@ -246,8 +246,11 @@ class TestBinaryMetricGenerator:
     @mock.patch.object(
         undertest.BinaryClassifierMetricGenerator,
         "calculate_binary_stats",
-        return_value=pd.DataFrame.from_records(
-            [{"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4}], index=[20]
+        return_value=(
+            pd.DataFrame.from_records(
+                [{"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4}], index=[20]
+            ),
+            None,
         ),
     )
     def test_binary_metric_generation(self, mock_stats):

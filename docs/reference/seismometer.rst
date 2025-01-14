@@ -17,6 +17,7 @@ Exploration Widgets
    ExploreCohortLeadTime
    ExploreCohortOutcomeInterventionTimes
    ExploreFairnessAudit
+   ExploreAnalyticsTable
    ExploreModelScoreComparison
    ExploreModelTargetComparison
    ExploreBinaryModelMetrics
