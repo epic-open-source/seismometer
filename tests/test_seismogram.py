@@ -234,3 +234,25 @@ class TestSeismogramCreateCohorts:
         assert "Some cohorts" in caplog.records[0].message
         assert "rareVals" in caplog.records[0].message
         assert sg.cohort_cols == ["cohort1", "cohort2", "rareVals"]
+
+
+class TestSeismogramAttrs:
+    @pytest.mark.parametrize(
+        "attr_name",
+        [
+            "start_time",
+            "end_time",
+            "prediction_count",
+            "entity_count",
+            "event_types_count",
+            "cohort_attribute_count",
+            "feature_count",
+            "target_event",
+            "dataframe",
+        ],
+    )
+    def test_attribute_exists(self, fake_seismo, attr_name):
+        sg = Seismogram()
+
+        # Ensure attribute is available
+        assert hasattr(sg, attr_name)
