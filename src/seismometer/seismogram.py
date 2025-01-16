@@ -409,4 +409,15 @@ class Seismogram(object, metaclass=Singleton):
             if self._is_binary_array(self.dataframe[[pdh.event_value(target_col)]])
         ]
 
+    def get_ordinal_categorical_targets(self):
+        return [
+            pdh.event_value(target_col)
+            for target_col in self.target_cols
+            if self._is_ordinal_categorical_terget(target_col)
+        ]
+
+    def _is_ordinal_categorical_terget(self, target_col):
+        # TODO: Update this function to lookup usage_config, metric_type.
+        return True
+
     # endregion
