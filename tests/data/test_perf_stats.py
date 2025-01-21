@@ -31,7 +31,7 @@ def stats_case_base():
 
     expected = []
     # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 1, 2, 1 / 3, 0, 1, 0, 1 / 3, 0, np.nan, np.inf, np.nan, np.inf])  # 1
+    expected.append([100, 0, 0, 1, 2, 1 / 3, 0, 1, 1, 1 / 3, 0, np.nan, 1, np.nan, 3])  # 1
     expected.append([50, 1, 0, 1, 1, 2 / 3, 0.5, 1, 1, 0.5, 1 / 3, np.inf, 1, 1 / 3, 3])  # .5
     expected.append([10, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 17 / 27, 4.5])  # .1
     expected.append([0, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 2 / 3, 4.5])  # 0
@@ -46,7 +46,7 @@ def stats_case_0():
 
     expected = []
     # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 0, 0.5, 0, np.nan, np.inf, np.nan, np.inf])  # 1
+    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 1, 0.5, 0, np.nan, 1, np.nan, 3])  # 1
     expected.append([50, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .5
     expected.append([10, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 17 / 36, 4.5])  # .1
     expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 2, 1 / 2, 6])  # 0
@@ -90,7 +90,7 @@ def stats_case_0_4():
 
     expected = []
     # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 0, 0.5, 0, np.nan, np.inf, np.nan, np.inf])  # 1
+    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 1, 0.5, 0, np.nan, 1, np.nan, 3])  # 1
     expected.append([75, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .75
     expected.append([50, 2, 0, 2, 0, 1, 1, 1, 1, 1, 0.5, np.inf, 1, 1 / 2, 3])  # .5
     expected.append([25, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 5 / 12, 4.5])  # .25
