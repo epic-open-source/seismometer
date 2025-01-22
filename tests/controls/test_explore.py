@@ -859,7 +859,7 @@ class TestExploreBinaryModelAnalytics:
         widget.update_plot()
         assert (
             widget.current_plot_code
-            == "test_explore.plot_function(('T1_Value', 'T2_Value'), ('S1', 'S2'), 'Threshold', (0.2, 0.8), "
+            == "test_explore.plot_function(('T1_Value', 'T2_Value'), ('S1', 'S2'), 'Threshold', (0.8, 0.2), "
             + "['Positives', 'Prevalence', 'AUROC', 'AUPRC', 'Accuracy', 'PPV', 'Sensitivity', 'Specificity', "
             + "'Flag Rate', 'Threshold'], 'Score', title='Unit Test Title', per_context=False)"
         )
@@ -867,7 +867,7 @@ class TestExploreBinaryModelAnalytics:
             ("T1_Value", "T2_Value"),
             ("S1", "S2"),
             "Threshold",
-            (0.2, 0.8),
+            (0.8, 0.2),
             [
                 "Positives",
                 "Prevalence",
@@ -898,7 +898,7 @@ class TestExploreBinaryModelAnalytics:
             ("T1_Value", "T2_Value"),
             ("S1", "S2"),
             "Threshold",
-            (0.2, 0.8),
+            (0.8, 0.2),
             [
                 "Positives",
                 "Prevalence",
@@ -927,7 +927,7 @@ class TestAnalyticsTableOptionsWidget:
             target_cols=("T1", "T2"),
             score_cols=("S1", "S2"),
             metric="Threshold",
-            metric_values=[0.2, 0.8],
+            metric_values=[0.8, 0.2],
             metrics_to_display=("Accuracy", "PPV"),
             title="Unit Test Title",
         )
@@ -935,7 +935,7 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._target_cols.value == ("T1", "T2")
         assert widget._score_cols.value == ("S1", "S2")
         assert widget._metric.value == "Threshold"
-        assert widget._metric_values_slider.value == (0.2, 0.8)
+        assert widget._metric_values.value == {"Metric Value 1": 0.8, "Metric Value 2": 0.2}
         assert widget._metrics_to_display.value == ("Accuracy", "PPV")
         assert widget._group_by.value == "Score"
         assert widget.per_context_checkbox.value is False
@@ -951,7 +951,7 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._target_cols.disabled is True
         assert widget._score_cols.disabled is True
         assert widget._metric.disabled is True
-        assert widget._metric_values_slider.disabled is True
+        assert widget._metric_values.disabled is True
         assert widget._metrics_to_display.disabled is True
         assert widget._group_by.disabled is True
         assert widget.per_context_checkbox.disabled is True
@@ -966,7 +966,7 @@ class TestAnalyticsTableOptionsWidget:
         widget._target_cols.value = ("T1",)
         widget._score_cols.value = ("S1",)
         widget._metric.value = "Sensitivity"
-        widget._metric_values_slider.value = [0.1, 0.9]
+        widget._metric_values.value = {"Metric Value 1": 0.9, "Metric Value 2": 0.1}
         widget._metrics_to_display.value = ("Accuracy",)
         widget._group_by.value = "Target"
         widget.per_context_checkbox.value = True
@@ -975,7 +975,7 @@ class TestAnalyticsTableOptionsWidget:
             "target_cols": ("T1",),
             "score_cols": ("S1",),
             "metric": "Sensitivity",
-            "metric_values": (0.1, 0.9),
+            "metric_values": {"Metric Value 1": 0.9, "Metric Value 2": 0.1},
             "metrics_to_display": ("Accuracy",),
             "group_by": "Target",
             "group_scores": True,
@@ -1032,7 +1032,7 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._target_cols.value == ()
         assert widget._score_cols.value == ()
         assert widget._metric.value == "Threshold"
-        assert widget._metric_values_slider.value == (0.2, 0.8)
+        assert widget._metric_values.value == {"Metric Value 1": 0.8, "Metric Value 2": 0.2}
         assert widget._metrics_to_display.value == (
             "Positives",
             "Prevalence",
@@ -1058,7 +1058,7 @@ class TestAnalyticsTableOptionsWidget:
             target_cols=("T1", "T2"),
             score_cols=("S1", "S2"),
             metric="Threshold",
-            metric_values=[0.2, 0.8],
+            metric_values=[0.8, 0.2],
             metrics_to_display=("Accuracy", "PPV"),
             title="Unit Test Title",
         )
@@ -1067,7 +1067,7 @@ class TestAnalyticsTableOptionsWidget:
         widget._target_cols.value = ("T2",)
         widget._score_cols.value = ("S2",)
         widget._metric.value = "Sensitivity"
-        widget._metric_values_slider.value = [0.1, 0.9]
+        widget._metric_values.value = {"Metric Value 1": 0.9, "Metric Value 2": 0.1}
         widget._metrics_to_display.value = ("PPV",)
         widget._group_by.value = "Target"
         widget.per_context_checkbox.value = True
@@ -1076,7 +1076,7 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._target_cols.value == ("T2",)
         assert widget._score_cols.value == ("S2",)
         assert widget._metric.value == "Sensitivity"
-        assert widget._metric_values_slider.value == (0.1, 0.9)
+        assert widget._metric_values.value == {"Metric Value 1": 0.9, "Metric Value 2": 0.1}
         assert widget._metrics_to_display.value == ("PPV",)
         assert widget._group_by.value == "Target"
         assert widget.per_context_checkbox.value is True

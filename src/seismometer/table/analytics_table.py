@@ -6,12 +6,13 @@ import pandas as pd
 # import ipywidgets as widgets
 import traitlets
 from great_tables import GT, loc, style
-from ipywidgets import HTML, Box, Dropdown, FloatRangeSlider, GridBox, Layout
+from ipywidgets import HTML, Box, Dropdown, GridBox, Layout
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
 from seismometer.controls.explore import ExplorationWidget, _combine_scores_checkbox
 from seismometer.controls.selection import MultiselectDropdownWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE
+from seismometer.controls.thresholds import MonotonicProbabilitySliderListWidget
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
 from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
@@ -466,8 +467,8 @@ class ExploreBinaryModelAnalytics(ExplorationWidget):
     def generate_plot_args(self) -> tuple[tuple, dict]:
         """Generates the plot arguments for the analytics table."""
         args = (
-            tuple(map(pdh.event_value, self.option_widget.target_cols)),  # Updated to use target_columns
-            self.option_widget.score_cols,  # Updated to use score_columns
+            tuple(map(pdh.event_value, self.option_widget.target_cols)),  # Updated to use target_cols
+            self.option_widget.score_cols,  # Updated to use score_cols
             self.option_widget.metric,  # Updated to use metric
             self.option_widget.metric_values,  # Updated to use metric_values
             list(self.option_widget.metrics_to_display),  # Updated to use metrics_to_display
@@ -539,13 +540,9 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             value=metrics_to_display or GENERATED_COLUMNS,
             title="Performance Metrics to Display",
         )
-        self._metric_values_slider = FloatRangeSlider(
-            min=0.01,
-            max=1.00,
-            step=0.01,
-            value=metric_values or [0.2, 0.8],
-            description="Metric Values",
-            style=WIDE_LABEL_STYLE,
+        metric_values = metric_values or (0.8, 0.2)
+        self._metric_values = MonotonicProbabilitySliderListWidget(
+            names=("Metric Value 1", "Metric Value 2"), value=tuple(metric_values), ascending=False
         )
         self._group_by = Dropdown(
             options=["Score", "Target"],
@@ -558,7 +555,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         self._target_cols.observe(self._on_value_changed, names="value")
         self._score_cols.observe(self._on_value_changed, names="value")
         self._metric.observe(self._on_value_changed, names="value")
-        self._metric_values_slider.observe(self._on_value_changed, names="value")
+        self._metric_values.observe(self._on_value_changed, "value")
         self._metrics_to_display.observe(self._on_value_changed, names="value")
         self._group_by.observe(self._on_value_changed, names="value")
         self.per_context_checkbox.observe(self._on_value_changed, names="value")
@@ -568,7 +565,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             self._score_cols,
             self._metrics_to_display,
             self._metric,
-            self._metric_values_slider,
+            self._metric_values,
             self._group_by,
             self.per_context_checkbox,
         ]
@@ -601,7 +598,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
         self._target_cols.disabled = value
         self._score_cols.disabled = value
         self._metric.disabled = value
-        self._metric_values_slider.disabled = value
+        self._metric_values.disabled = value
         self._metrics_to_display.disabled = value
         self._group_by.disabled = value
         self.per_context_checkbox.disabled = value
@@ -613,7 +610,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
             "target_cols": self._target_cols.value,
             "score_cols": self._score_cols.value,
             "metric": self._metric.value,
-            "metric_values": self._metric_values_slider.value,
+            "metric_values": self._metric_values.value,
             "metrics_to_display": self._metrics_to_display.value,
             "group_by": self._group_by.value,
             "group_scores": self.per_context_checkbox.value,
@@ -636,7 +633,7 @@ class AnalyticsTableOptionsWidget(Box, traitlets.HasTraits):
 
     @property
     def metric_values(self):
-        return self._metric_values_slider.value
+        return tuple(self._metric_values.value.values())
 
     @property
     def metrics_to_display(self):
