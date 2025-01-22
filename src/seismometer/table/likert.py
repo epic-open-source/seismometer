@@ -1,5 +1,6 @@
 import base64
 import logging
+import warnings
 from io import BytesIO
 from typing import Optional
 
@@ -59,6 +60,7 @@ class OrdinalCategoricalPlot:
             data = data.sort_values(by="Counts", ascending=False)
 
         fig, ax = plt.subplots()
+        plt.close(fig)
         sns.barplot(x="Possibilities", y="Counts", data=data, ax=ax)
         ax.set_title("Bar Plot of Ordinal Categories")
         return fig
@@ -86,6 +88,7 @@ class OrdinalCategoricalPlot:
             data = data.sort_values(by="Counts", ascending=False)
 
         fig, ax = plt.subplots()
+        plt.close(fig)
         ax.pie(data["Counts"], labels=data["Possibilities"], autopct="%1.1f%%")
         ax.set_title("Pie Chart of Ordinal Categories")
         return fig
@@ -108,17 +111,16 @@ class OrdinalCategoricalPlot:
         matplotlib.figure.Figure
             The generated plot as a Matplotlib figure.
         """
-        data = pd.DataFrame({"Possibilities": possibilities, "Counts": counts})
-        if self.order_by_count:
-            data = data.sort_values(by="Counts", ascending=False)
-
-        # categories = ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree']
-        for column in data.columns:
-            data[column] = pd.Categorical(data[column], categories=possibilities, ordered=True)
+        # if self.order_by_count:
+        #     data = data.sort_values(by="Counts", ascending=False)
+        # Suppress FutureWarning messages from plot_likert
+        warnings.filterwarnings("ignore", category=FutureWarning, module="plot_likert")
+        sg = Seismogram()
+        data = sg.dataframe
         plot_scale = possibilities
-
         fig, ax = plt.subplots()
-        plot_likert.plot_likert(data, plot_scale=plot_scale, plot_percentage=True, ax=ax)
+        plt.close(fig)
+        plot_likert.plot_likert(data[self.target_cols], plot_scale=plot_scale, plot_percentage=True, ax=ax)
         ax.set_title("Likert Plot of Survey Responses")
         return fig
 
