@@ -17,13 +17,13 @@ performance (including inputs and outputs).
 What is in Seismometer
 ======================
 
-Jupyter Notebook templates
+Jupyter Notebook examples
 --------------------------
 
 Open-source Python libraries and Jupyter Notebooks allow data scientists
-to quickly generate a notebook to evaluate model performance.
+to quickly create a notebook to evaluate model performance.
 
-We expect these templates to continually evolve as new validation and
+We expect these examples to continually expand and evolve as new validation and
 analysis techniques and approaches are created.
 
 Data Schemas
@@ -34,8 +34,7 @@ Standardized data schemas to incorporate data from single or multiple source sys
 Notebook configuration definitions
 ----------------------------------
 
-A config file provides instructions for how to build the notebook using
-the provided data and template. Within the file, you can control details
+Within the configuration file, you can control details
 such as the cohorts to include and the outcomes relevant to the model.
 You can also provide supplemental model documentation to give data
 scientists and other report consumers working with the notebook
@@ -51,13 +50,6 @@ following at your command line:
 .. code-block:: bash
 
    pip install seismometer
-
-If you want to utilize fairness audit visualizations, run the following at
-your command line:
-
-.. code-block:: bash
-
-   pip install seismometer[audit]
 
 For additional details on installing Python packages, refer to the
 `Python Packaging User
@@ -142,8 +134,7 @@ The following is an example of an events table.
 Provide Configuration Files
 ===========================
 
-The configuration file provides the instructions to the template for how
-to build the Notebook with the provided data. It allows you to define
+The configuration file allows you to define
 relevant cohorts including things like demographics, sensitive groups,
 and other criteria for evaluating model performance. You can define
 outcome and intervention events that relate to actions taken based on

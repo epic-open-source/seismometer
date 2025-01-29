@@ -168,7 +168,7 @@ def performance_metrics_plot(axis, sensitivity, specificity, ppv, thresholds) ->
     axis.plot(thresholds, sensitivity, label="Sensitivity")
     axis.plot(thresholds, specificity, label="Specificity")
     axis.plot(thresholds, ppv, label="PPV")
-    axis.legend(loc="lower center")
+    axis.legend(loc="lower right")
 
     axis.set_xlim([0, 1.01])
     axis.set_xlabel("Threshold")
@@ -197,7 +197,7 @@ def performance_confidence(axis, perf_stats, conf, metric, color=None) -> None:
         metric_N = perf_stats["TP"] + perf_stats["FP"]
     elif metric == "NPV":
         metric_N = perf_stats["TN"] + perf_stats["FN"]
-    elif metric == "Flagged":
+    elif metric == "Flag Rate":
         return
     else:
         raise ValueError(f"Tried to plot a confidence region on an unsupported metric '{metric}'.")
@@ -225,7 +225,9 @@ def get_last_line_color(axis):
     return lines[-1].get_color()
 
 
-def add_radial_score_thresholds(
+# endregion
+# region Private Helpers
+def _add_radial_score_thresholds(
     axis: plt.Axes,
     x: np.ndarray,
     y: np.ndarray,
@@ -239,9 +241,6 @@ def add_radial_score_thresholds(
 
     Expected use is for ROC curves with either scores or n_scores roughly spaced along the curve.
 
-    If the three arrays (x, y, and labels) have more values then n_scores, labels will only be added
-    for a reduced list of len(n_scores) == 10 by default.
-
     Parameters
     ----------
     axis : plt.Axes
@@ -251,14 +250,13 @@ def add_radial_score_thresholds(
     y : np.ndarray
         Array of y-values.
     labels : list[str]
-        Array of thresholds to display.
-    colorIx : int, optional
-        Index of line being annotated in order to match color, by default 0.
-    n_scores : int, optional
-        Integer number of scores to display, if length of arrays is greater, will automatically
-        select 10 values to shows based on an assumed range of labels being 0-1 (default: 10).
+        Array of labels to display.
+    thresholds : list[Number]
+        List of threshold points to label.
     Q : int, optional
         The quadrant 1-4 to assume for offsets, by default 1.
+    colorIx : int, optional
+        Index of line being annotated in order to match color, by default 0.
     """
     if labels is None:
         return
@@ -295,7 +293,7 @@ def add_radial_score_thresholds(
     for i, ix in enumerate(val_ix):
         axis.annotate(
             f"{thresholds[i]:.0f}",
-            radial_annotations(x[ix], y[ix], Q=Q),
+            _radial_annotations(x[ix], y[ix], Q=Q),
             color=colors[i],
         )
 
@@ -313,7 +311,7 @@ def _find_thresholds(labels: list[float], thresholds: list[float]) -> list[int]:
     return val_ix
 
 
-def add_radial_score_labels(
+def _add_radial_score_labels(
     axis: plt.Axes,
     x: np.ndarray,
     y: np.ndarray,
@@ -353,7 +351,7 @@ def add_radial_score_labels(
 
     """
     if highlight is not None:
-        return add_radial_score_thresholds(axis, x, y, labels, thresholds=highlight, Q=Q)
+        return _add_radial_score_thresholds(axis, x, y, labels, thresholds=highlight, Q=Q)
 
     # For safety convert to handle indexing lists
     x = np.array(x)
@@ -379,14 +377,12 @@ def add_radial_score_labels(
     for ix in labelIx:
         axis.annotate(
             f"{labels[ix]:.1f}",
-            radial_annotations(x[ix], y[ix], Q),
+            _radial_annotations(x[ix], y[ix], Q),
             color=text_colors[colorIx],
         )
 
 
-# endregion
-# region Private Helpers
-def radial_annotations(x, y, Q=1) -> tuple[float, float]:
+def _radial_annotations(x, y, Q=1) -> tuple[float, float]:
     """
     Takes a single point and offsets it, returning the modified values.
 

@@ -29,7 +29,7 @@ class TestLoaderFactory:
             # Constructor exposed
             ("prediction_fn", undertest.prediction.parquet_loader),
             ("event_fn", undertest.event.parquet_loader),
-            ("post_predict_fn", undertest.prediction.assumed_types),
+            ("post_predict_fn", undertest.prediction.dictionary_types),
             ("post_event_fn", undertest.event.post_transform_fn),
             ("merge_fn", undertest.event.merge_onto_predictions),
             # Internal passthru_frame

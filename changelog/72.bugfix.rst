@@ -1,2 +1,0 @@
-Simplify merge logic for the single 'first' strategy. This removes coalecsing logic by assuming an event type always has times (or never does).
-Hardens restriction of events (with times) to occur after prediction time + window offset, not having the unintuitive partial information for early, late, and unknown timings.

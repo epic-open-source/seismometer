@@ -2,12 +2,14 @@ import datetime
 import logging
 from typing import Optional
 
+logging.basicConfig()
 
-def set_default_logger_config() -> None:
-    """
-    Adds the basic configuration for logging.
-    """
-    logging.basicConfig()
+
+def init_logger(name: str = "seismometer") -> None:
+    logger = logging.getLogger(name)
+    add_log_formatter(logger)
+
+    return logger
 
 
 def remove_default_handler(logger: Optional[logging.Logger] = None) -> None:

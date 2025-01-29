@@ -272,14 +272,14 @@ class FilterRule(object):
     @classmethod
     def isna(cls, column) -> "FilterRule":
         """
-        FilterRule where the column contains a na value (np.NaN or None).
+        FilterRule where the column contains a na value (np.nan or None).
         """
         return cls(column, "isna")
 
     @classmethod
     def notna(cls, column) -> "FilterRule":
         """
-        FilterRule where the column does not contain a na value (np.NaN or None).
+        FilterRule where the column does not contain a na value (np.nan or None).
         """
         return cls(column, "notna")
 

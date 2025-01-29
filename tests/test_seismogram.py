@@ -43,7 +43,7 @@ def get_test_data():
             "prediction": [1, 2, 3, 4],
             "time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "event1_Value": [0, 1, 0, -1],
-            "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2021-12-31"],
             "event2_Value": [0, 1, 0, 1],
             "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "cohort1": [1, 0, 1, 0],
@@ -109,30 +109,6 @@ class Test__set_df_counts:
 
         # Assert
         assert sg.feature_count == expected
-
-
-class TestSeismogramDataMethod:
-    def test_data_with_named_target(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data("event2")) == 4
-
-    def test_data_filters_target_events(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data("event1")) == 3
-
-    def test_data_defaults_to_primary_target(self, fake_seismo, tmp_path):
-        # Arrange
-        sg = Seismogram()
-        sg.target_event = "event1"
-        sg.dataframe = get_test_data()
-
-        assert len(sg.data()) == 3
 
 
 class TestSeismogramConfigRetrievalMethods:
@@ -258,3 +234,25 @@ class TestSeismogramCreateCohorts:
         assert "Some cohorts" in caplog.records[0].message
         assert "rareVals" in caplog.records[0].message
         assert sg.cohort_cols == ["cohort1", "cohort2", "rareVals"]
+
+
+class TestSeismogramAttrs:
+    @pytest.mark.parametrize(
+        "attr_name",
+        [
+            "start_time",
+            "end_time",
+            "prediction_count",
+            "entity_count",
+            "event_types_count",
+            "cohort_attribute_count",
+            "feature_count",
+            "target_event",
+            "dataframe",
+        ],
+    )
+    def test_attribute_exists(self, fake_seismo, attr_name):
+        sg = Seismogram()
+
+        # Ensure attribute is available
+        assert hasattr(sg, attr_name)

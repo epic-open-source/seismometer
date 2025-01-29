@@ -4,19 +4,39 @@ import pytest
 
 import seismometer.data.performance as undertest
 
+ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + ["NNT@0.333"]
+
+TEST_KEY_ORDER = [
+    "Threshold",
+    "TP",
+    "FP",
+    "TN",
+    "FN",
+    "Accuracy",
+    "Sensitivity",
+    "Specificity",
+    "PPV",
+    "NPV",
+    "Flag Rate",
+    "LR+",
+    "NNE",
+    "NetBenefitScore",
+    "NNT@0.333",
+]
+
 
 def stats_case_base():
     y_true = np.array([1, 1, 0])
     y_prob = np.array([0.1, 0.5, 0.1])
 
     expected = []
-    # TP, FP, TN, FN, Threshold, Accuracy, Sensitivity, Specificity, PPV, NPV, Flagged, LR+ |  Threshold
-    expected.append([0, 0, 1, 2, 100, 1 / 3, 0, 1, 0, 1 / 3, 0, np.nan])  # 1
-    expected.append([1, 0, 1, 1, 50, 2 / 3, 0.5, 1, 1, 0.5, 1 / 3, np.inf])  # .5
-    expected.append([2, 1, 0, 0, 10, 2 / 3, 1, 0, 2 / 3, 1, 1, 1])  # .1
-    expected.append([2, 1, 0, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 0, 0, 1, 2, 1 / 3, 0, 1, 1, 1 / 3, 0, np.nan, 1, np.nan, 3])  # 1
+    expected.append([50, 1, 0, 1, 1, 2 / 3, 0.5, 1, 1, 0.5, 1 / 3, np.inf, 1, 1 / 3, 3])  # .5
+    expected.append([10, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 17 / 27, 4.5])  # .1
+    expected.append([0, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 2 / 3, 4.5])  # 0
 
-    return (y_true, y_prob, expected)
+    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
 
 def stats_case_0():
@@ -25,13 +45,13 @@ def stats_case_0():
     y_prob = np.array([0, 0.1, 0.5, 0.1])
 
     expected = []
-    # TP, FP, TN, FN, Threshold, Accuracy, Sensitivity, Specificity, PPV, NPV, Flagged, LR+ |  Threshold
-    expected.append([0, 0, 2, 2, 100, 0.5, 0, 1, 0, 0.5, 0, np.nan])  # 1
-    expected.append([1, 0, 2, 1, 50, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf])  # .5
-    expected.append([2, 1, 1, 0, 10, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2])  # .1
-    expected.append([2, 2, 0, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 1, 0.5, 0, np.nan, 1, np.nan, 3])  # 1
+    expected.append([50, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .5
+    expected.append([10, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 17 / 36, 4.5])  # .1
+    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 2, 1 / 2, 6])  # 0
 
-    return y_true, y_prob, expected
+    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
 
 def stats_case_1():
@@ -40,13 +60,13 @@ def stats_case_1():
     y_prob = np.array([0.1, 0.5, 0.1, 1])
 
     expected = []
-    # TP, FP, TN, FN, Threshold, Accuracy, Sensitivity, Specificity, PPV, NPV, Flagged, LR+ |  Threshold
-    expected.append([1, 0, 1, 2, 100, 0.5, 1 / 3, 1, 1, 1 / 3, 0.25, np.inf])  # 1
-    expected.append([2, 0, 1, 1, 50, 0.75, 2 / 3, 1, 1, 0.5, 0.5, np.inf])  # .5
-    expected.append([3, 1, 0, 0, 10, 0.75, 1, 0, 0.75, 1, 1, 1])  # .1
-    expected.append([3, 1, 0, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 1, 0, 1, 2, 0.5, 1 / 3, 1, 1, 1 / 3, 0.25, np.inf, 1, np.nan, 3])  # 1
+    expected.append([50, 2, 0, 1, 1, 0.75, 2 / 3, 1, 1, 0.5, 0.5, np.inf, 1, 1 / 2, 3])  # .5
+    expected.append([10, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 4 / 3, 13 / 18, 4])  # .1
+    expected.append([0, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 4 / 3, 3 / 4, 4])  # 0
 
-    return y_true, y_prob, expected
+    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
 
 def stats_case_01():
@@ -55,13 +75,13 @@ def stats_case_01():
     y_prob = np.array([0, 0.1, 0.5, 0.1, 1])
 
     expected = []
-    # TP, FP, TN, FN, Threshold, Accuracy, Sensitivity, Specificity, PPV, NPV, Flagged, LR+ |  Threshold
-    expected.append([1, 0, 2, 2, 100, 0.6, 1 / 3, 1, 1, 0.5, 0.2, np.inf])  # 1
-    expected.append([2, 0, 2, 1, 50, 0.8, 2 / 3, 1, 1, 2 / 3, 0.4, np.inf])  # .5
-    expected.append([3, 1, 1, 0, 10, 0.8, 1, 0.5, 0.75, 1, 0.8, 2])  # .1
-    expected.append([3, 2, 0, 0, 0, 0.6, 1, 0, 0.6, 1, 1, 1])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 1, 0, 2, 2, 0.6, 1 / 3, 1, 1, 0.5, 0.2, np.inf, 1, np.nan, 3])  # 1
+    expected.append([50, 2, 0, 2, 1, 0.8, 2 / 3, 1, 1, 2 / 3, 0.4, np.inf, 1, 2 / 5, 3])  # .5
+    expected.append([10, 3, 1, 1, 0, 0.8, 1, 0.5, 0.75, 1, 0.8, 2, 4 / 3, 26 / 45, 4])  # .1
+    expected.append([0, 3, 2, 0, 0, 0.6, 1, 0, 0.6, 1, 1, 1, 5 / 3, 3 / 5, 5])  # 0
 
-    return y_true, y_prob, expected
+    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
 
 
 def stats_case_0_4():
@@ -69,14 +89,14 @@ def stats_case_0_4():
     y_prob = np.array([0.75, 0.5, 0.25, 0])
 
     expected = []
-    # TP, FP, TN, FN, Threshold, Accuracy, Sensitivity, Specificity, PPV, NPV, Flagged, LR+ |  Threshold
-    expected.append([0, 0, 2, 2, 100, 0.5, 0, 1, 0, 0.5, 0, np.nan])  # 1
-    expected.append([1, 0, 2, 1, 75, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf])  # .75
-    expected.append([2, 0, 2, 0, 50, 1, 1, 1, 1, 1, 0.5, np.inf])  # .5
-    expected.append([2, 1, 1, 0, 25, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2])  # .25
-    expected.append([2, 2, 0, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1])  # 0
+    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
+    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 1, 0.5, 0, np.nan, 1, np.nan, 3])  # 1
+    expected.append([75, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .75
+    expected.append([50, 2, 0, 2, 0, 1, 1, 1, 1, 1, 0.5, np.inf, 1, 1 / 2, 3])  # .5
+    expected.append([25, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 5 / 12, 4.5])  # .25
+    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 2, 1 / 2, 6])  # 0
 
-    return (y_true, y_prob, expected)
+    return (y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER))
 
 
 @pytest.mark.parametrize(
@@ -86,46 +106,48 @@ def stats_case_0_4():
 )
 class Test_Stats:
     def test_stat_keys(self, y_true, y_prob, expected):
-        expected_keys = [
-            "TP",
-            "FP",
-            "TN",
-            "FN",
-            "Threshold",
+        """Ensure stat manipulations are intentional"""
+        expected_keys = {
+            "Flag Rate",
             "Accuracy",
             "Sensitivity",
             "Specificity",
             "PPV",
             "NPV",
-            "Flagged",
             "LR+",
-        ]
-        assert undertest.STATNAMES == expected_keys
+            "NNE",
+            "NetBenefitScore",
+            "TP",
+            "FP",
+            "TN",
+            "FN",
+        }
+        assert set(undertest.STATNAMES) == expected_keys
 
     def test_score_arr(self, y_true, y_prob, expected):
         actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert undertest.STATNAMES == list(actual)
-        assert np.isclose(actual, expected, equal_nan=True).all()
+        assert ALL_STATS == list(actual)
+        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
 
     def test_score_arr_percentile(self, y_true, y_prob, expected):
         y_prob = y_prob * 100
         actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert undertest.STATNAMES == list(actual)
-        assert np.isclose(actual, expected, equal_nan=True).all()
+        assert ALL_STATS == list(actual)
+        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
 
     def test_score_with_y_proba_nulls(self, y_true, y_prob, expected):
         y_prob = np.hstack((y_prob, [np.nan, np.nan]))
         y_true = np.hstack((y_true, [0, 1]))
         actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert undertest.STATNAMES == list(actual)
-        assert np.isclose(actual, expected, equal_nan=True).all()
+        assert ALL_STATS == list(actual)
+        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
 
     def test_score_with_y_true_nulls(self, y_true, y_prob, expected):
         y_prob = np.hstack((y_prob, [0.1, 0.9]))
         y_true = np.hstack((y_true, [np.nan, np.nan]))
         actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert undertest.STATNAMES == list(actual)
-        assert np.isclose(actual, expected, equal_nan=True).all()
+        assert ALL_STATS == list(actual)
+        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
 
 
 def test_bin_stats_point_thresholds():
@@ -133,13 +155,19 @@ def test_bin_stats_point_thresholds():
     actual = undertest.calculate_bin_stats(y_true, np.array(y_prob))
 
     expected = []
-    for dup, row in zip([50, 40, 11], base_expected):
-        expected.extend([row] * dup)
-    expected = pd.DataFrame(expected, columns=undertest.STATNAMES)
+    for dup, row in zip([50, 40, 11], base_expected.iterrows()):
+        expected.extend([row[1]] * dup)
+    expected = pd.DataFrame(expected)
     expected.Threshold = np.arange(100, -1, -1)
     expected = expected.reset_index(drop=True)
 
-    pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
+    # Verify accuracy of threshold point-wise in above cases,
+    # duplication doesn't apply
+    threshold_dependent_columns = ["NetBenefitScore"]
+    expected = expected.drop(columns=threshold_dependent_columns)
+    actual = actual.drop(columns=threshold_dependent_columns)
+
+    pd.testing.assert_frame_equal(actual, expected[actual.columns], check_dtype=False)
 
 
 def sumall(a, b):

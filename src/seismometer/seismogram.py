@@ -1,12 +1,11 @@
 import json
 import logging
-from functools import lru_cache
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 
-from seismometer.configuration import AggregationStrategies, ConfigProvider
+from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -28,7 +27,7 @@ class Seismogram(object, metaclass=Singleton):
             b. Source Data
         2. Hold the current dynamic configuration that is shared state.
             a. Cohort Selection
-        3. Providing data accces for other objects without compromising the source data.
+        3. Providing data access for other objects without compromising the source data.
             a. Merge Event data with Prediction data for Label generation
             b. Cohort based data selection
             c. Model configuration help texts
@@ -47,8 +46,8 @@ class Seismogram(object, metaclass=Singleton):
 
     def __init__(
         self,
-        config: ConfigProvider,
-        dataloader: SeismogramLoader,
+        config: ConfigProvider = None,
+        dataloader: SeismogramLoader = None,
     ):
         """
         Constructor for Seismogram, which can only be instantiated once.
@@ -63,6 +62,11 @@ class Seismogram(object, metaclass=Singleton):
             A loader instance for defining the data loading pipeline.
 
         """
+        if config is None or dataloader is None:
+            raise ValueError("Seismogram has not been initialized; requires Config and dataloader on initial call.")
+
+        self._initialize_attrs()
+
         self.config = config
         self.dataloader = dataloader
 
@@ -70,6 +74,23 @@ class Seismogram(object, metaclass=Singleton):
         self.cohort_cols: list[str] = []
 
         self.copy_config_metadata()
+
+    def _initialize_attrs(self):
+        """
+        Initialize attributes
+        """
+        # _df_counts
+        self._start_time = None
+        self._end_time = None
+        self._prediction_count = 0
+        self._entity_count = 0
+        self._event_types_count = 0
+        self._cohort_attribute_count = 0
+        self._feature_counts = 0
+
+        # load data
+        self.available_cohort_groups = dict()
+        self.selected_cohort = (None, None)  # column, values
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -154,6 +175,17 @@ class Seismogram(object, metaclass=Singleton):
         if (event := pdh.event_name(event_col)) not in self.config.events:
             raise ValueError(f"Event {event} not found in configuration")
         return self.config.events[event].window_hr
+
+    def event_merge_strategy(self, event_col: str) -> MergeStrategies:
+        """
+        Gets the strategy for merging scores with respect to the specified event.
+
+        Raises:
+            ValueError: If the event is not found in the configuration.
+        """
+        if (event := pdh.event_name(event_col)) not in self.config.events:
+            raise ValueError(f"Event {event} not found in configuration")
+        return self.config.events[event].merge_strategy
 
     @property
     def target(self):
@@ -288,21 +320,6 @@ class Seismogram(object, metaclass=Singleton):
 
     # endregion
     # region data accessors
-    def data(self, event: Optional[str] = None) -> pd.DataFrame:
-        """
-        Provides data for the specified target event.
-
-        Expects the event string, defaults to the configured primary target.
-        """
-        if event is None:
-            event = self.target_event
-        event_val = pdh.event_value(event)
-        event_time = pdh.event_time(event)  # Assumes binary target
-        if event_time in self.dataframe:
-            return self.dataframe[self._data_mask(event_val) & self._time_mask(event_time)]
-
-        return self.dataframe[self._data_mask(event_val)]
-
     def score_bins(self):
         """Updates the active values for notebook-scoped selections."""
         score_bins = [0] + self.thresholds + [1.0]
@@ -313,7 +330,7 @@ class Seismogram(object, metaclass=Singleton):
     # region initialization and preprocessing (this region knows about config)
     def copy_config_metadata(self):
         """
-        Loads the base configuration and alerting congfiguration
+        Loads the base configuration and alerting configuration.
         """
         self.alert_config = AlertConfigProvider(self.config.config_dir)
 
@@ -379,14 +396,17 @@ class Seismogram(object, metaclass=Singleton):
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
 
-    @lru_cache
-    def _data_mask(self, event_val):
-        return self.dataframe[event_val] != -1
+    def _is_binary_array(self, arr):
+        # Convert the input to a NumPy array if it isn't already
+        arr = np.asarray(arr)
+        # Check if all elements are either 0 or 1
+        return np.all((arr == 0) | (arr == 1))
 
-    @lru_cache
-    def _time_mask(self, event_time, keep_zero: str = None):
-        # Require events with time or negative label
-        neg_mask = np.ones(keep_zero).astype(bool) if keep_zero is None else self.dataframe[keep_zero] == 0
-        return self.dataframe[event_time].notna() | neg_mask
+    def get_binary_targets(self):
+        return [
+            pdh.event_value(target_col)
+            for target_col in self.target_cols
+            if self._is_binary_array(self.dataframe[[pdh.event_value(target_col)]])
+        ]
 
     # endregion

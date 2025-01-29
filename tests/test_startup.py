@@ -16,7 +16,7 @@ def mock_config(tmp_path):
     mock = Mock(autospec=ConfigProvider)
     mock.config_path = tmp_path / "config"
 
-    with patch.object(seismometer.configuration, "ConfigProvider", new=mock):
+    with patch.object(seismometer, "ConfigProvider", new=mock):
         yield mock
 
 

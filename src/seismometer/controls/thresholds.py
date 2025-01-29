@@ -44,6 +44,7 @@ class ProbabilitySliderListWidget(ValueWidget, VBox):
                 max=1.0,
                 step=0.01,
                 description=name,
+                tooltip=name,
                 disabled=False,
                 continuous_update=False,
                 orientation="horizontal",

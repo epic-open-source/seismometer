@@ -5,37 +5,6 @@
 Internals
 =========
 
-Command Line
-------------
-
-Extract
-~~~~~~~
-.. currentmodule:: seismometer.builder.extract
-.. autosummary::
-   :toctree: api/
-
-   extract_supplement
-   generate_data_dict_from_parquet
-
-Build
-~~~~~
-.. currentmodule:: seismometer.builder.compile
-.. autosummary::
-   :toctree: api/
-
-   compile_notebook
-
-Other
-~~~~~
-.. currentmodule:: seismometer.builder
-.. autosummary::
-   :toctree: api/
-
-   jupyter.contrib_cells
-   jupyter.get_id
-   jupyter.get_text
-
-
 .. currentmodule:: seismometer.plot.mpl
 
 Plotting
@@ -96,9 +65,11 @@ Pandas Helpers
    pandas_helpers.event_score
    pandas_helpers.event_time
    pandas_helpers.event_value
-   pandas_helpers.infer_label
+   pandas_helpers.get_model_scores
+   pandas_helpers.post_process_event
    pandas_helpers.merge_windowed_event
-   pandas_helpers.valid_event
+   pandas_helpers.is_valid_event
+   pandas_helpers.try_casting
 
 Performance
 ~~~~~~~~~~~
@@ -110,6 +81,7 @@ Performance
    performance.assert_valid_performance_metrics_df
    performance.calculate_bin_stats
    performance.calculate_eval_ci
+   performance.calculate_nnt
 
 Seismogram Loaders
 ~~~~~~~~~~~~~~~~~~
@@ -127,6 +99,7 @@ Seismogram Loaders
    loader.event.merge_onto_predictions
    loader.prediction.parquet_loader
    loader.prediction.assumed_types
+   loader.prediction.dictionary_types
 
 Summaries
 ~~~~~~~~~

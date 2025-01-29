@@ -8,6 +8,7 @@ import pandas as pd
 import sklearn.metrics as metrics
 
 import seismometer.plot.mpl._lines as lines
+from seismometer.data.performance import as_probabilities
 
 from .decorators import can_draw_empty_perf, export, model_plot
 
@@ -71,7 +72,7 @@ def evaluation(
         highlight=highlight,
     )
     recall_condition(
-        stats["Flagged"],
+        stats["Flag Rate"],
         stats["Sensitivity"],
         stats["Threshold"],
         prevalence=prevalence,
@@ -150,7 +151,7 @@ def singleROC(
     lines.roc_plot(axis, fpr, tpr, label=modelLabel)
 
     if annotate:
-        lines.add_radial_score_labels(axis, fpr, tpr, thresholds, highlight=highlight)
+        lines._add_radial_score_labels(axis, fpr, tpr, thresholds, highlight=highlight)
     return axis.get_figure()
 
 
@@ -192,7 +193,7 @@ def recall_condition(
     lines.recall_condition_plot(axis, ppcr, recall, prevalence, show_reference)
 
     if annotate:
-        lines.add_radial_score_labels(axis, ppcr, recall, thresholds, highlight=highlight)
+        lines._add_radial_score_labels(axis, ppcr, recall, thresholds, highlight=highlight)
     return axis.get_figure()
 
 
@@ -215,6 +216,10 @@ def calibration(
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
     """
+    # Normalize scores for binary classfiers
+    if (output > 1).any():
+        output = output / 100.0
+
     from sklearn.calibration import calibration_curve
 
     fraction_positive, mean_predicted = calibration_curve(truth, output, n_bins=10)
@@ -252,6 +257,10 @@ def histogram_stacked(
         A flag to show the legend, by default True.
 
     """
+    # Normalize scores for binary classfiers
+    if (output > 1).any():
+        output = output / 100.0
+
     # split into samples
     data = pd.DataFrame({"predicted": output, "real": y_label})
 
@@ -312,7 +321,7 @@ def ppv_vs_sensitivity(
     lines.ppv_sensitivity_curve(axis, sensitivity, ppv, label=aucpr)
 
     if highlight is not None:
-        lines.add_radial_score_thresholds(axis, sensitivity, ppv, thresholds, thresholds=highlight, Q=4)
+        lines._add_radial_score_thresholds(axis, sensitivity, ppv, thresholds, thresholds=highlight, Q=4)
     return axis.get_figure()
 
 
@@ -388,3 +397,38 @@ def performance_metrics(
     if highlight is not None:
         lines.vertical_threshold_lines(axis, highlight, color_alerts=True)
     return axis.get_figure()
+
+
+@export
+@model_plot
+def plot_metric_list(
+    stats: pd.DataFrame,
+    metrics: list[str],
+) -> plt.Figure:
+    """
+    Plots a list of metrics vs threshold.
+
+    Parameters
+    ----------
+    stats : pd.DataFrame
+        The table of performance metrics with the index being threshold percentiles.
+    metrics : list[str]
+        The performance metrics to plot, must be columns in the stats dataframe.
+
+    Returns
+    -------
+    plt.Figure
+        The figure object containing the plot.
+    """
+    fig = plt.figure(figsize=(6, 4))
+    axis = fig.gca()
+
+    thresholds = as_probabilities(stats.index)
+    for metric in metrics:
+        axis.plot(thresholds, stats[metric], label=metric)
+
+    axis.legend(loc="lower right")
+    axis.set_xlim([0, 1.01])
+    axis.set_xlabel("Threshold")
+
+    return fig

@@ -6,7 +6,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 import seismometer.data.pandas_helpers as pdh
-from seismometer.configuration import ConfigProvider
+from seismometer.configuration import ConfigProvider, ConfigurationError
 
 logger = logging.getLogger("seismometer")
 
@@ -71,6 +71,55 @@ def _rename_targets(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataF
 
 
 # post loaders
+def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convert the loaded predictions dataframe to the expected types.
+
+    Prioritizes the types defined in the configuration dictionary, then falls back to assumed_types.
+
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+    dataframe : pd.DataFrame
+        The loaded predictions dataframe.
+
+    Returns
+    -------
+    pd.DataFrame
+        The predictions dataframe with adjusted types.
+
+    Raises
+    ------
+    ConfigurationError
+        If any columns cannot be converted to the expected types.
+    """
+
+    defined_types = _gather_defined_types(config)
+    unspecified_columns = []
+    value_error_columns = []
+
+    for col in dataframe.columns:
+        if col in defined_types:
+            try:
+                pdh.try_casting(dataframe, col, defined_types[col])
+            except ConfigurationError:
+                value_error_columns.append(col)
+        else:
+            unspecified_columns.append(col)
+
+    if len(value_error_columns) > 0:
+        raise ConfigurationError(
+            f"Could not convert columns to expected types: {', '.join(value_error_columns)}. "
+            + "Update dictionary config or contact the model owner columns."
+        )
+
+    # Default to assumed types
+    dataframe[unspecified_columns] = assumed_types(config, dataframe[unspecified_columns])
+    return dataframe
+
+
 def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFrame:
     """
     Convert the loaded predictions dataframe to the expected types.
@@ -110,6 +159,11 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
 
 # other
+def _gather_defined_types(config: ConfigProvider) -> dict[str, str]:
+    """Gathers the defined types from the configuration dictionary."""
+    return {defn.name: defn.dtype for defn in config.prediction_defs.predictions if defn.dtype is not None}
+
+
 def _infer_datetime(dataframe, cols=None, override_categories=None):
     """Infers datetime columns based on column name and casts to pandas.datatime."""
     if cols is None:

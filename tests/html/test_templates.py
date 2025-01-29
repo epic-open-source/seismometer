@@ -86,12 +86,12 @@ class Test_Templates:
 
     def test_censored_plot_template(self):
         html_source = undertest.render_censored_plot_message(3).data
-        assert "censored" in html_source
-        assert "There are 3 or fewer rows." in html_source
+        assert "Censored" in html_source
+        assert "There are 3 or fewer observations." in html_source
 
     def test_censored_data_template(self):
         html_source = undertest.render_censored_data_message(Exception("Somthing Bad Happened")).data
-        assert "censored" in html_source
+        assert "Censored" in html_source
         assert "Somthing Bad Happened" in html_source
 
     def test_title_image_template(self):

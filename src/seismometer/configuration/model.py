@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -9,22 +9,22 @@ logger = logging.getLogger("seismometer")
 FileLike = str | Path
 DirLike = str | Path
 AggregationStrategies = Literal["min", "max", "first", "last"]
+MergeStrategies = Literal["first", "last", "nearest", "forward", "count"]
 
 
 class OtherInfo(BaseModel):
     """Locations of configuration and data files."""
 
-    # These are necessary for a notebook to be built
     template: Optional[str] = None
-    """ Descriptor of the template; used only during notebook build. """
+    """ Descriptor of the template; not used. """
     info_dir: Optional[DirLike] = None
-    """ Writable directors for output; used during build, extract and run. """
+    """ Writable directors for output; used during run. """
     event_definition: Optional[FileLike] = None
     """ The location of the event dictionary. """
     prediction_definition: Optional[FileLike] = None
     """ The location of the prediction dictionary. """
     usage_config: Optional[FileLike] = None
-    """ The location of the usage configuration; used during build and run. """
+    """ The location of the usage configuration; used during run. """
 
     # The following specify where to find the data at notebook runtime
     data_dir: Optional[DirLike] = None
@@ -79,8 +79,44 @@ class PredictionDictionary(BaseModel):
 
     """
 
-    predictions: list[DictionaryItem]
+    predictions: list[DictionaryItem] = []
     """ The list of all columns in the predictions data."""
+
+    def __getitem__(self, key: str) -> Optional[DictionaryItem]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+
+        Returns
+        -------
+        Optional[str]
+            The definition of the column.
+        """
+        return _search_dictionary(self.predictions, key)
+
+    def get(self, key: str, default: Optional[Any] = None) -> Union[DictionaryItem, Any]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+        default : Optional[Any]
+            The default value to return if the key is not found, defaults to None.
+
+        Returns
+        -------
+        The DictionaryItem with name specified or the default value
+        """
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class EventDictionary(BaseModel):
@@ -92,8 +128,45 @@ class EventDictionary(BaseModel):
     interventions, and outcomes.
     """
 
-    events: list[DictionaryItem]
+    events: list[DictionaryItem] = []
+
     """ The list of all columns in the events data."""
+
+    def __getitem__(self, key: str) -> Optional[DictionaryItem]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+
+        Returns
+        -------
+        Optional[str]
+            The definition of the column.
+        """
+        return _search_dictionary(self.events, key)
+
+    def get(self, key: str, default: Optional[Any] = None) -> Union[DictionaryItem, Any]:
+        """
+        Get the definition of an item.
+
+        Parameters
+        ----------
+        key : str
+            The column name.
+        default : Optional[Any]
+            The default value to return if the key is not found, defaults to None.
+
+        Returns
+        -------
+        The DictionaryItem with name specified or the default value
+        """
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class Cohort(BaseModel):
@@ -171,6 +244,22 @@ class Event(BaseModel):
     The strategy for aggregating (or selecting) scores for an event.
     Supports min, max, first, and last; defaulting to max.
     """
+    merge_strategy: Optional[MergeStrategies] = "forward"
+    """
+    The strategy for merging events with predictions.
+    Supports first, last, nearest, forward, and count; defaulting to forward.
+
+    | - first: The first event within the window is selected. If no window, the first event is selected.
+    | - last: The last event within the window is selected. If no window, the last event is selected.
+    | - nearest: The event closest to the prediction time within the window is selected.
+                 If no window, the nearest event is selected.
+    | - forward: The first event at or after the prediction time within the window is selected.
+                 If no window, the first event at or after the prediction time is selected.
+    | - count: Creates a count column for each event value for specified event label.
+               This column tracks the occurrences of each event value for each prediction.
+               Counts respects the window.
+
+    """
 
     @field_validator("source", mode="before")
     @classmethod
@@ -218,7 +307,7 @@ class DataUsage(BaseModel):
 
     The features and scores list, when defined, limit the loading of data from the predictions file to only those
     inputs and outputs (plus primary_score and cohort attributes).
-    The events similary limits the event types that are merged into the working dataframe and available to analyses.
+    The events similarly limits the event types that are merged into the working dataframe and available to analyses.
     """
 
     entity_id: str = "Id"
@@ -337,3 +426,10 @@ class DataUsage(BaseModel):
             seen_names.add(feature.display_name)
             good_features.append(feature)
         return good_features
+
+
+def _search_dictionary(dictionary: list[DictionaryItem], key: str) -> Optional[DictionaryItem]:
+    for item in dictionary:
+        if item.name == key:
+            return item
+    raise KeyError(f"{key} not found")

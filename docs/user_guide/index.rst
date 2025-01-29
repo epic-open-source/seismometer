@@ -38,48 +38,17 @@ you might not be familiar with:
 
 -  *Feature*. A column of data used as an input to the model.
 
-Generating a Notebook
+Creating a Notebook
 =====================
 
-Generating a Notebook requires three pieces of information:
+Creating a Seismogram (notebook) requires a couple distinct pieces of information:
 
-- Template Notebook: A template Notebook that is suitable for your model.
+- Example Notebook: Starting from example notebook, while not required, is expected to be the most straight-forward. Once several types of models are supported, it is expected that a CLI will further automate combining new content into the example structure.
 - Configuration files: A ``config.yml`` file to specify location of required data and/or other configuration files (refer to the :ref:`config-files`).
-- Supplemental info: Explanatory markdown files and model-specific supplements to guide the analysis (refer to the :ref:`config-files`).
+- Supplemental info: Explanatory model-specific supplements to guide the analysis.
 
-Each template Notebook is associated with a collection of markdown files. Your markdown files are used to fill the corresponding
-markdown file in the template Notebook to generate a Notebook. To extract the expected markdown files
-from the template Notebook, you can run the following:
+Update or replace the example notebook with content relevant to your model.
 
-.. code-block:: bash
-
-   seismometer extract --template binary
-
-If the command is not run from the same directory as your ``config.yml`` file, use
-
-.. code-block:: bash
-
-   seismometer extract --template binary --config_yaml {path_to_base_config_file}
-
-In the above example, we are using the ``binary`` template. Run
-
-.. code-block:: bash
-
-   seismometer extract --help
-
-for more details on available templates and arguments.
-
-Update the markdown files with content relevant to your model or replace them with model-specific markdown files
-provided by the model developer.
-
-After updating the markdown files with content for the model, generate a Notebook by running
-
-.. code-block:: bash
-
-   seismometer build [--config_yaml] {path_to_base_config_file}
-
-.. seealso::
-   :ref:`cli` for more details on the CLI and :ref:`api.internals` for more information on build and extract commands.
 
 Using the Binary Classifier Notebook
 ====================================
@@ -154,7 +123,7 @@ of how well the model performs across thresholds. The AUROC does not
 assess performance at a specific threshold.
 
 .. image:: media/ROC.png
-   :alt: A graph with a curve Description automatically generated
+   :alt: A graph of the ROC with the AUROC included
    :width: 3.5in
 
 Sensitivity/Flag Curve
@@ -174,7 +143,7 @@ area above the curve indicates how many true positives would be missed
 at this threshold.
 
 .. image:: media/sensitivity_flagrate.png
-   :alt: A graph of a curve Description automatically generated
+   :alt: A graph of sensitivity versus flag rate
    :width: 3.5in
 
 Calibration Curve
@@ -186,7 +155,7 @@ proportion of cases at that threshold are true positives) against the
 model's predicted probability. Points above the y=x line indicate that a
 model is overconfident in its predictions (meaning that it identifies
 more positive cases than exist), and points below the y=x line indicate
-that a model is underconfident in its predictions (it identifies fewer
+that a model is under-confident in its predictions (it identifies fewer
 positive cases than exist).
 
 Note the following when using a calibration curve, particularly with a
@@ -200,7 +169,7 @@ defined threshold or with sampling:
    and a score of 15 are treated the same in that workflow.
 
 .. image:: media/observed_rate_predicted_probability.png
-   :alt: A graph with a blue line and red dots Description automatically generated
+   :alt: A graph of the calibration curve with vertical lines representing key thresholds
    :width: 3.5in
 
 PR Curve
@@ -218,7 +187,7 @@ This plot can help you assess the tradeoffs between identifying more
 positive cases and correctly identifying positive cases.
 
 .. image:: media/ppv_sensitivity.png
-   :alt: A graph with a line and numbers Description automatically generated
+   :alt: A graph of PPV versus sensitivity
    :width: 3.5in
 
 Sensitivity/Specificity/PPV Curve
@@ -230,7 +199,7 @@ it can help you identifying thresholds where your model has high enough
 specificity, sensitivity, and PPV for your intended workflows.
 
 .. image:: media/threshold_metric.png
-   :alt: A graph of a graph Description automatically generated with medium confidence
+   :alt: A graph of sensitivity, specificity, and PPV
    :width: 3.5in
 
 Predicted Probabilities
@@ -243,6 +212,52 @@ the true positives without identifying too many of the true negatives.
 
 .. image:: media/predicted_count.png
    :width: 3.5in
+
+Analytics Table
+~~~~~~~~~~~~~~~
+
+Provides a table of performance statistics to compare performance across
+multiple models/scores and targets centered around two values selected
+for a specific monotonic (with respect to Threshold) performance metric.
+
+The Analytics Table is customizable, allowing users to select the metrics
+and values that are most relevant to their analysis. Users can easily
+switch between different metrics and adjust the metric values (essentially
+change threshold by other means) to see how performance statistics change.
+This flexibility makes it a useful tool for model evaluation and comparison.
+
+*Metric:*
+
+The table provides performance statistics for specified values
+(two values that users can specify) of metric. This could be one of 
+Sensitivity, Specificity, Flag Rate, or Threshold. Users can select the
+metric that best suits their analysis needs, allowing for a focused
+comparison of model performance based on the chosen criteria.
+
+*Generated Statistics:*
+
+The table provides a combination of overall (e.g., Prevalence and AUROC)
+and threshold specific (e.g., Sensitivity, Flag Rate, Specificity, etc.)
+performance statistics. These statistics offer a comprehensive view of
+model performance, highlighting both general trends and specific behaviors
+at the selected metric values. This dual perspective enables users to make
+informed decisions about model effectiveness and areas for improvement.
+
+*Example:* 
+
+Consider a scenario where you want to evaluate the performance of different
+models based on the Sensitivity metric at two specific values, 0.7 and 0.8.
+The following table is generated to compare the performance statistics:
+
+.. image:: media/analytics_table.png
+   :width: 7in
+
+In this example, the table displays various performance statistics such as
+Sensitivity, Specificity, Flag Rate, and Threshold for the specified values.
+By adjusting these values, users can observe how the performance metrics
+change, providing valuable insights into the strengths and weaknesses of
+each model. This allows for a more informed decision-making process when
+selecting the best model for a given task.
 
 Fairness Audit
 --------------
@@ -257,30 +272,32 @@ on a predetermined set while remaining aware of the others.
 
 This audit should be used by experts with a deep understanding of the
 model and the context in which the predictions are used. Even when a
-metric is flagged as failing in the fairness audit, there might be
-context that explains and even predicts the difference. Like many
+metric is flagged as a deviation in the fairness audit, the context
+might explain or even predict the difference. Like many
 concepts, a single parity concept can have several different names;
 notably, parity of true positive rate is equal opportunity, parity of
 false positive rate is predictive equality, and parity of predictive
 prevalence is demographic parity.
 
-An Aequitas audit gives an overview of parity across all defined groups
-for each cohort attribute. By default, the majority group is the
+A fairness audit gives an overview of parity across all defined groups
+for each cohort attribute. The majority group is the
 baseline and a statistic for all observations in the other groups is
-compared. A fairness threshold such as 125% is then used to classify the
-ratio of each group to the reference. If any group performs differently,
-above (125% in our example) or below (80%) then it is considered a
-failure for that cohort/metric.
+compared. A fairness threshold such as 25% is then used to classify the
+ratio of each group to the reference. The metric of interest is calculated on the default
+group and the cohort under comparison. The resulting ratio (comparison/default) is then
+compared against the allowed bounds determined by the fairness threshold.
+The bound determined by 1 + threshold above, and 1 / (1 + threshold) below,
+so that a fairness threshold of 0.25 sets the upper bound at 1.25 times larger,
+or a 25% increase in the metric. Since the lower bound is checked
+with the reciprocal, this would result in a 20% decrease.
 
-The visualization is a table showing the overall pass/fail, an ordered
-list of circles representing the groups, and a bar representing the
-percentage of the population data in reference. Note that comparison
+The visualization is a table showing the overall metrics, and icons
+indicating default, within bounds, or out of bounds. Note that comparison
 across columns is not always exact due to potential differences in the
-included observations from missing information. Hovering over a bar or
-circle shows details on the group and metric.
+included observations from missing information.
 
-.. image:: media/fairness_audit.png
-   :alt: A group of colorful text boxes Description automatically generated with medium confidence
+.. image:: media/fairness_table_binary_classifier.png
+   :alt: A table of metrics showing variation across cohort subgroups
    :width: 7in
 
 Cohort Analysis
@@ -343,7 +360,7 @@ Notebook.
 Create Configuration Files
 --------------------------
 
-Configuration files provide the instructions and details needed to build
+Configuration files provide the instructions and details needed to create
 the Notebook for your dataset. It can be provided in one or several YAML
 files. The configuration includes several sections:
 
@@ -398,7 +415,9 @@ is not strictly required.
         display_name: 30 days readmission
         definition: |
            A binary indicator of whether the diabetes patient was readmitted within 30 days of discharge
-        dtype: bool
+        dtype: int
+
+Note that even with a binary event, it is generally more convenient to use an int or even float datatype.
 
 Create Usage Configuration
 --------------------------
@@ -477,8 +496,7 @@ defined in a single YAML file.
       usage_config: "usage_config.yml"
       # Name of the template to use during generation
       template: "binary"
-      # Directory to the location of markdown
-      # Use seismometer extract to prepopulate these files
+      # Directory to write info during the notebook run
       info_dir: "outputs"
       # These two definitions define all the columns available
       event_definition: "dictionary.yml"
@@ -518,19 +536,16 @@ Then, follow the pattern of normal startup but specify your function in the :py:
 
 .. code-block:: python
 
-   from seismometer.configuration import ConfigProvider
-   from seismometer.data.loader import loader_factory
-   from seismometer.seismogram import Seismogram
-   import seismometer._api as sm
+   import seismometer as sm
 
-   def custom_post_load_fn(config: ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
+   def custom_post_load_fn(config: sm.ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
       df["SameAB"] = df["A"] == df["B"]
       return df
 
    def my_startup(config_path="."):
-      config = ConfigProvider(config_path)
+      config = sm.ConfigProvider(config_path)
       loader = loader_factory(config, post_load_fn=custom_post_load_fn)
-      sg = Seismogram(config, loader)
+      sg = sm.Seismogram(config, loader)
       sg.load_data()
 
 The benefit of this approach over manipulating the frame later is that the Seismogram can be considered frozen.
@@ -561,7 +576,7 @@ The following example shows how to create the visualization above.
    import matplotlib.pyplot as plt
 
    # Control allowing users to specify a score, target, threshold, and cohort.
-   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget
+   from seismometer.api.explore import ExplorationModelSubgroupEvaluationWidget
    # Converts matplotlib figure to SVG for display within the control's output
    from seismometer.plot.mpl.decorators import render_as_svg
    # Filter our data based on a specified cohort
@@ -584,7 +599,7 @@ The following example shows how to create the visualization above.
       # These three rows select the data from the seismogram based on the cohort_dict
       sg = sm.Seismogram()
       cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict) # Use only rows that match the cohort
-      data = cohort_filter.filter(sg.data(target_col))
+      data = cohort_filter.filter(sg.dataframe)
 
       xcol = "age"
       ycol = "num_procedures"

@@ -114,6 +114,7 @@ def get_cohort_performance_data(
         If None, will create a dichotomy for numeric values split at the mean.
     censor_threshold : int, default=10
         Minimum number of observations in a cohort to calculate performance metrics.
+
     Returns
     -------
     pd.DataFrame
@@ -140,6 +141,9 @@ def get_cohort_performance_data(
         cohort_perf_stats.append(
             pd.DataFrame({"cohort": label, "cohort-count": 0, "cohort-targetcount": 0}, index=[0])
         )
+
+    if not cohort_perf_stats:
+        return pd.DataFrame()
 
     frame = pd.concat(cohort_perf_stats, ignore_index=True)
     frame["cohort"] = frame["cohort"].astype(pd.CategoricalDtype(data["cohort"].cat.categories))
@@ -263,7 +267,7 @@ def label_cohorts_categorical(series: SeriesOrArray, cat_values: Optional[list] 
     series : SeriesOrArray
         pandas series of data to bin.
     cat_values : Optional[list], optional
-        List of categories to reduce to (default: None-> all observeded categories).
+        List of categories to reduce to (default: None-> all observed categories).
 
     Returns
     -------

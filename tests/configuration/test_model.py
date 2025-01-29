@@ -20,6 +20,118 @@ class TestDictionaryItem:
         assert dict_item.display_name == "a display"
 
 
+class TestEventDictionary:
+    def test_no_events_ok(self):
+        expected = {"events": []}
+
+        actual = undertest.EventDictionary().model_dump()
+
+        assert expected == actual
+
+    def test_minimal_item(self):
+        input = {"name": "evA", "display_name": "event_A"}
+
+        expected_event = input.copy()
+        expected_event.update({"dtype": None, "definition": None})
+        expected = {"events": [expected_event]}
+
+        event_dict = undertest.EventDictionary(events=[input])
+
+        actual = event_dict.model_dump()
+        assert expected == actual
+
+    def test_multiple_events(self):
+        input_min = {"name": "evA", "display_name": "event_A"}
+        input_full = {"name": "evB", "display_name": "event_B", "dtype": "int", "definition": "a definition"}
+        inputs = [input_min.copy(), input_full.copy()]
+
+        expected_event = input_min.copy()
+        expected_event.update({"dtype": None, "definition": None})
+        expected = {"events": [expected_event.copy(), input_full]}
+
+        event_dict = undertest.EventDictionary(events=inputs)
+
+        actual = event_dict.model_dump()
+        assert expected == actual
+
+    @pytest.mark.parametrize("search_key,expected_key", [("evA", "filled"), ("evB", "given"), ("evC", "empty")])
+    def test_search_returns_item(self, search_key, expected_key):
+        inputs = [
+            {"name": "evA", "display_name": "event_A"},
+            {"name": "evB", "display_name": "event_B", "dtype": "int", "definition": "a definition"},
+        ]
+
+        filled = inputs[0].copy()
+        filled.update({"dtype": None, "definition": None})
+        expected_dict = {
+            "filled": undertest.DictionaryItem(**filled),
+            "given": undertest.DictionaryItem(**inputs[1]),
+            "empty": "MISSING",
+        }
+        expected = expected_dict[expected_key]
+
+        event_dict = undertest.EventDictionary(events=inputs)
+        actual = event_dict.get(search_key, "MISSING")
+
+        assert actual == expected
+
+
+class TestPredictDictionary:
+    def test_no_predictions_ok(self):
+        expected = {"predictions": []}
+
+        actual = undertest.PredictionDictionary().model_dump()
+
+        assert expected == actual
+
+    def test_minimal_item(self):
+        input = {"name": "prA", "display_name": "feature_A"}
+
+        expected_prediction = input.copy()
+        expected_prediction.update({"dtype": None, "definition": None})
+        expected = {"predictions": [expected_prediction]}
+
+        prediction_dict = undertest.PredictionDictionary(predictions=[input])
+
+        actual = prediction_dict.model_dump()
+        assert expected == actual
+
+    def test_multiple_predictions(self):
+        input_min = {"name": "prA", "display_name": "feature_A"}
+        input_full = {"name": "prB", "display_name": "feature_B", "dtype": "int", "definition": "a definition"}
+        inputs = [input_min.copy(), input_full.copy()]
+
+        expected_prediction = input_min.copy()
+        expected_prediction.update({"dtype": None, "definition": None})
+        expected = {"predictions": [expected_prediction.copy(), input_full]}
+
+        prediction_dict = undertest.PredictionDictionary(predictions=inputs)
+
+        actual = prediction_dict.model_dump()
+        assert expected == actual
+
+    @pytest.mark.parametrize("search_key,expected_key", [("evA", "filled"), ("evB", "given"), ("evC", "empty")])
+    def test_search_returns_item(self, search_key, expected_key):
+        inputs = [
+            {"name": "evA", "display_name": "event_A"},
+            {"name": "evB", "display_name": "event_B", "dtype": "int", "definition": "a definition"},
+        ]
+
+        filled = inputs[0].copy()
+        filled.update({"dtype": None, "definition": None})
+        expected_dict = {
+            "filled": undertest.DictionaryItem(**filled),
+            "given": undertest.DictionaryItem(**inputs[1]),
+            "empty": "MISSING",
+        }
+        expected = expected_dict[expected_key]
+
+        event_dict = undertest.EventDictionary(events=inputs)
+        actual = event_dict.get(search_key, "MISSING")
+
+        assert actual == expected
+
+
 class TestEvent:
     expectation = {
         "source": ["source"],
@@ -29,6 +141,7 @@ class TestEvent:
         "impute_val": None,
         "usage": None,
         "aggregation_method": "max",
+        "merge_strategy": "forward",
     }
 
     def test_default_values(self):
@@ -63,6 +176,7 @@ class TestEvent:
             ({"offset_hr": "abc"}),
             ({"usage": 1}),
             ({"aggregation_method": "middle"}),
+            ({"merge_strategy": "center"}),
         ],
     )
     def test_one_invalid_attribute_change(self, input_dict):
@@ -70,10 +184,18 @@ class TestEvent:
             _ = undertest.Event(source="source", **input_dict)
 
     @pytest.mark.parametrize("agg_strategy", undertest.AggregationStrategies.__args__)
-    def test_supported_strategies_are_allowed(self, agg_strategy):
+    def test_supported_agg_strategies_are_allowed(self, agg_strategy):
         expected = TestEvent.expectation.copy()
         expected["aggregation_method"] = agg_strategy
         cohort = undertest.Event(source="source", aggregation_method=agg_strategy)
+
+        assert expected == cohort.model_dump()
+
+    @pytest.mark.parametrize("merge_strategy", undertest.MergeStrategies.__args__)
+    def test_supported_merge_strategies_are_allowed(self, merge_strategy):
+        expected = TestEvent.expectation.copy()
+        expected["merge_strategy"] = merge_strategy
+        cohort = undertest.Event(source="source", merge_strategy=merge_strategy)
 
         assert expected == cohort.model_dump()
 

@@ -1,22 +1,16 @@
-from importlib.resources import files as _files
 from pathlib import Path
 
 import pytest
+from conftest import res  # noqa:  flake cant detect fixture usage
 
-import seismometer.builder.resources
 import seismometer.configuration.config as undertest
 
-BUILDER_CONFIG = _files(seismometer.builder.resources) / "config.yml"
+TEST_CONFIG = Path("config") / "config.yml"
 
 
 # Could share temp directory across all tests
 @pytest.mark.usefixtures("tmp_as_current")
 class TestConfigProvider:
-    def test_builder_default_template_is_binary(self):
-        config = undertest.ConfigProvider(BUILDER_CONFIG)
-        assert config.template.name == "binary"
-        assert config.template.value == BUILDER_CONFIG.parent / "classifier_bin.ipynb"
-
     @pytest.mark.parametrize(
         "property, value",
         [
@@ -37,15 +31,28 @@ class TestConfigProvider:
             ("interventions", {}),
             ("prediction_columns", ["Age", "Input", "Score", "ScoringTime", "encounter_id", "id"]),
             ("censor_min_count", 15),
-            ("output_notebook", "classifier_bin.ipynb"),
         ],
     )
-    def test_build_config_is_valid_simple_object(self, property, value):
-        config = undertest.ConfigProvider(BUILDER_CONFIG)
+    def test_testconfig_is_valid_simple_object(self, property, value, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
         actual = getattr(config, property)
 
         assert actual == value
 
-    def test_build_config_uses_tmp(self, tmp_path):
-        config = undertest.ConfigProvider(BUILDER_CONFIG)
+    def test_testconfig_uses_tmp(self, tmp_path, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
         assert config.output_dir == tmp_path / "outputs"
+
+    @pytest.mark.parametrize(
+        "outputs, output_list",
+        [
+            (["Score2"], ["Score", "Score2"]),
+            (["Score"], ["Score"]),
+            (["Score2", "Score"], ["Score2", "Score"]),
+            (["Score1", "Score2"], ["Score", "Score1", "Score2"]),
+        ],
+    )
+    def test_provider_groups_primary_output_with_output_list(self, outputs, output_list, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
+        config.usage.outputs = outputs
+        assert config.output_list == output_list

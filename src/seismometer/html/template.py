@@ -4,6 +4,8 @@ from typing import Any
 from IPython.display import HTML, SVG
 from jinja2 import Environment, PackageLoader, TemplateNotFound
 
+FULL_WIDTH_STYLE = "width: 100%; max-width: 1200px;"
+
 logger = logging.getLogger("seismometer")
 
 # Initializing Jinja
@@ -45,7 +47,7 @@ def render_cohort_summary_template(dfs: dict[str, list[str]]) -> HTML:
     return render_into_template("cohorts", {"dfs": dfs})
 
 
-def render_into_template(name: str, values: dict = None) -> HTML:
+def render_into_template(name: str, values: dict = None, display_style=FULL_WIDTH_STYLE) -> HTML:
     """
     Uses jinja to render a dictionary of values into a template.
 
@@ -55,6 +57,8 @@ def render_into_template(name: str, values: dict = None) -> HTML:
         The template name.
     values : Optional[dict], optional
         A dictionary of values to be templated into the HTML, by default None.
+    display_style : str, optional
+        The display style for the template, by default FULL_WIDTH_STYLE.
 
     Returns
     -------
@@ -68,7 +72,7 @@ def render_into_template(name: str, values: dict = None) -> HTML:
         logger.warning(f"HTML template {name} not found.")
         return HTML()
 
-    return HTML(template.render(values))
+    return HTML(template.render(values, display_style=display_style))
 
 
 def render_title_message(title: str, message: str) -> HTML:
@@ -104,7 +108,7 @@ def render_censored_plot_message(censor_threshold: int) -> HTML:
     HTML
         The templated HTML.
     """
-    return render_censored_data_message(f"There are {censor_threshold} or fewer rows.")
+    return render_censored_data_message(f"There are {censor_threshold} or fewer observations.")
 
 
 def render_censored_data_message(message: str) -> HTML:
@@ -121,7 +125,7 @@ def render_censored_data_message(message: str) -> HTML:
     HTML
         The templated HTML.
     """
-    return render_title_message("Data is censored.", message)
+    return render_title_message("Censored", message)
 
 
 def render_title_with_image(title: str, image: SVG) -> HTML:

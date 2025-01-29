@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -5,7 +6,6 @@ from pydantic import BaseModel
 from seismometer.core.io import load_yaml
 
 from .model import DataUsage, Event, EventDictionary, OtherInfo, PredictionDictionary
-from .options import Option, template_options
 
 
 class ConfigProvider:
@@ -27,20 +27,17 @@ class ConfigProvider:
         uses usage_config from the primary config file,
         which specifies details about what kind of data is used and how it should be used.
     info_dir : Optional[str | Path], optional
-        Specifies the path to the information *directory* used by builder stages, by default None; it uses info_dir
-        from the primary config file,
-        which is where markdown files are written/read and where generated notebooks are placed.
+        Specifies the path to the information *directory*. Not used, by default None;
+        Configured in the primary config file
     data_dir : Optional[str | Path], optional
         Specifies the path to the data directory, by default None; it uses data_dir from the primary config file,
         which is where data dictionaries are written/read.
-    template_notebook : Optional[Option], optional
-        Specifies the template notebook name to use during building, by default None; it uses "template" from the
-        primary config file.
-        This is the template that will be used as a base for building the final notebook.
+    template_notebook : Optional[object], optional
+        Unused.
     definitions : Optional[dict], optional
         A dictionary of definitions to use instead of loading those specified by configuration, by default None.
     output_path : Optional[str | Path], optional
-        Used by the builder CLI, specifies the path to the output directory or file, by default None;
+        Specifies the path to the output directory or file, by default None;
         if a directory, the template notebook will be used with the prefix gen.
     """
 
@@ -51,16 +48,16 @@ class ConfigProvider:
         usage_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
-        template_notebook: Option = None,
+        template_notebook: object = None,
         definitions: dict = None,
         output_path: str | Path = None,
     ):
         self._config: OtherInfo = None
         self._usage: DataUsage = None
-        self._predictions: PredictionDictionary = None
-        self._events: EventDictionary = None
         self._output_dir: Path = None
         self._output_notebook: str = ""
+        self._event_defs: EventDictionary = None
+        self._prediction_defs: PredictionDictionary = None
 
         if definitions is not None:
             self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
@@ -68,15 +65,6 @@ class ConfigProvider:
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
-        self._override_template(template_notebook)
-
-    def _override_template(self, template_notebook: Option) -> None:
-        """
-        Overrides the configuration template with the one specified.
-        """
-        if template_notebook is None:
-            return
-        self._template = template_options[template_notebook]
 
     def _load_config_config(self, config_config: str | Path) -> None:
         """
@@ -115,7 +103,7 @@ class ConfigProvider:
     @property
     def config(self) -> OtherInfo:
         """
-        The configuration definiton.
+        The configuration definition.
 
         Usually from config.yml, this is primarily used during initial loading to know
         where other pieces are located.
@@ -130,25 +118,13 @@ class ConfigProvider:
         self._template = None
 
     @property
-    def template(self) -> Option:
+    def template(self) -> None:
         """The template used for building a model-specific seismograph notebook."""
-        if self._template is None:
-            template_name = self.config.template
-            if template_name not in template_options:
-                raise ValueError(
-                    f"Template option {template_name} not found in known options: {', '.join(template_options)}"
-                )
-            self._template = template_options[template_name]
-
-        return self._template
+        raise NotImplementedError("Template building is not implemented")
 
     @property
     def info_dir(self) -> Path:
-        """
-        The directory for output information.
-
-        During extract and building, this is where markdown files are located.
-        """
+        """The directory for output information."""
         return self.config.info_dir
 
     @property
@@ -168,8 +144,15 @@ class ConfigProvider:
         return self._event_defs
 
     def _load_definitions(self, def_path: Path, def_key: str, data_model: BaseModel) -> dict:
-        raw_defs = load_yaml(def_path, resource_dir=self.config_dir)
-        return data_model(**raw_defs.pop(def_key, {}))
+        try:
+            raw_defs = load_yaml(def_path, resource_dir=self.config_dir)
+        except FileNotFoundError:
+            logging.info(f"No dictionary file found at {def_path}. Update config config.")
+            raw_defs = None
+
+        if raw_defs is None:
+            raw_defs = {def_key: []}
+        return data_model(**raw_defs)
 
     @property
     def usage(self) -> DataUsage:
@@ -275,6 +258,8 @@ class ConfigProvider:
 
         Configured in usage_data as outputs or primary_output.
         """
+        if self.output in self.usage.outputs:
+            return self.usage.outputs
         return [self.output] + self.usage.outputs
 
     @property
@@ -387,10 +372,6 @@ class ConfigProvider:
             - value specified by info_dir in configuration,
             - the current working directory.
 
-        The output notebook will be located in the output directory and will use the specified name, if a file,
-        or will have "gen_" prefixed on the template file name if a directory.
-        Note: The template notebook will not always have the same name as the describing string.
-
         Parameters
         ----------
         output : Path
@@ -405,11 +386,7 @@ class ConfigProvider:
         output = output.resolve()
         if not output.suffix:  # no suffix implies directory
             self._output_dir = output
-            filename = self.template.value
-            if filename:
-                self._output_notebook = nb_prefix + filename.name
         else:  # file specified
-            self._output_notebook = output.name
             if str(output.parent) == ".":  # No path given, use config
                 self._output_dir = self.info_dir or output.parent
             else:

@@ -4,6 +4,7 @@ import pandas as pd
 
 import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider
+from seismometer.configuration.model import Event
 
 logger = logging.getLogger("seismometer")
 
@@ -81,13 +82,16 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
         The merged dataframe of predictions plus new event columns.
     """
     dataframe = (
-        dataframe.sort_values(config.predict_time)
+        dataframe.sort_values(config.predict_time, kind="mergesort")
         .drop_duplicates(subset=config.entity_keys + [config.predict_time])
         .dropna(subset=[config.predict_time])
     )
-    event_frame = event_frame.sort_values("Time")
+    event_frame = event_frame.sort_values("Time", kind="mergesort")
 
     for one_event in config.events.values():
+        # Get dtype
+        event_dtype = _get_source_type(config, one_event)
+
         # Merge
         if one_event.window_hr:
             logger.debug(
@@ -99,32 +103,51 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 one_event.source,
                 dataframe,
                 event_frame,
+                event_dtype=event_dtype,
                 window_hrs=one_event.window_hr,
                 offset_hrs=one_event.offset_hr,
                 display=one_event.display_name,
                 sort=False,
+                impute_pos=one_event.impute_val,
             )
         else:  # No lookback
             logger.debug(f"Merging event {one_event.display_name}")
             dataframe = _merge_event(
-                config, one_event.source, dataframe, event_frame, display=one_event.display_name, sort=False
+                config,
+                one_event.source,
+                dataframe,
+                event_frame,
+                event_dtype=event_dtype,
+                display=one_event.display_name,
+                sort=False,
+                impute_pos=one_event.impute_val,
             )
 
         # Impute no event
         if one_event.impute_val and one_event.impute_val != 0:
+            event_val = pdh.event_value(one_event.display_name)
             logger.warning(
                 f"Event {one_event.display_name} specified impute; "
-                + "currently missing event value is inferred based on timestamp existence."
+                + "currently missing event value is being inferred based on timestamp existence."
             )
-            event_val = pdh.event_value(one_event.display_name)
-            impute = one_event.impute_val or 0  # Enforce binary type target
+            impute = one_event.impute_val
             dataframe[event_val] = dataframe[event_val].fillna(impute)
 
     return dataframe
 
 
 def _merge_event(
-    config, event_cols, dataframe, event_frame, offset_hrs=0, window_hrs=None, display="", sort=True
+    config,
+    event_cols,
+    dataframe,
+    event_frame,
+    event_dtype=None,
+    offset_hrs=0,
+    window_hrs=None,
+    display="",
+    sort=True,
+    impute_pos=1,
+    impute_neg=0,
 ) -> pd.DataFrame:
     """Wrapper for calling merge_windowed_event with the correct event column names."""
     disp_event = display if display else event_cols[0]
@@ -138,5 +161,36 @@ def _merge_event(
         min_leadtime_hrs=offset_hrs,
         window_hrs=window_hrs,
         event_base_time_col="Time",
+        event_base_val_dtype=event_dtype,
         sort=sort,
+        merge_strategy=config.events[disp_event].merge_strategy,
+        impute_val_with_time=impute_pos,
+        impute_val_no_time=impute_neg,
     )
+
+
+def _get_source_type(config: ConfigProvider, event: Event) -> str:
+    """Get the dtype of the first source of the specified event."""
+    dtype = None
+    multitypes = set()  # Aggregate woarning messages
+    for source in event.source:
+        new_type = None
+        if (source_defn := config.event_defs.get(source, None)) is not None:
+            new_type = source_defn.dtype
+
+        if new_type is None:
+            continue
+        if dtype is None:
+            dtype = new_type
+            continue
+
+        if dtype != new_type:
+            multitypes.add(new_type)
+
+    if len(multitypes) > 1:
+        logger.warning(
+            f"Multiple types found for event {event.display_name}. "
+            + f"Will use the first source of type {dtype} and ignore others: {','.join(multitypes)}"
+        )
+
+    return dtype

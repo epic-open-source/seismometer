@@ -21,6 +21,23 @@ PROFILING_CONFIG_PATH = _files(seismometer.report) / "report_config.yml"
 logger = logging.getLogger("seismometer")
 
 
+def filter_unsupported_columns(df: DataFrame) -> DataFrame:
+    """
+    Filters out columns that are not supported by ydata-profiling.
+
+    Parameters
+    ----------
+    df : DataFrame
+        A Pandas DataFrame object.
+
+    Returns
+    -------
+    DataFrame
+        A Pandas DataFrame object with unsupported columns removed.
+    """
+    return df.select_dtypes(exclude=["datetime", "datetimetz", "datetime64[ns]"])
+
+
 class ReportWrapper(ABC):
     _df: DataFrame
     _html_path: str
@@ -85,8 +102,8 @@ class ComparisonReportWrapper(ReportWrapper):
             Base title for the report, by default "Feature Report".
         """
 
-        self._l_df = l_df
-        self._r_df = r_df
+        self._l_df = filter_unsupported_columns(l_df)
+        self._r_df = filter_unsupported_columns(r_df)
         self._l_title = l_title
         self._r_title = r_title
         self._exclude_cols = exclude_cols
@@ -149,7 +166,7 @@ class SingleReportWrapper(ReportWrapper):
         alert_config : Optional[AlertConfigProvider], optional
             The parsed configuration for determining which alerts are shown, by default None.
         """
-        self._df = df
+        self._df = filter_unsupported_columns(df)
         self._title = title
         self._html_path = output_path / (slugify(title) + ".html")
         self._alert_path = output_path / (slugify(title) + "_alerts.json")
