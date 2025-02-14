@@ -946,6 +946,8 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._metrics_to_display.value == ("Accuracy", "PPV")
         assert widget._group_by.value == "Score"
         assert widget.per_context_checkbox.value is False
+        assert widget._cohort_dict.value == {}
+        assert widget.all_cohorts == fake_seismo.available_cohort_groups
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_disabled_property(self, mock_seismo):
@@ -968,6 +970,7 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._metrics_to_display.disabled is True
         assert widget._group_by.disabled is True
         assert widget.per_context_checkbox.disabled is True
+        assert widget._cohort_dict.disabled is True
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_on_value_changed(self, mock_seismo):
@@ -988,6 +991,11 @@ class TestAnalyticsTableOptionsWidget:
         widget._metric_values.value = {"Metric Value 1": 0.9, "Metric Value 2": 0.1}
         widget._metrics_to_display.value = ("Accuracy",)
         widget._group_by.value = "Target"
+        widget._cohort_dict.value = {
+            "C1": [
+                "C1.1",
+            ]
+        }
         widget.per_context_checkbox.value = True
 
         expected_value = {
@@ -997,7 +1005,11 @@ class TestAnalyticsTableOptionsWidget:
             "metric_values": {"Metric Value 1": 0.9, "Metric Value 2": 0.1},
             "metrics_to_display": ("Accuracy",),
             "group_by": "Target",
-            "cohort_dict": {},
+            "cohort_dict": {
+                "C1": [
+                    "C1.1",
+                ]
+            },
             "group_scores": True,
         }
         assert widget.value == expected_value
@@ -1102,6 +1114,11 @@ class TestAnalyticsTableOptionsWidget:
         widget._metric_values.value = {"Metric Value 1": 0.9, "Metric Value 2": 0.1}
         widget._metrics_to_display.value = ("PPV",)
         widget._group_by.value = "Target"
+        widget._cohort_dict.value = {
+            "C1": [
+                "C1.2",
+            ]
+        }
         widget.per_context_checkbox.value = True
 
         # Verify the state changes
@@ -1111,6 +1128,11 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._metric_values.value == {"Metric Value 1": 0.9, "Metric Value 2": 0.1}
         assert widget._metrics_to_display.value == ("PPV",)
         assert widget._group_by.value == "Target"
+        assert widget._cohort_dict.value == {
+            "C1": [
+                "C1.2",
+            ]
+        }
         assert widget.per_context_checkbox.value is True
 
 

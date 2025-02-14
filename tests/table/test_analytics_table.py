@@ -51,7 +51,7 @@ def get_test_data():
             "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "event3_Value": [0, 2, 5, 1],
             "event3_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
-            "cohort1": ["A", "B", "A", "B"],
+            "cohort1": ["A", "A", "A", "B"],
             "score1": [0.1, 0.4, 0.35, 0.8],
             "score2": [0.2, 0.5, 0.3, 0.7],
             "target1": [0, 1, 0, 1],
@@ -96,6 +96,8 @@ class TestAnalyticsTable:
             metric_values=metric_values,
             statistics_data=statistics_data,
             table_config=table_config,
+            censor_threshold=10,
+            cohort_dict={"cohort1": ("A", "B")},
         )
 
         assert table.score_columns == scores
@@ -108,6 +110,8 @@ class TestAnalyticsTable:
         assert table.columns_show_percentages == ["Prevalence"]
         assert table.percentages_decimals == 0
         assert table.statistics_data.equals(statistics_data)
+        assert table.censor_threshold == 10
+        assert table.cohort_dict == {"cohort1": ("A", "B")}
 
     def test_invalid_metric(self, fake_seismo):
         with pytest.raises(
@@ -177,6 +181,8 @@ class TestAnalyticsTable:
             metric="Sensitivity",
             metric_values=metric_values,
             statistics_data=statistics_data,
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
         )
         gt = table.analytics_table()
         assert gt is not None
@@ -191,6 +197,8 @@ class TestAnalyticsTable:
             metric="Sensitivity",
             metric_values=metric_values,
             statistics_data=statistics_data,
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
         )
         gt = table.analytics_table()
         assert gt is not None
@@ -198,7 +206,13 @@ class TestAnalyticsTable:
     def test_generate_initial_table(self, fake_seismo):
         scores = ["score1", "score2"]
         targets = ["target1", "target2", "target3"]
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity", censor_threshold=1)
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Sensitivity",
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
+        )
         data = table._generate_table_data()
         gt = table.generate_initial_table(data)
         assert gt is not None
@@ -207,16 +221,13 @@ class TestAnalyticsTable:
         scores = ["score1", "score2"]
         targets = ["target1", "target2", "target3"]
         table = AnalyticsTable(
-            score_columns=scores, target_columns=targets, top_level="Target", metric="Sensitivity", censor_threshold=1
+            score_columns=scores,
+            target_columns=targets,
+            top_level="Target",
+            metric="Sensitivity",
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
         )
-        data = table._generate_table_data()
-        gt = table.generate_initial_table(data)
-        assert gt is not None
-
-    def test_generate_color_bar(self, fake_seismo):
-        scores = ["score1", "score2"]
-        targets = ["target1", "target2"]
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity", censor_threshold=1)
         data = table._generate_table_data()
         gt = table.generate_initial_table(data)
         assert gt is not None
@@ -224,7 +235,13 @@ class TestAnalyticsTable:
     def test_group_columns_by_metric_value(self, fake_seismo):
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity", censor_threshold=1)
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Sensitivity",
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
+        )
         data = table._generate_table_data()
         gt = table.generate_initial_table(data)
         for value in table.metric_values:
@@ -235,6 +252,70 @@ class TestAnalyticsTable:
     def test_analytics_table(self, fake_seismo):
         scores = ["score1", "score2"]
         targets = ["target1", "target2"]
-        table = AnalyticsTable(score_columns=scores, target_columns=targets, metric="Sensitivity", censor_threshold=1)
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Sensitivity",
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
+        )
         gt = table.analytics_table()
         assert gt is not None
+
+    def test_censor_threshold(self, fake_seismo):
+        scores = ["score1", "score2"]
+        targets = ["target1", "target2"]
+
+        # Case where data is above the censor threshold
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Sensitivity",
+            censor_threshold=2,
+            cohort_dict={"cohort1": ("A", "B")},
+        )
+        data = table._generate_table_data()
+        assert data is not None  # Data should be generated as it meets the threshold
+
+        # Case where data is below the censor threshold
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Sensitivity",
+            censor_threshold=10,
+            cohort_dict={"cohort1": ("A", "B")},
+        )
+        data = table._generate_table_data()
+        assert data is None  # Data should be None as it does not meet the threshold
+
+    def test_cohort_dict_filtering(self, fake_seismo):
+        scores = ["score1", "score2"]
+        targets = ["target1", "target2"]
+
+        # Case where cohort_dict filters the data correctly
+        cohort_dict = {"cohort1": ("A",)}
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Sensitivity",
+            censor_threshold=1,
+            cohort_dict=cohort_dict,
+        )
+        data = table._generate_table_data()
+
+        # Check if the data is filtered correctly
+        assert data is not None
+
+        # Case where cohort_dict filters the data to an empty set
+        cohort_dict = {"cohort1": ("Z",)}  # "Z" is not in the cohort1 column
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Sensitivity",
+            censor_threshold=1,
+            cohort_dict=cohort_dict,
+        )
+        data = table._generate_table_data()
+
+        # Check if the data is None due to filtering to an empty set
+        assert data is None
