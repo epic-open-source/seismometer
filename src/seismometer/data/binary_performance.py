@@ -146,7 +146,7 @@ def generate_analytics_data(
         A list of metric values for which corresponding statistics are calculated.
     top_level : str, optional
         The primary grouping category in the performance table, by default "Score".
-    cohort_dict : Optional[dict[str, tuple[Any]]]
+    cohort_dict : Optional[dict[str, tuple[Any]]], optional
         dictionary of cohort columns and values used to subselect a population for evaluation, by default None.
     per_context : bool
         If scores should be grouped by context, by default False.
@@ -155,6 +155,8 @@ def generate_analytics_data(
         in GENERATED_COLUMNS.
     decimals : int, optional
         The number of decimal places for rounding numerical results, by default 3.
+    censor_threshold : int, optional
+        Minimum rows required to generate analytics data, by default 10.
 
     Returns
     -------
@@ -169,7 +171,9 @@ def generate_analytics_data(
     )
     second_level = "Target" if top_level == "Score" else "Score"
     sg = Seismogram()
+    cohort_dict = cohort_dict or sg.available_cohort_groups
     cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
+    cohort_filter.MIN_ROWS = censor_threshold
     data = cohort_filter.filter(sg.dataframe)
     if len(data) <= censor_threshold:
         return None
@@ -197,5 +201,5 @@ def generate_analytics_data(
         )
         rows_list.append(current_row)
     # Create a DataFrame from the rows data
-    data = pd.DataFrame(rows_list)
-    return data
+    analytics_data = pd.DataFrame(rows_list)
+    return analytics_data

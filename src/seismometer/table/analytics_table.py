@@ -54,7 +54,7 @@ class AnalyticsTable:
         metrics_to_display: Optional[List[str]] = None,
         title: str = "Model Performance Statistics",
         top_level: str = "Score",
-        cohort_dict: Optional[dict] = None,
+        cohort_dict: Optional[dict[str, tuple]] = None,
         table_config: Optional[AnalyticsTableConfig] = AnalyticsTableConfig(),
         statistics_data: Optional[pd.DataFrame] = None,
         per_context: bool = False,
@@ -65,31 +65,33 @@ class AnalyticsTable:
 
         Parameters
         ----------
-        score_columns: Optional[List[str]]
+        score_columns: Optional[List[str]], optional
             A list of column names corresponding to model prediction scores, by default None.
-        target_columns: Optional[List[str]]
+        target_columns: Optional[List[str]], optional
             A list of column names corresponding to (binary) targets, by default None.
-        metric: str
-            Performance metrics will be presented for the provided values of this metric.
-        metric_values: List[float]
+        metric: str, optional
+            Performance metrics will be presented for the provided values of this metric, by default "Threshold".
+        metric_values: List[float], optional
             Values for the specified metric to derive detailed performance statistics, by default [0.1, 0.2].
-        metrics_to_display: Optional[List[str]]
+        metrics_to_display: Optional[List[str]], optional
             List of metrics to include in the table, by default None. The default behavior is to show all columns
             in GENERATED_COLUMNS.
-        title: str
+        title: str, optional
             The title for the performance statistics table, by default "Model Performance Statistics".
-        top_level: str
+        top_level: str, optional
             The primary grouping category in the performance table, by default 'Score'.
-        decimals: int
+        cohort_dict : Optional[dict[str,tuple]], optional
+            dictionary of cohort columns and values used to subselect a population for evaluation, by default None.
+        decimals: int, optional
             The number of decimal places for rounding numerical results, by default 3.
-        table_config: Optional[AnalyticsTableConfig]
+        table_config: Optional[AnalyticsTableConfig], optional
             Configuration for the analytics table, including formatting and display options.
-        statistics_data: Optional[pd.DataFrame]
+        statistics_data: Optional[pd.DataFrame], optional
             Additional performance metrics statistics, will be joined with the statistics data generated
             by the code, by default None.
-        per_context : bool
+        per_context : bool, optional
             If scores should be grouped by context, by default False.
-        censor_threshold : int
+        censor_threshold : int, optional
             Minimum rows to allow in a table, by default 10.
 
         Raises
@@ -440,6 +442,7 @@ def binary_analytics_table(
     HTML
         The HTML table for the fairness evaluation.
     """
+    sg = Seismogram()
     table_config = AnalyticsTableConfig(**COLORING_CONFIG_DEFAULT)
     performance_metrics = AnalyticsTable(
         score_columns=score_cols,
@@ -452,6 +455,7 @@ def binary_analytics_table(
         cohort_dict=cohort_dict,
         table_config=table_config,
         per_context=per_context,
+        censor_threshold=sg.censor_threshold,
     )
     return performance_metrics.analytics_table()
 
