@@ -91,7 +91,7 @@ def non_pandas_parquet_setup():
 @pytest.mark.parametrize(
     "setup_fn,load_fn",
     [
-        [parquet_setup, undertest.parquet_loader],
+        [pandas_parquet_setup, undertest.parquet_loader],
         [non_pandas_parquet_setup, undertest.parquet_loader],
     ],
 )
