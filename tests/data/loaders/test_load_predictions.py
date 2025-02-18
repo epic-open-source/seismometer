@@ -5,6 +5,8 @@ from unittest.mock import Mock
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 from conftest import tmp_as_current  # noqa
 
@@ -70,11 +72,29 @@ def parquet_setup():
     return fake_config(file)
 
 
+def non_pandas_parquet_setup():
+    file = Path("predictions.parquet")
+
+    data = pred_frame()
+    # remove the pandas metadata in the parquet file to simulate the data
+    # coming from a different parquet source (e.g. polars)
+    table = pa.Table.from_pandas(data).replace_schema_metadata({})
+
+    pq.write_table(table, file)
+    return fake_config(file)
+
+
 # endregion
 
 
 # region Tests
-@pytest.mark.parametrize("setup_fn,load_fn", [[parquet_setup, undertest.parquet_loader]])
+@pytest.mark.parametrize(
+    "setup_fn,load_fn",
+    [
+        [parquet_setup, undertest.parquet_loader],
+        [non_pandas_parquet_setup, undertest.parquet_loader],
+    ],
+)
 @pytest.mark.usefixtures("tmp_as_current")
 class TestPredictionLoad:
     def test_load_all_columns(self, setup_fn, load_fn):
@@ -107,7 +127,10 @@ class TestPredictionLoad:
 
     @pytest.mark.parametrize(
         "extra_columns",
-        [pytest.param([], id="all features"), pytest.param(["column1", "column2", "column3"], id="full features")],
+        [
+            pytest.param([], id="all features"),
+            pytest.param(["column1", "column2", "column3"], id="full features"),
+        ],
     )
     def test_target_inclusion_is_renamed(self, extra_columns, setup_fn, load_fn):
         config = setup_fn()
@@ -123,7 +146,10 @@ class TestPredictionLoad:
         "desired_columns",
         [
             pytest.param(["column1", "column2", "not_in_file"], id="one unseen columns"),
-            pytest.param(["column1", "column2", "not_in_file", "another_unseen"], id="multiple unseen columns"),
+            pytest.param(
+                ["column1", "column2", "not_in_file", "another_unseen"],
+                id="multiple unseen columns",
+            ),
             pytest.param(["not_in_file"], id="only missing feature"),
             pytest.param(["column1", "not_in_file"], id="one present, one missing feature"),
         ],
@@ -136,7 +162,14 @@ class TestPredictionLoad:
         ],
     )
     def test_column_mismatch_logs_warning(
-        self, log_level, debug_present, warning_present, desired_columns, setup_fn, load_fn, caplog
+        self,
+        log_level,
+        debug_present,
+        warning_present,
+        desired_columns,
+        setup_fn,
+        load_fn,
+        caplog,
     ):
         config = setup_fn()
         config.features = desired_columns
@@ -183,7 +216,11 @@ class TestAssumedTypes:
         percentage_like = [1, 50, 99]
         proba_like = [0.01, 0.50, 0.99]
         dataframe = pd.DataFrame(
-            {"target1": target_values, "nottarget_big": percentage_like, "nottarget_small": proba_like}
+            {
+                "target1": target_values,
+                "nottarget_big": percentage_like,
+                "nottarget_small": proba_like,
+            }
         )
 
         expected = dataframe.copy()
@@ -219,8 +256,16 @@ class TestDictionaryTypes:
         "defined_types,expected_dtypes",
         [
             pytest.param(
-                [{"name": "downcast", "dtype": "float16"}, {"name": "hardint", "dtype": "int"}],
-                {"downcast": "float16", "assumedTime": "datetime64[ns]", "keep": "int64", "hardint": "int"},
+                [
+                    {"name": "downcast", "dtype": "float16"},
+                    {"name": "hardint", "dtype": "int"},
+                ],
+                {
+                    "downcast": "float16",
+                    "assumedTime": "datetime64[ns]",
+                    "keep": "int64",
+                    "hardint": "int",
+                },
                 id="basic types",
             )
         ],
@@ -258,7 +303,13 @@ class TestDictionaryTypes:
             DictionaryItem(name="bad_col2", dtype="datetime64[ns]"),
         ]
 
-        dataframe = pd.DataFrame({"bad_col1": ["a", "b", "c"], "bad_col2": ["a", "b", "c"], "keep_col": [4, 5, 6]})
+        dataframe = pd.DataFrame(
+            {
+                "bad_col1": ["a", "b", "c"],
+                "bad_col2": ["a", "b", "c"],
+                "keep_col": [4, 5, 6],
+            }
+        )
 
         with pytest.raises(undertest.ConfigurationError, match="Could not convert") as cerr:
             undertest.dictionary_types(config, dataframe)

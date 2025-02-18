@@ -38,10 +38,8 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
 
         if config.target in present_columns:
             desired_columns.add(config.target)
-
         actual_columns = desired_columns & present_columns
         _log_column_mismatch(actual_columns, desired_columns, present_columns)
-
         dataframe = pd.read_parquet(config.prediction_path, columns=list(actual_columns))
 
     dataframe = _rename_targets(config, dataframe)
