@@ -577,7 +577,7 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             description="Group By",
             style=WIDE_LABEL_STYLE,
         )
-        self._cohort_dict = MultiSelectionListWidget(cohort_dict, title="Cohorts")
+        self._cohort_dict = MultiSelectionListWidget(cohort_dict, title="Cohort Filter")
         self.per_context_checkbox = _combine_scores_checkbox(per_context=False)
 
         self._target_cols.observe(self._on_value_changed, names="value")
