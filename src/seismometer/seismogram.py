@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
+from seismometer.configuration.model import Metric
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -72,6 +73,9 @@ class Seismogram(object, metaclass=Singleton):
 
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
+        self.metrics: dict[str, Metric] = {}
+        self.metric_types: list[str] = []
+        self.group_keys: list[str] = []
 
         self.copy_config_metadata()
 
@@ -121,6 +125,7 @@ class Seismogram(object, metaclass=Singleton):
         self.dataframe = self.dataloader.load_data(predictions, events)
 
         self.create_cohorts()
+        self.extract_metrics()
         self._set_df_counts()
 
         # UI Controls
@@ -396,6 +401,24 @@ class Seismogram(object, metaclass=Singleton):
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
 
+    def extract_metrics(self) -> None:
+        """Extracts metric data defined in configuration."""
+        for metric in self.config.metrics:
+            disp_attr = metric.display_name
+
+            if disp_attr not in self.dataframe:
+                logger.warning(f"Column {disp_attr} not found in data; skipping metric {disp_attr}.")
+                continue
+            if metric.source not in self.dataframe:
+                logger.warning(f"Source column {metric.source} for metric {disp_attr} not found in data.")
+            self.metrics[disp_attr] = metric
+            self.group_keys.append(metric.group_key)
+            self.metric_types.append(metric.metric_type)
+
+        self.group_keys = list[set(self.group_keys)]
+        self.metric_types = list[set(self.metric_types)]
+        logger.debug(f"Extracted metrics: {', '.join([self.metrics[metric].display_name for metric in self.metrics])}")
+
     def _is_binary_array(self, arr):
         # Convert the input to a NumPy array if it isn't already
         arr = np.asarray(arr)
@@ -408,5 +431,19 @@ class Seismogram(object, metaclass=Singleton):
             for target_col in self.target_cols
             if self._is_binary_array(self.dataframe[[pdh.event_value(target_col)]])
         ]
+
+    def get_ordinal_categorical_targets(self):
+        return [
+            pdh.event_value(target_col)
+            for target_col in self.target_cols
+            if self._is_ordinal_categorical_terget(target_col)
+        ]
+
+    def _is_ordinal_categorical_terget(self, target_col):
+        # TODO: Update this function to lookup usage_config, metric_type.
+        return True
+
+    def _parse_metrics_data(self):
+        self.metric_types = list(set({}))
 
     # endregion
