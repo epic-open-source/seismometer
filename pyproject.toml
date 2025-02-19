@@ -10,3 +10,7 @@ directory = "changelog"
 issue_format = "`#{issue} <https://github.com/epic-open-source/seismometer/issues/{issue}>`__"
 title_format = "{version}"
 underlines = ["-","~"]
+
+[tool.black]
+line-length = 119
+target-version = ["py310"]
