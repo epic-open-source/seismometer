@@ -63,7 +63,7 @@ def pred_frame():
 
 # endregion
 # region File-type setup functions
-def parquet_setup():
+def pandas_parquet_setup():
     file = Path("predictions.parquet")
 
     data = pred_frame()
