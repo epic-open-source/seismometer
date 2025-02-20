@@ -11,7 +11,7 @@ from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
 from seismometer.controls.explore import ExplorationWidget, _combine_scores_checkbox
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
-from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
+from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.controls.thresholds import MonotonicProbabilitySliderListWidget
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
@@ -543,7 +543,7 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
         sg = Seismogram()
         self.model_options_widget = model_options_widget
         self.title = title
-        self.all_cohorts = cohort_dict
+        self.all_cohort_groups = cohort_dict
 
         # Multiple select dropdowns for targets and scores
         self._target_cols = MultiselectDropdownWidget(
@@ -560,7 +560,8 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             options=[THRESHOLD] + MONOTONIC_METRICS,
             value=metric,
             description="Metric",
-            style=WIDE_LABEL_STYLE,
+            style={"description_width": "40px"},
+            layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))", min_width="200px"),
         )
         self._metrics_to_display = MultiselectDropdownWidget(
             options=[THRESHOLD] + STATNAMES + OVERALL_PERFORMANCE,
@@ -575,7 +576,8 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             options=["Score", "Target"],
             value="Score",
             description="Group By",
-            style=WIDE_LABEL_STYLE,
+            style={"description_width": "60px"},
+            layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))", min_width="200px"),
         )
         self._cohort_dict = MultiSelectionListWidget(cohort_dict, title="Cohort Filter")
         self.per_context_checkbox = _combine_scores_checkbox(per_context=False)
@@ -603,14 +605,25 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             self.model_options_widget.observe(self._on_value_changed, names="value")
 
         grid_layout = Layout(
-            width="80%", grid_template_columns="repeat(3, 1fr)", justify_items="flex-end", grid_gap="10px"
+            width="100%", grid_template_columns="repeat(3, 1fr)", justify_items="flex-start", grid_gap="10px"
         )  # Three columns
 
         # Create a GridBox with the specified layout
         grid_box = GridBox(children=v_children, layout=grid_layout)
 
+        # Add title
+        grid_with_title = VBox(
+            children=[
+                html_title("Analytics Table Options"),
+                grid_box,
+            ],
+            layout=Layout(
+                align_items="flex-start",
+            ),
+        )
+
         super().__init__(
-            children=[self._cohort_dict, html_title("Analytics Table Options"), grid_box],
+            children=[self._cohort_dict, grid_with_title],
             layout=BOX_GRID_LAYOUT,
         )
 
@@ -676,7 +689,7 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
 
     @property
     def cohort_dict(self):
-        return self._cohort_dict.value or self.all_cohorts
+        return self._cohort_dict.value or self.all_cohort_groups
 
     @property
     def group_scores(self):

@@ -947,7 +947,7 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._group_by.value == "Score"
         assert widget.per_context_checkbox.value is False
         assert widget._cohort_dict.value == {}
-        assert widget.all_cohorts == fake_seismo.available_cohort_groups
+        assert widget.all_cohort_groups == fake_seismo.available_cohort_groups
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_disabled_property(self, mock_seismo):
