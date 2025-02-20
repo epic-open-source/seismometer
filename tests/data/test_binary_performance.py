@@ -1,9 +1,76 @@
+from unittest.mock import Mock
+
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.metrics import auc, precision_recall_curve, roc_auc_score
 
-from seismometer.data.binary_performance import calculate_stats
+from seismometer.configuration import ConfigProvider
+from seismometer.configuration.model import Cohort, Event
+from seismometer.data.binary_performance import calculate_stats, generate_analytics_data
+from seismometer.data.loader import SeismogramLoader
+from seismometer.seismogram import Seismogram
+
+
+def get_test_config(tmp_path):
+    mock_config = Mock(autospec=ConfigProvider)
+    mock_config.output_dir.return_value
+    mock_config.events = {
+        "event1": Event(source="event1", display_name="event1", window_hr=1),
+        "event2": Event(source="event2", display_name="event2", window_hr=2, aggregation_method="min"),
+        "event3": Event(source="event3", display_name="event3", window_hr=1),
+    }
+    mock_config.target = "event1"
+    mock_config.entity_keys = ["entity"]
+    mock_config.predict_time = "time"
+    mock_config.cohorts = [Cohort(source=name) for name in ["cohort1"]]
+    mock_config.features = ["one"]
+    mock_config.config_dir = tmp_path / "config"
+    mock_config.censor_min_count = 0
+    mock_config.targets = ["event1", "event2", "event3"]
+    mock_config.output_list = ["prediction", "score1", "score2"]
+
+    return mock_config
+
+
+def get_test_loader(config):
+    mock_loader = Mock(autospec=SeismogramLoader)
+    mock_loader.config = config
+
+    return mock_loader
+
+
+def get_test_data():
+    return pd.DataFrame(
+        {
+            "entity": ["A", "A", "B", "C"],
+            "prediction": [1, 2, 3, 4],
+            "time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "event1_Value": [0, 1, 0, 1],
+            "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2021-12-31"],
+            "event2_Value": [0, 1, 0, 1],
+            "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "event3_Value": [0, 2, 5, 1],
+            "event3_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
+            "cohort1": ["A", "A", "A", "B"],
+            "score1": [0.1, 0.4, 0.35, 0.8],
+            "score2": [0.2, 0.5, 0.3, 0.7],
+            "target1": [0, 1, 0, 1],
+            "target2": [1, 0, 1, 0],
+            "target3": [1, 1, 1, 0],
+        }
+    )
+
+
+@pytest.fixture
+def fake_seismo(tmp_path):
+    config = get_test_config(tmp_path)
+    loader = get_test_loader(config)
+    sg = Seismogram(config, loader)
+    sg.dataframe = get_test_data()
+    yield sg
+
+    Seismogram.kill()
 
 
 class TestCalculateStats:
@@ -123,3 +190,40 @@ class TestCalculateStats:
         stats = calculate_stats(df, "target", "score", metric, metric_values, metrics_to_display=["Threshold"])
         computed_thresholds = [stats[f"{val}_Threshold"] for val in metric_values]
         assert np.array_equal(computed_thresholds, expected_thresholds)
+
+
+class TestGenerateAnalyticsData:
+    def test_censor_threshold_below(self, fake_seismo):
+        # Seismogram().dataframe has fewer rows than the censor_threshold
+        result = generate_analytics_data(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Sensitivity",
+            metric_values=[0.5, 0.7],
+            censor_threshold=5,
+        )
+        # Expected None when data rows are below censor_threshold
+        assert result is None
+
+    def test_censor_threshold_above(self, fake_seismo):
+        # Seismogram().dataframe has more rows than the censor_threshold
+        result = generate_analytics_data(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Sensitivity",
+            metric_values=[0.5, 0.7],
+            censor_threshold=3,
+        )
+        assert result is not None
+        assert not result.empty
+
+    def test_censor_threshold_exact(self, fake_seismo):
+        # Seismogram().dataframe has exactly the same number of rows as the censor_threshold
+        result = generate_analytics_data(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Sensitivity",
+            metric_values=[0.5, 0.7],
+            censor_threshold=4,
+        )
+        assert result is None

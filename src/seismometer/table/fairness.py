@@ -393,7 +393,7 @@ class FairnessOptionsWidget(Box, ValueWidget):
             Dictionary of cohort groups.
         fairness_ratio : float, optional
             Allowed difference by cohort, by default 0.2
-        model_options_widget : _type_, optional
+        model_options_widget : Optional[widget], optional
             Additional model options if needed, will appear before fairness options, by default None
         """
         self.model_options_widget = model_options_widget
