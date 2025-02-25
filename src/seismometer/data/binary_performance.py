@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data.filter import FilterRule
 from seismometer.seismogram import Seismogram
 
 from . import BinaryClassifierMetricGenerator
@@ -124,9 +125,11 @@ def generate_analytics_data(
     metric_values: List[float],
     *,
     top_level: str = "Score",
+    cohorts_dict: Optional[dict] = None,
     per_context: bool = False,
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
+    censor_threshold: int = 10,
 ):
     """
     Generates a DataFrame containing calculated statistics for each combination of scores and targets.
@@ -143,6 +146,8 @@ def generate_analytics_data(
         A list of metric values for which corresponding statistics are calculated.
     top_level : str, optional
         The primary grouping category in the performance table, by default "Score".
+    cohorts_dict : Optional[dict], optional
+        __description__
     per_context : bool
         If scores should be grouped by context, by default False.
     metrics_to_display : Optional[List[str]], optional
@@ -164,19 +169,20 @@ def generate_analytics_data(
     )
     second_level = "Target" if top_level == "Score" else "Score"
     sg = Seismogram()
+    data = _get_cohorts_data(sg.dataframe, cohorts_dict)
+    if len(data) <= censor_threshold:
+        return None
     for first, second in product:
         current_row = {top_level: first, second_level: second}
         (score, target) = (first, second) if top_level == "Score" else (second, first)
         if per_context:
             data = pdh.event_score(
-                sg.dataframe,
+                data,
                 sg.entity_keys,
                 score=score,
                 ref_event=sg.predict_time,
                 aggregation_method=sg.event_aggregation_method(target),
             )
-        else:
-            data = sg.dataframe
         current_row.update(
             calculate_stats(
                 data[[target, score]],
@@ -192,3 +198,28 @@ def generate_analytics_data(
     # Create a DataFrame from the rows data
     data = pd.DataFrame(rows_list)
     return data
+
+
+def _get_cohorts_data(dataframe, cohorts_dict):
+    """
+    Filters the dataframe according to the cohort provided in the cohorts_dict.
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        The original dataframe to be filtered.
+    cohorts_dict : dict
+        A dictionary where keys are cohort names and values are lists of cohort classes.
+
+    Returns
+    -------
+    pd.DataFrame
+        The dataframe after considering only the specified cohorts.
+    """
+    if cohorts_dict is None:
+        return dataframe
+
+    for cohort_column in cohorts_dict:
+        cohort_filter = FilterRule.isin(cohort_column, cohorts_dict[cohort_column])
+        dataframe = cohort_filter.filter(dataframe)
+    return dataframe
