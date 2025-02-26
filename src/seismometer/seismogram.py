@@ -74,8 +74,8 @@ class Seismogram(object, metaclass=Singleton):
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
         self.metrics: dict[str, Metric] = {}
-        self.metric_types: list[str] = []
-        self.group_keys: list[str] = []
+        self.metric_types: dict[str, list[str]] = {}
+        self.metric_groups: dict[str, list[str]] = {}
 
         self.copy_config_metadata()
 
@@ -406,17 +406,21 @@ class Seismogram(object, metaclass=Singleton):
         for metric in self.config.metrics:
             disp_attr = metric.display_name
 
-            if disp_attr not in self.dataframe:
-                logger.warning(f"Column {disp_attr} not found in data; skipping metric {disp_attr}.")
-                continue
             if metric.source not in self.dataframe:
-                logger.warning(f"Source column {metric.source} for metric {disp_attr} not found in data.")
-            self.metrics[disp_attr] = metric
-            self.group_keys.append(metric.group_key)
-            self.metric_types.append(metric.metric_type)
+                logger.warning(f"Column {metric.source} not found in data; skipping metric {disp_attr}.")
+                continue
+            # if metric.source not in self.dataframe:
+            #     logger.warning(f"Source column {metric.source} for metric {disp_attr} not found in data.")
+            self.metrics[metric.source] = metric
+            group_keys = [metric.group_keys] if isinstance(metric.group_keys, str) else metric.group_keys
+            for group in group_keys:
+                self.metric_groups[group] = self.metric_groups.get(group, []) + [metric.source]
+            self.metric_types[metric.metric_type] = self.metric_types.get(metric.metric_type, []) + [metric.source]
 
-        self.group_keys = list[set(self.group_keys)]
-        self.metric_types = list[set(self.metric_types)]
+        for group in self.metric_groups:
+            self.metric_groups[group] = list(set(self.metric_groups[group]))
+        for metric_type in self.metric_types:
+            self.metric_types[metric_type] = list(set(self.metric_types[metric_type]))
         logger.debug(f"Extracted metrics: {', '.join([self.metrics[metric].display_name for metric in self.metrics])}")
 
     def _is_binary_array(self, arr):
@@ -442,8 +446,5 @@ class Seismogram(object, metaclass=Singleton):
     def _is_ordinal_categorical_terget(self, target_col):
         # TODO: Update this function to lookup usage_config, metric_type.
         return True
-
-    def _parse_metrics_data(self):
-        self.metric_types = list(set({}))
 
     # endregion

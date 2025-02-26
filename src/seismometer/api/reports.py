@@ -6,8 +6,9 @@ from seismometer.data.filter import FilterRule
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
 from seismometer.seismogram import Seismogram
 from seismometer.table.analytics_table import ExploreBinaryModelAnalytics
+from seismometer.table.categorical import ExploreCategoricalPlots
+from seismometer.table.categorical_single_column import ExploreSingleCategoricalPlots
 from seismometer.table.fairness import ExploreBinaryModelFairness
-from seismometer.table.likert import ExploreOrdinalCategoricalPlots
 
 logger = logging.getLogger("seismometer")
 
@@ -42,16 +43,29 @@ class ExploreAnalyticsTable(ExploreBinaryModelAnalytics):
 
 
 @export
-class ExploreOrdinalCategorical(ExploreOrdinalCategoricalPlots):
+class ExploreCategoricalFeedback(ExploreCategoricalPlots):
     """
     Exploration widget for model comparison across cohorts / binary classifiers / targets.
     """
 
-    def __init__(self):
+    def __init__(self, group_key=None):
         """
         Passes the plot function to the superclass.
         """
-        super().__init__()
+        super().__init__(group_key)
+
+
+@export
+class ExploreSingleCategoricalFeedback(ExploreSingleCategoricalPlots):
+    """
+    Exploration widget for model comparison across cohorts / binary classifiers / targets.
+    """
+
+    def __init__(self, group_key=None):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__(group_key)
 
 
 # region Reports

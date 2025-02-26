@@ -308,7 +308,7 @@ class Metric(BaseModel):
     source: str
     display_name: str
     metric_type: str
-    group_key: Optional[str] = None
+    group_keys: Optional[Union[str, list[str]]] = None
     metric_details: MetricDetails = MetricDetails()
 
 
