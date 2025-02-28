@@ -3,19 +3,19 @@ import logging
 from io import BytesIO
 from typing import Optional
 
-import matplotlib.pyplot as plt
-import plot_likert
+import pandas as pd
 
 # import ipywidgets as widgets
 import traitlets
-from ipywidgets import HTML, Box, Checkbox, Layout, ValueWidget, VBox
+from ipywidgets import HTML, Box, Layout, ValueWidget, VBox
 
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
-from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
+from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 
 # from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
+from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
@@ -26,16 +26,12 @@ class OrdinalCategoricalPlot:
         self,
         metrics,
         plot_type="Likert Plot",
-        compute_percentages=False,
-        bar_labels=False,
         cohort_dict=None,
         title=None,
     ):
         self.metrics = metrics
         self.plot_type = plot_type
         self.title = title
-        self.compute_percentages = compute_percentages
-        self.bar_labels = bar_labels
         self.plot_functions = self.initialize_plot_functions()
 
         sg = Seismogram()
@@ -53,7 +49,7 @@ class OrdinalCategoricalPlot:
                 if metric.metric_details.values is not None:
                     self.values = metric.metric_details.values
                     return
-        self.values = sorted(self.dataframe[self.metrics[0]].unique())
+        self.values = sorted(pd.unique(self.dataframe[self.metrics].values.ravel()))
         return
 
     @classmethod
@@ -63,17 +59,21 @@ class OrdinalCategoricalPlot:
         }
 
     def plot_likert(self):
-        fig, ax = plt.subplots()
-        plt.close(fig)
-        plot_likert.plot_likert(
-            self.dataframe[self.metrics],
-            plot_scale=self.values,
-            plot_percentage=self.compute_percentages,
-            bar_labels=self.bar_labels,
-            bar_labels_color="snow",
-            ax=ax,
-        )
-        return fig
+        return likert_plot(df=self._count_values_in_columns())
+
+    def _count_values_in_columns(self):
+        # Create a dictionary to store the counts
+        data = {"Feedback Metrics": self.metrics}
+
+        # Count occurrences of each unique value in each column
+        for value in self.values:
+            data[value] = [self.dataframe[col].value_counts().get(value, 0) for col in self.metrics]
+
+        # Create a new DataFrame from the dictionary and set "Feedback Metrics" as index
+        counts_df = pd.DataFrame(data)
+        counts_df.set_index("Feedback Metrics", inplace=True)
+
+        return counts_df
 
     def fig_to_html(self, fig):
         """
@@ -108,10 +108,7 @@ class OrdinalCategoricalPlot:
 
 def ordinal_categorical_plot(
     metrics: str,
-    compute_percentages,
-    bar_labels,
     cohort_dict,
-    # cohort_col,
     *,
     title: str = None,
 ) -> HTML:
@@ -121,9 +118,7 @@ def ordinal_categorical_plot(
     plot = OrdinalCategoricalPlot(
         metrics,
         plot_type="Likert Plot",
-        compute_percentages=compute_percentages,
         cohort_dict=cohort_dict,
-        bar_labels=bar_labels,
         title=title,
     )
     return plot.generate_plot()
@@ -145,8 +140,6 @@ class ExploreCategoricalPlots(ExplorationWidget):
             option_widget=CategoricalFeedbackOptionsWidget(
                 list(sg.metric_groups.keys()),
                 cohort_dict=sg.available_cohort_groups,
-                compute_percentages=False,
-                bar_labels=False,
                 title=title,
             ),
             plot_function=ordinal_categorical_plot,
@@ -157,8 +150,6 @@ class ExploreCategoricalPlots(ExplorationWidget):
         """Generates the plot arguments for the analytics table."""
         args = (
             list(self.option_widget.metrics),
-            self.option_widget.compute_percentages,
-            self.option_widget.bar_labels,
             self.option_widget.cohort_dict,
         )
         kwargs = {"title": self.title}
@@ -172,8 +163,6 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         self,
         metric_groups,
         cohort_dict: dict[str, list[str]],
-        compute_percentages,
-        bar_labels,
         *,
         model_options_widget=None,
         title: str = None,
@@ -200,34 +189,16 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
             title="Metrics",
         )
 
-        self._compute_percentages = Checkbox(
-            value=compute_percentages,
-            description="Show as percentages?",
-            tooltip="Show values as percentages",
-            style=WIDE_LABEL_STYLE,
-        )
-
-        self._bar_labels = Checkbox(
-            value=bar_labels,
-            description="Show values?",
-            tooltip="Show values on the plot.",
-            style=WIDE_LABEL_STYLE,
-        )
-
         self._cohort_dict = MultiSelectionListWidget(sg.available_cohort_groups, title="Cohorts")
 
         self._metric_groups.observe(self._on_value_changed, names="value")
         self._metrics.observe(self._on_value_changed, names="value")
-        self._compute_percentages.observe(self._on_value_changed, names="value")
-        self._bar_labels.observe(self._on_value_changed, names="value")
         self._cohort_dict.observe(self._on_value_changed, names="value")
 
         v_children = [
             html_title("Plot Options"),
             self._metric_groups,
             self._metrics,
-            self._compute_percentages,
-            self._bar_labels,
         ]
         if model_options_widget:
             v_children.insert(0, model_options_widget)
@@ -254,8 +225,6 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         self._disabled = value
         self._metric_groups.disabled = value
         self._metrics.disabled = value
-        self._compute_percentages.disabled = value
-        self._bar_labels.disabled = value
         self._cohort_dict.disabled = value
         if self.model_options_widget:
             self.model_options_widget.disabled = value
@@ -274,8 +243,6 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         new_value = {
             "metric_groups": self._metric_groups.value,
             "metrics": self._metrics.value,
-            "compute_percentages": self._compute_percentages.value,
-            "bar_labels": self._bar_labels.value,
             "cohort_dict": self._cohort_dict.value,
         }
         if self.model_options_widget:
@@ -289,14 +256,6 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
     @property
     def metrics(self):
         return self._metrics.value
-
-    @property
-    def compute_percentages(self):
-        return self._compute_percentages.value
-
-    @property
-    def bar_labels(self):
-        return self._bar_labels.value
 
     @property
     def cohort_dict(self):

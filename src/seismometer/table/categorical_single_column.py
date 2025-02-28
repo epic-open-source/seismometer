@@ -3,10 +3,8 @@ import logging
 from io import BytesIO
 from typing import Optional
 
-import matplotlib.pyplot as plt
-import plot_likert
 import traitlets
-from ipywidgets import HTML, Box, Checkbox, Dropdown, Layout, ValueWidget, VBox
+from ipywidgets import HTML, Box, Dropdown, Layout, ValueWidget, VBox
 
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
@@ -14,6 +12,7 @@ from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_
 
 # from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
+from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
@@ -24,16 +23,12 @@ class OrdinalCategoricalSinglePlot:
         self,
         metric_col,
         plot_type="Likert Plot",
-        compute_percentages=False,
-        bar_labels=False,
         cohort_dict: dict = None,
         title=None,
     ):
         self.metric_col = metric_col
         self.plot_type = plot_type
         self.title = title
-        self.compute_percentages = compute_percentages
-        self.bar_labels = bar_labels
         self.cohort_col = next(iter(cohort_dict))
         self.cohort_values = list(cohort_dict[self.cohort_col])
 
@@ -59,23 +54,16 @@ class OrdinalCategoricalSinglePlot:
         }
 
     def plot_likert(self):
-        fig, ax = plt.subplots()
-        plt.close(fig)
+        df = self._count_cohort_group_values()
+        return likert_plot(df=df, include_counts_plot=True)
+
+    def _count_cohort_group_values(self):
         df = (
             self.dataframe.groupby([self.cohort_col, self.metric_col], observed=False).size().reset_index(name="count")
         )
         df = df.pivot(index=self.cohort_col, columns=self.metric_col, values="count").fillna(0)
         df = df.loc[self.cohort_values]
-        plot_likert.plot_counts(
-            df,
-            scale=self.values,
-            compute_percentages=self.compute_percentages,
-            bar_labels=self.bar_labels,
-            bar_labels_color="snow",
-            ax=ax,
-        )
-        plt.tight_layout()
-        return fig
+        return df
 
     def fig_to_html(self, fig):
         """
@@ -110,8 +98,6 @@ class OrdinalCategoricalSinglePlot:
 
 def ordinal_categorical_single_col_plot(
     metric_col: str,
-    compute_percentages,
-    bar_labels,
     cohort_dict,
     *,
     title: str = None,
@@ -120,8 +106,6 @@ def ordinal_categorical_single_col_plot(
     plot = OrdinalCategoricalSinglePlot(
         metric_col,
         plot_type="Likert Plot",
-        compute_percentages=compute_percentages,
-        bar_labels=bar_labels,
         cohort_dict=cohort_dict,
         title=title,
     )
@@ -144,8 +128,6 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
             option_widget=CategoricalFeedbackSingleColumnOptionsWidget(
                 list(set(metric for metric_group in sg.metric_groups for metric in sg.metric_groups[metric_group])),
                 cohort_groups=sg.available_cohort_groups,
-                compute_percentages=False,
-                bar_labels=False,
                 title=title,
             ),
             plot_function=ordinal_categorical_single_col_plot,
@@ -157,8 +139,6 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
         cohort_dict = {self.option_widget.cohort_list[0]: tuple(self.option_widget.cohort_list[1])}
         args = (
             self.option_widget.metric_col,
-            self.option_widget.compute_percentages,
-            self.option_widget.bar_labels,
             cohort_dict,
         )
         kwargs = {"title": self.title}
@@ -172,8 +152,6 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
         self,
         metrics,
         cohort_groups,
-        compute_percentages,
-        bar_labels,
         *,
         model_options_widget=None,
         title: str = None,
@@ -193,31 +171,14 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
             style=WIDE_LABEL_STYLE,
         )
 
-        self._compute_percentages = Checkbox(
-            value=compute_percentages,
-            description="Show as percentages?",
-            tooltip="Show values as percentages.",
-            style=WIDE_LABEL_STYLE,
-        )
-
-        self._bar_labels = Checkbox(
-            value=bar_labels,
-            description="Show values?",
-            tooltip="Show values on the plot.",
-            style=WIDE_LABEL_STYLE,
-        )
         self._cohort_list = DisjointSelectionListsWidget(options=cohort_groups, title="Cohort Filter", select_all=True)
 
         self._metric_col.observe(self._on_value_changed, names="value")
-        self._compute_percentages.observe(self._on_value_changed, names="value")
-        self._bar_labels.observe(self._on_value_changed, names="value")
         self._cohort_list.observe(self._on_value_changed, names="value")
 
         v_children = [
             html_title("Plot Options"),
             self._metric_col,
-            self._compute_percentages,
-            self._bar_labels,
         ]
         if model_options_widget:
             v_children.insert(0, model_options_widget)
@@ -243,8 +204,6 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
     def disabled(self, value):
         self._disabled = value
         self._metric_col.disabled = value
-        self._compute_percentages.disabled = value
-        self._bar_labels.disabled = value
         self._cohort_list.disabled = value
         if self.model_options_widget:
             self.model_options_widget.disabled = value
@@ -252,8 +211,6 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
     def _on_value_changed(self, change=None):
         new_value = {
             "metric_col": self._metric_col.value,
-            "compute_percentages": self._compute_percentages.value,
-            "bar_labels": self._bar_labels.value,
             "cohort_list": self._cohort_list.value,
         }
         if self.model_options_widget:
@@ -263,14 +220,6 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
     @property
     def metric_col(self):
         return self._metric_col.value
-
-    @property
-    def compute_percentages(self):
-        return self._compute_percentages.value
-
-    @property
-    def bar_labels(self):
-        return self._bar_labels.value
 
     @property
     def cohort_list(self):
