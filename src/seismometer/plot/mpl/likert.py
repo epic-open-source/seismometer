@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import FixedLocator, MaxNLocator
 
-PLOT_COLORS = ["red", "orange", "yellow", "lightgreen", "green"]
+from ._ux import area_colors
 
 
-def likert_plot(df: pd.DataFrame, colors: list[str] = PLOT_COLORS, border: int = 5, include_counts_plot: bool = False):
+def likert_plot(df: pd.DataFrame, colors: list[str] = area_colors, border: int = 5, include_counts_plot: bool = False):
     """
     Expects dataframe to be of the form:
         1. columns are categorical values (e.g., Disagree, Neutral, Agree),
@@ -74,7 +74,7 @@ def likert_plot(df: pd.DataFrame, colors: list[str] = PLOT_COLORS, border: int =
     return fig
 
 
-def _plot_counts(df: pd.DataFrame, ax: matplotlib.axes.Axes, color: str = "lightblue", border: int = 5):
+def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, color: str = area_colors[0], border: int = 5):
     """
     Plots the counts of each row in the dataframe as horizontal bars.
 
@@ -90,13 +90,12 @@ def _plot_counts(df: pd.DataFrame, ax: matplotlib.axes.Axes, color: str = "light
         Border space around the plot, by default 5
     """
     total_counts = df.sum(axis=1)
-    bars = ax.barh(df.index, total_counts, color=color)
-
+    bars = ax_count.barh(df.index, total_counts, color=color)
+    max_count = max(total_counts)
     for bar in bars:
         width = bar.get_width()
-        width = bar.get_width()
-        if width >= 10:
-            ax.text(
+        if width >= 0.1 * max_count:
+            ax_count.text(
                 bar.get_x() + width / 2,
                 bar.get_y() + bar.get_height() / 2,
                 f"{width}",
@@ -105,8 +104,18 @@ def _plot_counts(df: pd.DataFrame, ax: matplotlib.axes.Axes, color: str = "light
                 fontsize=10,
                 color="black",
             )
+        else:
+            ax_count.text(
+                bar.get_x() + width + 0.01 * max_count,
+                bar.get_y() + bar.get_height() / 2,
+                f"{width}",
+                ha="left",
+                va="center",
+                fontsize=10,
+                color="black",
+            )
 
-    ax.set_xlabel("Counts")
-    ax.set_title("Counts of Each Row")
-    ax.set_xlim(0, total_counts.max() + border)
-    ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    ax_count.set_xlabel("Counts")
+    ax_count.set_title("Counts of Each Row")
+    ax_count.set_xlim(0, total_counts.max() + border)
+    ax_count.xaxis.set_major_locator(MaxNLocator(nbins=5))
