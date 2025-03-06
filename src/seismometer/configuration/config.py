@@ -58,6 +58,9 @@ class ConfigProvider:
         self._output_notebook: str = ""
         self._event_defs: EventDictionary = None
         self._prediction_defs: PredictionDictionary = None
+        self._metrics: dict = None
+        self._metric_groups: dict = None
+        self._metric_types: dict = None
 
         if definitions is not None:
             self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
@@ -65,6 +68,7 @@ class ConfigProvider:
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
+        self._load_metrics()
 
     def _load_config_config(self, config_config: str | Path) -> None:
         """
@@ -98,6 +102,22 @@ class ConfigProvider:
         self.config.info_dir = Path(info_dir) if info_dir is not None else Path(self.config.info_dir)
         self.config.data_dir = Path(data_dir) if data_dir is not None else Path(self.config.data_dir)
         self.set_output(output_path)
+
+    def _load_metrics(self):
+        """Load metrics data defined in configuration."""
+        self._metrics = {metric.source: metric for metric in self.usage.metrics}
+        self._metric_groups = {}
+        self._metric_types = {}
+        for metric in self.usage.metrics:
+            group_keys = [metric.group_keys] if isinstance(metric.group_keys, str) else metric.group_keys
+            for group in group_keys:
+                self._metric_groups[group] = self._metric_groups.get(group, []) + [metric.source]
+            self._metric_types[metric.metric_type] = self._metric_types.get(metric.metric_type, []) + [metric.source]
+
+        for group in self._metric_groups:
+            self._metric_groups[group] = list(set(self._metric_groups[group]))
+        for metric_type in self._metric_types:
+            self._metric_types[metric_type] = list(set(self.metric_types[metric_type]))
 
     # region Config
     @property
@@ -209,7 +229,17 @@ class ConfigProvider:
     @property
     def metrics(self) -> dict:
         """Collection of metric objects to use during analysis."""
-        return self.usage.metrics
+        return self._metrics
+
+    @property
+    def metric_groups(self) -> dict:
+        """Collection of metrics that are members of each metric group."""
+        return self._metric_groups
+
+    @property
+    def metric_types(self) -> dict:
+        """Collection of the metric type associated with each metric."""
+        return self._metric_types
 
     # region EventTableMap
     @property

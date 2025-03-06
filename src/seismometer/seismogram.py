@@ -125,7 +125,6 @@ class Seismogram(object, metaclass=Singleton):
         self.dataframe = self.dataloader.load_data(predictions, events)
 
         self.create_cohorts()
-        self.extract_metrics()
         self._set_df_counts()
 
         # UI Controls
@@ -348,6 +347,9 @@ class Seismogram(object, metaclass=Singleton):
         self.output_list = self.config.output_list
         self.target_event = self.config.target
         self._cohorts = self.config.cohorts
+        self.metrics = self.config.metrics
+        self.metric_groups = self.config.metric_groups
+        self.metric_types = self.config.metric_types
 
     def _load_metadata(self):
         """
@@ -401,28 +403,6 @@ class Seismogram(object, metaclass=Singleton):
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
 
-    def extract_metrics(self) -> None:
-        """Extracts metric data defined in configuration."""
-        for metric in self.config.metrics:
-            disp_attr = metric.display_name
-
-            if metric.source not in self.dataframe:
-                logger.warning(f"Column {metric.source} not found in data; skipping metric {disp_attr}.")
-                continue
-            # if metric.source not in self.dataframe:
-            #     logger.warning(f"Source column {metric.source} for metric {disp_attr} not found in data.")
-            self.metrics[metric.source] = metric
-            group_keys = [metric.group_keys] if isinstance(metric.group_keys, str) else metric.group_keys
-            for group in group_keys:
-                self.metric_groups[group] = self.metric_groups.get(group, []) + [metric.source]
-            self.metric_types[metric.metric_type] = self.metric_types.get(metric.metric_type, []) + [metric.source]
-
-        for group in self.metric_groups:
-            self.metric_groups[group] = list(set(self.metric_groups[group]))
-        for metric_type in self.metric_types:
-            self.metric_types[metric_type] = list(set(self.metric_types[metric_type]))
-        logger.debug(f"Extracted metrics: {', '.join([self.metrics[metric].display_name for metric in self.metrics])}")
-
     def _is_binary_array(self, arr):
         # Convert the input to a NumPy array if it isn't already
         arr = np.asarray(arr)
@@ -443,7 +423,7 @@ class Seismogram(object, metaclass=Singleton):
             if self._is_ordinal_categorical_terget(target_col)
         ]
 
-    def _is_ordinal_categorical_terget(self, target_col):
+    def _is_ordinal_categorical_target(self, target_col):
         # TODO: Update this function to lookup usage_config, metric_type.
         return True
 
