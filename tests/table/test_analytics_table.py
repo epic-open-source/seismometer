@@ -187,7 +187,7 @@ class TestAnalyticsTable:
         gt = table.analytics_table()
         assert gt is not None
 
-    def test_analytics_table_with_statistics_data_only(self, fake_seismo):
+    def test_analytics_table_with_only_global_stats(self, fake_seismo):
         statistics_data = pd.DataFrame(
             {"Score": ["prediction"], "Target": ["event1_Value"], "Stat1": [0.75], "Stat2": [0.6]}
         )
@@ -196,6 +196,7 @@ class TestAnalyticsTable:
         table = AnalyticsTable(
             metric="Sensitivity",
             metric_values=metric_values,
+            metrics_to_display=["Positives"],
             statistics_data=statistics_data,
             censor_threshold=1,
             cohort_dict={"cohort1": ("A", "B")},

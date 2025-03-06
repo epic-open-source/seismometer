@@ -862,7 +862,7 @@ class TestExploreBinaryModelAnalytics:
             widget.current_plot_code
             == "test_explore.plot_function(('T1_Value', 'T2_Value'), ('S1', 'S2'), 'Threshold', (0.8, 0.2), "
             + "['Positives', 'Prevalence', 'AUROC', 'AUPRC', 'Accuracy', 'PPV', 'Sensitivity', 'Specificity', "
-            + "'Flag Rate', 'Threshold'], 'Score', {'C1': ['C1.1', 'C1.2'], 'C2': ['C2.1', 'C2.2']}, "
+            + "'Flag Rate', 'Threshold'], 'Score', {}, "
             + "title='Unit Test Title', per_context=False)"
         )
         mock_plot_function.assert_called_once_with(
@@ -883,7 +883,7 @@ class TestExploreBinaryModelAnalytics:
                 "Threshold",
             ],
             "Score",
-            {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            {},
             title="Unit Test Title",
             per_context=False,
         )
@@ -916,7 +916,7 @@ class TestExploreBinaryModelAnalytics:
                 "Threshold",
             ],
             "Score",
-            {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
+            {},
         )
         assert kwargs == {"title": "Unit Test Title", "per_context": False}
 
@@ -947,7 +947,6 @@ class TestAnalyticsTableOptionsWidget:
         assert widget._group_by.value == "Score"
         assert widget.per_context_checkbox.value is False
         assert widget._cohort_dict.value == {}
-        assert widget.all_cohort_groups == fake_seismo.available_cohort_groups
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_disabled_property(self, mock_seismo):

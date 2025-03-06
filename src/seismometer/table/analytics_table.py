@@ -328,7 +328,8 @@ class AnalyticsTable:
         # Group columns of the form value_*** together
         for value in self.metric_values:
             columns = [column for column in data.columns if column.startswith(f"{value}_")]
-            gt = self.group_columns_by_metric_value(gt, columns, value)
+            if columns:
+                gt = self.group_columns_by_metric_value(gt, columns, value)
 
         gt = (
             gt.opt_horizontal_padding(scale=3)
@@ -543,7 +544,6 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
         sg = Seismogram()
         self.model_options_widget = model_options_widget
         self.title = title
-        self.all_cohort_groups = cohort_dict
 
         # Multiple select dropdowns for targets and scores
         self._target_cols = MultiselectDropdownWidget(
@@ -579,7 +579,7 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             style={"description_width": "60px"},
             layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))", min_width="200px"),
         )
-        self._cohort_dict = MultiSelectionListWidget(cohort_dict, title="Cohort Filter")
+        self._cohort_dict = MultiSelectionListWidget(cohort_dict or sg.available_cohort_groups, title="Cohort Filter")
         self.per_context_checkbox = _combine_scores_checkbox(per_context=False)
 
         self._target_cols.observe(self._on_value_changed, names="value")
@@ -689,7 +689,7 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
 
     @property
     def cohort_dict(self):
-        return self._cohort_dict.value or self.all_cohort_groups
+        return self._cohort_dict.value
 
     @property
     def group_scores(self):
