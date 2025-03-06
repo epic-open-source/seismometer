@@ -5,6 +5,7 @@ from typing import Optional
 
 import traitlets
 from ipywidgets import HTML, Box, Dropdown, Layout, ValueWidget, VBox
+from matplotlib.figure import Figure
 
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
@@ -21,11 +22,25 @@ logger = logging.getLogger("seismometer")
 class OrdinalCategoricalSinglePlot:
     def __init__(
         self,
-        metric_col,
+        metric_col: str,
         plot_type="Likert Plot",
-        cohort_dict: dict = None,
-        title=None,
+        cohort_dict: Optional[dict[str, tuple]] = None,
+        title: str = None,
     ):
+        """
+        Initializes the OrdinalCategoricalSinglePlot class.
+
+        Parameters
+        ----------
+        metric_col : str
+            The metric column to be plotted.
+        plot_type : str, optional
+            Type of plot to generate, by default "Likert Plot".
+        cohort_dict : Optional[dict[str, tuple]], optional
+            Dictionary defining the cohort filter, by default None.
+        title : Optional[str], optional
+            Title of the plot, by default None.
+        """
         self.metric_col = metric_col
         self.plot_type = plot_type
         self.title = title
@@ -42,6 +57,9 @@ class OrdinalCategoricalSinglePlot:
         self._extract_metric_values()
 
     def _extract_metric_values(self):
+        """
+        Extracts the unique metric values for the provided metric column.
+        """
         sg = Seismogram()
         if self.metric_col in sg.metrics:
             self.values = sg.metrics[self.metric_col].metric_details.values
@@ -49,15 +67,40 @@ class OrdinalCategoricalSinglePlot:
 
     @classmethod
     def initialize_plot_functions(cls):
+        """
+        Initializes the plot functions.
+
+        Returns
+        -------
+        dict[str, Callable]
+            Dictionary mapping plot types to their corresponding functions.
+        """
         return {
             "Likert Plot": cls.plot_likert,
         }
 
     def plot_likert(self):
+        """
+        Generates a Likert plot to show the distribution of values across the provided cohort groups
+        for the metric column.
+
+        Returns
+        -------
+        Figure
+            The generated Likert plot figure.
+        """
         df = self._count_cohort_group_values()
         return likert_plot(df=df, include_counts_plot=True)
 
     def _count_cohort_group_values(self):
+        """
+        Counts occurrences of each unique value for each cohort group in the metric column.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the counts of each unique value in the metric column grouped by cohort.
+        """
         df = (
             self.dataframe.groupby([self.cohort_col, self.metric_col], observed=False).size().reset_index(name="count")
         )
@@ -65,18 +108,18 @@ class OrdinalCategoricalSinglePlot:
         df = df.loc[self.cohort_values]
         return df
 
-    def fig_to_html(self, fig):
+    def fig_to_html(self, fig: Figure):
         """
         Converts a Matplotlib figure to an HTML string.
 
         Parameters
         ----------
-        fig: matplotlib.figure.Figure
+        fig:Figure
             Matplotlib figure object.
 
         Returns
         -------
-        str
+        HTML
             HTML string of the figure.
         """
         buf = BytesIO()
@@ -84,13 +127,27 @@ class OrdinalCategoricalSinglePlot:
         buf.seek(0)
         img_str = base64.b64encode(buf.read()).decode("utf-8")
         html_str = f'<img src="data:image/png;base64,{img_str}" alt="Plot">'
-        return html_str
+        return HTML(html_str)
 
     def generate_plot(self):
+        """
+        Generates the plot based on the specified plot type.
+
+        Returns
+        -------
+        Figure
+            The generated plot figure.
+
+        Raises
+        ------
+        ValueError
+            If the specified plot type is unknown.
+        """
         if self.plot_type not in self.plot_functions:
             raise ValueError(f"Unknown plot type: {self.plot_type}")
 
-        return self.plot_functions[self.plot_type](self)
+        fig = self.plot_functions[self.plot_type](self)
+        return fig
 
 
 # region Plots Wrapper
@@ -98,11 +155,29 @@ class OrdinalCategoricalSinglePlot:
 
 def ordinal_categorical_single_col_plot(
     metric_col: str,
-    cohort_dict,
+    cohort_dict: dict[str, tuple],
     *,
-    title: str = None,
-) -> HTML:
-    """ """
+    title: Optional[str] = None,
+) -> Figure:
+    """
+    Generates a Likert plot to show distribution of values across selected cohort groups for
+    the provided metric column.
+
+    Parameters
+    ----------
+    metric_col : str
+        The metric column to be plotted.
+    cohort_dict : dict[str, tuple]
+        Dictionary defining the cohort groups to consider. Note that cohort_dict has only one key (e.g., Age),
+        the cohort attribute to be studied further.
+    title : Optional[str], optional
+        Title of the plot, by default None.
+
+    Returns
+    -------
+    Figure
+        Figure object generated by the plot.
+    """
     plot = OrdinalCategoricalSinglePlot(
         metric_col,
         plot_type="Likert Plot",
@@ -118,8 +193,14 @@ def ordinal_categorical_single_col_plot(
 
 class ExploreSingleCategoricalPlots(ExplorationWidget):
     def __init__(self, title: Optional[str] = None):
-        from seismometer.seismogram import Seismogram
+        """
+        Initializes the ExploreSingleCategoricalPlots class.
 
+        Parameters
+        ----------
+        title : Optional[str], optional
+            Title of the plot, by default None.
+        """
         sg = Seismogram()
         self.title = title
 
@@ -135,7 +216,7 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:
-        """Generates the plot arguments for the analytics table."""
+        """Generates the plot arguments for the ordinal categorical single column plot."""
         cohort_dict = {self.option_widget.cohort_list[0]: tuple(self.option_widget.cohort_list[1])}
         args = (
             self.option_widget.metric_col,
@@ -150,15 +231,26 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
 
     def __init__(
         self,
-        metrics,
-        cohort_groups,
+        metrics: list[str],
+        cohort_groups: dict[str, list[str]],
         *,
         model_options_widget=None,
         title: str = None,
     ):
-        """ """
-        from seismometer.seismogram import Seismogram
+        """
+        Initializes the CategoricalFeedbackSingleColumnOptionsWidget class.
 
+        Parameters
+        ----------
+        metrics : list[str]
+            List of available metric columns.
+        cohort_groups : dict[str, list[str]]
+            Dictionary defining the cohort attribute and the corresponding cohort groups to consider.
+        model_options_widget : Optional[widget], optional
+            Additional widget options if needed, by default None.
+        title : str, optional
+            Title of the plot, by default None.
+        """
         sg = Seismogram()
         self.model_options_widget = model_options_widget
         self.title = title

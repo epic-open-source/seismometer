@@ -1,3 +1,5 @@
+from typing import Iterable
+
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -6,21 +8,46 @@ from matplotlib.ticker import FixedLocator, MaxNLocator
 from ._ux import area_colors
 
 
-def likert_plot(df: pd.DataFrame, colors: list[str] = area_colors, border: int = 5, include_counts_plot: bool = False):
+def likert_plot(
+    df: pd.DataFrame, colors: Iterable[str] = area_colors, border: int = 5, include_counts_plot: bool = False
+):
     """
+    Creates a Likert plot (horizontal stacked bar) from the given DataFrame.
+
     Expects dataframe to be of the form:
-        1. columns are categorical values (e.g., Disagree, Neutral, Agree),
-        2. rows are corresponding columns (e.g., feedback questions 1,2,3),
-        3. values are counts of each categorical value in the corresponding column.
+        1. column names are categorical values (e.g., Disagree, Neutral, Agree),
+        2. row indexes are corresponding metric columns (e.g., feedback questions 1,2,3),
+        3. values in each row are counts of each categorical value in the row.
+
+    Example
+    -------
+    >>> import pandas as pd
+    >>> data = {
+    >>>     "Disagree": [10, 5],
+    >>>     "Neutral": [15, 10],
+    >>>     "Agree": [35, 45]
+    >>> }
+    >>> df = pd.DataFrame(data, index=["Likes Cat", "Likes Dog"])
+    >>> print(df)
+               Disagree  Neutral  Agree
+    Likes Cat        10       15     35
+    Likes Dog         5       10     45
 
     Parameters
     ----------
     df : pd.DataFrame
-        _description_
-    colors : list[str]
-        _description_
+       DataFrame containing the counts of each category.
+    colors : Iterable[str], optional
+        Iterable of colors for the bars, by default area_colors.
     border : int, optional
-        _description_, by default 5
+        Border space around the plot, by default 5.
+    include_counts_plot : bool, optional
+        Whether to include a counts plot alongside the Likert plot, by default False.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The generated Likert plot figure.
     """
     if include_counts_plot:
         fig, (ax, ax_count) = plt.subplots(ncols=2, figsize=(15, 6), gridspec_kw={"width_ratios": [2, 1]})
@@ -60,7 +87,7 @@ def likert_plot(df: pd.DataFrame, colors: list[str] = area_colors, border: int =
                     fontsize=8,
                 )
     # Add legend
-    ax.legend(loc="upper right", bbox_to_anchor=(1.25, 1))
+    ax.legend(loc="upper right", bbox_to_anchor=(1.2, 1))
     max_left = abs(df_percentages[first_half_columns].sum(axis=1) - middle_adjustment).max()
     max_right = abs(df_percentages[second_half_columns].sum(axis=1) - middle_adjustment).max()
     ax.set_xlim(-max_left - border, max_right + border)
@@ -82,12 +109,12 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, color: str = 
     ----------
     df : pd.DataFrame
         DataFrame containing the counts of each category.
-    ax : matplotlib.axes.Axes
+    ax_count : matplotlib.axes.Axes
         The axes on which to plot the counts.
-    color : str
-        Color for the bars.
+    color : str, optional
+        Color for the bars, by default area_colors[0].
     border : int, optional
-        Border space around the plot, by default 5
+        Border space around the plot, by default 5.
     """
     total_counts = df.sum(axis=1)
     bars = ax_count.barh(df.index, total_counts, color=color)
@@ -101,7 +128,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, color: str = 
                 f"{width}",
                 ha="center",
                 va="center",
-                fontsize=10,
+                fontsize=8,
                 color="black",
             )
         else:
@@ -111,7 +138,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, color: str = 
                 f"{width}",
                 ha="left",
                 va="center",
-                fontsize=10,
+                fontsize=8,
                 color="black",
             )
 
