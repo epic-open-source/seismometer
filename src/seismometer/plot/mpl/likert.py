@@ -68,7 +68,7 @@ def likert_plot(
             df_percentages[col],
             left=cumulative_data[col]
             - df_percentages[col]
-            - cumulative_data[(len(df.columns) - 1) // 2]
+            - cumulative_data[df.columns[(len(df.columns) - 1) // 2]]
             + middle_adjustment,
             color=colors[i],
             label=col,

@@ -68,7 +68,6 @@ class OrdinalCategoricalPlot:
                     self.values = metric.metric_details.values
                     return
         self.values = sorted(pd.unique(self.dataframe[self.metrics].values.ravel()))
-        return
 
     @classmethod
     def initialize_plot_functions(cls):
