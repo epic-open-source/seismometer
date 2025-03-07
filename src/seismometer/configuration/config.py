@@ -376,6 +376,7 @@ class ConfigProvider:
             + self.features
             + self.output_list
             + [c.source for c in self.cohorts]
+            + [m.source for m in self.metrics.values()]
         )
         return sorted(col_set)
 

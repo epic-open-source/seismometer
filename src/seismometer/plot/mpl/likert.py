@@ -61,7 +61,7 @@ def likert_plot(
     cumulative_data = df_percentages.cumsum(axis=1)
     first_half_columns = df.columns[: (len(df.columns) + 1) // 2]
     second_half_columns = df.columns[len(df.columns) // 2 :]  # noqa: E203
-    middle_adjustment = df[df.columns[len(df.columns) // 2]] / 2 if len(df.columns) % 2 == 1 else 0
+    middle_adjustment = df_percentages[df.columns[len(df.columns) // 2]] / 2 if len(df.columns) % 2 == 1 else 0
     for i, col in enumerate(df.columns):
         bars = ax.barh(
             df.index,

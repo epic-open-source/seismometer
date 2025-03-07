@@ -6,13 +6,13 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Dropdown, Layout, ValueWidget, VBox
 from matplotlib.figure import Figure
+from pandas import isna
 
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 
 # from seismometer.data import pandas_helpers as pdh
-from seismometer.data.filter import FilterRule
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
 
@@ -44,12 +44,12 @@ class OrdinalCategoricalSinglePlot:
         self.metric_col = metric_col
         self.plot_type = plot_type
         self.title = title
-        self.cohort_col = next(iter(cohort_dict))
-        self.cohort_values = list(cohort_dict[self.cohort_col])
 
         sg = Seismogram()
-        cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
-        self.dataframe = cohort_filter.filter(sg.dataframe)
+        cohort_dict = cohort_dict or sg.available_cohort_groups
+        self.cohort_col = next(iter(cohort_dict))
+        self.cohort_values = list(cohort_dict[self.cohort_col])
+        self.dataframe = sg.dataframe[[self.cohort_col, self.metric_col]]
 
         self.plot_functions = self.initialize_plot_functions()
 
@@ -64,6 +64,7 @@ class OrdinalCategoricalSinglePlot:
         if self.metric_col in sg.metrics:
             self.values = sg.metrics[self.metric_col].metric_details.values
         self.values = self.values or sorted(self.dataframe[self.metric_col].unique())
+        self.values = [value for value in self.values if not isna(value)]
 
     @classmethod
     def initialize_plot_functions(cls):
@@ -106,6 +107,7 @@ class OrdinalCategoricalSinglePlot:
         )
         df = df.pivot(index=self.cohort_col, columns=self.metric_col, values="count").fillna(0)
         df = df.loc[self.cohort_values]
+        df = df[self.values].astype(int)
         return df
 
     def fig_to_html(self, fig: Figure):
