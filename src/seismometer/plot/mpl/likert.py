@@ -50,6 +50,7 @@ def likert_plot(
         The generated Likert plot figure.
     """
     row_sums = df.sum(axis=1)
+    matplotlib.use("Agg")
     if (row_sums != row_sums.iloc[0]).any():
         fig, (ax, ax_count) = plt.subplots(ncols=2, figsize=(15, 6), gridspec_kw={"width_ratios": [2, 1]})
         _plot_counts(df, ax_count)
