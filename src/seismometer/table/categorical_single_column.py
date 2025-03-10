@@ -91,7 +91,7 @@ class OrdinalCategoricalSinglePlot:
             The generated Likert plot figure.
         """
         df = self._count_cohort_group_values()
-        return likert_plot(df=df, include_counts_plot=True)
+        return likert_plot(df=df)
 
     def _count_cohort_group_values(self):
         """

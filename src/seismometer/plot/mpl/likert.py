@@ -9,7 +9,9 @@ from ._ux import area_colors
 
 
 def likert_plot(
-    df: pd.DataFrame, colors: Iterable[str] = area_colors, border: int = 5, include_counts_plot: bool = False
+    df: pd.DataFrame,
+    colors: Iterable[str] = area_colors,
+    border: int = 5,
 ):
     """
     Creates a Likert plot (horizontal stacked bar) from the given DataFrame.
@@ -41,22 +43,21 @@ def likert_plot(
         Iterable of colors for the bars, by default area_colors.
     border : int, optional
         Border space around the plot, by default 5.
-    include_counts_plot : bool, optional
-        Whether to include a counts plot alongside the Likert plot, by default False.
 
     Returns
     -------
     matplotlib.figure.Figure
         The generated Likert plot figure.
     """
-    if include_counts_plot:
+    row_sums = df.sum(axis=1)
+    if (row_sums != row_sums.iloc[0]).any():
         fig, (ax, ax_count) = plt.subplots(ncols=2, figsize=(15, 6), gridspec_kw={"width_ratios": [2, 1]})
         _plot_counts(df, ax_count)
     else:
         fig, ax = plt.subplots(figsize=(10, 6))
     plt.close(fig)
 
-    df_percentages = df.div(df.sum(axis=1), axis=0) * 100
+    df_percentages = df.div(row_sums, axis=0) * 100
 
     cumulative_data = df_percentages.cumsum(axis=1)
     first_half_columns = df.columns[: (len(df.columns) + 1) // 2]
