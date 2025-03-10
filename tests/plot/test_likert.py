@@ -93,6 +93,17 @@ def test_likert_plot_empty_text(sample_data):
     sample_data_empty_text.iloc[0, 0] = 1  # Set a value to 1 to test empty text
     fig = likert_plot(sample_data_empty_text)
     ax = fig.axes[0]
-    for bar, text in zip(ax.patches, ax.texts):
-        if bar.get_width() == 0:
-            assert text.get_text() == ""
+    texts = []
+    index = 0
+    for bar in ax.patches:
+        if bar.get_width() < 10:
+            texts.append("")
+        else:
+            texts.append(ax.texts[index].get_text())
+            index = index + 1
+    assert len(ax.patches) == len(texts)
+    for bar, text in zip(ax.patches, texts):
+        if bar.get_width() < 10:
+            assert text == ""
+        else:
+            assert text != ""
