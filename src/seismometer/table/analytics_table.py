@@ -560,7 +560,7 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             options=[THRESHOLD] + MONOTONIC_METRICS,
             value=metric,
             description="Metric",
-            style={"description_width": "40px"},
+            style={"description_width": "min-content"},
             layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))", min_width="200px"),
         )
         self._metrics_to_display = MultiselectDropdownWidget(
@@ -572,11 +572,15 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
         self._metric_values = MonotonicProbabilitySliderListWidget(
             names=("Metric Value 1", "Metric Value 2"), value=tuple(metric_values), ascending=False
         )
+        for slider in self._metric_values.sliders.values():
+            color = slider.style.handle_color
+            slider.style = {"description_width": "min-content"}
+            slider.style.handle_color = color
         self._group_by = Dropdown(
             options=["Score", "Target"],
             value="Score",
             description="Group By",
-            style={"description_width": "60px"},
+            style={"description_width": "min-content"},
             layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))", min_width="200px"),
         )
         self._cohort_dict = MultiSelectionListWidget(cohort_dict or sg.available_cohort_groups, title="Cohort Filter")
