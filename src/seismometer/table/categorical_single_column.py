@@ -203,13 +203,17 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
         title : Optional[str], optional
             Title of the plot, by default None.
         """
+        from seismometer.seismogram import Seismogram
+
         sg = Seismogram()
         self.title = title
 
         super().__init__(
             title="Plot Cohort Distribution",
             option_widget=CategoricalFeedbackSingleColumnOptionsWidget(
-                list(set(metric for metric_group in sg.metric_groups for metric in sg.metric_groups[metric_group])),
+                sorted(
+                    list(set(metric for metric_group in sg.metric_groups for metric in sg.metric_groups[metric_group]))
+                ),
                 cohort_groups=sg.available_cohort_groups,
                 title=title,
             ),
@@ -253,6 +257,8 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
         title : str, optional
             Title of the plot, by default None.
         """
+        from seismometer.seismogram import Seismogram
+
         sg = Seismogram()
         self.model_options_widget = model_options_widget
         self.title = title
@@ -265,7 +271,7 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
             style=WIDE_LABEL_STYLE,
         )
 
-        self._cohort_list = DisjointSelectionListsWidget(options=cohort_groups, title="Cohort Filter", select_all=True)
+        self._cohort_list = DisjointSelectionListsWidget(options=cohort_groups, title="Cohort Filter")
 
         self._metric_col.observe(self._on_value_changed, names="value")
         self._cohort_list.observe(self._on_value_changed, names="value")

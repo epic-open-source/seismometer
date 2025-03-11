@@ -9,7 +9,7 @@ from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
 from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import Seismogram
-from seismometer.table.categorical import OrdinalCategoricalPlot
+from seismometer.table.categorical import OrdinalCategoricalPlot, ordinal_categorical_plot
 
 
 def get_test_config(tmp_path):
@@ -187,4 +187,12 @@ class TestOrdinalCategoricalPlot:
         plot = CustomPlot(metrics=["Metric1", "Metric2"], plot_type="Custom Plot")
         plot.plot_functions["Custom Plot"] = CustomPlot.custom_plot
         fig = plot.generate_plot()
+        assert isinstance(fig, Figure)
+
+
+class TestOrdinalCategoricalPlotFunction:
+    def test_ordinal_categorical_plot(self, fake_seismo):
+        metrics = ["Metric1", "Metric2"]
+        cohort_dict = {"Cohort": ["C1"]}
+        fig = ordinal_categorical_plot(metrics, cohort_dict, title="Test Plot")
         assert isinstance(fig, Figure)

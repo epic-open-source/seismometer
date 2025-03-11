@@ -9,7 +9,10 @@ from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
 from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import Seismogram
-from seismometer.table.categorical_single_column import OrdinalCategoricalSinglePlot
+from seismometer.table.categorical_single_column import (
+    OrdinalCategoricalSinglePlot,
+    ordinal_categorical_single_col_plot,
+)
 
 
 def get_test_config(tmp_path):
@@ -181,3 +184,11 @@ class TestOrdinalCategoricalSinglePlot:
         )
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
+
+
+class TestOrdinalCategoricalSinglePlotFunction:
+    def test_ordinal_categorical_single_plot(self, fake_seismo):
+        metric_col = "Metric1"
+        cohort_dict = {"Cohort": ["C1"]}
+        fig = ordinal_categorical_single_col_plot(metric_col, cohort_dict, title="Test Plot")
+        assert isinstance(fig, Figure)

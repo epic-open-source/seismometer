@@ -59,6 +59,7 @@ def likert_plot(
     plt.close(fig)
 
     df_percentages = df.div(row_sums, axis=0) * 100
+    df_percentages.fillna(0, inplace=True)
 
     cumulative_data = df_percentages.cumsum(axis=1)
     first_half_columns = df.columns[: (len(df.columns) + 1) // 2]

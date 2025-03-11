@@ -115,9 +115,9 @@ class ConfigProvider:
             self._metric_types[metric.metric_type] = self._metric_types.get(metric.metric_type, []) + [metric.source]
 
         for group in self._metric_groups:
-            self._metric_groups[group] = list(set(self._metric_groups[group]))
+            self._metric_groups[group] = sorted(list(set(self._metric_groups[group])))
         for metric_type in self._metric_types:
-            self._metric_types[metric_type] = list(set(self.metric_types[metric_type]))
+            self._metric_types[metric_type] = sorted(list(set(self.metric_types[metric_type])))
 
     # region Config
     @property
