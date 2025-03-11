@@ -45,7 +45,7 @@ class ExploreAnalyticsTable(ExploreBinaryModelAnalytics):
 @export
 class ExploreCategoricalFeedback(ExploreCategoricalPlots):
     """
-    Exploration widget for model comparison across cohorts / binary classifiers / targets.
+    Exploration widget for ordinal categorical metrics, summarizing multiple metrics for a model.
     """
 
     def __init__(self, group_key=None):
@@ -58,7 +58,8 @@ class ExploreCategoricalFeedback(ExploreCategoricalPlots):
 @export
 class ExploreSingleCategoricalFeedback(ExploreSingleCategoricalPlots):
     """
-    Exploration widget for model comparison across cohorts / binary classifiers / targets.
+    Exploration widget for a ordinal categorical metric, summarizing distribution of metric values
+    across a specified cohort group for the metric.
     """
 
     def __init__(self, group_key=None):
