@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
 from matplotlib.axes import Axes
-from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
 
 from seismometer.plot.mpl.likert import _plot_counts, likert_plot
@@ -36,15 +35,6 @@ def test_likert_plot_with_counts(sample_data):
     assert isinstance(ax_count, Axes)
     assert ax.get_title() == "Likert Plot"
     assert ax_count.get_title() == "Counts of Each Row"
-
-
-def test_likert_plot_colors(sample_data):
-    custom_colors = ["#FF0000", "#00FF00", "#0000FF"]
-    fig = likert_plot(sample_data, colors=custom_colors)
-    ax = fig.axes[0]
-    for i, bar_container in enumerate(ax.containers):
-        for bar in bar_container.get_children():
-            assert bar.get_facecolor() == to_rgba(custom_colors[i])
 
 
 def test_likert_plot_border(sample_data):

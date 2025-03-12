@@ -1,5 +1,3 @@
-from typing import Iterable
-
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,7 +8,6 @@ from ._ux import area_colors
 
 def likert_plot(
     df: pd.DataFrame,
-    colors: Iterable[str] = area_colors,
     border: int = 5,
 ):
     """
@@ -39,8 +36,6 @@ def likert_plot(
     ----------
     df : pd.DataFrame
        DataFrame containing the counts of each category.
-    colors : Iterable[str], optional
-        Iterable of colors for the bars, by default area_colors.
     border : int, optional
         Border space around the plot, by default 5.
 
@@ -73,7 +68,7 @@ def likert_plot(
             - df_percentages[col]
             - cumulative_data[df.columns[(len(df.columns) - 1) // 2]]
             + middle_adjustment,
-            color=colors[i % len(colors)],
+            color=area_colors[i % len(area_colors)],
             label=col,
         )
         for index, bar in enumerate(bars):
@@ -104,7 +99,7 @@ def likert_plot(
     return fig
 
 
-def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, color: str = area_colors[0], border: int = 5):
+def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int = 5):
     """
     Plots the counts of each row in the dataframe as horizontal bars.
 
@@ -114,13 +109,11 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, color: str = 
         DataFrame containing the counts of each category.
     ax_count : matplotlib.axes.Axes
         The axes on which to plot the counts.
-    color : str, optional
-        Color for the bars, by default area_colors[0].
     border : int, optional
         Border space around the plot, by default 5.
     """
     total_counts = df.sum(axis=1)
-    bars = ax_count.barh(df.index, total_counts, color=color)
+    bars = ax_count.barh(df.index, total_counts, color=area_colors[0])
     max_count = max(total_counts)
     for bar in bars:
         width = bar.get_width()
