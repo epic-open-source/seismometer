@@ -16,6 +16,8 @@ from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
 
+from .categorical import MAX_CATEGORY_SIZE
+
 logger = logging.getLogger("seismometer")
 
 
@@ -211,9 +213,7 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
         super().__init__(
             title="Plot Cohort Distribution",
             option_widget=CategoricalFeedbackSingleColumnOptionsWidget(
-                sorted(
-                    list(set(metric for metric_group in sg.metric_groups for metric in sg.metric_groups[metric_group]))
-                ),
+                sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE),
                 cohort_groups=sg.available_cohort_groups,
                 title=title,
             ),

@@ -21,6 +21,9 @@ from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 
+MAX_CATEGORY_SIZE: int = 15
+""" The maximum number of categories allowed in a categorical column. """
+
 
 class OrdinalCategoricalPlot:
     def __init__(
@@ -220,8 +223,8 @@ class ExploreCategoricalPlots(ExplorationWidget):
 
         super().__init__(
             title="Plot Metrics",
-            option_widget=CategoricalFeedbackOptionsWidget(
-                list(sg.metric_groups.keys()),
+            option_widget=CategoricalOptionsWidget(
+                sg.get_ordinal_categorical_groups(MAX_CATEGORY_SIZE),
                 cohort_dict=sg.available_cohort_groups,
                 title=title,
             ),
@@ -239,7 +242,7 @@ class ExploreCategoricalPlots(ExplorationWidget):
         return args, kwargs
 
 
-class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
+class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
     value = traitlets.Dict(help="The selected values for the ordinal categorical options.")
 
     def __init__(
@@ -251,7 +254,7 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         title: str = None,
     ):
         """
-        Initializes the CategoricalFeedbackOptionsWidget class.
+        Initializes the CategoricalOptionsWidget class.
 
         Parameters
         ----------
@@ -267,7 +270,7 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        metric_groups = metric_groups or list(sg.metric_groups.keys())
+        metric_groups = metric_groups or sg.get_ordinal_categorical_groups(MAX_CATEGORY_SIZE)
         self.model_options_widget = model_options_widget
         self.title = title
         self.all_cohorts = cohort_dict
@@ -278,10 +281,17 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
             title="Metric Groups",
         )
 
-        all_metrics = sorted(list(set(metric for group in metric_groups for metric in sg.metric_groups[group])))
+        self.all_metrics = set(
+            metric
+            for group in metric_groups
+            for metric in sg.metric_groups[group]
+            if metric in sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE)
+        )
+        all_metrics_list = sorted(list(self.all_metrics))
+
         self._metrics = MultiselectDropdownWidget(
-            options=all_metrics,
-            value=all_metrics,
+            options=all_metrics_list,
+            value=all_metrics_list,
             title="Metrics",
         )
 
@@ -334,6 +344,7 @@ class CategoricalFeedbackOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         sg = Seismogram()
         metric_groups = self._metric_groups.value
         metrics_set = set(metric for metric_group in metric_groups for metric in sg.metric_groups[metric_group])
+        metrics_set = metrics_set & self.all_metrics
         self._metrics.options = sorted(list(metrics_set))
         self._metrics.value = sorted(list(set(self._metrics.value) & metrics_set))
         self._update_disabled_state()

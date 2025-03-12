@@ -308,9 +308,6 @@ class MetricDetails(BaseModel):
     handle_na: Optional[str] = None
     """ Strategy for handling missing values (NA). """
 
-    group: Optional[str] = None
-    """ The group to which the metric belongs. """
-
     values: Optional[List[Union[float, int, str]]] = None
     """ A list of possible values for the metric. """
 
@@ -327,7 +324,7 @@ class Metric(BaseModel):
     metric_type: str
     """ The type of the metric (e.g., 'binary classification', 'categorical feedback'). """
 
-    group_keys: Optional[Union[str, List[str]]] = None
+    group_keys: Optional[Union[str, List[str]]] = "group_undefined"
     """ The group or groups to which the metric belongs."""
 
     metric_details: MetricDetails = MetricDetails()

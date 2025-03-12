@@ -1,5 +1,6 @@
 import json
 import logging
+from functools import lru_cache
 from typing import Optional
 
 import numpy as np
@@ -43,7 +44,7 @@ class Seismogram(object, metaclass=Singleton):
     predict_time: str
     """ The column name for evaluation timestamp. """
     output_list: list[str]
-    """ The list of columns representing model outputs."""
+    """ The list of columns representing model outputs. """
 
     def __init__(
         self,
@@ -416,15 +417,18 @@ class Seismogram(object, metaclass=Singleton):
             if self._is_binary_array(self.dataframe[[pdh.event_value(target_col)]])
         ]
 
-    def get_ordinal_categorical_targets(self):
-        return [
-            pdh.event_value(target_col)
-            for target_col in self.target_cols
-            if self._is_ordinal_categorical_terget(target_col)
-        ]
+    @lru_cache(maxsize=None)
+    def get_ordinal_categorical_metrics(self, max_cat_size):
+        return [metric for metric in self.metrics if self._is_ordinal_categorical_metric(metric, max_cat_size)]
 
-    def _is_ordinal_categorical_target(self, target_col):
-        # TODO: Update this function to lookup usage_config, metric_type.
-        return True
+    def _is_ordinal_categorical_metric(self, metric, max_cat_size):
+        return self.dataframe[metric].nunique() <= max_cat_size
+
+    def get_ordinal_categorical_groups(self, max_cat_size):
+        return [
+            group
+            for group in self.metric_groups
+            if all(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
+        ]
 
     # endregion

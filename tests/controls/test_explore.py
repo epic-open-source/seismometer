@@ -7,7 +7,7 @@ import seismometer.controls.explore as undertest
 from seismometer import seismogram
 from seismometer.data.performance import MetricGenerator
 from seismometer.table.analytics_table import AnalyticsTableOptionsWidget, ExploreBinaryModelAnalytics
-from seismometer.table.categorical import CategoricalFeedbackOptionsWidget, ExploreCategoricalPlots
+from seismometer.table.categorical import CategoricalOptionsWidget, ExploreCategoricalPlots
 from seismometer.table.categorical_single_column import (
     CategoricalFeedbackSingleColumnOptionsWidget,
     ExploreSingleCategoricalPlots,
@@ -1146,6 +1146,8 @@ class TestExploreCategoricalPlots:
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ["Metric1", "Metric2"]}
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
         widget = ExploreCategoricalPlots(title="Unit Test Title")
 
@@ -1163,6 +1165,8 @@ class TestExploreCategoricalPlots:
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ["Metric1", "Metric2"]}
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
         widget = ExploreCategoricalPlots(title="Unit Test Title")
 
@@ -1171,14 +1175,16 @@ class TestExploreCategoricalPlots:
         assert kwargs == {"title": "Unit Test Title"}
 
 
-class TestCategoricalFeedbackOptionsWidget:
+class TestCategoricalOptionsWidget:
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_init(self, mock_seismo):
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ["Metric1", "Metric2"]}
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
-        widget = CategoricalFeedbackOptionsWidget(
+        widget = CategoricalOptionsWidget(
             metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups, title="Unit Test Title"
         )
 
@@ -1192,10 +1198,10 @@ class TestCategoricalFeedbackOptionsWidget:
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ["Metric1", "Metric2"]}
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
-        widget = CategoricalFeedbackOptionsWidget(
-            metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups
-        )
+        widget = CategoricalOptionsWidget(metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups)
         widget.disabled = True
         assert widget._metric_groups.disabled is True
         assert widget._metrics.disabled is True
@@ -1206,10 +1212,10 @@ class TestCategoricalFeedbackOptionsWidget:
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ("Metric1", "Metric2")}
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
-        widget = CategoricalFeedbackOptionsWidget(
-            metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups
-        )
+        widget = CategoricalOptionsWidget(metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups)
         widget._metric_groups.value = ["Group1"]
         widget._metrics.value = ["Metric1"]
         widget._cohort_dict.value = {"C1": ["C1.1"]}
@@ -1222,13 +1228,15 @@ class TestCategoricalFeedbackOptionsWidget:
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ("Metric1", "Metric2")}
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
         model_options_widget = ipywidgets.Dropdown(
             options=["Val1", "Val2"],
             value="Val1",
             description="Test model options",
         )
-        widget = CategoricalFeedbackOptionsWidget(
+        widget = CategoricalOptionsWidget(
             metric_groups=["Group1"],
             cohort_dict=fake_seismo.available_cohort_groups,
             model_options_widget=model_options_widget,
@@ -1242,6 +1250,8 @@ class TestExploreSingleCategoricalPlots:
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ["Metric1", "Metric2"]}
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
         # Mock the initialization parameters
         fake_seismo.return_value.config = Mock()
@@ -1263,6 +1273,8 @@ class TestExploreSingleCategoricalPlots:
         fake_seismo = mock_seismo()
         fake_seismo.metric_groups = {"Group1": ["Metric1", "Metric2"]}
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
+        fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
+        fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
 
         # Mock the initialization parameters
         fake_seismo.return_value.config = Mock()

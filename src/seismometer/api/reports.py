@@ -43,7 +43,7 @@ class ExploreAnalyticsTable(ExploreBinaryModelAnalytics):
 
 
 @export
-class ExploreCategoricalFeedback(ExploreCategoricalPlots):
+class ExploreOrdinalMetrics(ExploreCategoricalPlots):
     """
     Exploration widget for ordinal categorical metrics, summarizing multiple metrics for a model.
     """
@@ -56,10 +56,9 @@ class ExploreCategoricalFeedback(ExploreCategoricalPlots):
 
 
 @export
-class ExploreSingleCategoricalFeedback(ExploreSingleCategoricalPlots):
+class ExploreCohortOrdinalMetrics(ExploreSingleCategoricalPlots):
     """
-    Exploration widget for a ordinal categorical metric, summarizing distribution of metric values
-    across a specified cohort group for the metric.
+    Exploration widget for ordinal categorical metrics, summarizing an ordinal metric across cohort subclasses.
     """
 
     def __init__(self, group_key=None):

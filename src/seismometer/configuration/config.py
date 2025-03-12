@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from seismometer.core.io import load_yaml
 
-from .model import DataUsage, Event, EventDictionary, OtherInfo, PredictionDictionary
+from .model import DataUsage, Event, EventDictionary, Metric, OtherInfo, PredictionDictionary
 
 
 class ConfigProvider:
@@ -108,16 +108,29 @@ class ConfigProvider:
         self._metrics = {metric.source: metric for metric in self.usage.metrics}
         self._metric_groups = {}
         self._metric_types = {}
+        self._load_output_as_metric()
         for metric in self.usage.metrics:
             group_keys = [metric.group_keys] if isinstance(metric.group_keys, str) else metric.group_keys
             for group in group_keys:
                 self._metric_groups[group] = self._metric_groups.get(group, []) + [metric.source]
             self._metric_types[metric.metric_type] = self._metric_types.get(metric.metric_type, []) + [metric.source]
-
         for group in self._metric_groups:
             self._metric_groups[group] = sorted(list(set(self._metric_groups[group])))
         for metric_type in self._metric_types:
             self._metric_types[metric_type] = sorted(list(set(self.metric_types[metric_type])))
+
+    def _load_output_as_metric(self):
+        # For backward compatibility, outputs are loaded as Metrics with metric type of "binary classification".
+        for output in self.output_list:
+            metric = Metric(
+                source=output,
+                display_name=output,
+                metric_type="binary classification",
+                group_keys="binary classification outputs",
+            )
+            self._metrics[metric.source] = metric
+        self._metric_groups["binary classification outputs"] = self.output_list
+        self._metric_types["binary classification"] = self.output_list
 
     # region Config
     @property
