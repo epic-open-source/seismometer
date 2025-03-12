@@ -6,7 +6,7 @@ import pytest
 
 import seismometer.seismogram  # noqa : needed for patching
 from seismometer.configuration import ConfigProvider
-from seismometer.configuration.model import Cohort, Event
+from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
 from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import Seismogram
 
@@ -18,6 +18,31 @@ def get_test_config(tmp_path):
         "event1": Event(source="event1", display_name="event1", window_hr=1),
         "event2": Event(source="event1", display_name="event1", window_hr=2, aggregation_method="min"),
     }
+    mock_config.metrics = {
+        "Metric1": Metric(
+            source="Metric1",
+            display_name="Metric1",
+            metric_type="Type1",
+            group_keys=["Group1", "Group2"],
+            metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
+        ),
+        "Metric2": Metric(
+            source="Metric2",
+            display_name="Metric2",
+            metric_type="Type1",
+            group_keys="Group1",
+            metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
+        ),
+        "Metric3": Metric(
+            source="Metric3",
+            display_name="Metric3",
+            metric_type="Type2",
+            group_keys="Group2",
+            metric_details=MetricDetails(values=["cold", "warm", "hot"]),
+        ),
+    }
+    mock_config.metric_groups = {"Group1": ["Metric1", "Metric2"], "Group2": ["Metric1", "Metric3"]}
+    mock_config.metric_types = {"Type1": ["Group1", "Group2"], "Type2": ["Group3"]}
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity"]
     mock_config.predict_time = "time"
@@ -48,6 +73,9 @@ def get_test_data():
             "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "cohort1": [1, 0, 1, 0],
             "cohort2": [0, 1, 0, 1],
+            "Metric1": ["disagree", "neutral", "agree", "neutral"],
+            "Metric2": ["disagree", "agree", "agree", "disagree"],
+            "Metric3": ["cold", "warm", "cold", "cold"],
         }
     )
 
@@ -89,9 +117,9 @@ class Test__set_df_counts:
     @pytest.mark.parametrize(
         "features, predict_cols, expected",
         [
-            ([], [], "~9"),
-            ([], ["entity", "time"], "~7"),
-            ([], ["entity", "notacol"], "~8"),
+            ([], [], "~12"),
+            ([], ["entity", "time"], "~10"),
+            ([], ["entity", "notacol"], "~11"),
             (["feature1", "feature2"], [], 2),
             (["feature1", "feature2"], ["entity", "time"], 2),
             (["feature1", "feature2", "feature3"], [], 3),
@@ -256,3 +284,50 @@ class TestSeismogramAttrs:
 
         # Ensure attribute is available
         assert hasattr(sg, attr_name)
+
+
+class TestSeismogramMetricExtraction:
+    @pytest.mark.parametrize(
+        "max_cat_size, expected_metrics",
+        [
+            (3, ["Metric1", "Metric2", "Metric3"]),
+            (2, ["Metric2", "Metric3"]),
+            (1, []),
+        ],
+    )
+    def test_get_ordinal_categorical_metrics(self, fake_seismo, max_cat_size, expected_metrics):
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        result = sg.get_ordinal_categorical_metrics(max_cat_size=max_cat_size)
+        assert result == expected_metrics
+
+    @pytest.mark.parametrize(
+        "max_cat_size, expected_groups",
+        [
+            (3, ["Group1", "Group2"]),
+            (2, ["Group1", "Group2"]),
+            (1, []),
+        ],
+    )
+    def test_get_ordinal_categorical_groups(self, fake_seismo, max_cat_size, expected_groups):
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        result = sg.get_ordinal_categorical_groups(max_cat_size=max_cat_size)
+        assert result == expected_groups
+
+    @pytest.mark.parametrize(
+        "metric_name, max_cat_size, expected",
+        [
+            ("Metric1", 3, True),
+            ("Metric2", 3, True),
+            ("Metric3", 3, True),
+            ("Metric1", 2, False),
+            ("Metric2", 2, True),
+            ("Metric3", 2, True),
+        ],
+    )
+    def test_is_ordinal_categorical_metric(self, fake_seismo, metric_name, max_cat_size, expected):
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        result = sg._is_ordinal_categorical_metric(metric_name, max_cat_size=max_cat_size)
+        assert result == expected

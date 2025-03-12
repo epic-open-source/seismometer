@@ -428,7 +428,7 @@ class Seismogram(object, metaclass=Singleton):
         return [
             group
             for group in self.metric_groups
-            if all(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
+            if any(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
         ]
 
     # endregion

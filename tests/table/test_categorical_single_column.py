@@ -40,7 +40,7 @@ def get_test_config(tmp_path):
         ),
     }
     mock_config.metric_groups = {"Group1": ["Metric1", "Metric2"], "Group2": ["Metric1"]}
-    mock_config.metric_types = {"Metric1": "Feedback", "Metric2": "Feedback"}
+    mock_config.metric_types = {"categorical_feedback": ["Metric1", "Metric2"]}
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity"]
     mock_config.predict_time = "time"
