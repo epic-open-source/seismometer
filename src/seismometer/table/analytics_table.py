@@ -92,7 +92,8 @@ class AnalyticsTable:
         per_context : bool, optional
             If scores should be grouped by context, by default False.
         censor_threshold : int, optional
-            Minimum rows to allow in a table, by default 10.
+            Minimum number of rows required in the cohort data to enable the generation of an analytics table,
+            by default 10.
 
         Raises
         ------
@@ -224,7 +225,7 @@ class AnalyticsTable:
                 f"{[member.value for member in TopLevel]}"
             ) from e
 
-    def generate_initial_table(self, data):
+    def generate_initial_table(self, data) -> GT:
         """
         Generates the initial table with formatted headers, stubs, and numeric/percentage formatting.
 
@@ -259,7 +260,7 @@ class AnalyticsTable:
         )
         return gt
 
-    def group_columns_by_metric_value(self, gt, columns, value):
+    def group_columns_by_metric_value(self, gt, columns, value) -> GT:
         """
         Groups columns by a specified metric value and adds borders.
 
@@ -283,7 +284,7 @@ class AnalyticsTable:
         )
         return self.add_borders(gt, columns[0], columns[-1])
 
-    def add_borders(self, gt, left_column, right_column):
+    def add_borders(self, gt, left_column, right_column) -> GT:
         """
         Adds borders to the left of left_column and right of right_column in the table.
 
@@ -310,14 +311,14 @@ class AnalyticsTable:
         )
         return gt
 
-    def analytics_table(self):
+    def analytics_table(self) -> HTML:
         """
         Generates an analytics table based on calculated performance statistics.
 
         Returns
         -------
-        GT
-            A `GT` (from great_tables package) object representing the formatted analytics table.
+        HTML
+            An HTML object representing the formatted analytics table.
         """
         data = self._generate_table_data()
         if data is None:
@@ -350,7 +351,7 @@ class AnalyticsTable:
 
         return HTML(gt.as_raw_html(), layout=Layout(max_height="800px"))
 
-    def _generate_table_data(self):
+    def _generate_table_data(self) -> Optional[pd.DataFrame]:
         """
         Generates a DataFrame containing calculated statistics for each combination of scores and targets.
 
@@ -441,7 +442,7 @@ def binary_analytics_table(
     Returns
     -------
     HTML
-        The HTML table for the fairness evaluation.
+        The HTML table representing the corresponding analytics table.
     """
     sg = Seismogram()
     table_config = AnalyticsTableConfig(**COLORING_CONFIG_DEFAULT)

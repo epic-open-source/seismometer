@@ -33,7 +33,7 @@ def calculate_stats(
     metric_values: List[str],
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
-):
+) -> dict:
     """
     Calculates overall performance statistics such as AUROC and threshold-specific statistics
     such as sensitivity and specificity for the provided list of metric values.
@@ -130,7 +130,7 @@ def generate_analytics_data(
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
     censor_threshold: int = 10,
-):
+) -> Optional[pd.DataFrame]:
     """
     Generates a DataFrame containing calculated statistics for each combination of scores and targets.
 
@@ -160,7 +160,7 @@ def generate_analytics_data(
 
     Returns
     -------
-    pd.DataFrame
+    Optional[pd.DataFrame]
         A DataFrame containing the calculated statistics for each combination of scores and targets.
     """
     rows_list = []
