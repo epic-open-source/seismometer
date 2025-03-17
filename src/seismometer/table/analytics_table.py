@@ -574,9 +574,7 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             names=("Metric Value 1", "Metric Value 2"), value=tuple(metric_values), ascending=False
         )
         for slider in self._metric_values.sliders.values():
-            color = slider.style.handle_color
-            slider.style = {"description_width": "min-content"}
-            slider.style.handle_color = color
+            slider.style.description_width = "min-content"
         self._group_by = Dropdown(
             options=["Score", "Target"],
             value="Score",
