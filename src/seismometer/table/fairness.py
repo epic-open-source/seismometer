@@ -388,13 +388,15 @@ class FairnessOptionsWidget(Box, ValueWidget):
         Parameters
         ----------
         metric_names : tuple[str]
-            Metrics that can be evaluated for fairness
+            Metrics that can be evaluated for fairness.
         cohort_dict : dict[str, tuple[Any]]
             Dictionary of cohort groups.
         fairness_ratio : float, optional
-            Allowed difference by cohort, by default 0.2
-        model_options_widget : _type_, optional
-            Additional model options if needed, will appear before fairness options, by default None
+            Allowed difference by cohort, by default 0.2.
+        model_options_widget : Optional[widget], optional
+            Additional model options if needed, will appear before fairness options, by default None.
+        default_metrics : Optional[tuple[str]], optional
+            Default list of metrics to select initially for fairness evaluation, by default None.
         """
         self.model_options_widget = model_options_widget
         default_metrics = default_metrics or metric_names

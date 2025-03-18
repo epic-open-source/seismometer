@@ -1,10 +1,11 @@
 import itertools
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
 
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data.filter import FilterRule
 from seismometer.seismogram import Seismogram
 
 from . import BinaryClassifierMetricGenerator
@@ -32,7 +33,7 @@ def calculate_stats(
     metric_values: List[str],
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
-):
+) -> dict:
     """
     Calculates overall performance statistics such as AUROC and threshold-specific statistics
     such as sensitivity and specificity for the provided list of metric values.
@@ -124,10 +125,12 @@ def generate_analytics_data(
     metric_values: List[float],
     *,
     top_level: str = "Score",
+    cohort_dict: Optional[dict[str, tuple[Any]]] = None,
     per_context: bool = False,
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
-):
+    censor_threshold: int = 10,
+) -> Optional[pd.DataFrame]:
     """
     Generates a DataFrame containing calculated statistics for each combination of scores and targets.
 
@@ -143,6 +146,8 @@ def generate_analytics_data(
         A list of metric values for which corresponding statistics are calculated.
     top_level : str, optional
         The primary grouping category in the performance table, by default "Score".
+    cohort_dict : Optional[dict[str, tuple[Any]]], optional
+        dictionary of cohort columns and values used to subselect a population for evaluation, by default None.
     per_context : bool
         If scores should be grouped by context, by default False.
     metrics_to_display : Optional[List[str]], optional
@@ -150,10 +155,12 @@ def generate_analytics_data(
         in GENERATED_COLUMNS.
     decimals : int, optional
         The number of decimal places for rounding numerical results, by default 3.
+    censor_threshold : int, optional
+        Minimum rows required to generate analytics data, by default 10.
 
     Returns
     -------
-    pd.DataFrame
+    Optional[pd.DataFrame]
         A DataFrame containing the calculated statistics for each combination of scores and targets.
     """
     rows_list = []
@@ -164,19 +171,23 @@ def generate_analytics_data(
     )
     second_level = "Target" if top_level == "Score" else "Score"
     sg = Seismogram()
+    cohort_dict = cohort_dict or sg.available_cohort_groups
+    cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
+    cohort_filter.MIN_ROWS = censor_threshold
+    data = cohort_filter.filter(sg.dataframe)
+    if len(data) <= censor_threshold:
+        return None
     for first, second in product:
         current_row = {top_level: first, second_level: second}
         (score, target) = (first, second) if top_level == "Score" else (second, first)
         if per_context:
             data = pdh.event_score(
-                sg.dataframe,
+                data,
                 sg.entity_keys,
                 score=score,
                 ref_event=sg.predict_time,
                 aggregation_method=sg.event_aggregation_method(target),
             )
-        else:
-            data = sg.dataframe
         current_row.update(
             calculate_stats(
                 data[[target, score]],
@@ -190,5 +201,5 @@ def generate_analytics_data(
         )
         rows_list.append(current_row)
     # Create a DataFrame from the rows data
-    data = pd.DataFrame(rows_list)
-    return data
+    analytics_data = pd.DataFrame(rows_list)
+    return analytics_data
