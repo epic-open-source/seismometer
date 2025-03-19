@@ -859,9 +859,9 @@ def plot_model_score_comparison(
     data = []
     for score in scores:
         if per_context:
-            one_score_data = pdh.event_score(dataframe, sg.entity_keys, score=score, aggregation_method="max")[
-                [score, target_event]
-            ]
+            one_score_data = pdh.event_score(
+                dataframe, sg.entity_keys, score=score, ref_event=target_event, aggregation_method="max"
+            )[[score, target_event]]
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["ScoreName"] = score
@@ -922,9 +922,9 @@ def plot_model_target_comparison(
         target_event = pdh.event_value(target)
         dataframe = FilterRule.isin(target_event, (0, 1)).filter(source_data)
         if per_context:
-            one_score_data = pdh.event_score(dataframe, sg.entity_keys, score=score, aggregation_method="max")[
-                [score, target_event]
-            ]
+            one_score_data = pdh.event_score(
+                dataframe, sg.entity_keys, score=score, ref_event=target_event, aggregation_method="max"
+            )[[score, target_event]]
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["TargetName"] = target

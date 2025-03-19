@@ -185,7 +185,7 @@ def generate_analytics_data(
                 data,
                 sg.entity_keys,
                 score=score,
-                ref_event=sg.predict_time,
+                ref_event=target,
                 aggregation_method=sg.event_aggregation_method(target),
             )
         current_row.update(
