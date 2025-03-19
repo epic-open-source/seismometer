@@ -6,7 +6,9 @@ from pandas.io.formats.style import Styler
 
 from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.core.decorators import export
-from seismometer.data import default_cohort_summaries, score_target_cohort_summaries
+from seismometer.data import default_cohort_summaries
+from seismometer.data import pandas_helpers as pdh
+from seismometer.data import score_target_cohort_summaries
 from seismometer.html import template
 from seismometer.seismogram import Seismogram
 
@@ -177,6 +179,11 @@ def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str,
 
     available_cohort_groups = sg.available_cohort_groups
 
+    if by_score or by_target:
+        per_context_dataframe = pdh.event_score(
+            sg.dataframe, [sg.config.entity_id], sg.output, sg.target, sg.event_aggregation_method(sg.target)
+        )
+
     for attribute, options in available_cohort_groups.items():
         df = default_cohort_summaries(sg.dataframe, attribute, options, sg.config.entity_id)
         styled = _style_cohort_summaries(df, attribute)
@@ -186,7 +193,9 @@ def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str,
         if by_score or by_target:
             groupby_groups, grab_groups, index_rename = _score_target_levels_and_index(attribute, by_target, by_score)
 
-            results = score_target_cohort_summaries(sg.dataframe, groupby_groups, grab_groups, sg.config.entity_id)
+            results = score_target_cohort_summaries(
+                sg.dataframe, groupby_groups, grab_groups, sg.config.entity_id, per_context_dataframe
+            )
             results_styled = _style_score_target_cohort_summaries(results, index_rename, attribute)
 
             dfs[attribute].append(results_styled.to_html())

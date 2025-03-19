@@ -445,13 +445,21 @@ def event_score(
         ref_col = ref_score
 
         def apply_fn(gf):
-            return gf.idxmax()
+            # Check if there are rows where ref_time is not NA
+            if gf[event_time].notna().any():
+                # Filter to rows where ref_time is not NA
+                gf = gf.dropna(subset=[event_time])
+            return gf[ref_score].idxmax()
 
     elif aggregation_method == "min":
         ref_col = ref_score
 
         def apply_fn(gf):
-            return gf.idxmin()
+            # Check if there are rows where ref_time is not NA
+            if gf[event_time].notna().any():
+                # Filter to rows where ref_time is not NA
+                gf = gf.dropna(subset=[event_time])
+            return gf[ref_score].idxmin()
 
     # merged frame has time columns only for events in appropriate time window,
     # implicitly reduces to positive label (need method to re-add negative samples)
@@ -469,14 +477,15 @@ def event_score(
         ref_col = _resolve_time_col(merged_frame, ref_event)
 
     df = merged_frame
-    if ref_event is not None:
-        event_time = _resolve_time_col(merged_frame, ref_event)
+    event_time = _resolve_time_col(merged_frame, ref_event)
+    if aggregation_method in ["first", "last"]:
         df = merged_frame[merged_frame[event_time].notna()]
 
     if len(df.index) == 0:
         return
 
     pks = [c for c in pks if c in df.columns]
+    ref_col = ref_col if event_time == ref_col else [ref_col, event_time]
     ix = df.groupby(pks)[ref_col].apply(apply_fn).values
     ix = ix[~np.isnan(ix)]  # dropna
 
