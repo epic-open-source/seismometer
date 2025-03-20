@@ -150,7 +150,9 @@ def merge_windowed_event(
 
     if window_hrs is not None:  # Clear out events outside window
         max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
-        filter_map = predictions[predtime_col] < (predictions[r_ref] - max_lookback)
+        filter_map = (predictions[predtime_col] < (predictions[r_ref] - max_lookback)) & (
+            predictions[predtime_col] > (predictions[r_ref] - min_offset)
+        )
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
 
     predictions = post_process_event(
