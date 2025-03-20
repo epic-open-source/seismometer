@@ -18,6 +18,8 @@ Exploration Widgets
    ExploreCohortOutcomeInterventionTimes
    ExploreFairnessAudit
    ExploreAnalyticsTable
+   ExploreOrdinalMetrics
+   ExploreCohortOrdinalMetrics
    ExploreModelScoreComparison
    ExploreModelTargetComparison
    ExploreBinaryModelMetrics
