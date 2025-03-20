@@ -9,6 +9,7 @@ from ._ux import area_colors
 def likert_plot(
     df: pd.DataFrame,
     border: int = 5,
+    title: str = "Likert Plot",
 ):
     """
     Creates a Likert plot (horizontal stacked bar) from the given DataFrame.
@@ -38,6 +39,8 @@ def likert_plot(
        DataFrame containing the counts of each category.
     border : int, optional
         Border space around the plot, by default 5.
+    title : str, optional
+        The title of the plot, by default "Likert Plot".
 
     Returns
     -------
@@ -94,8 +97,7 @@ def likert_plot(
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
     ax.xaxis.set_major_locator(FixedLocator(ax.get_xticks()))
     ax.set_xticklabels([f"{int(x)}%" for x in ax.get_xticks()])
-    # ax.set_ylabel('Questions')
-    ax.set_title("Likert Plot")
+    ax.set_title(title)
     return fig
 
 
