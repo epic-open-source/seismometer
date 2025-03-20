@@ -6,12 +6,12 @@ import pytest
 import seismometer.controls.explore as undertest
 from seismometer import seismogram
 from seismometer.data.performance import MetricGenerator
-from seismometer.table.analytics_table import AnalyticsTableOptionsWidget, ExploreBinaryModelAnalytics
-from seismometer.table.categorical import CategoricalOptionsWidget, ExploreCategoricalPlots
-from seismometer.table.categorical_single_column import (
+from seismometer.plot.mpl.categorical import CategoricalOptionsWidget, ExploreCategoricalPlots
+from seismometer.plot.mpl.categorical_single_column import (
     CategoricalFeedbackSingleColumnOptionsWidget,
     ExploreSingleCategoricalPlots,
 )
+from seismometer.table.analytics_table import AnalyticsTableOptionsWidget, ExploreBinaryModelAnalytics
 
 
 # region Test Base Classes
@@ -1156,7 +1156,7 @@ class TestExploreCategoricalPlots:
         widget.update_plot()
         assert (
             widget.current_plot_code
-            == "seismometer.table.categorical.ordinal_categorical_plot(['Metric1', 'Metric2'], "
+            == "seismometer.plot.mpl.categorical.ordinal_categorical_plot(['Metric1', 'Metric2'], "
             + "{'C1': ['C1.1', 'C1.2'], 'C2': ['C2.1', 'C2.2']}, title='Unit Test Title')"
         )
 
@@ -1264,7 +1264,7 @@ class TestExploreSingleCategoricalPlots:
         widget.update_plot()
         assert (
             widget.current_plot_code
-            == "seismometer.table.categorical_single_column.ordinal_categorical_single_col_plot"
+            == "seismometer.plot.mpl.categorical_single_column.ordinal_categorical_single_col_plot"
             + "('Metric1', {'Age': ('20-30', '30-40')}, title='Unit Test Title')"
         )
 

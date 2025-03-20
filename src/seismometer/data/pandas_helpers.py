@@ -205,7 +205,7 @@ def post_process_event(
     impute_val_with_time : Optional[Number|str], optional
         The value to impute for the label if timestamp exist, defaults to 1.
     impute_val_no_time : Optional[Number|str], optional
-        The value to impute for the label if timestamp exist, defaults to 0.
+        The value to impute for the label if no timestamp exist, defaults to 0.
 
     Returns
     -------

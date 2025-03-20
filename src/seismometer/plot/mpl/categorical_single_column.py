@@ -196,7 +196,7 @@ def ordinal_categorical_single_col_plot(
 
 
 class ExploreSingleCategoricalPlots(ExplorationWidget):
-    def __init__(self, title: Optional[str] = None):
+    def __init__(self, group_key: Optional[str] = None, title: Optional[str] = None):
         """
         Initializes the ExploreSingleCategoricalPlots class.
 
@@ -210,10 +210,20 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
         sg = Seismogram()
         self.title = title
 
+        metrics = (
+            [
+                metric
+                for metric in sg.metric_groups[group_key]
+                if metric in sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE)
+            ]
+            if group_key
+            else sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE)
+        )
+
         super().__init__(
             title="Plot Cohort Distribution",
             option_widget=CategoricalFeedbackSingleColumnOptionsWidget(
-                sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE),
+                metrics,
                 cohort_groups=sg.available_cohort_groups,
                 title=title,
             ),

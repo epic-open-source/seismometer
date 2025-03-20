@@ -1,7 +1,7 @@
 import base64
 import logging
 from io import BytesIO
-from typing import Optional
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -207,7 +207,7 @@ def ordinal_categorical_plot(
 
 
 class ExploreCategoricalPlots(ExplorationWidget):
-    def __init__(self, title: Optional[str] = None):
+    def __init__(self, group_key: Optional[str] = None, title: Optional[str] = None):
         """
         Initializes the ExploreCategoricalPlots class.
 
@@ -224,7 +224,7 @@ class ExploreCategoricalPlots(ExplorationWidget):
         super().__init__(
             title="Plot Metrics",
             option_widget=CategoricalOptionsWidget(
-                sg.get_ordinal_categorical_groups(MAX_CATEGORY_SIZE),
+                group_key or sg.get_ordinal_categorical_groups(MAX_CATEGORY_SIZE),
                 cohort_dict=sg.available_cohort_groups,
                 title=title,
             ),
@@ -247,7 +247,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
 
     def __init__(
         self,
-        metric_groups: list[str],
+        metric_groups: Union[str, list[str]],
         cohort_dict: dict[str, list[str]],
         *,
         model_options_widget=None,
@@ -258,7 +258,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
 
         Parameters
         ----------
-        metric_groups : list[str]
+        metric_groups : Union[str,list[str]]
             List of metric groups.
         cohort_dict : dict[str, list[str]]
             Dictionary defining the cohort filter.
@@ -274,12 +274,10 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         self.model_options_widget = model_options_widget
         self.title = title
         self.all_cohorts = cohort_dict
-
-        self._metric_groups = MultiselectDropdownWidget(
-            options=metric_groups,
-            value=metric_groups,
-            title="Metric Groups",
-        )
+        self.include_groups = isinstance(metric_groups, list)
+        if not self.include_groups:
+            self.metric_group = metric_groups
+            metric_groups = [metric_groups]
 
         self.all_metrics = set(
             metric
@@ -296,16 +294,20 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         )
 
         self._cohort_dict = MultiSelectionListWidget(sg.available_cohort_groups, title="Cohorts")
+        v_children = [html_title("Plot Options")]
 
-        self._metric_groups.observe(self._on_value_changed, names="value")
+        if self.include_groups:
+            self._metric_groups = MultiselectDropdownWidget(
+                options=metric_groups,
+                value=metric_groups,
+                title="Metric Groups",
+            )
+            v_children.append(self._metric_groups)
+            self._metric_groups.observe(self._on_value_changed, names="value")
         self._metrics.observe(self._on_value_changed, names="value")
         self._cohort_dict.observe(self._on_value_changed, names="value")
 
-        v_children = [
-            html_title("Plot Options"),
-            self._metric_groups,
-            self._metrics,
-        ]
+        v_children.append(self._metrics)
         if model_options_widget:
             v_children.insert(0, model_options_widget)
             self.model_options_widget.observe(self._on_value_changed, names="value")
@@ -329,11 +331,12 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
     @disabled.setter
     def disabled(self, value):
         self._disabled = value
-        self._metric_groups.disabled = value
         self._metrics.disabled = value
         self._cohort_dict.disabled = value
         if self.model_options_widget:
             self.model_options_widget.disabled = value
+        if self.include_groups:
+            self._metric_groups.disabled = value
 
     def _update_disabled_state(self):
         self._metrics.disabled = len(self._metrics.options) == 0
@@ -342,25 +345,28 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        metric_groups = self._metric_groups.value
-        metrics_set = set(metric for metric_group in metric_groups for metric in sg.metric_groups[metric_group])
-        metrics_set = metrics_set & self.all_metrics
-        self._metrics.options = sorted(list(metrics_set))
-        self._metrics.value = sorted(list(set(self._metrics.value) & metrics_set))
+        new_value = {}
+        if self.include_groups:
+            metric_groups = self._metric_groups.value
+            metrics_set = set(metric for metric_group in metric_groups for metric in sg.metric_groups[metric_group])
+            metrics_set = metrics_set & self.all_metrics
+            self._metrics.options = sorted(list(metrics_set))
+            self._metrics.value = sorted(list(set(self._metrics.value) & metrics_set))
         self._update_disabled_state()
 
         new_value = {
-            "metric_groups": self._metric_groups.value,
             "metrics": self._metrics.value,
             "cohort_dict": self._cohort_dict.value,
         }
+        if self.include_groups:
+            new_value["metric_groups"] = self._metric_groups.value
         if self.model_options_widget:
             new_value["model_options"] = self.model_options_widget.value
         self.value = new_value
 
     @property
     def metric_groups(self):
-        return self._metric_groups.value
+        return self._metric_groups.value if self.include_groups else self.metrics_group
 
     @property
     def metrics(self):
