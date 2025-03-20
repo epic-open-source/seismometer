@@ -228,7 +228,6 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
                 title=title,
             ),
             plot_function=ordinal_categorical_single_col_plot,
-            initial_plot=False,
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:

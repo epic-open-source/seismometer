@@ -1152,13 +1152,14 @@ class TestExploreCategoricalPlots:
         widget = ExploreCategoricalPlots(title="Unit Test Title")
 
         assert widget.disabled is False
-        assert widget.current_plot_code == "No plot generated."
-        widget.update_plot()
-        assert (
-            widget.current_plot_code
-            == "seismometer.plot.mpl.categorical.ordinal_categorical_plot(['Metric1', 'Metric2'], "
+
+        expected_plot_code = (
+            "seismometer.plot.mpl.categorical.ordinal_categorical_plot(['Metric1', 'Metric2'], "
             + "{'C1': ['C1.1', 'C1.2'], 'C2': ['C2.1', 'C2.2']}, title='Unit Test Title')"
         )
+        assert widget.current_plot_code == expected_plot_code
+        widget.update_plot()
+        assert widget.current_plot_code == expected_plot_code
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_generate_plot_args(self, mock_seismo):
@@ -1260,13 +1261,14 @@ class TestExploreSingleCategoricalPlots:
         widget = ExploreSingleCategoricalPlots(title="Unit Test Title")
 
         assert widget.disabled is False
-        assert widget.current_plot_code == "No plot generated."
-        widget.update_plot()
-        assert (
-            widget.current_plot_code
-            == "seismometer.plot.mpl.categorical_single_column.ordinal_categorical_single_col_plot"
+
+        expected_plot_code = (
+            "seismometer.plot.mpl.categorical_single_column.ordinal_categorical_single_col_plot"
             + "('Metric1', {'Age': ('20-30', '30-40')}, title='Unit Test Title')"
         )
+        assert widget.current_plot_code == expected_plot_code
+        widget.update_plot()
+        assert widget.current_plot_code == expected_plot_code
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_generate_plot_args(self, mock_seismo):
