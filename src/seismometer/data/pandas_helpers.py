@@ -147,9 +147,12 @@ def merge_windowed_event(
         merge_strategy=merge_strategy,
     )
 
+    # Note that filtering happens after merging.
     if window_hrs is not None:  # Clear out events outside window
-        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
-        filter_map = predictions[predtime_col] < (predictions[r_ref] - max_lookback)
+        max_lookback = pd.Timedelta(window_hrs, unit="hr")  # r_ref has already been moved by min_offset.
+        filter_map = (predictions[predtime_col] < (predictions[r_ref] - max_lookback)) | (
+            predictions[predtime_col] > (predictions[r_ref])
+        )
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
 
     predictions = post_process_event(
@@ -440,44 +443,41 @@ def event_score(
     # groupby.agg works on columns individually - this wants entire row where a condition is met
     # start with first/last/max/min
 
-    ref_score = _resolve_score_col(merged_frame, score)
-    if aggregation_method == "max":
-        ref_col = ref_score
+    # ref_event = ref_event or sg.target
+    event_time = _resolve_time_col(merged_frame, ref_event)
 
-        def apply_fn(gf):
-            return gf.idxmax()
-
-    elif aggregation_method == "min":
-        ref_col = ref_score
-
-        def apply_fn(gf):
-            return gf.idxmin()
-
-    # merged frame has time columns only for events in appropriate time window,
-    # implicitly reduces to positive label (need method to re-add negative samples)
-    elif aggregation_method == "last":
-
-        def apply_fn(gf):
-            return gf.idxmax()
-
-        ref_col = _resolve_time_col(merged_frame, ref_event)
-    elif aggregation_method == "first":
-
-        def apply_fn(gf):
-            return gf.idxmin()
-
-        ref_col = _resolve_time_col(merged_frame, ref_event)
-
-    df = merged_frame
-    if ref_event is not None:
-        event_time = _resolve_time_col(merged_frame, ref_event)
+    if aggregation_method in ["first", "last"]:
         df = merged_frame[merged_frame[event_time].notna()]
+    else:
+        df = merged_frame
+        event_val = event_value(ref_event)
+        ref_score = _resolve_score_col(merged_frame, score)
 
     if len(df.index) == 0:
         return
 
     pks = [c for c in pks if c in df.columns]
-    ix = df.groupby(pks)[ref_col].apply(apply_fn).values
+
+    if aggregation_method == "max":
+        df = df.sort_values(by=[event_val, ref_score], ascending=False)
+        ix = df.drop_duplicates(subset=pks).index
+
+    elif aggregation_method == "min":
+        df = df.sort_values(by=[event_val, ref_score])
+        ix = df.drop_duplicates(subset=pks).index
+
+    # merged frame has time columns only for events in appropriate time window,
+    # implicitly reduces to positive label (need method to re-add negative samples)
+    elif aggregation_method == "last":
+        df = merged_frame[merged_frame[event_time].notna()]
+        df = df.sort_values(by=event_time, ascending=False)
+        ix = df.drop_duplicates(subset=pks).index
+
+    elif aggregation_method == "first":
+        df = merged_frame[merged_frame[event_time].notna()]
+        df = df.sort_values(by=event_time)
+        ix = df.drop_duplicates(subset=pks).index
+
     ix = ix[~np.isnan(ix)]  # dropna
 
     return merged_frame.loc[ix]

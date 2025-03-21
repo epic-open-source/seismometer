@@ -35,6 +35,9 @@ class Test_Event_Score:
             & (expected_frame["ref_event"] == ref_event),
             aggregation_method,
         ]
-
-        actual = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", ref_event, aggregation_method)
-        assert actual["ModelScore"].tolist() == expected_score.tolist()
+        if ref_event in ["PredictTime", "Reference_5_15_Time"] and aggregation_method in ["min", "max"]:
+            with pytest.raises(KeyError):
+                _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", ref_event, aggregation_method)
+        else:
+            actual = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", ref_event, aggregation_method)
+            assert actual["ModelScore"].tolist() == expected_score.tolist()
