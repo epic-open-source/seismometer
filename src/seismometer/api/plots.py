@@ -489,6 +489,8 @@ def plot_model_evaluation(
     data = cohort_filter.filter(sg.dataframe)
     target_event = pdh.event_value(target_column)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
+    aggregation_method = sg.event_aggregation_method(sg.target)
+    ref_time = sg.predict_time if aggregation_method in ["first", "last"] else target_column
     return _model_evaluation(
         target_data,
         sg.entity_keys,
@@ -498,8 +500,8 @@ def plot_model_evaluation(
         thresholds,
         sg.censor_threshold,
         per_context,
-        sg.event_aggregation_method(sg.target),
-        sg.predict_time,
+        aggregation_method,
+        ref_time,
     )
 
 
