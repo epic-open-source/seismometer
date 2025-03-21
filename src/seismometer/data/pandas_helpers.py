@@ -7,7 +7,6 @@ import pandas as pd
 
 from seismometer.configuration import ConfigurationError
 from seismometer.configuration.model import MergeStrategies
-from seismometer.data import pandas_helpers as pdh
 
 logger = logging.getLogger("seismometer")
 
@@ -150,7 +149,7 @@ def merge_windowed_event(
 
     if window_hrs is not None:  # Clear out events outside window
         max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
-        filter_map = (predictions[predtime_col] < (predictions[r_ref] - max_lookback)) & (
+        filter_map = (predictions[predtime_col] < (predictions[r_ref] - max_lookback)) | (
             predictions[predtime_col] > (predictions[r_ref] - min_offset)
         )
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
@@ -444,14 +443,14 @@ def event_score(
     # start with first/last/max/min
 
     # ref_event = ref_event or sg.target
-    event_value = pdh.event_value(ref_event)
     event_time = _resolve_time_col(merged_frame, ref_event)
-    ref_score = _resolve_score_col(merged_frame, score)
 
     if aggregation_method in ["first", "last"]:
         df = merged_frame[merged_frame[event_time].notna()]
     else:
         df = merged_frame
+        event_val = event_value(ref_event)
+        ref_score = _resolve_score_col(merged_frame, score)
 
     if len(df.index) == 0:
         return
@@ -459,18 +458,18 @@ def event_score(
     pks = [c for c in pks if c in df.columns]
 
     if aggregation_method == "max":
-        df = df.sort_values(by=[event_value, ref_score], ascending=True)
+        df = df.sort_values(by=[event_val, ref_score], ascending=False)
         ix = df.drop_duplicates(subset=pks).index
 
     elif aggregation_method == "min":
-        df = df.sort_values(by=[event_value, ref_score])
+        df = df.sort_values(by=[event_val, ref_score])
         ix = df.drop_duplicates(subset=pks).index
 
     # merged frame has time columns only for events in appropriate time window,
     # implicitly reduces to positive label (need method to re-add negative samples)
     elif aggregation_method == "last":
         df = merged_frame[merged_frame[event_time].notna()]
-        df = df.sort_values(by=event_time, ascending=True)
+        df = df.sort_values(by=event_time, ascending=False)
         ix = df.drop_duplicates(subset=pks).index
 
     elif aggregation_method == "first":
