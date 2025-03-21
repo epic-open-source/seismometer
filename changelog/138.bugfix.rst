@@ -1,0 +1,1 @@
+Fix inconsistent number of positives when scores are combined in ExploreModelEvaluation and show_cohort_summaries. Improve performance of combining scores.
