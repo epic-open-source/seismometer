@@ -1,7 +1,6 @@
 import pandas as pd
 
 from seismometer.data import pandas_helpers as pdh
-from seismometer.seismogram import Seismogram
 
 from .decorators import export
 
@@ -62,6 +61,8 @@ def score_target_cohort_summaries(
     pd.DataFrame
         A dataframe of summary counts.
     """
+    from seismometer.seismogram import Seismogram
+
     sg = Seismogram()
     predictions = dataframe[grab_groups].groupby(groupby_groups, observed=False).size().rename("Predictions")
     df = pdh.event_score(dataframe, [entity_id_col], sg.output, sg.target, sg.event_aggregation_method(sg.target))

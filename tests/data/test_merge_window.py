@@ -888,8 +888,10 @@ class TestMergeWindowedEvent:
             [1] * 10, [x for x in range(1, 11)], event_name, event_times=event_times, event_values=[1] * 10
         )
 
-        expected_vals = [1, 0]
-        expected_times = ["2024-01-01 00:00:01", pd.NA]
+        expected_vals = [0, 0]
+        # For the first row, eventhough "2024-01-01 01:00:00" is a valid time, we first merge with "first" strategy
+        # which gives us "2024-01-01 00:00:01" and then filter it out as it is before the scoring time.
+        expected_times = [pd.NA, pd.NA]
         expected = create_pred_event_frame(event_name, expected_vals, expected_times)
 
         actual = undertest.merge_windowed_event(
@@ -935,8 +937,8 @@ class TestMergeWindowedEvent:
             [1] * 5 + [2] * 5, [x for x in range(1, 11)], event_name, event_times=event_times, event_values=[1] * 10
         )
 
-        expected_vals = [1, 1]
-        expected_times = ["2024-01-01 11:00:00", "2024-01-01 11:00:00"]
+        expected_vals = [0, 1]
+        expected_times = [pd.NA, "2024-01-01 11:00:00"]
         expected = create_pred_event_frame(event_name, expected_vals, expected_times)
 
         actual = undertest.merge_windowed_event(

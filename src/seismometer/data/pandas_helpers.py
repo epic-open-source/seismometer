@@ -147,10 +147,11 @@ def merge_windowed_event(
         merge_strategy=merge_strategy,
     )
 
+    # Note that filtering happens after merging.
     if window_hrs is not None:  # Clear out events outside window
-        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
+        max_lookback = pd.Timedelta(window_hrs, unit="hr")  # r_ref has already been moved by min_offset.
         filter_map = (predictions[predtime_col] < (predictions[r_ref] - max_lookback)) | (
-            predictions[predtime_col] > (predictions[r_ref] - min_offset)
+            predictions[predtime_col] > (predictions[r_ref])
         )
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
 
