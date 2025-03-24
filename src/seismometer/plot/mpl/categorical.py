@@ -1,13 +1,11 @@
-import base64
 import logging
-from io import BytesIO
 from typing import Optional, Union
 
 import pandas as pd
 
 # import ipywidgets as widgets
 import traitlets
-from ipywidgets import HTML, Box, Layout, ValueWidget, VBox
+from ipywidgets import Box, Layout, ValueWidget, VBox
 from matplotlib.figure import Figure
 
 from seismometer.controls.explore import ExplorationWidget
@@ -120,27 +118,6 @@ class OrdinalCategoricalPlot:
         counts_df.set_index("Feedback Metrics", inplace=True)
 
         return counts_df
-
-    def fig_to_html(self, fig: Figure):
-        """
-        Converts a Matplotlib figure to an HTML string.
-
-        Parameters
-        ----------
-        fig: Figure
-            Matplotlib figure object.
-
-        Returns
-        -------
-        str
-            HTML string of the figure.
-        """
-        buf = BytesIO()
-        fig.savefig(buf, format="png")
-        buf.seek(0)
-        img_str = base64.b64encode(buf.read()).decode("utf-8")
-        html_str = f'<img src="data:image/png;base64,{img_str}" alt="Plot">'
-        return HTML(html_str)
 
     def generate_plot(self):
         """

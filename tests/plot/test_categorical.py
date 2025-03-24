@@ -2,7 +2,6 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
-from ipywidgets import HTML
 from matplotlib.figure import Figure
 
 from seismometer.configuration import ConfigProvider
@@ -140,13 +139,6 @@ class TestOrdinalCategoricalPlot:
         fig = plot.plot_likert()
         assert isinstance(fig, Figure)
 
-    def test_fig_to_html(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
-        fig = Figure()
-        html = plot.fig_to_html(fig)
-        assert isinstance(html, HTML)
-        assert "data:image/png;base64" in html.value
-
     def test_generate_plot(self, fake_seismo):
         plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
         plot.dataframe = sample_data()
@@ -170,13 +162,6 @@ class TestOrdinalCategoricalPlot:
         )
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
-
-    def test_fig_to_html_content(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
-        fig = Figure()
-        html = plot.fig_to_html(fig)
-        assert "data:image/png;base64" in html.value
-        assert html.value.startswith('<img src="data:image/png;base64,')
 
     def test_generate_plot_with_different_plot_type(self, fake_seismo):
         class CustomPlot(OrdinalCategoricalPlot):

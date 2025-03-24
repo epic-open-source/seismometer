@@ -1,10 +1,8 @@
-import base64
 import logging
-from io import BytesIO
 from typing import Optional
 
 import traitlets
-from ipywidgets import HTML, Box, Dropdown, Layout, ValueWidget, VBox
+from ipywidgets import Box, Dropdown, Layout, ValueWidget, VBox
 from matplotlib.figure import Figure
 from pandas import isna
 
@@ -111,27 +109,6 @@ class OrdinalCategoricalSinglePlot:
         df = df.loc[self.cohort_values]
         df = df[self.values].astype(int)
         return df
-
-    def fig_to_html(self, fig: Figure):
-        """
-        Converts a Matplotlib figure to an HTML string.
-
-        Parameters
-        ----------
-        fig:Figure
-            Matplotlib figure object.
-
-        Returns
-        -------
-        HTML
-            HTML string of the figure.
-        """
-        buf = BytesIO()
-        fig.savefig(buf, format="png")
-        buf.seek(0)
-        img_str = base64.b64encode(buf.read()).decode("utf-8")
-        html_str = f'<img src="data:image/png;base64,{img_str}" alt="Plot">'
-        return HTML(html_str)
 
     def generate_plot(self):
         """

@@ -2,7 +2,6 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
-from ipywidgets import HTML
 from matplotlib.figure import Figure
 
 from seismometer.configuration import ConfigProvider
@@ -129,13 +128,6 @@ class TestOrdinalCategoricalSinglePlot:
         fig = plot.plot_likert()
         assert isinstance(fig, Figure)
 
-    def test_fig_to_html(self, fake_seismo):
-        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C3")})
-        fig = Figure()
-        html = plot.fig_to_html(fig)
-        assert isinstance(html, HTML)
-        assert "data:image/png;base64" in html.value
-
     def test_generate_plot(self, fake_seismo):
         plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
         plot.values = ["disagree", "neutral", "agree"]
@@ -158,13 +150,6 @@ class TestOrdinalCategoricalSinglePlot:
         plot.dataframe = pd.DataFrame({"Metric1": ["disagree", "neutral", "agree"], "Cohort": ["A", "B", "A"]})
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
-
-    def test_fig_to_html_content(self, fake_seismo):
-        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
-        fig = Figure()
-        html = plot.fig_to_html(fig)
-        assert "data:image/png;base64" in html.value
-        assert html.value.startswith('<img src="data:image/png;base64,')
 
     def test_generate_plot_with_different_plot_type(self, fake_seismo):
         class CustomPlot(OrdinalCategoricalSinglePlot):
