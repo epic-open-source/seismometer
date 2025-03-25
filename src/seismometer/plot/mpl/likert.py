@@ -54,7 +54,6 @@ def likert_plot(
         _plot_counts(df, ax_count)
     else:
         fig, ax = plt.subplots(figsize=(10, 6))
-    plt.close(fig)
 
     df_percentages = df.div(row_sums, axis=0) * 100
     df_percentages.fillna(0, inplace=True)

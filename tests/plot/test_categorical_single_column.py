@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
-from matplotlib.figure import Figure
+from IPython.display import HTML, SVG
 
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
@@ -125,14 +125,14 @@ class TestOrdinalCategoricalSinglePlot:
     def test_plot_likert(self, fake_seismo):
         plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
         plot.values = ["disagree", "neutral", "agree"]
-        fig = plot.plot_likert()
-        assert isinstance(fig, Figure)
+        svg = plot.plot_likert()
+        assert isinstance(svg, SVG)
 
     def test_generate_plot(self, fake_seismo):
         plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
         plot.values = ["disagree", "neutral", "agree"]
-        fig = plot.generate_plot()
-        assert isinstance(fig, Figure)
+        html = plot.generate_plot()
+        assert isinstance(html, HTML)
 
     def test_initialization_with_title(self, fake_seismo):
         plot = OrdinalCategoricalSinglePlot(
@@ -155,12 +155,12 @@ class TestOrdinalCategoricalSinglePlot:
         class CustomPlot(OrdinalCategoricalSinglePlot):
             @staticmethod
             def custom_plot(self):
-                return Figure()
+                return SVG()
 
         plot = CustomPlot(metric_col="Metric1", plot_type="Custom Plot", cohort_dict={"Cohort": ("C1", "C2")})
         plot.plot_functions["Custom Plot"] = CustomPlot.custom_plot
-        fig = plot.generate_plot()
-        assert isinstance(fig, Figure)
+        html = plot.generate_plot()
+        assert isinstance(html, HTML)
 
     def test_extract_metric_values_discard_none(self, fake_seismo):
         plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
@@ -175,5 +175,5 @@ class TestOrdinalCategoricalSinglePlotFunction:
     def test_ordinal_categorical_single_plot(self, fake_seismo):
         metric_col = "Metric1"
         cohort_dict = {"Cohort": ["C1"]}
-        fig = ordinal_categorical_single_col_plot(metric_col, cohort_dict, title="Test Plot")
-        assert isinstance(fig, Figure)
+        html = ordinal_categorical_single_col_plot(metric_col, cohort_dict, title="Test Plot")
+        assert isinstance(html, HTML)
