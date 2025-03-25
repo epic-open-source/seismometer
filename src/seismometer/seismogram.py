@@ -424,6 +424,7 @@ class Seismogram(object, metaclass=Singleton):
     def _is_ordinal_categorical_metric(self, metric, max_cat_size):
         return self.dataframe[metric].nunique() <= max_cat_size
 
+    @lru_cache(maxsize=None)
     def get_ordinal_categorical_groups(self, max_cat_size):
         return [
             group

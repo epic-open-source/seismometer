@@ -68,6 +68,7 @@ class ConfigProvider:
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
+        self._load_output_as_metric()
         self._load_metrics()
 
     def _load_config_config(self, config_config: str | Path) -> None:
@@ -108,7 +109,6 @@ class ConfigProvider:
         self._metrics = {metric.source: metric for metric in self.usage.metrics}
         self._metric_groups = {}
         self._metric_types = {}
-        self._load_output_as_metric()
         for metric in self.usage.metrics:
             group_keys = [metric.group_keys] if isinstance(metric.group_keys, str) else metric.group_keys
             for group in group_keys:
@@ -126,11 +126,9 @@ class ConfigProvider:
                 source=output,
                 display_name=output,
                 metric_type="binary classification",
-                group_keys="binary classification outputs",
+                group_keys="binary classification scores",
             )
-            self._metrics[metric.source] = metric
-        self._metric_groups["binary classification outputs"] = self.output_list
-        self._metric_types["binary classification"] = self.output_list
+            self.usage.metrics.append(metric)
 
     # region Config
     @property
