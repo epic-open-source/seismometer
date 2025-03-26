@@ -1,7 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from seismometer.plot.mpl.decorators import render_as_svg
 
@@ -35,6 +35,31 @@ def likert_plot(
                Disagree  Neutral  Agree
     Likes Cat        10       15     35
     Likes Dog         5       10     45
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+       DataFrame containing the counts of each category.
+    border : int, optional
+        Border space around the plot, by default 5.
+    title : str, optional
+        The title of the plot, by default "Likert Plot".
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The generated Likert plot figure.
+    """
+    return likert_plot_figure(df, border, title)
+
+
+def likert_plot_figure(
+    df: pd.DataFrame,
+    border: int = 5,
+    title: str = "Likert Plot",
+) -> plt.Figure:
+    """
+    Creates a Likert plot (horizontal stacked bar) from the given DataFrame.
 
     Parameters
     ----------
@@ -104,7 +129,7 @@ def likert_plot(
                     va="center",
                     fontsize=10,
                 )
-
+    ax.set_yticks(range(len(df.index)))
     ax.set_yticklabels(_wrap_labels(df.index), fontsize=12)
     ax.set_ylim(-0.5, len(df.index) - 0.5)
     # Add legend
@@ -115,7 +140,8 @@ def likert_plot(
     # Add labels and title
     ax.set_xlabel("Percentages of Responses", fontsize=12)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10, integer=True))
-    ax.set_xticklabels([f"{int(x)}%" for x in ax.get_xticks()], fontsize=12)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x)}%"))
+    ax.tick_params(axis="x", labelsize=12)
     ax.set_title(title)
     return fig
 
@@ -158,13 +184,14 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
                 fontsize=10,
                 color="black",
             )
-
+    ax_count.set_yticks(range(len(df.index)))
     ax_count.set_yticklabels(_wrap_labels(df.index), fontsize=12)
     ax_count.set_xlabel("Counts", fontsize=12)
     ax_count.set_title("Counts of Each Row")
     ax_count.set_xlim(0, total_counts.max() + border)
     ax_count.xaxis.set_major_locator(MaxNLocator(nbins=5))
-    ax_count.set_xticklabels([int(x) for x in ax_count.get_xticks()], fontsize=12)
+    ax_count.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x)}%"))
+    ax_count.tick_params(axis="x", labelsize=12)
 
 
 def _wrap_labels(labels, width=12):
