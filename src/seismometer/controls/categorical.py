@@ -19,7 +19,7 @@ from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 
-MAX_CATEGORY_SIZE: int = 15
+MAX_CATEGORY_SIZE: int = 10
 """ The maximum number of categories allowed in a categorical column. """
 
 
@@ -106,8 +106,9 @@ class OrdinalCategoricalPlot:
         pd.DataFrame
             DataFrame containing the counts of each unique value in each metric column.
         """
+        sg = Seismogram()
         # Create a dictionary to store the counts
-        data = {"Feedback Metrics": self.metrics}
+        data = {"Feedback Metrics": [sg.metrics[metric].display_name for metric in self.metrics]}
 
         # Count occurrences of each unique value in each metric column
         for value in self.values:
