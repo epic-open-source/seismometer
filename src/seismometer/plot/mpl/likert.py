@@ -90,7 +90,7 @@ def likert_plot(
                 ax.text(
                     bar.get_x() + width / 2,
                     bar.get_y() + bar.get_height() / 2,
-                    f"{percentage:.0f}%\n({count})",
+                    f"{percentage:.0f}%\n({_format_count(count)})",
                     ha="center",
                     va="center",
                     fontsize=10,
@@ -142,7 +142,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
             ax_count.text(
                 bar.get_x() + width / 2,
                 bar.get_y() + bar.get_height() / 2,
-                f"{width}",
+                f"{_format_count(width)}",
                 ha="center",
                 va="center",
                 fontsize=10,
@@ -152,7 +152,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
             ax_count.text(
                 bar.get_x() + width + 0.01 * max_count,
                 bar.get_y() + bar.get_height() / 2,
-                f"{width}",
+                f"{_format_count(width)}",
                 ha="left",
                 va="center",
                 fontsize=10,
@@ -182,3 +182,14 @@ def _wrap_labels(labels, width=12):
         new_label += line.strip()
         wrapped_labels.append(new_label)
     return wrapped_labels
+
+
+def _format_count(value):
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.3g}B"
+    elif value >= 1_000_000:
+        return f"{value / 1_000_000:.3g}M"
+    elif value >= 1_000:
+        return f"{value / 1_000:.3g}K"
+    else:
+        return f"{value:.0f}"
