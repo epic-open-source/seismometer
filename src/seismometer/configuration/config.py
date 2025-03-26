@@ -58,7 +58,7 @@ class ConfigProvider:
         self._output_notebook: str = ""
         self._event_defs: EventDictionary = None
         self._prediction_defs: PredictionDictionary = None
-        self._metrics: dict = None
+        self._metrics: dict[str, Metric] = None
         self._metric_groups: dict = None
         self._metric_types: dict = None
 
@@ -106,14 +106,23 @@ class ConfigProvider:
 
     def _load_metrics(self):
         """Load metrics data defined in configuration."""
-        self._metrics = {metric.source: metric for metric in self.usage.metrics}
+        self._metrics = {}
+        for metric in self.usage.metrics:
+            if metric.source in self._metrics:
+                logging.warning(
+                    f"{metric.source} is also the source for {self._metrics[metric.source].display_name}. "
+                    + "Skipping {metric.display_name}."
+                )
+                continue
+            self._metrics[metric.source] = metric
         self._metric_groups = {}
         self._metric_types = {}
-        for metric in self.usage.metrics:
+        for metric_source in self._metrics:
+            metric = self._metrics[metric_source]
             group_keys = [metric.group_keys] if isinstance(metric.group_keys, str) else metric.group_keys
             for group in group_keys:
                 self._metric_groups[group] = self._metric_groups.get(group, []) + [metric.source]
-            self._metric_types[metric.metric_type] = self._metric_types.get(metric.metric_type, []) + [metric.source]
+            self._metric_types[metric.type] = self._metric_types.get(metric.type, []) + [metric.source]
         for group in self._metric_groups:
             self._metric_groups[group] = sorted(list(set(self._metric_groups[group])))
         for metric_type in self._metric_types:
@@ -125,7 +134,7 @@ class ConfigProvider:
             metric = Metric(
                 source=output,
                 display_name=output,
-                metric_type="binary classification",
+                type="binary classification",
                 group_keys="binary classification scores",
             )
             self.usage.metrics.append(metric)

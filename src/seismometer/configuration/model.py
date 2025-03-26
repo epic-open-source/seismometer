@@ -197,6 +197,16 @@ class Cohort(BaseModel):
         return display_name or values.data.get("source")
 
 
+class BaseDetails(BaseModel):
+    """A class to store information about the type of the object and the groups that the object belongs to."""
+
+    type: str = "binary classification"
+    """ The type of the object (e.g., 'binary classification', 'ordinal/categorical'). """
+
+    group_keys: Optional[Union[str, List[str]]] = "group_undefined"
+    """ The group or groups to which the metric belongs."""
+
+
 class MetricDetails(BaseModel):
     """Contains details about a metric."""
 
@@ -213,7 +223,7 @@ class MetricDetails(BaseModel):
     """ A list of possible values for the metric. """
 
 
-class Metric(BaseModel):
+class Metric(BaseDetails):
     """A class to store information associated with a metric."""
 
     source: str
@@ -222,17 +232,11 @@ class Metric(BaseModel):
     display_name: str
     """ The display name of the metric. """
 
-    metric_type: str = "binary classification"
-    """ The type of the metric (e.g., 'binary classification', 'ordinal/categorical'). """
-
-    group_keys: Optional[Union[str, List[str]]] = "group_undefined"
-    """ The group or groups to which the metric belongs."""
-
     metric_details: MetricDetails = MetricDetails()
     """ Details about the metric. """
 
 
-class Event(Metric):
+class Event(BaseDetails):
     """
     The definition of an event.
 

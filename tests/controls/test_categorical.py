@@ -23,14 +23,14 @@ def get_test_config(tmp_path):
         "Metric1": Metric(
             source="Metric1",
             display_name="Metric1",
-            metric_type="categorical_feedback",
+            type="categorical_feedback",
             group_keys=["Group1", "Group2"],
             metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
         ),
         "Metric2": Metric(
             source="Metric2",
             display_name="Metric2",
-            metric_type="categorical_feedback",
+            type="categorical_feedback",
             group_keys="Group1",
             metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
         ),

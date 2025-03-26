@@ -422,7 +422,7 @@ class Seismogram(object, metaclass=Singleton):
         return [metric for metric in self.metrics if self._is_ordinal_categorical_metric(metric, max_cat_size)]
 
     def _is_ordinal_categorical_metric(self, metric, max_cat_size):
-        if self.metrics[metric].metric_type != "ordinal/categorical":
+        if self.metrics[metric].type != "ordinal/categorical":
             return False
         limit_is_respected = self.dataframe[metric].nunique() <= max_cat_size
         if not limit_is_respected:
