@@ -6,8 +6,11 @@ from IPython.display import HTML, SVG
 
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
+from seismometer.controls.categorical_single_column import (
+    OrdinalCategoricalSinglePlot,
+    ordinal_categorical_single_col_plot,
+)
 from seismometer.data.loader import SeismogramLoader
-from seismometer.plot.mpl.categorical import OrdinalCategoricalPlot, ordinal_categorical_plot
 from seismometer.seismogram import Seismogram
 
 
@@ -87,97 +90,90 @@ def fake_seismo(tmp_path):
     loader = get_test_loader(config)
     sg = Seismogram(config, loader)
     sg.dataframe = get_test_data()
-    sg.available_cohort_groups = {"cohort1": ["A", "B"]}
+    sg.available_cohort_groups = {"Cohort": ["C1", "C2", "C3"]}
+    sg.metric_groups = {"Group1": "Metric1"}
     yield sg
 
     Seismogram.kill()
 
 
-# Sample data for testing
-def sample_data():
-    return pd.DataFrame(
-        {
-            "Metric1": pd.Categorical(["disagree", "neutral", "agree", "disagree", "agree"]),
-            "Metric2": pd.Categorical(["agree", "neutral", "disagree", "agree", "neutral"]),
-            "Cohort": ["A", "B", "A", "B", "A"],
-        }
-    )
-
-
-class TestOrdinalCategoricalPlot:
+class TestOrdinalCategoricalSinglePlot:
     def test_initialize_plot_functions(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1")
         assert "Likert Plot" in plot.plot_functions
 
     def test_extract_metric_values(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
-        plot.dataframe = sample_data()
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1")
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
 
-    def test_count_values_in_columns(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
-        plot.dataframe = sample_data()
+    def test_count_cohort_group_values(self, fake_seismo):
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
         plot.values = ["disagree", "neutral", "agree"]
-        counts_df = plot._count_values_in_columns()
+        counts_df = plot._count_cohort_group_values()
 
         # Expected DataFrame
-        expected_df = pd.DataFrame(
-            {"disagree": [2, 1], "neutral": [1, 2], "agree": [2, 2]}, index=["Metric1", "Metric2"]
-        )
+        expected_df = pd.DataFrame({"disagree": [1, 0], "neutral": [0, 1], "agree": [1, 0]}, index=["C1", "C2"])
 
         # Set the index name to match counts_df
-        expected_df.index.name = "Feedback Metrics"
+        expected_df.columns.name = "Metric1"
+        expected_df.index.name = "Cohort"
 
         # Check equality of the two DataFrames
         pd.testing.assert_frame_equal(counts_df, expected_df)
 
     def test_plot_likert(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
-        plot.dataframe = sample_data()
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
         plot.values = ["disagree", "neutral", "agree"]
         svg = plot.plot_likert()
         assert isinstance(svg, SVG)
 
     def test_generate_plot(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
-        plot.dataframe = sample_data()
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
         plot.values = ["disagree", "neutral", "agree"]
         html = plot.generate_plot()
         assert isinstance(html, HTML)
 
     def test_initialization_with_title(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"], title="Test Title")
+        plot = OrdinalCategoricalSinglePlot(
+            metric_col="Metric1", title="Test Title", cohort_dict={"Cohort": ("C1", "C2")}
+        )
         assert plot.title == "Test Title"
 
     def test_initialization_with_cohort_dict(self, fake_seismo):
-        cohort_dict = {"Cohort": ("C1", "C2")}
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"], cohort_dict=cohort_dict)
+        cohort_dict = {"Cohort": ("C", "D")}
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict=cohort_dict)
         assert plot.dataframe is not None  # Assuming the dataframe is filtered correctly
 
     def test_extract_metric_values_no_values(self, fake_seismo):
-        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
-        plot.dataframe = pd.DataFrame(
-            {"Metric1": ["disagree", "neutral", "agree"], "Metric2": ["agree", "neutral", "disagree"]}
-        )
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
+        plot.dataframe = pd.DataFrame({"Metric1": ["disagree", "neutral", "agree"], "Cohort": ["A", "B", "A"]})
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
 
     def test_generate_plot_with_different_plot_type(self, fake_seismo):
-        class CustomPlot(OrdinalCategoricalPlot):
+        class CustomPlot(OrdinalCategoricalSinglePlot):
             @staticmethod
             def custom_plot(self):
-                return HTML()
+                return SVG()
 
-        plot = CustomPlot(metrics=["Metric1", "Metric2"], plot_type="Custom Plot")
+        plot = CustomPlot(metric_col="Metric1", plot_type="Custom Plot", cohort_dict={"Cohort": ("C1", "C2")})
         plot.plot_functions["Custom Plot"] = CustomPlot.custom_plot
         html = plot.generate_plot()
         assert isinstance(html, HTML)
 
+    def test_extract_metric_values_discard_none(self, fake_seismo):
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
+        plot.dataframe = pd.DataFrame(
+            {"Metric1": ["disagree", None, "neutral", "agree", None], "Cohort": ["C1", "C1", "C2", "C2", "C1"]}
+        )
+        plot._extract_metric_values()
+        assert plot.values == ["disagree", "neutral", "agree"]
 
-class TestOrdinalCategoricalPlotFunction:
-    def test_ordinal_categorical_plot(self, fake_seismo):
-        metrics = ["Metric1", "Metric2"]
+
+class TestOrdinalCategoricalSinglePlotFunction:
+    def test_ordinal_categorical_single_plot(self, fake_seismo):
+        metric_col = "Metric1"
         cohort_dict = {"Cohort": ["C1"]}
-        html = ordinal_categorical_plot(metrics, cohort_dict, title="Test Plot")
+        html = ordinal_categorical_single_col_plot(metric_col, cohort_dict, title="Test Plot")
         assert isinstance(html, HTML)

@@ -22,27 +22,27 @@ def get_test_config(tmp_path):
         "Metric1": Metric(
             source="Metric1",
             display_name="Metric1",
-            metric_type="Type1",
+            metric_type="ordinal/categorical",
             group_keys=["Group1", "Group2"],
             metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
         ),
         "Metric2": Metric(
             source="Metric2",
             display_name="Metric2",
-            metric_type="Type1",
+            metric_type="Type2",
             group_keys="Group1",
             metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
         ),
         "Metric3": Metric(
             source="Metric3",
             display_name="Metric3",
-            metric_type="Type2",
+            metric_type="ordinal/categorical",
             group_keys="Group2",
             metric_details=MetricDetails(values=["cold", "warm", "hot"]),
         ),
     }
     mock_config.metric_groups = {"Group1": ["Metric1", "Metric2"], "Group2": ["Metric1", "Metric3"]}
-    mock_config.metric_types = {"Type1": ["Group1", "Group2"], "Type2": ["Group3"]}
+    mock_config.metric_types = {"ordinal/categorical": ["Metric1", "Metric3"], "Type2": ["Metric2"]}
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity"]
     mock_config.predict_time = "time"
@@ -290,8 +290,8 @@ class TestSeismogramMetricExtraction:
     @pytest.mark.parametrize(
         "max_cat_size, expected_metrics",
         [
-            (3, ["Metric1", "Metric2", "Metric3"]),
-            (2, ["Metric2", "Metric3"]),
+            (3, ["Metric1", "Metric3"]),
+            (2, ["Metric3"]),
             (1, []),
         ],
     )
@@ -305,7 +305,7 @@ class TestSeismogramMetricExtraction:
         "max_cat_size, expected_groups",
         [
             (3, ["Group1", "Group2"]),
-            (2, ["Group1", "Group2"]),
+            (2, ["Group2"]),
             (1, []),
         ],
     )
@@ -319,10 +319,10 @@ class TestSeismogramMetricExtraction:
         "metric_name, max_cat_size, expected",
         [
             ("Metric1", 3, True),
-            ("Metric2", 3, True),
+            ("Metric2", 3, False),
             ("Metric3", 3, True),
             ("Metric1", 2, False),
-            ("Metric2", 2, True),
+            ("Metric2", 2, False),
             ("Metric3", 2, True),
         ],
     )

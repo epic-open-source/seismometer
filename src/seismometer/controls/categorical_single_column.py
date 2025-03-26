@@ -11,7 +11,6 @@ from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from seismometer.html import template
-from seismometer.plot.mpl.decorators import render_as_svg
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
 
@@ -81,7 +80,6 @@ class OrdinalCategoricalSinglePlot:
             "Likert Plot": cls.plot_likert,
         }
 
-    @render_as_svg
     def plot_likert(self):
         """
         Generates a Likert plot to show the distribution of values across the provided cohort groups
@@ -89,8 +87,8 @@ class OrdinalCategoricalSinglePlot:
 
         Returns
         -------
-        matplotlib.figure.Figure
-            The generated Likert plot figure.
+        SVG
+            The SVS object corresponding to the generated Likert plot.
         """
         df = self._count_cohort_group_values()
         return likert_plot(df=df)

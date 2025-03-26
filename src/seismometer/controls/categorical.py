@@ -1,7 +1,6 @@
 import logging
 from typing import Optional, Union
 
-import matplotlib.pyplot as plt
 import pandas as pd
 
 # import ipywidgets as widgets
@@ -15,7 +14,6 @@ from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelec
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
-from seismometer.plot.mpl.decorators import render_as_svg
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
 
@@ -88,15 +86,14 @@ class OrdinalCategoricalPlot:
             "Likert Plot": cls.plot_likert,
         }
 
-    @render_as_svg
-    def plot_likert(self) -> plt.Figure:
+    def plot_likert(self):
         """
         Generates a Likert plot to show the distribution of values across provided metrics.
 
         Returns
         -------
-        matplotlib.figure.Figure
-            The generated Likert plot figure.
+        SVG
+            The SVG object corresponding to the generated Likert plot.
         """
         return likert_plot(df=self._count_values_in_columns())
 

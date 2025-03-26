@@ -197,7 +197,42 @@ class Cohort(BaseModel):
         return display_name or values.data.get("source")
 
 
-class Event(BaseModel):
+class MetricDetails(BaseModel):
+    """Contains details about a metric."""
+
+    min: Optional[Union[float, int]] = None
+    """ The minimum value of the metric. """
+
+    max: Optional[Union[float, int]] = None
+    """ The maximum value of the metric. """
+
+    handle_na: Optional[str] = None
+    """ Strategy for handling missing values (NA). """
+
+    values: Optional[List[Union[float, int, str]]] = None
+    """ A list of possible values for the metric. """
+
+
+class Metric(BaseModel):
+    """A class to store information associated with a metric."""
+
+    source: str
+    """ The source of the metric data. """
+
+    display_name: str
+    """ The display name of the metric. """
+
+    metric_type: str = "binary classification"
+    """ The type of the metric (e.g., 'binary classification', 'ordinal/categorical'). """
+
+    group_keys: Optional[Union[str, List[str]]] = "group_undefined"
+    """ The group or groups to which the metric belongs."""
+
+    metric_details: MetricDetails = MetricDetails()
+    """ Details about the metric. """
+
+
+class Event(Metric):
     """
     The definition of an event.
 
@@ -294,41 +329,6 @@ class EventTableMap(BaseModel):
     """ The column name of the event time. """
     value: str = "Value"
     """ The column name of the event value. """
-
-
-class MetricDetails(BaseModel):
-    """Contains details about a metric."""
-
-    min: Optional[Union[float, int]] = None
-    """ The minimum value of the metric. """
-
-    max: Optional[Union[float, int]] = None
-    """ The maximum value of the metric. """
-
-    handle_na: Optional[str] = None
-    """ Strategy for handling missing values (NA). """
-
-    values: Optional[List[Union[float, int, str]]] = None
-    """ A list of possible values for the metric. """
-
-
-class Metric(BaseModel):
-    """A class to store information associated with a metric."""
-
-    source: str
-    """ The source of the metric data. """
-
-    display_name: str
-    """ The display name of the metric. """
-
-    metric_type: str
-    """ The type of the metric (e.g., 'binary classification', 'categorical feedback'). """
-
-    group_keys: Optional[Union[str, List[str]]] = "group_undefined"
-    """ The group or groups to which the metric belongs."""
-
-    metric_details: MetricDetails = MetricDetails()
-    """ Details about the metric. """
 
 
 class DataUsage(BaseModel):
