@@ -36,8 +36,37 @@ class Test_Event_Score:
             aggregation_method,
         ]
         if ref_event in ["PredictTime", "Reference_5_15_Time"] and aggregation_method in ["min", "max"]:
-            with pytest.raises(KeyError):
-                _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", ref_event, aggregation_method)
+            actual = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", "Target", aggregation_method)
+            assert actual["ModelScore"].tolist() == expected_score.tolist()
         else:
             actual = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", ref_event, aggregation_method)
             assert actual["ModelScore"].tolist() == expected_score.tolist()
+
+    def test_max_aggregation(self, event_data):
+        input_frame, _ = event_data
+        actual = undertest.max_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
+        expected = input_frame.loc[input_frame["ModelScore"] == 21]
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test_min_aggregation(self, event_data):
+        input_frame, _ = event_data
+        actual = undertest.min_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
+        expected = input_frame.loc[input_frame["ModelScore"] == 1]
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test_first_aggregation(self, event_data):
+        input_frame, _ = event_data
+        actual = undertest.first_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime")
+        expected = input_frame.loc[input_frame["PredictTime"] == pd.to_datetime("2024-02-01 08:00")]
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test_last_aggregation(self, event_data):
+        input_frame, _ = event_data
+        actual = undertest.last_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime")
+        expected = input_frame.loc[input_frame["PredictTime"] == pd.to_datetime("2024-02-01 13:00")]
+        pd.testing.assert_frame_equal(actual, expected)
+
+    def test_invalid_aggregation_method(self, event_data):
+        input_frame, _ = event_data
+        with pytest.raises(ValueError, match="Unknown aggregation method: invalid"):
+            _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime", "invalid")
