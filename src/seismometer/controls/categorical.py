@@ -19,7 +19,7 @@ from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 
-MAX_CATEGORY_SIZE: int = 10
+MAX_CATEGORY_SIZE: int = 7
 """ The maximum number of categories allowed in a categorical column. """
 
 

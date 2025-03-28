@@ -5,7 +5,7 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from seismometer.plot.mpl.decorators import render_as_svg
 
-from ._ux import area_colors
+from ._ux import get_balanced_colors
 
 
 @render_as_svg
@@ -75,6 +75,7 @@ def likert_plot_figure(
     matplotlib.figure.Figure
         The generated Likert plot figure.
     """
+    colors = get_balanced_colors(length=len(df.columns))
     row_sums = df.sum(axis=1)
     matplotlib.use("Agg")
     if len(df) == 0:
@@ -103,8 +104,9 @@ def likert_plot_figure(
             left=cumulative_data[col]
             - df_percentages[col]
             - cumulative_data[df.columns[(len(df.columns) - 1) // 2]]
-            + middle_adjustment,
-            color=area_colors[i % len(area_colors)],
+            + middle_adjustment
+            + (i - len(df.columns) // 2) / 2,  # Adding 0.5 percetages spece between categories.
+            color=colors[i % len(colors)],
             label=col,
         )
         for index, bar in enumerate(bars):
@@ -119,6 +121,8 @@ def likert_plot_figure(
                     ha="center",
                     va="center",
                     fontsize=10,
+                    backgroundcolor="white",
+                    fontweight="light",
                 )
             elif width >= 5:
                 ax.text(
@@ -128,6 +132,8 @@ def likert_plot_figure(
                     ha="center",
                     va="center",
                     fontsize=10,
+                    backgroundcolor="white",
+                    fontweight="light",
                 )
     ax.set_yticks(range(len(df.index)))
     ax.set_yticklabels(_wrap_labels(df.index), fontsize=12)
@@ -159,8 +165,9 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
     border : int, optional
         Border space around the plot, by default 5.
     """
+    colors = get_balanced_colors(length=1)  # Get neutral color for counts
     total_counts = df.sum(axis=1)
-    bars = ax_count.barh(df.index, total_counts, height=0.7, color=area_colors[0])
+    bars = ax_count.barh(df.index, total_counts, height=0.7, color=colors[0])
     max_count = max(total_counts)
     for bar in bars:
         width = bar.get_width()
@@ -173,6 +180,8 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
                 va="center",
                 fontsize=10,
                 color="black",
+                backgroundcolor="white",
+                fontweight="light",
             )
         else:
             ax_count.text(
@@ -183,6 +192,8 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
                 va="center",
                 fontsize=10,
                 color="black",
+                backgroundcolor="white",
+                fontweight="light",
             )
     ax_count.set_yticks(range(len(df.index)))
     ax_count.set_yticklabels(_wrap_labels(df.index), fontsize=12)
@@ -190,7 +201,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
     ax_count.set_title("Counts of Each Row")
     ax_count.set_xlim(0, total_counts.max() + border)
     ax_count.xaxis.set_major_locator(MaxNLocator(nbins=5))
-    ax_count.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x)}%"))
+    ax_count.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x)}"))
     ax_count.tick_params(axis="x", labelsize=12)
 
 
@@ -212,6 +223,10 @@ def _wrap_labels(labels, width=12):
 
 
 def _format_count(value):
+    """
+    Format with suffixes K, M, B for thousand, million, and billion like
+    https://matplotlib.org/stable/api/ticker_api.html#matplotlib.ticker.EngFormatter
+    """
     if value >= 1_000_000_000:
         return f"{value / 1_000_000_000:.3g}B"
     elif value >= 1_000_000:

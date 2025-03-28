@@ -49,6 +49,10 @@ SemanticColors = namedtuple(
 )
 
 AlertColors = namedtuple("AlertColors", ["Alarm", "Important", "Warning", "Positive", "PositiveLight", "Normal"])
+FeedbackColors = namedtuple(
+    "FeedbackColors",
+    ["VeryNegative", "Negative", "SomewhatNegative", "Neutral", "SomewhatPositive", "Positive", "VeryPositive"],
+)
 
 OpacityLevels = namedtuple("OpacityLevels", ["Transparent", "Low", "Medium", "High", "Opaque"])
 opacity_levels = OpacityLevels(0, 0.1, 0.2, 0.4, 1)
@@ -60,6 +64,16 @@ alert_colors = AlertColors(
     "#90da8b",  # Green - positive
     "#caeec8",  # Light Green - positive, low-intensity
     "#0085f2",  # Blue - normal
+)
+
+feedback_colors = FeedbackColors(
+    "#c70000",  # Red - very negative
+    "#ff6d00",  # Orange - negative
+    "#ffba00",  # Yellow - somewhat negative
+    "#0085f2",  # Blue - neutral
+    "#caeec8",  # Light Green - somewhat positive
+    "#90da8b",  # Green - positive
+    "#009f7a",  # Mediterranean - very positive
 )
 
 # Slight variation exists for line, area, and text
@@ -198,11 +212,13 @@ def _register_colormaps() -> None:
     line_cmap = LinearSegmentedColormap.from_list("Line", line_colors, N=len(line_colors))
     text_cmap = LinearSegmentedColormap.from_list("Text", text_colors, N=len(text_colors))
     alert_cmap = LinearSegmentedColormap.from_list("Alert", alert_colors, N=len(alert_colors))
+    feedback_cmap = LinearSegmentedColormap.from_list("Feedback", feedback_colors, N=len(feedback_colors))
     neutral_cmap = LinearSegmentedColormap.from_list("Neutral", neutral_colors, N=len(neutral_colors))
     mpl.colormaps.register(cmap=area_cmap, force=True)
     mpl.colormaps.register(cmap=line_cmap, force=True)
     mpl.colormaps.register(cmap=text_cmap, force=True)
     mpl.colormaps.register(cmap=alert_cmap, force=True)
+    mpl.colormaps.register(cmap=feedback_cmap, force=True)
     mpl.colormaps.register(cmap=neutral_cmap, force=True)
 
 
@@ -250,3 +266,52 @@ def reset_color_letters() -> None:
     """
     mpl.colors.colorConverter.colors.update(defaults["letter_colors"])
     mpl.colors.colorConverter.cache.update(defaults["letter_colors"])
+
+
+def get_balanced_colors(colors: iter = feedback_colors, length: int = 5):
+    """
+    Selects a subset of colors from a color scale (very negative to very positive)
+    with balanced selection from both sides of center.
+
+    Parameters
+    ----------
+    colors : iter, optional
+        An iterable of color strings ordered from very negative to very positive, by default feedback_colors.
+    length : int
+        Desired length of the output subset (must be < 7), by default 5.
+
+    Returns
+    -------
+    list
+        A balanced subset of colors.
+    """
+    if len(colors) % 2 == 0:
+        raise ValueError(
+            "There should be the same number of 'Positive' and 'Negative' colors and a 'Neutral' "
+            + "color in the color list."
+        )
+
+    if length >= len(colors) or length < 1:
+        raise ValueError(f"length must be between 1 and {len(colors)}.")
+
+    middle_index = len(colors) // 2
+    first_half_index_reordered = list(
+        range(middle_index)
+    )  # [i//2 if i % 2 == 0 else middle_index - (i // 2 + 1) for i in range(middle_index)]
+    second_half_index_reordered = list(
+        range(len(colors) - 1, middle_index, -1)
+    )  # [i//2 + middle_index + 1 if i % 2 == 0 else len(colors) - (i // 2 + 1) for i in range(middle_index)]
+    result = []
+
+    if length % 2 == 1:
+        result.append(middle_index)
+
+    # How many colors to take from each side
+    num_side_colors = (length - len(result)) // 2
+
+    result += first_half_index_reordered[:num_side_colors] + second_half_index_reordered[:num_side_colors]
+
+    # Sort by original position to maintain order
+    final_indices = sorted(result)
+
+    return [colors[i] for i in final_indices]
