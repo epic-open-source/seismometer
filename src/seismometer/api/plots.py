@@ -489,6 +489,8 @@ def plot_model_evaluation(
     data = cohort_filter.filter(sg.dataframe)
     target_event = pdh.event_value(target_column)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
+    aggregation_method = sg.event_aggregation_method(sg.target)
+    ref_time = sg.predict_time if aggregation_method in ["first", "last"] else target_column
     return _model_evaluation(
         target_data,
         sg.entity_keys,
@@ -498,8 +500,8 @@ def plot_model_evaluation(
         thresholds,
         sg.censor_threshold,
         per_context,
-        sg.event_aggregation_method(sg.target),
-        sg.predict_time,
+        aggregation_method,
+        ref_time,
     )
 
 
@@ -859,9 +861,9 @@ def plot_model_score_comparison(
     data = []
     for score in scores:
         if per_context:
-            one_score_data = pdh.event_score(dataframe, sg.entity_keys, score=score, aggregation_method="max")[
-                [score, target_event]
-            ]
+            one_score_data = pdh.event_score(
+                dataframe, sg.entity_keys, score=score, ref_event=target_event, aggregation_method="max"
+            )[[score, target_event]]
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["ScoreName"] = score
@@ -922,9 +924,9 @@ def plot_model_target_comparison(
         target_event = pdh.event_value(target)
         dataframe = FilterRule.isin(target_event, (0, 1)).filter(source_data)
         if per_context:
-            one_score_data = pdh.event_score(dataframe, sg.entity_keys, score=score, aggregation_method="max")[
-                [score, target_event]
-            ]
+            one_score_data = pdh.event_score(
+                dataframe, sg.entity_keys, score=score, ref_event=target_event, aggregation_method="max"
+            )[[score, target_event]]
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["TargetName"] = target
