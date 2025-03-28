@@ -216,7 +216,7 @@ def plot_cohort_lead_time(
 @disk_cached_html_segment
 def _plot_leadtime_enc(
     dataframe: pd.DataFrame,
-    entity_keys: str,
+    entity_keys: list[str],
     target_event: str,
     target_zero: str,
     score: str,
@@ -245,7 +245,7 @@ def _plot_leadtime_enc(
         score column
     ref_time : str
         prediction time
-    entity_keys : str
+    entity_keys : list[str]
         entity key column
     cohort_col : str
         cohort column name

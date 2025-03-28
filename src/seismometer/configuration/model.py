@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -197,7 +197,46 @@ class Cohort(BaseModel):
         return display_name or values.data.get("source")
 
 
-class Event(BaseModel):
+class BaseDetails(BaseModel):
+    """A class to store information about the type of the object and the groups that the object belongs to."""
+
+    type: str = "binary classification"
+    """ The type of the object (e.g., 'binary classification', 'ordinal/categorical'). """
+
+    group_keys: Optional[Union[str, List[str]]] = "group_undefined"
+    """ The group or groups to which the metric belongs."""
+
+
+class MetricDetails(BaseModel):
+    """Contains details about a metric."""
+
+    min: Optional[Union[float, int]] = None
+    """ The minimum value of the metric. """
+
+    max: Optional[Union[float, int]] = None
+    """ The maximum value of the metric. """
+
+    handle_na: Optional[str] = None
+    """ Strategy for handling missing values (NA). """
+
+    values: Optional[List[Union[float, int, str]]] = None
+    """ A list of possible values for the metric. """
+
+
+class Metric(BaseDetails):
+    """A class to store information associated with a metric."""
+
+    source: str
+    """ The source of the metric data. """
+
+    display_name: str
+    """ The display name of the metric. """
+
+    metric_details: MetricDetails = MetricDetails()
+    """ Details about the metric. """
+
+
+class Event(BaseDetails):
     """
     The definition of an event.
 
@@ -341,6 +380,8 @@ class DataUsage(BaseModel):
 
     Must have at least one target event.
     """
+    metrics: list[Metric] = []
+    """A list of all metrics to load."""
 
     censor_min_count: int = Field(10, ge=10)
     """ The minimum size of a cohort to be considered displayable. """
