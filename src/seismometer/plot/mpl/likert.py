@@ -185,7 +185,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
             )
         else:
             ax_count.text(
-                bar.get_x() + width + 0.01 * max_count,
+                bar.get_x() + width + 0.02 * max_count,
                 bar.get_y() + bar.get_height() / 2,
                 f"{_format_count(width)}",
                 ha="left",
