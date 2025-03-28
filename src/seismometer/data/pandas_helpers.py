@@ -137,12 +137,13 @@ def merge_windowed_event(
         )
 
     # merge event specified by merge_strategy for each prediction
+    event_ref = event_time_col if merge_strategy in ["forward", "nearest"] else r_ref
     predictions = _merge_with_strategy(
         predictions,
         one_event,
         pks,
         pred_ref=predtime_col,
-        event_ref=r_ref,
+        event_ref=event_ref,
         event_display=event_label,
         merge_strategy=merge_strategy,
     )

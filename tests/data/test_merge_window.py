@@ -497,8 +497,8 @@ class TestMergeWindowedEvent:
             pytest.param(
                 12,
                 -2,
-                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", "2024-02-02 12:00:00", None],
-                [0.0, 2, 2, 2, 0],
+                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", None, None],
+                [0.0, 2, 2, 0, 0],
                 id="offset allow future for third event",
             ),
             pytest.param(
@@ -922,7 +922,6 @@ class TestMergeWindowedEvent:
     @pytest.mark.parametrize(
         "predtimes, expected_vals, expected_times, min_leadtime_hrs",
         [
-            # Original case
             (["2024-01-02 01:00:00", "2024-01-01 10:00:00"], [0, 1], [pd.NA, "2024-01-01 11:00:00"], 0),
             # Nearest Before: Prediction time is before the event time
             (
@@ -932,12 +931,12 @@ class TestMergeWindowedEvent:
                 0,
             ),
             # Nearest After: Prediction time is after the event time
-            # (
-            #     ["2024-01-01 12:30:00", "2024-01-01 12:45:00"],  # After the last event time within the window
-            #     [1, 1],
-            #     ["2024-01-01 11:00:00", "2024-01-01 12:00:00"],
-            #     -2
-            # )
+            (
+                ["2024-01-01 12:30:00", "2024-01-01 12:45:00"],  # After the last event time within the window
+                [1, 1],
+                ["2024-01-01 11:00:00", "2024-01-01 12:00:00"],
+                -2,
+            ),
         ],
     )
     def test_merge_nearest(self, predtimes, expected_vals, expected_times, min_leadtime_hrs):
