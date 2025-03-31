@@ -1,6 +1,7 @@
 import pandas as pd
 
 from seismometer.data import pandas_helpers as pdh
+from seismometer.seismogram import Seismogram
 
 from .decorators import export
 
@@ -28,8 +29,15 @@ def default_cohort_summaries(
     pd.DataFrame
         A dataframe of summary counts.
     """
+    sg = Seismogram()
     left = dataframe[attribute].value_counts().rename("Predictions")
-    right = dataframe.drop_duplicates(subset=entity_id_col)[attribute].value_counts().rename("Entities")
+    right = (
+        pdh.event_score(dataframe, [entity_id_col], sg.output, sg.target, sg.event_aggregation_method(sg.target))[
+            attribute
+        ]
+        .value_counts()
+        .rename("Entities")
+    )
 
     return pd.concat([left, right], axis=1).reindex(options)
 
