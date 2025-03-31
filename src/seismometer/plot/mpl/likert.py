@@ -201,7 +201,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
     ax_count.set_title("Counts of Each Row")
     ax_count.set_xlim(0, total_counts.max() + border)
     ax_count.xaxis.set_major_locator(MaxNLocator(nbins=5))
-    ax_count.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x)}"))
+    ax_count.xaxis.set_major_formatter(FuncFormatter(lambda x, _: _format_count(x)))
     ax_count.tick_params(axis="x", labelsize=12)
 
 

@@ -278,7 +278,7 @@ def get_balanced_colors(colors: iter = feedback_colors, length: int = 5):
     colors : iter, optional
         An iterable of color strings ordered from very negative to very positive, by default feedback_colors.
     length : int
-        Desired length of the output subset (must be < 7), by default 5.
+        Desired length of the output subset (must be <= 7), by default 5.
 
     Returns
     -------
