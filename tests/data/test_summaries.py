@@ -51,7 +51,12 @@ def expected_score_target_summary_cuts(res):
 
 
 class Test_Summaries:
-    def test_default_summaries(self, prediction_data, expected_default_summary):
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_default_summaries(self, mock_seismo, prediction_data, expected_default_summary):
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.event_aggregation_method = lambda x: "max"
         actual = undertest.default_cohort_summaries(prediction_data, "Has_ECG", [1, 2, 3, 4, 5], "ID")
         pd.testing.assert_frame_equal(actual, expected_default_summary, check_names=False)
 

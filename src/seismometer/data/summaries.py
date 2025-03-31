@@ -1,7 +1,6 @@
 import pandas as pd
 
 from seismometer.data import pandas_helpers as pdh
-from seismometer.seismogram import Seismogram
 
 from .decorators import export
 
@@ -29,6 +28,8 @@ def default_cohort_summaries(
     pd.DataFrame
         A dataframe of summary counts.
     """
+    from seismometer.seismogram import Seismogram
+
     sg = Seismogram()
     left = dataframe[attribute].value_counts().rename("Predictions")
     right = (
