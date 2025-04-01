@@ -458,7 +458,7 @@ def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str
     """
     event_val = event_value(ref_event)
     ref_score = _resolve_score_col(df, score)
-    df = df.sort_values(by=[event_val, ref_score])
+    df = df.sort_values(by=[event_val, ref_score], ascending=[False, True])
     return df.drop_duplicates(subset=pks)
 
 
