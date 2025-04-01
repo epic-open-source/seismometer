@@ -522,7 +522,7 @@ def event_score(
     merged_frame: pd.DataFrame,
     pks: list[str],
     score: str,
-    ref_event: Optional[str] = None,
+    ref_event: str,
     aggregation_method: str = "max",
 ) -> pd.DataFrame:
     """
@@ -538,8 +538,8 @@ def event_score(
         A list of identifying keys on which to aggregate, such as Id.
     score : str
         The column name containing the score value.
-    ref_event : Optional[str], optional
-        The column name containing the time to consider, by default None.
+    ref_event : str
+        The column name containing the time to consider.
     aggregation_method : str, optional
         A string describing the method to select a value, by default 'max'.
 

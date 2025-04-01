@@ -42,31 +42,72 @@ class Test_Event_Score:
             actual = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", ref_event, aggregation_method)
             assert actual["ModelScore"].tolist() == expected_score.tolist()
 
-    def test_max_aggregation(self, event_data):
-        input_frame, _ = event_data
+    def test_max_aggregation(self):
+        input_frame = pd.DataFrame(
+            {"Id": [1, 1, 1, 2], "CtxId": [10, 10, 10, 20], "ModelScore": [1, 2, 3, 1], "Target_Value": [1, 1, 0, 0]}
+        )
         actual = undertest.max_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
-        expected = input_frame.loc[input_frame["ModelScore"] == 21]
+        expected = pd.DataFrame(
+            {"Id": [1, 2], "CtxId": [10, 20], "ModelScore": [2, 1], "Target_Value": [1, 0]}, index=[1, 3]
+        )
         pd.testing.assert_frame_equal(actual, expected)
 
-    def test_min_aggregation(self, event_data):
-        input_frame, _ = event_data
+    def test_min_aggregation(self):
+        input_frame = pd.DataFrame(
+            {"Id": [1, 1, 1, 2], "CtxId": [10, 10, 10, 20], "ModelScore": [1, 2, 3, 1], "Target_Value": [0, 1, 0, 1]}
+        )
         actual = undertest.min_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
-        expected = input_frame.loc[input_frame["ModelScore"] == 1]
+        expected = pd.DataFrame(
+            {"Id": [1, 2], "CtxId": [10, 20], "ModelScore": [1, 1], "Target_Value": [0, 1]}, index=[0, 3]
+        )
         pd.testing.assert_frame_equal(actual, expected)
 
-    def test_first_aggregation(self, event_data):
-        input_frame, _ = event_data
-        actual = undertest.first_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime")
-        expected = input_frame.loc[input_frame["PredictTime"] == pd.to_datetime("2024-02-01 08:00")]
+    def test_first_aggregation(self):
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 1, 2],
+                "CtxId": [10, 10, 10, 20],
+                "ModelScore": [1, 2, 3, 1],
+                "EventTime": pd.to_datetime([None, "2024-02-01 08:00", "2024-02-01 10:00", None]),
+            }
+        )
+        actual = undertest.first_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "EventTime")
+        expected = pd.DataFrame(
+            {"Id": [1], "CtxId": [10], "ModelScore": [2], "EventTime": pd.to_datetime(["2024-02-01 08:00"])}, index=[1]
+        )
         pd.testing.assert_frame_equal(actual, expected)
 
-    def test_last_aggregation(self, event_data):
-        input_frame, _ = event_data
-        actual = undertest.last_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime")
-        expected = input_frame.loc[input_frame["PredictTime"] == pd.to_datetime("2024-02-01 13:00")]
+    def test_last_aggregation(self):
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 1, 2],
+                "CtxId": [10, 10, 10, 20],
+                "ModelScore": [1, 2, 3, 1],
+                "EventTime": pd.to_datetime(["2024-02-01 08:00", None, "2024-02-01 10:00", "2024-02-01 20:00"]),
+            }
+        )
+        actual = undertest.last_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "EventTime")
+        expected = pd.DataFrame(
+            {
+                "Id": [1, 2],
+                "CtxId": [10, 20],
+                "ModelScore": [3, 1],
+                "EventTime": pd.to_datetime(["2024-02-01 10:00", "2024-02-01 20:00"]),
+            },
+            index=[2, 3],
+        ).sort_values(by="EventTime", ascending=False)
         pd.testing.assert_frame_equal(actual, expected)
 
-    def test_invalid_aggregation_method(self, event_data):
-        input_frame, _ = event_data
+    def test_invalid_aggregation_method(self):
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 1, 2],
+                "CtxId": [10, 10, 10, 20],
+                "ModelScore": [1, 2, 3, 1],
+                "PredictTime": pd.to_datetime(
+                    ["2024-02-01 08:00", "2024-02-01 09:00", "2024-02-01 10:00", "2024-02-01 13:00"]
+                ),
+            }
+        )
         with pytest.raises(ValueError, match="Unknown aggregation method: invalid"):
             _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime", "invalid")
