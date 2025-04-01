@@ -171,30 +171,17 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
     max_count = max(total_counts)
     for bar in bars:
         width = bar.get_width()
-        if width >= 0.1 * max_count:
-            ax_count.text(
-                bar.get_x() + width / 2,
-                bar.get_y() + bar.get_height() / 2,
-                f"{_format_count(width)}",
-                ha="center",
-                va="center",
-                fontsize=10,
-                color="black",
-                backgroundcolor="white",
-                fontweight="light",
-            )
-        else:
-            ax_count.text(
-                bar.get_x() + width + 0.02 * max_count,
-                bar.get_y() + bar.get_height() / 2,
-                f"{_format_count(width)}",
-                ha="left",
-                va="center",
-                fontsize=10,
-                color="black",
-                backgroundcolor="white",
-                fontweight="light",
-            )
+        ax_count.text(
+            bar.get_x() + width + 0.02 * max_count,
+            bar.get_y() + bar.get_height() / 2,
+            f"{_format_count(width)}",
+            ha="left",
+            va="center",
+            fontsize=12,
+            color="black",
+            backgroundcolor="white",
+            fontweight="light",
+        )
     ax_count.set_yticks(range(len(df.index)))
     ax_count.set_yticklabels(_wrap_labels(df.index), fontsize=12)
     ax_count.set_xlabel("Counts", fontsize=12)
