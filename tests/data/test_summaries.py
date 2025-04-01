@@ -6,6 +6,7 @@ from conftest import res  # noqa: F401
 
 from seismometer import seismogram
 from seismometer.data import summaries as undertest
+from seismometer.data.pandas_helpers import event_score
 
 
 @pytest.fixture
@@ -74,3 +75,36 @@ class Test_Summaries:
             undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID"),
             expected_score_target_summary,
         )
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
+    def test_event_score_match_score_target_summaries(
+        self, mock_seismo, aggregation_method, prediction_data, expected_score_target_summary_cuts
+    ):
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.event_aggregation_method = lambda x: aggregation_method
+        ref_event = "Target"
+        df_aggregated = event_score(prediction_data, ["ID"], "Score", ref_event, aggregation_method)
+        bins = [0, 0.5, 1.0]
+        labels = ["(0,0.5]", "(0.5,1]"]
+
+        # Create a new column for binned scores
+        df_aggregated["Score_Binned"] = pd.cut(
+            df_aggregated["Score"], bins=bins, labels=labels, include_lowest=False, right=True
+        )
+
+        # Group by the desired columns and count
+        entities_event_score = (
+            df_aggregated.groupby(["Has_ECG", "Target_Value", "Score_Binned"])
+            .size()
+            .reset_index(name="Count")["Count"]
+        )
+
+        groupby_groups = ["Has_ECG", "Target_Value", expected_score_target_summary_cuts]
+        grab_groups = ["Has_ECG", "Score", "Target_Value"]
+        entities_summary = undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID")[
+            "Entities"
+        ]
+        assert entities_event_score.tolist() == entities_summary.tolist()
