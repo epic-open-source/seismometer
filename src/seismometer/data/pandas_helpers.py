@@ -432,6 +432,9 @@ def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str,
     pd.DataFrame
         The aggregated DataFrame.
     """
+    if ref_event is None:
+        raise ValueError("With aggregation_method 'max', ref_event is required.")
+
     event_val = event_value(ref_event)
     ref_score = _resolve_score_col(df, score)
     df = df.sort_values(by=[event_val, ref_score], ascending=False)
@@ -460,6 +463,9 @@ def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str,
     pd.DataFrame
         The aggregated DataFrame.
     """
+    if ref_event is None:
+        raise ValueError("With aggregation_method 'min', ref_event is required.")
+
     event_val = event_value(ref_event)
     ref_score = _resolve_score_col(df, score)
     df = df.sort_values(by=[event_val, ref_score], ascending=[False, True])
@@ -488,6 +494,9 @@ def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: st
     pd.DataFrame
         The aggregated DataFrame.
     """
+    if ref_time is None:
+        raise ValueError("With aggregation_method 'first', ref_time is required.")
+
     reference_time = _resolve_time_col(df, ref_time)
     df = df[df[reference_time].notna()]
     df = df.sort_values(by=reference_time)
@@ -516,6 +525,9 @@ def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str
     pd.DataFrame
         The aggregated DataFrame.
     """
+    if ref_time is None:
+        raise ValueError("With aggregation_method 'last', ref_time is required.")
+
     reference_time = _resolve_time_col(df, ref_time)
     df = df[df[reference_time].notna()]
     df = df.sort_values(by=reference_time, ascending=False)
@@ -566,12 +578,6 @@ def event_score(
         f"Combining scores using {aggregation_method} for {score} on ref_time: {ref_time} "
         + f"and ref_event: {ref_event}"
     )
-
-    if aggregation_method in ["first", "last"] and ref_time is None:
-        raise ValueError(f"With aggregation_method {aggregation_method}, ref_time is required.")
-
-    if aggregation_method in ["max", "min"] and ref_event is None:
-        raise ValueError(f"With aggregation_method {aggregation_method}, ref_event is required.")
     pks = [c for c in pks if c in merged_frame.columns]
 
     aggregation_methods = {

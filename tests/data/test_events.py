@@ -250,4 +250,23 @@ class Test_Event_Score:
         with pytest.raises(ValueError, match="Unknown aggregation method: invalid"):
             _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime", None, "invalid")
 
+    @pytest.mark.parametrize(
+            "aggregation_method, ref_col", [
+                ("min", "ref_event"), ("max", "ref_event"), ("first", "ref_time"), ("last", "ref_time")
+                ]
+    )
+    def test_aggregation_missing_ref_col(self, agg_method, ref_col):
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 1, 2],
+                "CtxId": [10, 10, 10, 20],
+                "ModelScore": [1, 2, 3, 1],
+                "PredictTime": pd.to_datetime(
+                    ["2024-02-01 08:00", "2024-02-01 09:00", "2024-02-01 10:00", "2024-02-01 13:00"]
+                ),
+            }
+        )
+        with pytest.raises(ValueError, match=f"With aggregation_method '{agg_method}', {ref_col} is required."):
+            _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", None, None, agg_method)
+
 # fmt: on
