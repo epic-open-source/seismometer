@@ -484,8 +484,6 @@ def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: s
     """
     event_time = _resolve_time_col(df, ref_event)
     df = df[df[event_time].notna()]
-    if len(df.index) == 0:
-        return pd.DataFrame()
     df = df.sort_values(by=event_time)
     return df.drop_duplicates(subset=pks)
 
@@ -512,8 +510,6 @@ def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: st
     """
     event_time = _resolve_time_col(df, ref_event)
     df = df[df[event_time].notna()]
-    if len(df.index) == 0:
-        return pd.DataFrame()
     df = df.sort_values(by=event_time, ascending=False)
     return df.drop_duplicates(subset=pks)
 

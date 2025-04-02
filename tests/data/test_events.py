@@ -23,6 +23,8 @@ def event_data(res):
     return input_frame, expected_frame
 
 
+# fmt: off
+
 class Test_Event_Score:
     @pytest.mark.parametrize("ref_event", ["Target", "PredictTime", "Reference_5_15_Time"])
     @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
@@ -45,44 +47,35 @@ class Test_Event_Score:
     @pytest.mark.parametrize(
         "aggregation_method,entities,scores,targets,event_times,selected_rows",
         [
+            # Select max with target_value=1
             (
-                "max",
-                [1, 1, 2, 2],
-                [1, 2, 3, 1],
-                [1, 1, 0, 1],
+                "max", [1, 1, 2, 2], [1, 2, 3, 1], [1, 1, 0, 1],
                 ["2024-02-01 08:00", "2024-02-01 10:00", None, "2024-02-01 14:00"],
                 [1, 3],
-            ),  # Select max with target_value=1
+            ),
             (
-                "max",
-                [1, 1, 2, 2],
-                [1, 2, 3, 1],
-                [0, 1, 0, 1],
+                "max", [1, 1, 2, 2], [1, 2, 3, 1], [0, 1, 0, 1],
                 [None, "2024-02-01 10:00", None, "2024-02-01 14:00"],
                 [1, 3],
             ),
-            ("max", [1, 1, 2, 2], [1, 2, 3, 1], [0, 0, 1, 0], [None, None, "2024-02-01 12:00", None], [2, 1]),
             (
-                "min",
-                [1, 1, 2, 2],
-                [1, 2, 3, 1],
-                [1, 1, 0, 1],
+                "max", [1, 1, 2, 2], [1, 2, 3, 1], [0, 0, 1, 0],
+                [None, None, "2024-02-01 12:00", None],
+                [2, 1],
+            ),
+            # Select min with target_value=1
+            (
+                "min", [1, 1, 2, 2], [1, 2, 3, 1], [1, 1, 0, 1],
                 ["2024-02-01 08:00", "2024-02-01 10:00", None, "2024-02-01 14:00"],
                 [0, 3],
-            ),  # Select min with target_value=1
+            ),
             (
-                "first",
-                [1, 1, 2, 2],
-                [1, 2, 3, 1],
-                [1, 1, 0, 1],
+                "first", [1, 1, 2, 2], [1, 2, 3, 1], [1, 1, 0, 1],
                 ["2024-02-01 10:00", "2024-02-01 08:00", None, "2024-02-01 14:00"],
                 [1, 3],
             ),
             (
-                "last",
-                [1, 1, 2, 2],
-                [1, 2, 3, 1],
-                [1, 1, 1, 0],
+                "last", [1, 1, 2, 2], [1, 2, 3, 1], [1, 1, 1, 0],
                 ["2024-02-01 08:00", "2024-02-01 10:00", "2024-02-01 12:00", None],
                 [2, 1],
             ),
@@ -98,34 +91,22 @@ class Test_Event_Score:
                 "EventTime": pd.to_datetime(event_times),
             }
         )
+        expected = input_frame.loc[pd.Index(selected_rows)]
         ref_event = "Target_Value" if aggregation_method in ["max", "min"] else "EventTime"
         actual = undertest.event_score(
             input_frame, ["Id", "CtxId"], "ModelScore", ref_event, aggregation_method=aggregation_method
         )
-        expected = input_frame.loc[pd.Index(selected_rows)]
         pd.testing.assert_frame_equal(actual, expected)
 
     @pytest.mark.parametrize(
         "entities,scores,targets,selected_rows",
         [
-            (
-                [1, 1, 1, 2],
-                [1, 2, 3, 1],
-                [1, 1, 0, 0],
-                [1, 3],
-            ),  # For entity 1, we take max score over scores associated with target = 1.
-            (
-                [1, 1, 1, 2],
-                [1, 2, 3, 1],
-                [0, 0, 0, 1],
-                [3, 2],
-            ),  # For entity 1, there are no scores associated with target = 1, we just take the max score.
-            (
-                [1, 1, 1, 2],
-                [1, 2, 3, 4],
-                [0, 1, 0, 1],
-                [3, 1],
-            ),  # Since we order by target (descending) then score (descending), the order of selected rows is [3, 1].
+            # For entity 1, we take max score over scores associated with target = 1.
+            ([1, 1, 1, 2], [1, 2, 3, 1], [1, 1, 0, 0], [1, 3]),
+            # For entity 1, there are no scores associated with target = 1, we just take the max score.
+            ([1, 1, 1, 2], [1, 2, 3, 1], [0, 0, 0, 1], [3, 2]),
+            # Since we order by target (descending) then score (descending), the order of selected rows is [3, 1].
+            ([1, 1, 1, 2], [1, 2, 3, 4], [0, 1, 0, 1], [3, 1]),
         ],
     )
     def test_max_aggregation(self, entities, scores, targets, selected_rows):
@@ -137,31 +118,19 @@ class Test_Event_Score:
                 "Target_Value": targets,
             }
         )
-        actual = undertest.max_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
         expected = input_frame.loc[pd.Index(selected_rows)]
+        actual = undertest.max_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
         pd.testing.assert_frame_equal(actual, expected)
 
     @pytest.mark.parametrize(
         "entities,scores,targets,selected_rows",
         [
-            (
-                [1, 1, 1, 2],
-                [1, 2, 3, 1],
-                [0, 1, 0, 1],
-                [3, 1],
-            ),  # For entity 1, we take min score over scores associated with target = 1.
-            (
-                [1, 1, 1, 2],
-                [1, 2, 3, 1],
-                [0, 0, 0, 1],
-                [3, 0],
-            ),  # For entity 1, there are no scores associated with target = 1, we just take the min score.
-            (
-                [1, 1, 1, 2],
-                [1, 2, 3, 1],
-                [0, 0, 1, 1],
-                [3, 2],
-            ),  # Since we order by target (descending) then score (ascending), the order of selected rows is [3,2].
+            # For entity 1, we take min score over scores associated with target = 1.
+            ([1, 1, 1, 2], [1, 2, 3, 1], [0, 1, 0, 1], [3, 1]),
+            # For entity 1, there are no scores associated with target = 1, we just take the min score.
+            ([1, 1, 1, 2], [1, 2, 3, 1], [0, 0, 0, 1], [3, 0]),
+            # Since we order by target (descending) then score (ascending), the order of selected rows is [3,2].
+            ([1, 1, 1, 2], [1, 2, 3, 1], [0, 0, 1, 1], [3, 2]),
         ],
     )
     def test_min_aggregation(self, entities, scores, targets, selected_rows):
@@ -173,25 +142,17 @@ class Test_Event_Score:
                 "Target_Value": targets,
             }
         )
-        actual = undertest.min_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
         expected = input_frame.loc[pd.Index(selected_rows)]
+        actual = undertest.min_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target")
         pd.testing.assert_frame_equal(actual, expected)
 
     @pytest.mark.parametrize(
         "entities,scores,event_times,selected_rows",
         [
-            (
-                [1, 1, 1, 2],
-                [1, 2, 3, 1],
-                [None, "2024-02-01 08:00", "2024-02-01 10:00", None],
-                [1],
-            ),  # For entity 1, we take the row associated with the first non-na time in event_times.
-            (
-                [1, 1, 2, 2],
-                [5, 6, 3, 4],
-                ["2024-02-01 01:00", "2024-02-01 08:00", "2024-01-31 10:00", None],
-                [2, 0],
-            ),  # Since we order by event time (ascending), the order of selected rows is [2, 0].
+            # For entity 1, we take the row associated with the first non-na time in event_times.
+            ([1, 1, 1, 2], [1, 2, 3, 1], [None, "2024-02-01 08:00", "2024-02-01 10:00", None], [1]),
+            # Since we order by event time (ascending), the order of selected rows is [2, 0].
+            ([1, 1, 2, 2], [5, 6, 3, 4], ["2024-02-01 01:00", "2024-02-01 08:00", "2024-01-31 10:00", None], [2, 0]),
             ([1, 1, 2, 2], [1, 2, 3, 1], [None, None, None, None], []),
         ],
     )
@@ -204,28 +165,22 @@ class Test_Event_Score:
                 "EventTime": pd.to_datetime(event_times),
             }
         )
-        actual = undertest.first_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "EventTime")
         expected = input_frame.loc[pd.Index(selected_rows)]
-        if expected.empty:
-            expected = pd.DataFrame()
+        actual = undertest.first_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "EventTime")
         pd.testing.assert_frame_equal(actual, expected)
 
     @pytest.mark.parametrize(
         "entities,scores,event_times,selected_rows",
         [
             (
-                [1, 1, 1, 2],
-                [1, 2, 3, 1],
-                ["2024-02-01 08:00", None, "2024-02-02 10:00", None],
-                [2],
-            ),  # For entity 1, we take the row associated with the last non-na time in event_times.
+                [1, 1, 1, 2], [1, 2, 3, 1], ["2024-02-01 08:00", None, "2024-02-02 10:00", None], [2],
+            ),
             (
-                [1, 1, 2, 2],
-                [5, 6, 3, 4],
-                ["2024-02-01 01:00", "2024-02-01 08:00", "2024-02-21 10:00", None],
-                [2, 1],
-            ),  # Since we order by event time (descending), the order of selected rows is [2, 1].
-            ([1, 1, 2, 2], [1, 2, 3, 1], [None, None, None, None], []),
+                [1, 1, 2, 2], [5, 6, 3, 4], ["2024-02-01 01:00", "2024-02-01 08:00", "2024-02-21 10:00", None], [2, 1],
+            ),
+            (
+                [1, 1, 2, 2], [1, 2, 3, 1], [None, None, None, None], [],
+            ),
         ],
     )
     def test_last_aggregation(self, entities, scores, event_times, selected_rows):
@@ -237,10 +192,8 @@ class Test_Event_Score:
                 "EventTime": pd.to_datetime(event_times),
             }
         )
-        actual = undertest.last_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "EventTime")
         expected = input_frame.loc[pd.Index(selected_rows)]
-        if expected.empty:
-            expected = pd.DataFrame()
+        actual = undertest.last_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "EventTime")
         pd.testing.assert_frame_equal(actual, expected)
 
     @pytest.mark.parametrize(
@@ -262,6 +215,8 @@ class Test_Event_Score:
                 "EventTime": pd.to_datetime(["2024-02-01 08:00", "2024-02-01 10:00", None, "2024-02-01 12:00"]),
             }
         )
+        expected = input_frame.loc[pd.Index(expected_rows)]
+
         if aggregation_method == "max":
             actual = undertest.max_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "Target_Value")
         elif aggregation_method == "min":
@@ -271,9 +226,6 @@ class Test_Event_Score:
         elif aggregation_method == "last":
             actual = undertest.last_aggregation(input_frame, ["Id", "CtxId"], "ModelScore", "EventTime")
 
-        expected = input_frame.loc[pd.Index(expected_rows)]
-        if expected.empty:
-            expected = pd.DataFrame()
         pd.testing.assert_frame_equal(actual, expected)
 
     def test_invalid_aggregation_method(self):
@@ -289,3 +241,5 @@ class Test_Event_Score:
         )
         with pytest.raises(ValueError, match="Unknown aggregation method: invalid"):
             _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime", "invalid")
+
+# fmt: on

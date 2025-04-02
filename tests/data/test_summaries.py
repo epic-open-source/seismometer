@@ -85,26 +85,29 @@ class Test_Summaries:
         fake_seismo.output = "Score"
         fake_seismo.target = "Target"
         fake_seismo.event_aggregation_method = lambda x: aggregation_method
+
+        # Calculate score target cohort summary using event_score
         ref_event = "Target"
         df_aggregated = event_score(prediction_data, ["ID"], "Score", ref_event, aggregation_method)
         bins = [0, 0.5, 1.0]
         labels = ["(0,0.5]", "(0.5,1]"]
-
         # Create a new column for binned scores
         df_aggregated["Score_Binned"] = pd.cut(
             df_aggregated["Score"], bins=bins, labels=labels, include_lowest=False, right=True
         )
-
         # Group by the desired columns and count
         entities_event_score = (
-            df_aggregated.groupby(["Has_ECG", "Target_Value", "Score_Binned"])
+            df_aggregated.groupby(["Has_ECG", "Target_Value", "Score_Binned"], observed=False)
             .size()
             .reset_index(name="Count")["Count"]
         )
 
+        # Calculate score target cohort summary using score_target_cohort_summaries
         groupby_groups = ["Has_ECG", "Target_Value", expected_score_target_summary_cuts]
         grab_groups = ["Has_ECG", "Score", "Target_Value"]
         entities_summary = undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID")[
             "Entities"
         ]
+
+        # Ensuring they produce the same number of entities for each score-target-cohort group
         assert entities_event_score.tolist() == entities_summary.tolist()
