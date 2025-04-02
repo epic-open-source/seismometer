@@ -33,9 +33,9 @@ def default_cohort_summaries(
     sg = Seismogram()
     left = dataframe[attribute].value_counts().rename("Predictions")
     right = (
-        pdh.event_score(dataframe, [entity_id_col], sg.output, sg.target, sg.event_aggregation_method(sg.target))[
-            attribute
-        ]
+        pdh.event_score(
+            dataframe, [entity_id_col], sg.output, sg.predict_time, sg.target, sg.event_aggregation_method(sg.target)
+        )[attribute]
         .value_counts()
         .rename("Entities")
     )
@@ -74,7 +74,9 @@ def score_target_cohort_summaries(
 
     sg = Seismogram()
     predictions = dataframe[grab_groups].groupby(groupby_groups, observed=False).size().rename("Predictions")
-    df = pdh.event_score(dataframe, [entity_id_col], sg.output, sg.target, sg.event_aggregation_method(sg.target))
+    df = pdh.event_score(
+        dataframe, [entity_id_col], sg.output, sg.predict_time, sg.target, sg.event_aggregation_method(sg.target)
+    )
     entities = df[grab_groups].groupby(groupby_groups, observed=False).size().rename("Entities").astype("Int64")
 
     return pd.DataFrame(pd.concat([predictions, entities], axis=1)).fillna(0)

@@ -315,6 +315,7 @@ def binary_metrics_fairness_table(
             sg.dataframe,
             sg.entity_keys,
             score=score,
+            ref_time=sg.predict_time,
             ref_event=target,
             aggregation_method=sg.event_aggregation_method(target),
         )

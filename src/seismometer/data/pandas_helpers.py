@@ -410,7 +410,7 @@ def _merge_with_strategy(
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
 
-def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str) -> pd.DataFrame:
+def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the maximum score value.
 
@@ -422,8 +422,10 @@ def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str
         A list of identifying keys on which to aggregate.
     score : str
         The column name containing the score value.
-    ref_event : str
-        The column name containing the reference event time.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
 
     Returns
     -------
@@ -436,7 +438,7 @@ def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str
     return df.drop_duplicates(subset=pks)
 
 
-def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str) -> pd.DataFrame:
+def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the minimum score value.
 
@@ -448,8 +450,10 @@ def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str
         A list of identifying keys on which to aggregate.
     score : str
         The column name containing the score value.
-    ref_event : str
-        The column name containing the reference event time.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
 
     Returns
     -------
@@ -462,7 +466,7 @@ def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str
     return df.drop_duplicates(subset=pks)
 
 
-def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str) -> pd.DataFrame:
+def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the first occurrence based on event time.
 
@@ -474,21 +478,23 @@ def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: s
         A list of identifying keys on which to aggregate.
     score : str
         The column name containing the score value.
-    ref_event : str
-        The column name containing the reference event time.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
 
     Returns
     -------
     pd.DataFrame
         The aggregated DataFrame.
     """
-    event_time = _resolve_time_col(df, ref_event)
-    df = df[df[event_time].notna()]
-    df = df.sort_values(by=event_time)
+    reference_time = _resolve_time_col(df, ref_time)
+    df = df[df[reference_time].notna()]
+    df = df.sort_values(by=reference_time)
     return df.drop_duplicates(subset=pks)
 
 
-def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: str) -> pd.DataFrame:
+def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the last occurrence based on event time.
 
@@ -500,17 +506,19 @@ def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_event: st
         A list of identifying keys on which to aggregate.
     score : str
         The column name containing the score value.
-    ref_event : str
-        The column name containing the reference event time.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
 
     Returns
     -------
     pd.DataFrame
         The aggregated DataFrame.
     """
-    event_time = _resolve_time_col(df, ref_event)
-    df = df[df[event_time].notna()]
-    df = df.sort_values(by=event_time, ascending=False)
+    reference_time = _resolve_time_col(df, ref_time)
+    df = df[df[reference_time].notna()]
+    df = df.sort_values(by=reference_time, ascending=False)
     return df.drop_duplicates(subset=pks)
 
 
@@ -518,7 +526,8 @@ def event_score(
     merged_frame: pd.DataFrame,
     pks: list[str],
     score: str,
-    ref_event: str,
+    ref_time: Optional[str] = None,
+    ref_event: Optional[str] = None,
     aggregation_method: str = "max",
 ) -> pd.DataFrame:
     """
@@ -534,8 +543,17 @@ def event_score(
         A list of identifying keys on which to aggregate, such as Id.
     score : str
         The column name containing the score value.
-    ref_event : str
-        The column name containing the time to consider.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+        Required when aggregation_method requires a time reference (e.g., 'first', 'last').
+        Note that we drop NaT rows first and consequently we pick the row satisfying the
+        aggregation_method that also corresponds to a positive case for the associated event.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
+        Required when aggregation_method requires an event reference to prioritize positive cases (e.g., 'max', 'min')
+        Note that we pick the row satisfying the aggregation_method among scores associated with a positive case of
+        ref_event if there are any positive cases. In case there are no positive case, we just pick the row satisfying
+        the aggregation_method.
     aggregation_method : str, optional
         A string describing the method to select a value, by default 'max'.
 
@@ -544,7 +562,16 @@ def event_score(
     pd.DataFrame
         The reduced dataframe with one row per combination of pks.
     """
-    logger.debug(f"Combining scores using {aggregation_method} for {score} on {ref_event}")
+    logger.debug(
+        f"Combining scores using {aggregation_method} for {score} on ref_time: {ref_time} "
+        + f"and ref_event: {ref_event}"
+    )
+
+    if aggregation_method in ["first", "last"] and ref_time is None:
+        raise ValueError(f"With aggregation_method {aggregation_method}, ref_time is required.")
+
+    if aggregation_method in ["max", "min"] and ref_event is None:
+        raise ValueError(f"With aggregation_method {aggregation_method}, ref_event is required.")
     pks = [c for c in pks if c in merged_frame.columns]
 
     aggregation_methods = {
@@ -557,7 +584,7 @@ def event_score(
     if aggregation_method not in aggregation_methods:
         raise ValueError(f"Unknown aggregation method: {aggregation_method}")
 
-    df = aggregation_methods[aggregation_method](merged_frame, pks, score, ref_event)
+    df = aggregation_methods[aggregation_method](merged_frame, pks, score, ref_time, ref_event)
     return df.loc[~np.isnan(df.index)]
 
 
@@ -566,6 +593,7 @@ def get_model_scores(
     entity_keys: list[str],
     score_col: str,
     ref_time: Optional[str],
+    ref_event: Optional[str],
     aggregation_method: str = "max",
     per_context_id: bool = False,
 ) -> pd.DataFrame:
@@ -584,6 +612,8 @@ def get_model_scores(
         The column name containing the score value.
     ref_time : Optional[str], optional
         The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
     aggregation_method : str, optional
         A string describing the method to select a value, by default 'max'.
     per_context_id : bool, optional
@@ -596,7 +626,12 @@ def get_model_scores(
     """
     if per_context_id:
         return event_score(
-            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
+            dataframe,
+            entity_keys,
+            score=score_col,
+            ref_time=ref_time,
+            ref_event=ref_event,
+            aggregation_method=aggregation_method,
         )
     return dataframe
 

@@ -84,11 +84,13 @@ class Test_Summaries:
         fake_seismo = mock_seismo()
         fake_seismo.output = "Score"
         fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target"
         fake_seismo.event_aggregation_method = lambda x: aggregation_method
 
         # Calculate score target cohort summary using event_score
+        ref_time = "Target"
         ref_event = "Target"
-        df_aggregated = event_score(prediction_data, ["ID"], "Score", ref_event, aggregation_method)
+        df_aggregated = event_score(prediction_data, ["ID"], "Score", ref_time, ref_event, aggregation_method)
         bins = [0, 0.5, 1.0]
         labels = ["(0,0.5]", "(0.5,1]"]
         # Create a new column for binned scores
