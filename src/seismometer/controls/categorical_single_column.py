@@ -50,6 +50,7 @@ class OrdinalCategoricalSinglePlot:
         self.cohort_col = next(iter(cohort_dict))
         self.cohort_values = list(cohort_dict[self.cohort_col])
         self.dataframe = sg.dataframe[[self.cohort_col, self.metric_col]]
+        self.censor_threshold = sg.censor_threshold
 
         self.plot_functions = self.initialize_plot_functions()
 
@@ -87,11 +88,11 @@ class OrdinalCategoricalSinglePlot:
 
         Returns
         -------
-        SVG
+        Optional[SVG]
             The SVS object corresponding to the generated Likert plot.
         """
         df = self._count_cohort_group_values()
-        return likert_plot(df=df)
+        return likert_plot(df=df) if not df.empty else None
 
     def _count_cohort_group_values(self):
         """
@@ -108,6 +109,7 @@ class OrdinalCategoricalSinglePlot:
         df = df.pivot(index=self.cohort_col, columns=self.metric_col, values="count").fillna(0)
         df = df.loc[self.cohort_values]
         df = df[self.values].astype(int)
+        df = df[df.sum(axis=1) >= self.censor_threshold]
         return df
 
     def generate_plot(self):
@@ -130,7 +132,11 @@ class OrdinalCategoricalSinglePlot:
         if len(self.dataframe) < sg.censor_threshold:
             return template.render_censored_plot_message(sg.censor_threshold)
         svg = self.plot_functions[self.plot_type](self)
-        return template.render_title_with_image(self.title, svg)
+        return (
+            template.render_title_with_image(self.title, svg)
+            if svg is not None
+            else template.render_censored_plot_message(sg.censor_threshold)
+        )
 
 
 # region Plots Wrapper

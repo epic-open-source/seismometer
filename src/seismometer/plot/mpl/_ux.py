@@ -268,15 +268,13 @@ def reset_color_letters() -> None:
     mpl.colors.colorConverter.cache.update(defaults["letter_colors"])
 
 
-def get_balanced_colors(colors: iter = feedback_colors, length: int = 5):
+def get_balanced_colors(length: int = 5):
     """
     Selects a subset of colors from a color scale (very negative to very positive)
     with balanced selection from both sides of center.
 
     Parameters
     ----------
-    colors : iter, optional
-        An iterable of color strings ordered from very negative to very positive, by default feedback_colors.
     length : int
         Desired length of the output subset (must be <= 7), by default 5.
 
@@ -285,22 +283,13 @@ def get_balanced_colors(colors: iter = feedback_colors, length: int = 5):
     list
         A balanced subset of colors.
     """
-    if len(colors) % 2 == 0:
-        raise ValueError(
-            "There should be the same number of 'Positive' and 'Negative' colors and a 'Neutral' "
-            + "color in the color list."
-        )
+    if length > 7 or length < 1:
+        raise ValueError("length must be between a positive integer number and <= 7.")
 
-    if length >= len(colors) or length < 1:
-        raise ValueError(f"length must be between 1 and {len(colors)}.")
-
+    colors = feedback_colors
     middle_index = len(colors) // 2
-    first_half_index_reordered = list(
-        range(middle_index)
-    )  # [i//2 if i % 2 == 0 else middle_index - (i // 2 + 1) for i in range(middle_index)]
-    second_half_index_reordered = list(
-        range(len(colors) - 1, middle_index, -1)
-    )  # [i//2 + middle_index + 1 if i % 2 == 0 else len(colors) - (i // 2 + 1) for i in range(middle_index)]
+    first_half_index_reordered = list(range(middle_index))
+    second_half_index_reordered = list(range(len(colors) - 1, middle_index, -1))
     result = []
 
     if length % 2 == 1:

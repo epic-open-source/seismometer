@@ -55,6 +55,7 @@ class OrdinalCategoricalPlot:
         sg = Seismogram()
         cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
         self.dataframe = cohort_filter.filter(sg.dataframe)
+        self.censor_threshold = sg.censor_threshold
 
         self.values = None
         self._extract_metric_values()
@@ -92,10 +93,11 @@ class OrdinalCategoricalPlot:
 
         Returns
         -------
-        SVG
+        Optional[SVG]
             The SVG object corresponding to the generated Likert plot.
         """
-        return likert_plot(df=self._count_values_in_columns())
+        df = self._count_values_in_columns()
+        return likert_plot(df=df) if not df.empty else None
 
     def _count_values_in_columns(self):
         """
@@ -117,6 +119,7 @@ class OrdinalCategoricalPlot:
         # Create a new DataFrame from the dictionary and set "Feedback Metrics" as index
         counts_df = pd.DataFrame(data)
         counts_df.set_index("Feedback Metrics", inplace=True)
+        counts_df = counts_df[counts_df.sum(axis=1) >= self.censor_threshold]
 
         return counts_df
 
@@ -126,8 +129,8 @@ class OrdinalCategoricalPlot:
 
         Returns
         -------
-        Figure
-            The generated plot figure.
+        HTML
+            The HTML object representing the generated plot figure.
 
         Raises
         ------
@@ -140,7 +143,11 @@ class OrdinalCategoricalPlot:
         if len(self.dataframe) < sg.censor_threshold:
             return template.render_censored_plot_message(sg.censor_threshold)
         svg = self.plot_functions[self.plot_type](self)
-        return template.render_title_with_image(self.title, svg)
+        return (
+            template.render_title_with_image(self.title, svg)
+            if svg is not None
+            else template.render_censored_plot_message(sg.censor_threshold)
+        )
 
 
 # region Plots Wrapper
