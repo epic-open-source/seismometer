@@ -1,3 +1,5 @@
+import textwrap
+
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -193,20 +195,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
 
 
 def _wrap_labels(labels, width=12):
-    wrapped_labels = []
-    for label in labels:
-        words = label.split()
-        new_label = ""
-        line = ""
-        for word in words:
-            if len(line) + len(word) + 1 <= width:
-                line += word + " "
-            else:
-                new_label += line.strip() + "\n"
-                line = word + " "
-        new_label += line.strip()
-        wrapped_labels.append(new_label)
-    return wrapped_labels
+    return ["\n".join(textwrap.wrap(label, width)) for label in labels]
 
 
 def _format_count(value):
