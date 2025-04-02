@@ -73,7 +73,7 @@ feedback_colors = FeedbackColors(
     "#0085f2",  # Blue - neutral
     "#caeec8",  # Light Green - somewhat positive
     "#90da8b",  # Green - positive
-    "#009f7a",  # Mediterranean - very positive
+    "#19c295",  # Mediterranean - very positive
 )
 
 # Slight variation exists for line, area, and text
@@ -283,24 +283,15 @@ def get_balanced_colors(length: int = 5):
     list
         A balanced subset of colors.
     """
-    if length > 7 or length < 1:
+    if not 1 <= length <= 7:
         raise ValueError("length must be between a positive integer number and <= 7.")
 
-    colors = feedback_colors
+    colors = list(feedback_colors)
     middle_index = len(colors) // 2
-    first_half_index_reordered = list(range(middle_index))
-    second_half_index_reordered = list(range(len(colors) - 1, middle_index, -1))
-    result = []
 
+    selected_colors = colors[: length // 2]
     if length % 2 == 1:
-        result.append(middle_index)
+        selected_colors.append(colors[middle_index])
+    selected_colors += colors[len(colors) - length // 2 :]  # noqa: E203
 
-    # How many colors to take from each side
-    num_side_colors = (length - len(result)) // 2
-
-    result += first_half_index_reordered[:num_side_colors] + second_half_index_reordered[:num_side_colors]
-
-    # Sort by original position to maintain order
-    final_indices = sorted(result)
-
-    return [colors[i] for i in final_indices]
+    return selected_colors
