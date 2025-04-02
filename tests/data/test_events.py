@@ -251,7 +251,7 @@ class Test_Event_Score:
             _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", "PredictTime", None, "invalid")
 
     @pytest.mark.parametrize(
-            "aggregation_method, ref_col", [
+            "agg_method, ref_col", [
                 ("min", "ref_event"), ("max", "ref_event"), ("first", "ref_time"), ("last", "ref_time")
                 ]
     )
