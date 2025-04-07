@@ -148,7 +148,7 @@ def likert_plot_figure(
     # Add labels and title
     ax.set_xlabel("Percentages of Responses", fontsize=12)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10, integer=True))
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x)}%"))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{abs(int(x))}%"))
     ax.tick_params(axis="x", labelsize=12)
     ax.set_title(title)
     return fig
