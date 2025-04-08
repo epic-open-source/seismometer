@@ -252,14 +252,16 @@ def cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
     float_cols = list(data[intervention_cols + outcome_cols].select_dtypes(include=float))
 
     stat_dict = {k: ["mean"] for k in float_cols}
-    stat_dict.update({cfg.entity_id: ["nunique", "count"], cfg.context_id: ["nunique"]})
+    stat_dict[cfg.entity_id] = ["nunique", "count"]
+    if cfg.context_id is not None:
+        stat_dict[cfg.context_id] = ["nunique"]
 
     groupstats = groups.agg(stat_dict)
-    groupstats.columns = [pdh.event_name(x) for x in float_cols] + [
-        f"Unique {cfg.entity_id}",
-        f"{cfg.entity_id} Count",
-        f"Unique {cfg.context_id}",
-    ]
+    groupstats.columns = (
+        [pdh.event_name(x) for x in float_cols]
+        + [f"Unique {cfg.entity_id}", f"{cfg.entity_id} Count"]
+        + ([f"Unique {cfg.context_id}"] if cfg.context_id is not None else [])
+    )
     new_names = [pdh.event_name(x) for x in target_cols]
     if len(new_names) == 1:
         new_names = new_names[0]  # because pandas Index only accepts a string for rename.
