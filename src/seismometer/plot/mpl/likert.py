@@ -200,7 +200,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
     ax_count.tick_params(axis="x", labelsize=12)
 
 
-def _wrap_labels(labels, width=12):
+def _wrap_labels(labels, width=15):
     return ["\n".join(textwrap.wrap(label, width)) for label in labels]
 
 
