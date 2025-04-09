@@ -179,7 +179,7 @@ def ordinal_categorical_plot(
     """
     from seismometer.seismogram import Seismogram
 
-    sg = Seismogram
+    sg = Seismogram()
     cohort_dict = cohort_dict or sg.available_cohort_groups
     plot = OrdinalCategoricalPlot(
         metrics,
@@ -260,7 +260,6 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         metric_groups = metric_groups or sg.get_ordinal_categorical_groups(MAX_CATEGORY_SIZE)
         self.model_options_widget = model_options_widget
         self.title = title
-        self.all_cohorts = cohort_dict
         self.include_groups = isinstance(metric_groups, list)
         if not self.include_groups:
             self.metric_group = metric_groups
@@ -280,7 +279,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
             title="Metrics",
         )
 
-        self._cohort_dict = MultiSelectionListWidget(sg.available_cohort_groups, title="Cohorts")
+        self._cohort_dict = MultiSelectionListWidget(cohort_dict or sg.available_cohort_groups, title="Cohorts")
         v_children = [html_title("Plot Options")]
 
         if self.include_groups:
@@ -361,7 +360,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
 
     @property
     def cohort_dict(self):
-        return self._cohort_dict.value or self.all_cohorts
+        return self._cohort_dict.value
 
 
 # endregion

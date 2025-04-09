@@ -545,7 +545,6 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
         sg = Seismogram()
         self.model_options_widget = model_options_widget
         self.title = title
-        self.all_cohort_groups = cohort_dict
 
         # Multiple select dropdowns for targets and scores
         self._target_cols = MultiselectDropdownWidget(

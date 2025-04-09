@@ -1155,7 +1155,7 @@ class TestExploreCategoricalPlots:
 
         expected_plot_code = (
             "seismometer.controls.categorical.ordinal_categorical_plot(['Metric1', 'Metric2'], "
-            + "{'C1': ['C1.1', 'C1.2'], 'C2': ['C2.1', 'C2.2']}, title='Unit Test Title')"
+            + "{}, title='Unit Test Title')"
         )
         assert widget.current_plot_code == expected_plot_code
         widget.update_plot()
@@ -1172,7 +1172,7 @@ class TestExploreCategoricalPlots:
         widget = ExploreCategoricalPlots(title="Unit Test Title")
 
         args, kwargs = widget.generate_plot_args()
-        assert args == (["Metric1", "Metric2"], {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]})
+        assert args == (["Metric1", "Metric2"], {})
         assert kwargs == {"title": "Unit Test Title"}
 
 
@@ -1192,7 +1192,6 @@ class TestCategoricalOptionsWidget:
         assert widget._metric_groups.value == ("Group1",)
         assert widget._metrics.value == ("Metric1", "Metric2")
         assert widget._cohort_dict.value == {}
-        assert widget.all_cohorts == fake_seismo.available_cohort_groups
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_disabled_property(self, mock_seismo):
