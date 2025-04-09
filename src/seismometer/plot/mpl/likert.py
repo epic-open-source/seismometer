@@ -109,7 +109,7 @@ def likert_plot_figure(
             - df_percentages[col]
             - cumulative_data[df.columns[(len(df.columns) - 1) // 2]]
             + middle_adjustment
-            + (i - len(df.columns) // 2) / 2,  # Adding 0.5 percetages spece between categories.
+            + (i - len(df.columns) // 2) / 2,  # Adding 0.5 percentages spece between categories.
             color=colors[i % len(colors)],
             label=col,
         )
@@ -153,6 +153,10 @@ def likert_plot_figure(
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{abs(int(x))}%"))
     ax.tick_params(axis="x", labelsize=12)
     ax.set_title(title)
+    # Prevent cutting x-axis title when there is only one row to show.
+    if len(df) == 1:
+        fig.subplots_adjust(bottom=0.2)
+
     return fig
 
 
