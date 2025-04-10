@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict, deque
 from typing import Optional, Union
 
 import pandas as pd
@@ -57,21 +58,78 @@ class OrdinalCategoricalPlot:
         self.dataframe = cohort_filter.filter(sg.dataframe)
         self.censor_threshold = sg.censor_threshold
 
-        self.values = None
-        self._extract_metric_values()
+        self.values = self._extract_metric_values()
 
     def _extract_metric_values(self):
         """
-        Extracts the unique metric values for the provided metrics (columns in sg.datagframe).
+        Extracts the ordered set of values from all selected metrics.
+
+        For each metric, uses `metric.metric_details.values` if available;
+        otherwise, raises an error — order must be explicitly defined.
+
+        Combines value lists while preserving pairwise order constraints.
+        If conflicting orderings are found, raises a ValueError.
+
+        Raises
+        ------
+        ValueError
+            If any metric is not found in Seismogram.
+        ValueError
+            If any metric column is missing from the filtered dataframe.
+        ValueError
+            If any metric is missing defined values.
+        ValueError
+            If the combined order has cycles or exceeds MAX_CATEGORY_SIZE.
         """
+        from seismometer.seismogram import Seismogram
+
         sg = Seismogram()
-        for metric_col in self.metrics:
-            if metric_col in sg.metrics:
-                metric = sg.metrics[metric_col]
-                if metric.metric_details.values is not None:
-                    self.values = metric.metric_details.values
-                    return
-        self.values = sorted(pd.unique(self.dataframe[self.metrics].values.ravel()))
+        value_lists = []
+
+        for metric in self.metrics:
+            if metric not in sg.metrics:
+                raise ValueError(f"Metric '{metric}' not found in Seismogram.")
+
+            values = sg.metrics[metric].metric_details.values
+            if values is None:
+                raise ValueError(f"Metric '{metric}' must define `metric_details.values` for Likert plots.")
+
+            value_lists.append(list(values))
+
+        # Build ordering graph from pairwise a < b relationships
+        graph = defaultdict(set)
+        in_degree = defaultdict(int)
+        all_items = set()
+
+        for lst in value_lists:
+            all_items.update(lst)
+            for a, b in zip(lst, lst[1:]):
+                if b not in graph[a]:
+                    graph[a].add(b)
+                    in_degree[b] += 1
+                in_degree.setdefault(a, 0)
+
+        # Topological sort
+        queue = deque([item for item in all_items if in_degree[item] == 0])
+        ordered = []
+
+        while queue:
+            node = queue.popleft()
+            ordered.append(node)
+            for neighbor in graph[node]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        if len(ordered) != len(all_items):
+            raise ValueError("Conflicting value orders detected across metrics. Cannot construct master value list.")
+
+        if len(ordered) > MAX_CATEGORY_SIZE:
+            raise ValueError(
+                f"Total number of values ({len(ordered)}) exceeds MAX_CATEGORY_SIZE ({MAX_CATEGORY_SIZE})."
+            )
+
+        return ordered
 
     @classmethod
     def initialize_plot_functions(cls):
