@@ -224,7 +224,7 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
             self.option_widget.metric_col,
             cohort_dict,
         )
-        kwargs = {"title": self.title}
+        kwargs = {"title": self.option_widget.dynamic_title}
         return args, kwargs
 
 
@@ -258,6 +258,7 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
         sg = Seismogram()
         self.model_options_widget = model_options_widget
         self.title = title
+        self.dynamic_title = title
 
         metric_options = metrics or sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE)
         self.metric_display_name_to_source = {sg.metrics[metric].display_name: metric for metric in metric_options}
@@ -307,6 +308,8 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
             self.model_options_widget.disabled = value
 
     def _on_value_changed(self, change=None):
+        title = (self.title or "").strip()
+        self.dynamic_title = f"{self.title}: {self._metric_col.value}" if title else self._metric_col.value
         new_value = {
             "metric_col": self._metric_col.value,
             "cohort_list": self._cohort_list.value,

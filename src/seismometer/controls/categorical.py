@@ -225,7 +225,7 @@ class ExploreCategoricalPlots(ExplorationWidget):
             list(self.option_widget.metrics),
             self.option_widget.cohort_dict,
         )
-        kwargs = {"title": self.title}
+        kwargs = {"title": self.option_widget.title}
         return args, kwargs
 
 
