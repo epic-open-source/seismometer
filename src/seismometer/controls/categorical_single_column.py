@@ -54,8 +54,7 @@ class OrdinalCategoricalSinglePlot:
 
         self.plot_functions = self.initialize_plot_functions()
 
-        self.values = None
-        self._extract_metric_values()
+        self.values = self._extract_metric_values()
 
     def _extract_metric_values(self):
         """
@@ -63,9 +62,16 @@ class OrdinalCategoricalSinglePlot:
         """
         sg = Seismogram()
         if self.metric_col in sg.metrics:
-            self.values = sg.metrics[self.metric_col].metric_details.values
-        self.values = self.values or sorted(self.dataframe[self.metric_col].unique())
-        self.values = [value for value in self.values if not isna(value)]
+            values = sg.metrics[self.metric_col].metric_details.values
+        if values:
+            return values
+        values = sorted(self.dataframe[self.metric_col].unique())
+        values = [value for value in values if not isna(value)]
+        logger.warning(
+            f"Metric values for metric {self.metric_col} are not provided. "
+            + f"Using values from the corresponding dataframe column: {self.values}."
+        )
+        return values
 
     @classmethod
     def initialize_plot_functions(cls):
@@ -108,7 +114,13 @@ class OrdinalCategoricalSinglePlot:
         )
         df = df.pivot(index=self.cohort_col, columns=self.metric_col, values="count").fillna(0)
         df = df.loc[self.cohort_values]
-        df = df[self.values].astype(int)
+
+        missing = [v for v in self.values if v not in df.columns]
+        if missing:
+            df = df.assign(**{col: 0 for col in missing})
+            logger.warning(f"The following metric values are missing: {missing}")
+        available_values = [v for v in self.values if v in df.columns]
+        df = df[available_values].astype(int)
         df = df[df.sum(axis=1) >= self.censor_threshold]
         df = df.iloc[::-1]
         return df
