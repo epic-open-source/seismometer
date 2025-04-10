@@ -110,6 +110,7 @@ class OrdinalCategoricalSinglePlot:
         df = df.loc[self.cohort_values]
         df = df[self.values].astype(int)
         df = df[df.sum(axis=1) >= self.censor_threshold]
+        df = df.iloc[::-1]
         return df
 
     def generate_plot(self):
@@ -258,7 +259,9 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
         self.model_options_widget = model_options_widget
         self.title = title
 
-        metric_options = metrics or list(sg.metrics.keys())
+        metric_options = metrics or sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE)
+        self.metric_display_name_to_source = {sg.metrics[metric].display_name: metric for metric in metric_options}
+        metric_options = list(self.metric_display_name_to_source.keys())
         self._metric_col = Dropdown(
             options=metric_options,
             value=metric_options[0],
@@ -314,7 +317,7 @@ class CategoricalFeedbackSingleColumnOptionsWidget(Box, ValueWidget, traitlets.H
 
     @property
     def metric_col(self):
-        return self._metric_col.value
+        return self.metric_display_name_to_source[self._metric_col.value]
 
     @property
     def cohort_list(self):

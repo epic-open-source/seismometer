@@ -265,12 +265,13 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
             self.metric_group = metric_groups
             metric_groups = [metric_groups]
 
-        self.all_metrics = set(
-            metric
+        self.metric_display_name_to_source = {
+            sg.metrics[metric].display_name: metric
             for group in metric_groups
             for metric in sg.metric_groups[group]
             if metric in sg.get_ordinal_categorical_metrics(MAX_CATEGORY_SIZE)
-        )
+        }
+        self.all_metrics = set(self.metric_display_name_to_source.keys())
         all_metrics_list = sorted(list(self.all_metrics))
 
         self._metrics = MultiselectDropdownWidget(
@@ -334,7 +335,11 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
         new_value = {}
         if self.include_groups:
             metric_groups = self._metric_groups.value
-            metrics_set = set(metric for metric_group in metric_groups for metric in sg.metric_groups[metric_group])
+            metrics_set = set(
+                sg.metrics[metric].display_name
+                for metric_group in metric_groups
+                for metric in sg.metric_groups[metric_group]
+            )
             metrics_set = metrics_set & self.all_metrics
             self._metrics.options = sorted(list(metrics_set))
             self._metrics.value = sorted(list(set(self._metrics.value) & metrics_set))
@@ -356,7 +361,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
 
     @property
     def metrics(self):
-        return self._metrics.value
+        return (self.metric_display_name_to_source[metric_name] for metric_name in self._metrics.value)
 
     @property
     def cohort_dict(self):
