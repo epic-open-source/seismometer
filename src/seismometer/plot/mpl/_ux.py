@@ -295,3 +295,23 @@ def get_balanced_colors(length: int = 5):
     selected_colors += colors[len(colors) - length // 2 :]  # noqa: E203
 
     return selected_colors
+
+
+def get_contrasting_text_color(hex_color: str) -> str:
+    """
+    Determines whether white or dark text provides better contrast for a given background color.
+
+    Parameters
+    ----------
+    hex_color : str
+        The hex code of the background color (e.g., "#ff0000").
+
+    Returns
+    -------
+    str
+        Hex code for the text color: either "#FFFFFF" for white or "#262e34" for dark.
+    """
+    hex_color = hex_color.lstrip("#")
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (0, 2, 4))  # noqa: E203
+    brightness = (r * 299 + g * 587 + b * 114) / 1000
+    return "#262e34" if brightness > 128 else "#FFFFFF"

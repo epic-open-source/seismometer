@@ -7,7 +7,7 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from seismometer.plot.mpl.decorators import render_as_svg
 
-from ._ux import get_balanced_colors
+from ._ux import get_balanced_colors, get_contrasting_text_color
 
 
 @render_as_svg
@@ -78,6 +78,7 @@ def likert_plot_figure(
         The generated Likert plot figure.
     """
     colors = get_balanced_colors(length=len(df.columns))
+    text_colors = [get_contrasting_text_color(color) for color in colors]
     row_sums = df.sum(axis=1)
     matplotlib.use("Agg")
     if len(df) == 0:
@@ -125,7 +126,7 @@ def likert_plot_figure(
                     ha="center",
                     va="center",
                     fontsize=10,
-                    backgroundcolor="white",
+                    color=text_colors[i],
                     fontweight="light",
                 )
             elif width >= 5:
@@ -136,7 +137,7 @@ def likert_plot_figure(
                     ha="center",
                     va="center",
                     fontsize=10,
-                    backgroundcolor="white",
+                    color=text_colors[i],
                     fontweight="light",
                 )
     ax.set_yticks(range(len(df.index)))
@@ -186,8 +187,7 @@ def _plot_counts(df: pd.DataFrame, ax_count: matplotlib.axes.Axes, border: int =
             ha="left",
             va="center",
             fontsize=12,
-            color="black",
-            backgroundcolor="white",
+            color="#262e34",
             fontweight="light",
         )
     ax_count.set_yticks(range(len(df.index)))
