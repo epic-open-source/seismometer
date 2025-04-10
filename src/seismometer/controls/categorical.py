@@ -113,8 +113,9 @@ class OrdinalCategoricalPlot:
         data = {"Feedback Metrics": [sg.metrics[metric].display_name for metric in self.metrics]}
 
         # Count occurrences of each unique value in each metric column
+        col_counts = {col: self.dataframe[col].value_counts() for col in self.metrics}
         for value in self.values:
-            data[value] = [self.dataframe[col].value_counts().get(value, 0) for col in self.metrics]
+            data[value] = [col_counts[col].get(value, 0) for col in self.metrics]
 
         # Create a new DataFrame from the dictionary and set "Feedback Metrics" as index
         counts_df = pd.DataFrame(data)
