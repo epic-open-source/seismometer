@@ -113,7 +113,7 @@ class TestOrdinalCategoricalSinglePlot:
         counts_df = plot._count_cohort_group_values()
 
         # Expected DataFrame
-        expected_df = pd.DataFrame({"disagree": [1, 0], "neutral": [0, 1], "agree": [1, 0]}, index=["C1", "C2"])
+        expected_df = pd.DataFrame({"disagree": [0, 1], "neutral": [1, 0], "agree": [0, 1]}, index=["C2", "C1"])
 
         # Set the index name to match counts_df
         expected_df.columns.name = "Metric1"

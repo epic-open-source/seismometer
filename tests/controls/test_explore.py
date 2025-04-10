@@ -1148,6 +1148,10 @@ class TestExploreCategoricalPlots:
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         widget = ExploreCategoricalPlots(title="Unit Test Title")
 
@@ -1168,6 +1172,10 @@ class TestExploreCategoricalPlots:
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         widget = ExploreCategoricalPlots(title="Unit Test Title")
 
@@ -1184,13 +1192,17 @@ class TestCategoricalOptionsWidget:
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         widget = CategoricalOptionsWidget(
             metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups, title="Unit Test Title"
         )
 
         assert widget._metric_groups.value == ("Group1",)
-        assert widget._metrics.value == ("Metric1", "Metric2")
+        assert widget._metrics.value == ("Display 1", "Display 2")
         assert widget._cohort_dict.value == {}
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
@@ -1200,6 +1212,10 @@ class TestCategoricalOptionsWidget:
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         widget = CategoricalOptionsWidget(metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups)
         widget.disabled = True
@@ -1214,13 +1230,17 @@ class TestCategoricalOptionsWidget:
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         widget = CategoricalOptionsWidget(metric_groups=["Group1"], cohort_dict=fake_seismo.available_cohort_groups)
         widget._metric_groups.value = ["Group1"]
-        widget._metrics.value = ["Metric1"]
+        widget._metrics.value = ["Display 1"]
         widget._cohort_dict.value = {"C1": ["C1.1"]}
 
-        expected_value = {"metric_groups": ("Group1",), "metrics": ("Metric1",), "cohort_dict": {"C1": ["C1.1"]}}
+        expected_value = {"metric_groups": ("Group1",), "metrics": ("Display 1",), "cohort_dict": {"C1": ["C1.1"]}}
         assert widget.value == expected_value
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
@@ -1230,6 +1250,10 @@ class TestCategoricalOptionsWidget:
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         model_options_widget = ipywidgets.Dropdown(
             options=["Val1", "Val2"],
@@ -1252,6 +1276,10 @@ class TestExploreSingleCategoricalPlots:
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         # Mock the initialization parameters
         fake_seismo.return_value.config = Mock()
@@ -1263,7 +1291,7 @@ class TestExploreSingleCategoricalPlots:
 
         expected_plot_code = (
             "seismometer.controls.categorical_single_column.ordinal_categorical_single_col_plot"
-            + "('Metric1', {'Age': ('20-30', '30-40')}, title='Unit Test Title')"
+            + "('Metric1', {'Age': ('20-30', '30-40')}, title='Unit Test Title: Display 1')"
         )
         assert widget.current_plot_code == expected_plot_code
         widget.update_plot()
@@ -1276,6 +1304,10 @@ class TestExploreSingleCategoricalPlots:
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
         fake_seismo.get_ordinal_categorical_groups = lambda x: ["Group1"]
         fake_seismo.get_ordinal_categorical_metrics = lambda x: ["Metric1", "Metric2"]
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
 
         # Mock the initialization parameters
         fake_seismo.return_value.config = Mock()
@@ -1285,14 +1317,17 @@ class TestExploreSingleCategoricalPlots:
 
         args, kwargs = widget.generate_plot_args()
         assert args == ("Metric1", {"Age": ("20-30", "30-40")})
-        assert kwargs == {"title": "Unit Test Title"}
+        assert kwargs == {"title": "Unit Test Title: Display 1"}
 
 
 class TestCategoricalFeedbackSingleColumnOptionsWidget:
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_init(self, mock_seismo):
         fake_seismo = mock_seismo()
-        fake_seismo.metrics = {"Metric1": "Description1", "Metric2": "Description2"}
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
 
         # Mock the initialization parameters
@@ -1303,14 +1338,18 @@ class TestCategoricalFeedbackSingleColumnOptionsWidget:
             metrics=["Metric1", "Metric2"], cohort_groups=fake_seismo.available_cohort_groups, title="Unit Test Title"
         )
 
-        assert widget._metric_col.value == "Metric1"
+        assert widget._metric_col.value == "Display 1"
         assert widget._cohort_list.value == ("Age", ("20-30", "30-40"))
         assert widget.title == "Unit Test Title"
+        assert widget.dynamic_title == "Unit Test Title: Display 1"
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_disabled_property(self, mock_seismo):
         fake_seismo = mock_seismo()
-        fake_seismo.metrics = {"Metric1": "Description1", "Metric2": "Description2"}
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
 
         # Mock the initialization parameters
@@ -1327,7 +1366,10 @@ class TestCategoricalFeedbackSingleColumnOptionsWidget:
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_on_value_changed(self, mock_seismo):
         fake_seismo = mock_seismo()
-        fake_seismo.metrics = {"Metric1": "Description1", "Metric2": "Description2"}
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
 
         # Mock the initialization parameters
@@ -1337,16 +1379,20 @@ class TestCategoricalFeedbackSingleColumnOptionsWidget:
         widget = CategoricalFeedbackSingleColumnOptionsWidget(
             metrics=["Metric1", "Metric2"], cohort_groups=fake_seismo.available_cohort_groups
         )
-        widget._metric_col.value = "Metric2"
+        widget._metric_col.value = "Display 2"
         widget._cohort_list.value = ("Age", ("20-30",))
 
-        expected_value = {"metric_col": "Metric2", "cohort_list": ("Age", ("20-30",))}
+        expected_value = {"metric_col": "Display 2", "cohort_list": ("Age", ("20-30",))}
         assert widget.value == expected_value
+        assert widget.metric_col == "Metric2"
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_model_options_widget(self, mock_seismo):
         fake_seismo = mock_seismo()
-        fake_seismo.metrics = {"Metric1": "Description1", "Metric2": "Description2"}
+        fake_seismo.metrics = {
+            "Metric1": Mock(display_name="Display 1"),
+            "Metric2": Mock(display_name="Display 2"),
+        }
         fake_seismo.available_cohort_groups = {"Age": ["20-30", "30-40"]}
 
         # Mock the initialization parameters
