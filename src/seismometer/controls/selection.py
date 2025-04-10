@@ -385,6 +385,32 @@ class MultiselectDropdownWidget(ValueWidget, VBox):
         self.selection_options.children = [self.buttons[val] for val in self.value]
         self.dropdown.value = -2
 
+    def _update_options(self, new_options: list[str]):
+        self.options = tuple(new_options)
+        self.buttons = {
+            option: Button(
+                description=str(option),
+                tooltip=f"Remove {option}",
+                indent=True,
+                button_style="primary",
+                layout=WIDE_BUTTON_LAYOUT,
+            )
+            for option in self.options
+        }
+
+        # Update dropdown entries
+        default_option = (self.title or "Add...", -2)
+        add_all_option = ("Add all", -1)
+        self.dropdown.options = [default_option, add_all_option] + [(str(v), i) for i, v in enumerate(self.options)]
+
+        # Re-bind events
+        for button in self.buttons.values():
+            button.on_click(self._remove_button)
+
+        # Reset current selection
+        valid_values = [v for v in self.value if v in self.options]
+        self.value = tuple(valid_values)
+
     @property
     def disabled(self) -> bool:
         return self._disabled

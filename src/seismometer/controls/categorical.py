@@ -341,7 +341,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
                 for metric in sg.metric_groups[metric_group]
             )
             metrics_set = metrics_set & self.all_metrics
-            self._metrics.options = sorted(list(metrics_set))
+            self._metrics._update_options(sorted(metrics_set))
             self._metrics.value = sorted(list(set(self._metrics.value) & metrics_set))
         self._update_disabled_state()
 
