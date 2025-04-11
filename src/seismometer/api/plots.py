@@ -284,7 +284,7 @@ def _plot_leadtime_enc(
         summary_data[cohort_mask & threshold_mask],
         entity_keys,
         score=score,
-        ref_event=target_zero,
+        ref_time=target_zero,
         aggregation_method="first",
     )
     if summary_data is not None and len(summary_data) > censor_threshold:
@@ -411,6 +411,7 @@ def _plot_cohort_evaluation(
         entity_keys,
         score_col=output,
         ref_time=ref_time,
+        ref_event=target,
         aggregation_method=aggregation_method,
         per_context_id=per_context_id,
     )
@@ -489,6 +490,8 @@ def plot_model_evaluation(
     data = cohort_filter.filter(sg.dataframe)
     target_event = pdh.event_value(target_column)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
+    aggregation_method = sg.event_aggregation_method(sg.target)
+    ref_time = sg.predict_time
     return _model_evaluation(
         target_data,
         sg.entity_keys,
@@ -498,8 +501,8 @@ def plot_model_evaluation(
         thresholds,
         sg.censor_threshold,
         per_context,
-        sg.event_aggregation_method(sg.target),
-        sg.predict_time,
+        aggregation_method,
+        ref_time,
     )
 
 
@@ -514,7 +517,7 @@ def _model_evaluation(
     censor_threshold: int = 10,
     per_context_id: bool = False,
     aggregation_method: str = "max",
-    ref_time: str = None,
+    ref_time: Optional[str] = None,
 ) -> HTML:
     """
     plots common model evaluation metrics
@@ -540,7 +543,7 @@ def _model_evaluation(
     aggregation_method : str, optional
         method to reduce multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
-    ref_time : str, optional
+    ref_time : Optional[str], optional
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
 
     Returns
@@ -553,6 +556,7 @@ def _model_evaluation(
         entity_keys,
         score_col=score_col,
         ref_time=ref_time,
+        ref_event=target_event,
         aggregation_method=aggregation_method,
         per_context_id=per_context_id,
     )
@@ -859,9 +863,9 @@ def plot_model_score_comparison(
     data = []
     for score in scores:
         if per_context:
-            one_score_data = pdh.event_score(dataframe, sg.entity_keys, score=score, aggregation_method="max")[
-                [score, target_event]
-            ]
+            one_score_data = pdh.event_score(
+                dataframe, sg.entity_keys, score=score, ref_event=target_event, aggregation_method="max"
+            )[[score, target_event]]
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["ScoreName"] = score
@@ -922,9 +926,9 @@ def plot_model_target_comparison(
         target_event = pdh.event_value(target)
         dataframe = FilterRule.isin(target_event, (0, 1)).filter(source_data)
         if per_context:
-            one_score_data = pdh.event_score(dataframe, sg.entity_keys, score=score, aggregation_method="max")[
-                [score, target_event]
-            ]
+            one_score_data = pdh.event_score(
+                dataframe, sg.entity_keys, score=score, ref_event=target_event, aggregation_method="max"
+            )[[score, target_event]]
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["TargetName"] = target
@@ -1056,6 +1060,7 @@ def binary_classifier_metric_evaluation(
         entity_keys,
         score_col=score_col,
         ref_time=ref_time,
+        ref_event=target,
         aggregation_method=aggregation_method,
         per_context_id=per_context_id,
     )

@@ -137,19 +137,23 @@ def merge_windowed_event(
         )
 
     # merge event specified by merge_strategy for each prediction
+    event_ref = event_time_col if merge_strategy in ["forward", "nearest"] else r_ref
     predictions = _merge_with_strategy(
         predictions,
         one_event,
         pks,
         pred_ref=predtime_col,
-        event_ref=r_ref,
+        event_ref=event_ref,
         event_display=event_label,
         merge_strategy=merge_strategy,
     )
 
+    # Note that filtering happens after merging.
     if window_hrs is not None:  # Clear out events outside window
-        max_lookback = pd.Timedelta(window_hrs, unit="hr") + min_offset  # keep window the specified size
-        filter_map = predictions[predtime_col] < (predictions[r_ref] - max_lookback)
+        max_lookback = pd.Timedelta(window_hrs, unit="hr")  # r_ref has already been moved by min_offset.
+        filter_map = (predictions[predtime_col] < (predictions[r_ref] - max_lookback)) | (
+            predictions[predtime_col] > (predictions[r_ref])
+        )
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
 
     predictions = post_process_event(
@@ -188,7 +192,7 @@ def post_process_event(
     """
     Infers and casts events.
 
-    Default assumptions are for binary classifications (cast as float to maximize compatibility with analyes).
+    Default assumptions are for binary classifications (cast as float to maximize compatibility with analyses).
     A row that does not have any documentation of an event defaults to a negative (0) label - impute_val_no_time.
     A row that has a timestamp but no event value defaults to a positive (1) label - impute_val_with_time.
 
@@ -215,7 +219,7 @@ def post_process_event(
     if label_col not in dataframe.columns or time_col not in dataframe.columns:
         return dataframe
 
-    # use pandas for compatibility of imutations -- handle Nones
+    # use pandas for compatibility of imputations -- handle Nones
     impute_val = pd.Series(
         [impute_val_no_time or 0, impute_val_with_time or 1],
         dtype=dataframe[label_col].dtype,
@@ -406,10 +410,135 @@ def _merge_with_strategy(
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
 
+def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+    """
+    Aggregates the DataFrame by selecting the maximum score value.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to aggregate.
+    pks : list[str]
+        A list of identifying keys on which to aggregate.
+    score : str
+        The column name containing the score value.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
+
+    Returns
+    -------
+    pd.DataFrame
+        The aggregated DataFrame.
+    """
+    if ref_event is None:
+        raise ValueError("With aggregation_method 'max', ref_event is required.")
+
+    event_val = event_value(ref_event)
+    ref_score = _resolve_score_col(df, score)
+    df = df.sort_values(by=[event_val, ref_score], ascending=False)
+    return df.drop_duplicates(subset=pks)
+
+
+def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+    """
+    Aggregates the DataFrame by selecting the minimum score value.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to aggregate.
+    pks : list[str]
+        A list of identifying keys on which to aggregate.
+    score : str
+        The column name containing the score value.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
+
+    Returns
+    -------
+    pd.DataFrame
+        The aggregated DataFrame.
+    """
+    if ref_event is None:
+        raise ValueError("With aggregation_method 'min', ref_event is required.")
+
+    event_val = event_value(ref_event)
+    ref_score = _resolve_score_col(df, score)
+    df = df.sort_values(by=[event_val, ref_score], ascending=[False, True])
+    return df.drop_duplicates(subset=pks)
+
+
+def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+    """
+    Aggregates the DataFrame by selecting the first occurrence based on event time.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to aggregate.
+    pks : list[str]
+        A list of identifying keys on which to aggregate.
+    score : str
+        The column name containing the score value.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
+
+    Returns
+    -------
+    pd.DataFrame
+        The aggregated DataFrame.
+    """
+    if ref_time is None:
+        raise ValueError("With aggregation_method 'first', ref_time is required.")
+
+    reference_time = _resolve_time_col(df, ref_time)
+    df = df[df[reference_time].notna()]
+    df = df.sort_values(by=reference_time)
+    return df.drop_duplicates(subset=pks)
+
+
+def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+    """
+    Aggregates the DataFrame by selecting the last occurrence based on event time.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to aggregate.
+    pks : list[str]
+        A list of identifying keys on which to aggregate.
+    score : str
+        The column name containing the score value.
+    ref_time : Optional[str], optional
+        The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
+
+    Returns
+    -------
+    pd.DataFrame
+        The aggregated DataFrame.
+    """
+    if ref_time is None:
+        raise ValueError("With aggregation_method 'last', ref_time is required.")
+
+    reference_time = _resolve_time_col(df, ref_time)
+    df = df[df[reference_time].notna()]
+    df = df.sort_values(by=reference_time, ascending=False)
+    return df.drop_duplicates(subset=pks)
+
+
 def event_score(
     merged_frame: pd.DataFrame,
     pks: list[str],
     score: str,
+    ref_time: Optional[str] = None,
     ref_event: Optional[str] = None,
     aggregation_method: str = "max",
 ) -> pd.DataFrame:
@@ -426,8 +555,17 @@ def event_score(
         A list of identifying keys on which to aggregate, such as Id.
     score : str
         The column name containing the score value.
-    ref_event : Optional[str], optional
+    ref_time : Optional[str], optional
         The column name containing the time to consider, by default None.
+        Required when aggregation_method requires a time reference (e.g., 'first', 'last').
+        Note that we drop NaT rows first and consequently we pick the row satisfying the
+        aggregation_method that also corresponds to a positive case for the associated event.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
+        Required when aggregation_method requires an event reference to prioritize positive cases (e.g., 'max', 'min')
+        Note that we pick the row satisfying the aggregation_method among scores associated with a positive case of
+        ref_event if there are any positive cases. In case there are no positive case, we just pick the row satisfying
+        the aggregation_method.
     aggregation_method : str, optional
         A string describing the method to select a value, by default 'max'.
 
@@ -436,51 +574,24 @@ def event_score(
     pd.DataFrame
         The reduced dataframe with one row per combination of pks.
     """
-    logger.debug(f"Combining scores using {aggregation_method} for {score} on {ref_event}")
-    # groupby.agg works on columns individually - this wants entire row where a condition is met
-    # start with first/last/max/min
+    logger.debug(
+        f"Combining scores using {aggregation_method} for {score} on ref_time: {ref_time} "
+        + f"and ref_event: {ref_event}"
+    )
+    pks = [c for c in pks if c in merged_frame.columns]
 
-    ref_score = _resolve_score_col(merged_frame, score)
-    if aggregation_method == "max":
-        ref_col = ref_score
+    aggregation_methods = {
+        "max": max_aggregation,
+        "min": min_aggregation,
+        "first": first_aggregation,
+        "last": last_aggregation,
+    }
 
-        def apply_fn(gf):
-            return gf.idxmax()
+    if aggregation_method not in aggregation_methods:
+        raise ValueError(f"Unknown aggregation method: {aggregation_method}")
 
-    elif aggregation_method == "min":
-        ref_col = ref_score
-
-        def apply_fn(gf):
-            return gf.idxmin()
-
-    # merged frame has time columns only for events in appropriate time window,
-    # implicitly reduces to positive label (need method to re-add negative samples)
-    elif aggregation_method == "last":
-
-        def apply_fn(gf):
-            return gf.idxmax()
-
-        ref_col = _resolve_time_col(merged_frame, ref_event)
-    elif aggregation_method == "first":
-
-        def apply_fn(gf):
-            return gf.idxmin()
-
-        ref_col = _resolve_time_col(merged_frame, ref_event)
-
-    df = merged_frame
-    if ref_event is not None:
-        event_time = _resolve_time_col(merged_frame, ref_event)
-        df = merged_frame[merged_frame[event_time].notna()]
-
-    if len(df.index) == 0:
-        return
-
-    pks = [c for c in pks if c in df.columns]
-    ix = df.groupby(pks)[ref_col].apply(apply_fn).values
-    ix = ix[~np.isnan(ix)]  # dropna
-
-    return merged_frame.loc[ix]
+    df = aggregation_methods[aggregation_method](merged_frame, pks, score, ref_time, ref_event)
+    return df.loc[~np.isnan(df.index)]
 
 
 def get_model_scores(
@@ -488,6 +599,7 @@ def get_model_scores(
     entity_keys: list[str],
     score_col: str,
     ref_time: Optional[str],
+    ref_event: Optional[str],
     aggregation_method: str = "max",
     per_context_id: bool = False,
 ) -> pd.DataFrame:
@@ -506,6 +618,8 @@ def get_model_scores(
         The column name containing the score value.
     ref_time : Optional[str], optional
         The column name containing the time to consider, by default None.
+    ref_event : Optional[str], optional
+        The column name containing the event to consider, by default None.
     aggregation_method : str, optional
         A string describing the method to select a value, by default 'max'.
     per_context_id : bool, optional
@@ -518,7 +632,12 @@ def get_model_scores(
     """
     if per_context_id:
         return event_score(
-            dataframe, entity_keys, score=score_col, ref_event=ref_time, aggregation_method=aggregation_method
+            dataframe,
+            entity_keys,
+            score=score_col,
+            ref_time=ref_time,
+            ref_event=ref_event,
+            aggregation_method=aggregation_method,
         )
     return dataframe
 
