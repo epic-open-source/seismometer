@@ -410,6 +410,7 @@ class MultiselectDropdownWidget(ValueWidget, VBox):
         # Reset current selection
         valid_values = [v for v in self.value if v in self.options]
         self.value = tuple(valid_values)
+        self._on_value_change({"new": self.value})
 
     @property
     def disabled(self) -> bool:
