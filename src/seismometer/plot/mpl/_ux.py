@@ -6,6 +6,8 @@ import matplotlib as mpl
 from cycler import cycler
 from matplotlib.colors import LinearSegmentedColormap
 
+MAX_CATEGORY_SIZE: int = 11
+
 # Map of non-semantic colors
 NonSemanticColors = namedtuple(
     "NonSemanticColors",
@@ -51,7 +53,19 @@ SemanticColors = namedtuple(
 AlertColors = namedtuple("AlertColors", ["Alarm", "Important", "Warning", "Positive", "PositiveLight", "Normal"])
 FeedbackColors = namedtuple(
     "FeedbackColors",
-    ["VeryNegative", "Negative", "SomewhatNegative", "Neutral", "SomewhatPositive", "Positive", "VeryPositive"],
+    [
+        "ExtremelyNegative",
+        "VeryNegative",
+        "Negative",
+        "SomewhatNegative",
+        "MildlyNegative",
+        "Neutral",
+        "MildlyPositive",
+        "SomewhatPositive",
+        "Positive",
+        "VeryPositive",
+        "ExtremelyPositive",
+    ],
 )
 
 OpacityLevels = namedtuple("OpacityLevels", ["Transparent", "Low", "Medium", "High", "Opaque"])
@@ -67,13 +81,17 @@ alert_colors = AlertColors(
 )
 
 feedback_colors = FeedbackColors(
-    "#c70000",  # Red - very negative
+    "#c70000",  # Red - extremely negative
+    "#e84000",  # Dark Orange - very negative
     "#ff6d00",  # Orange - negative
-    "#ffba00",  # Yellow - somewhat negative
+    "#ff9a00",  # Light Orange - somewhat negative
+    "#ffba00",  # Yellow - mildly negative
     "#0085f2",  # Blue - neutral
-    "#caeec8",  # Light Green - somewhat positive
-    "#90da8b",  # Green - positive
-    "#19c295",  # Mediterranean - very positive
+    "#90da8b",  # Light Green - mildly positive
+    "#69c300",  # Lime - somewhat positive
+    "#4ea84e",  # Green - positive
+    "#229d00",  # Dark Green - very positive
+    "#007d00",  # Deep Green - extremely positive
 )
 
 # Slight variation exists for line, area, and text
@@ -276,25 +294,25 @@ def get_balanced_colors(length: int = 5):
     Parameters
     ----------
     length : int
-        Desired length of the output subset (must be <= 7), by default 5.
+        Desired length of the output subset (must be <= MAX_CATEGORY_SIZE), by default 5.
 
     Returns
     -------
     list
         A balanced subset of colors.
     """
-    if not 1 <= length <= 7:
-        raise ValueError("length must be between a positive integer number and <= 7.")
+    if not 1 <= length <= MAX_CATEGORY_SIZE:
+        raise ValueError(f"length must be between a positive integer number and <= {MAX_CATEGORY_SIZE}.")
 
     colors = list(feedback_colors)
-    middle_index = len(colors) // 2
+    priority = [0, 2, 4, 1, 3]
+    num_pairs = length // 2
+    neg_indices = priority[:num_pairs]
+    pos_indices = [MAX_CATEGORY_SIZE - 1 - i for i in neg_indices]
 
-    selected_colors = colors[: length // 2]
-    if length % 2 == 1:
-        selected_colors.append(colors[middle_index])
-    selected_colors += colors[len(colors) - length // 2 :]  # noqa: E203
+    indices = neg_indices + [MAX_CATEGORY_SIZE // 2] + pos_indices if length % 2 == 1 else neg_indices + pos_indices
 
-    return selected_colors
+    return [colors[i] for i in sorted(indices)]
 
 
 def get_contrasting_text_color(hex_color: str) -> str:

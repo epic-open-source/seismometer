@@ -11,10 +11,9 @@ from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from seismometer.html import template
+from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
-
-from .categorical import MAX_CATEGORY_SIZE
 
 logger = logging.getLogger("seismometer")
 

@@ -14,12 +14,12 @@ from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelec
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
+from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 
-MAX_CATEGORY_SIZE: int = 7
 """ The maximum number of categories allowed in a categorical column. """
 
 
