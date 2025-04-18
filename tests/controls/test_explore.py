@@ -69,7 +69,7 @@ class TestExplorationBaseClass:
         widget = undertest.ExplorationWidget("ExploreTest", option_widget, plot_function)
 
         plot_function.assert_not_called()
-        assert "Subclasses must implement this method" in widget.center.outputs[0]["data"]["text/plain"]
+        assert "Subclasses must implement this method" in widget._try_generate_plot().value
 
     @pytest.mark.parametrize(
         "plot_module,plot_code",
@@ -93,10 +93,10 @@ class TestExplorationBaseClass:
                 return [self.option_widget.value], {}
 
         widget = ExploreFake()
-        assert widget.center.outputs[0]["data"]["text/plain"] == "'some result'"
         plot_function.assert_called_once_with(False)
         assert widget.current_plot_code == plot_code
         assert widget.show_code is False
+        assert widget._try_generate_plot() == "some result"
 
     def test_kwargs_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
@@ -112,10 +112,10 @@ class TestExplorationBaseClass:
                 return [], {"checkbox": self.option_widget.value}
 
         widget = ExploreFake()
-        assert widget.center.outputs[0]["data"]["text/plain"] == "'some result'"
         plot_function.assert_called_once_with(checkbox=False)
         assert widget.current_plot_code == "test_explore.plot_something(checkbox=False)"
         assert widget.show_code is False
+        assert widget._try_generate_plot() == "some result"
 
     def test_args_kwargs_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
@@ -131,10 +131,10 @@ class TestExplorationBaseClass:
                 return ["test"], {"checkbox": self.option_widget.value}
 
         widget = ExploreFake()
-        assert widget.center.outputs[0]["data"]["text/plain"] == "'some result'"
         plot_function.assert_called_once_with("test", checkbox=False)
         assert widget.current_plot_code == "test_explore.plot_something('test', checkbox=False)"
         assert widget.show_code is False
+        assert widget._try_generate_plot() == "some result"
 
     def test_exception_plot_code_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
@@ -150,8 +150,9 @@ class TestExplorationBaseClass:
                 return ["test"], {"checkbox": self.option_widget.value}
 
         widget = ExploreFake()
-        assert "Traceback" in widget.center.outputs[0]["data"]["text/plain"]
-        assert "Test Exception" in widget.center.outputs[0]["data"]["text/plain"]
+        plot = widget._try_generate_plot()
+        assert "Traceback" in plot.value
+        assert "Test Exception" in plot.value
 
     def test_no_initial_plot_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
@@ -171,6 +172,7 @@ class TestExplorationBaseClass:
         plot_function.assert_not_called()
         assert widget.current_plot_code == ExploreFake.NO_CODE_STRING
         assert widget.show_code is False
+        widget._try_generate_plot() == ""
 
     @pytest.mark.parametrize("show_code", [True, False])
     def test_toggle_code_callback(self, show_code, capsys):
