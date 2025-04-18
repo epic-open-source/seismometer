@@ -86,13 +86,18 @@ def likert_plot_figure(
     fig_height = len(df) * 1.5 + 1
     if (row_sums != row_sums.iloc[0]).any():
         fig, (ax, ax_count) = plt.subplots(
-            ncols=2, figsize=(21, fig_height), gridspec_kw={"width_ratios": [2, 1], "wspace": 0.5}
+            ncols=2,
+            figsize=(21, fig_height),
+            gridspec_kw={"width_ratios": [2, 1], "wspace": 0.05},
+            constrained_layout=True,
         )
         _plot_counts(df, ax_count)
         legend_ratio = 1.2
+        borderaxespad = 0
     else:
-        fig, ax = plt.subplots(figsize=(14, fig_height))
+        fig, ax = plt.subplots(figsize=(14, fig_height), constrained_layout=True)
         legend_ratio = 1.1
+        borderaxespad = -5
 
     df_percentages = df.div(row_sums, axis=0) * 100
     df_percentages.fillna(0, inplace=True)
@@ -144,7 +149,7 @@ def likert_plot_figure(
     ax.set_yticklabels(_wrap_labels(df.index), fontsize=12)
     ax.set_ylim(-0.5, len(df.index) - 0.5)
     # Add legend
-    ax.legend(loc="upper right", bbox_to_anchor=(legend_ratio, 1))
+    ax.legend(loc="upper right", bbox_to_anchor=(legend_ratio, 1), borderaxespad=borderaxespad)
     max_left = abs(df_percentages[first_half_columns].sum(axis=1) - middle_adjustment).max()
     max_right = abs(df_percentages[second_half_columns].sum(axis=1) - middle_adjustment).max()
     ax.set_xlim(-max_left - border, max_right + border)
@@ -154,9 +159,6 @@ def likert_plot_figure(
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{abs(int(x))}%"))
     ax.tick_params(axis="x", labelsize=12)
     ax.set_title(title)
-    # Prevent cutting x-axis title when there is only one row to show.
-    if len(df) == 1:
-        fig.subplots_adjust(bottom=0.2)
 
     return fig
 
