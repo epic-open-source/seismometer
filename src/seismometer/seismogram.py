@@ -1,11 +1,13 @@
 import json
 import logging
+from functools import lru_cache
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
+from seismometer.configuration.model import Metric
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -42,7 +44,7 @@ class Seismogram(object, metaclass=Singleton):
     predict_time: str
     """ The column name for evaluation timestamp. """
     output_list: list[str]
-    """ The list of columns representing model outputs."""
+    """ The list of columns representing model outputs. """
 
     def __init__(
         self,
@@ -72,6 +74,9 @@ class Seismogram(object, metaclass=Singleton):
 
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
+        self.metrics: dict[str, Metric] = {}
+        self.metric_types: dict[str, list[str]] = {}
+        self.metric_groups: dict[str, list[str]] = {}
 
         self.copy_config_metadata()
 
@@ -343,6 +348,9 @@ class Seismogram(object, metaclass=Singleton):
         self.output_list = self.config.output_list
         self.target_event = self.config.target
         self._cohorts = self.config.cohorts
+        self.metrics = self.config.metrics
+        self.metric_groups = self.config.metric_groups
+        self.metric_types = self.config.metric_types
 
     def _load_metadata(self):
         """
@@ -407,6 +415,28 @@ class Seismogram(object, metaclass=Singleton):
             pdh.event_value(target_col)
             for target_col in self.target_cols
             if self._is_binary_array(self.dataframe[[pdh.event_value(target_col)]])
+        ]
+
+    @lru_cache(maxsize=None)
+    def get_ordinal_categorical_metrics(self, max_cat_size):
+        return [metric for metric in self.metrics if self._is_ordinal_categorical_metric(metric, max_cat_size)]
+
+    def _is_ordinal_categorical_metric(self, metric, max_cat_size):
+        if self.metrics[metric].type != "ordinal/categorical":
+            return False
+        limit_is_respected = self.dataframe[metric].nunique() <= max_cat_size
+        if not limit_is_respected:
+            logger.warning(
+                f"Dropping the ordinal/categorical metric {metric}, as it has more than {max_cat_size} categories."
+            )
+        return limit_is_respected
+
+    @lru_cache(maxsize=None)
+    def get_ordinal_categorical_groups(self, max_cat_size):
+        return [
+            group
+            for group in self.metric_groups
+            if any(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
         ]
 
     # endregion

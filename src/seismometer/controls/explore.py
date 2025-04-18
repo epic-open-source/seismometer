@@ -911,12 +911,9 @@ class ExplorationWidget(VBox):
     def update_plot(self, initial: bool = False):
         if not initial:
             self.center.clear_output()
-            with self.center:
-                plot = self._try_generate_plot()
-                display(plot)
-        else:
+        with self.center:
             plot = self._try_generate_plot()
-            self.center.append_display_data(plot)
+            display(plot)
         self.update_plot_widget.disabled = True
 
     def _try_generate_plot(self) -> Any:

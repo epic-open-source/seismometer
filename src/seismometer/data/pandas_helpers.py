@@ -209,7 +209,7 @@ def post_process_event(
     impute_val_with_time : Optional[Number|str], optional
         The value to impute for the label if timestamp exist, defaults to 1.
     impute_val_no_time : Optional[Number|str], optional
-        The value to impute for the label if timestamp exist, defaults to 0.
+        The value to impute for the label if no timestamp exist, defaults to 0.
 
     Returns
     -------
@@ -612,7 +612,7 @@ def get_model_scores(
     ----------
     merged_frame : pd.DataFrame
         The dataframe with score and event data, such as those having an event added via merge_windowed_event.
-    pks : list[str]
+    entity_keys : list[str]
         A list of identifying keys on which to aggregate, such as Id.
     score_col : str
         The column name containing the score value.
