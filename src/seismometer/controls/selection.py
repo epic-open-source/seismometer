@@ -337,7 +337,6 @@ class MultiselectDropdownWidget(ValueWidget, VBox):
             option: Button(
                 description=str(option),
                 tooltip=f"Remove {option}",
-                indent=True,
                 button_style="primary",
                 layout=WIDE_BUTTON_LAYOUT,
             )
@@ -391,7 +390,6 @@ class MultiselectDropdownWidget(ValueWidget, VBox):
             option: Button(
                 description=str(option),
                 tooltip=f"Remove {option}",
-                indent=True,
                 button_style="primary",
                 layout=WIDE_BUTTON_LAYOUT,
             )
