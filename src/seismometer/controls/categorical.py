@@ -57,7 +57,7 @@ class OrdinalCategoricalPlot:
         self.dataframe = cohort_filter.filter(sg.dataframe)
         self.censor_threshold = sg.censor_threshold
 
-        self.values = self._extract_metric_values()
+        self.values = self._extract_metric_values() if self.metrics else []
 
     def _extract_metric_values(self):
         """
