@@ -89,7 +89,7 @@ feedback_colors = FeedbackColors(
     "#0085f2",  # Blue - neutral
     "#76d1ff",  # Sky Blue - mildly positive
     "#62dcb9",  # Teal Green - somewhat positive
-    "#90da8b",  # Pastel Green - positive
+    "#6ecf68",  # Spring Green - positive
     "#4ea84e",  # Green - very positive
     "#007c02",  # Dark Green - extremely positive
 )
