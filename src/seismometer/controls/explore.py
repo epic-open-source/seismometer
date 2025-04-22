@@ -1,8 +1,10 @@
 import logging
+import os
 from functools import wraps
 from typing import Any, Callable, Literal, Optional
 
 import traitlets
+from IPython import get_ipython
 from IPython.display import display
 from ipywidgets import HTML, Box, Button, Checkbox, Dropdown, Layout, Output, ValueWidget, VBox
 
@@ -908,12 +910,26 @@ class ExplorationWidget(VBox):
     def show_code(self, show_code: bool):
         self.update_plot_widget.show_code = show_code
 
+    @staticmethod
+    def _is_interactive_notebook() -> bool:
+        ip = get_ipython()
+        if ip is None:
+            return False
+        if os.environ.get("BUILDING_DOCS") == "1":
+            return False
+        return True
+
     def update_plot(self, initial: bool = False):
         if not initial:
             self.center.clear_output()
-        with self.center:
+
+        if not initial or self._is_interactive_notebook():
+            with self.center:
+                plot = self._try_generate_plot()
+                display(plot)
+        else:
             plot = self._try_generate_plot()
-            display(plot)
+            self.center.append_display_data(plot)
         self.update_plot_widget.disabled = True
 
     def _try_generate_plot(self) -> Any:
