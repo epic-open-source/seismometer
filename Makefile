@@ -29,7 +29,7 @@ copy_notebooks:
 # Generate documentation
 generate_docs:
 	cd docs; \
-	sphinx-build -W -b html $(source_dir) $(build_dir)
+	BUILDING_DOCS=1 sphinx-build -W -b html $(source_dir) $(build_dir)
 
 copy_binary_outputs:
 	-mkdir ./public/example_notebooks/notebooks/binary-classifier/outputs

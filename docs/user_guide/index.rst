@@ -259,6 +259,45 @@ change, providing valuable insights into the strengths and weaknesses of
 each model. This allows for a more informed decision-making process when
 selecting the best model for a given task.
 
+Categorical Feedback
+~~~~~~~~~~~~~~~~~~~~
+
+This section presents Likert plots, which are stacked horizontal bar charts, to 
+explore and compare various categorical columns. While these plots support any
+categorical data with less or equal to 11 categories, they are primarily
+designed for those related to categorical feedback. Likert plots are a powerful
+visualization tool for understanding the distribution of responses across different
+categories, making them ideal for analyzing feedback data.
+
+The `ExploreOrdinalMetrics` tool facilitates the comparison of the distribution 
+of different feedback columns for a specific cohort. This tool allows you to 
+visualize how feedback varies across different categories, helping to identify 
+patterns and trends in the data. For example, you can see if certain feedback 
+categories are more prevalent for specific readmission risk levels.
+
+Furthermore, the `ExploreCohortOrdinalMetrics` tool enables the exploration of 
+the distribution of a specific feedback question (categorical column) across a 
+cohort attribute (e.g., `Age`). This tool is particularly useful for understanding 
+how feedback varies across different demographic groups. For instance, you can 
+analyze how feedback on clarity differs among age groups, providing insights into 
+whether certain age groups find the data more or less clear.
+
+Using these tools provides a comprehensive understanding of the feedback 
+data, helps identify areas for improvement, and enables the user to make 
+informed decisions. The included visualizations make it easy to compare,
+interpret, and share data.
+
+.. image:: media/likert_plot.png
+   :alt: A Likert plot showing categorical feedback
+   :width: 7in
+
+In this example, we have a column indicating the likelihood of readmission risk 
+(`'low risk', 'neutral', 'high risk'`). Additionally, you have several categorical 
+columns corresponding to feedback (`'Very Poor', 'Poor', 'Neutral', 'Good', 
+'Excellent'`) about clarity, impact, effectiveness, and overall satisfaction. These 
+feedback columns provide valuable insights into how users perceive different aspects 
+of the data.
+
 Fairness Audit
 --------------
 

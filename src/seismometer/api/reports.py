@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+from seismometer.controls.categorical import ExploreCategoricalPlots
+from seismometer.controls.categorical_single_column import ExploreSingleCategoricalPlots
 from seismometer.core.decorators import export
 from seismometer.data.filter import FilterRule
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
@@ -38,6 +40,32 @@ class ExploreAnalyticsTable(ExploreBinaryModelAnalytics):
         Passes the plot function to the superclass.
         """
         super().__init__()
+
+
+@export
+class ExploreOrdinalMetrics(ExploreCategoricalPlots):
+    """
+    Exploration widget for ordinal categorical metrics, summarizing multiple metrics for a model.
+    """
+
+    def __init__(self, group_key=None, title="Metrics distribution"):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__(group_key, title)
+
+
+@export
+class ExploreCohortOrdinalMetrics(ExploreSingleCategoricalPlots):
+    """
+    Exploration widget for ordinal categorical metrics, summarizing an ordinal metric across cohort subclasses.
+    """
+
+    def __init__(self, group_key=None, title="Metric distribution"):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__(group_key, title)
 
 
 # region Reports
