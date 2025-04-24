@@ -180,8 +180,8 @@ def generate_analytics_data(
     for first, second in product:
         current_row = {top_level: first, second_level: second}
         (score, target) = (first, second) if top_level == "Score" else (second, first)
-        if per_context:
-            data = pdh.event_score(
+        per_context_data = (
+            pdh.event_score(
                 data,
                 sg.entity_keys,
                 score=score,
@@ -189,9 +189,12 @@ def generate_analytics_data(
                 ref_event=target,
                 aggregation_method=sg.event_aggregation_method(target),
             )
+            if per_context
+            else data
+        )
         current_row.update(
             calculate_stats(
-                data[[target, score]],
+                per_context_data[[target, score]],
                 target_col=target,
                 score_col=score,
                 metric=metric,

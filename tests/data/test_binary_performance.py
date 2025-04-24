@@ -48,9 +48,9 @@ def get_test_data():
             "time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "event1_Value": [0, 1, 0, 1],
             "event1_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2021-12-31"],
-            "event2_Value": [0, 1, 0, 1],
+            "event2_Value": [1, 0, 0, 1],
             "event2_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
-            "event3_Value": [0, 2, 5, 1],
+            "event3_Value": [0, 1, 1, 1],
             "event3_Time": ["2022-01-01", "2022-01-02", "2022-01-03", "2022-01-04"],
             "cohort1": ["A", "A", "A", "B"],
             "score1": [0.1, 0.4, 0.35, 0.8],
@@ -227,3 +227,23 @@ class TestGenerateAnalyticsData:
             censor_threshold=4,
         )
         assert result is None
+
+    def test_per_context_does_not_leak_state_across_iterations(self, fake_seismo):
+        # Ensure generate_analytics_data works correctly across multiple (score, target) pairs
+        # without interference between iterations due to in-place data mutation.
+        fake_seismo.event_aggregation_method = lambda target: "max"
+        result = generate_analytics_data(
+            score_columns=["score1", "score2"],
+            target_columns=["event1_Value", "event2_Value"],
+            metric="Sensitivity",
+            metric_values=[0.5],
+            per_context=True,
+            censor_threshold=3,
+        )
+
+        # Should return a DataFrame with 4 rows (2 scores x 2 targets)
+        assert result is not None
+        assert len(result) == 4
+
+        # Each row should have the same number of positives
+        assert result["Positives"].nunique() == 1
