@@ -245,5 +245,5 @@ class TestGenerateAnalyticsData:
         assert result is not None
         assert len(result) == 4
 
-        # Each row should have the same number of positives
-        assert result["Positives"].nunique() == 1
+        # Combining scores for each (score, target) pair should have two positives
+        assert result["Positives"].tolist() == [2, 2, 2, 2]
