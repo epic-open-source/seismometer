@@ -486,10 +486,13 @@ def plot_model_evaluation(
         an html visualization of the model evaluation metrics
     """
     sg = Seismogram()
+    logger.info(f"Starting model evaluation, data has {len(sg.dataframe)} rows.")
     cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
     data = cohort_filter.filter(sg.dataframe)
+    logger.info(f"After filtering to specified cohorts, data has {len(data)} rows.")
     target_event = pdh.event_value(target_column)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
+    logger.info(f"After filtering to target values of 0 or 1, data has {len(target_data)} rows.")
     aggregation_method = sg.event_aggregation_method(sg.target)
     ref_time = sg.predict_time
     return _model_evaluation(
@@ -560,17 +563,24 @@ def _model_evaluation(
         aggregation_method=aggregation_method,
         per_context_id=per_context_id,
     )
+    if per_context_id:
+        logger.info(f"After combining scores, data has {len(data)} rows.")
 
     # Validate
     requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
     data = requirements.filter(data)
+    logger.info(
+        f"After validation (non-null values for {score_col} and 0,1 values for {target}), data has {len(data)} rows."
+    )
     if len(data.index) < censor_threshold:
         return template.render_censored_plot_message(censor_threshold)
     if (lcount := data[target].nunique()) != 2:
         return template.render_title_message(
             "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
         )
-
+    logger.info(f"Final data before calculating stats has {len(data)} rows.")
+    keep = ~(np.isnan(data[target]) | np.isnan(data[score_col]))
+    logger.info(f"Calculating stats drops {len(data)-len(data[target][keep])} rows.")
     # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
     stats = calculate_bin_stats(data[target], data[score_col])
     ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95, force_percentages=True)

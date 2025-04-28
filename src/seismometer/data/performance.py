@@ -181,6 +181,9 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         y_true = dataframe[target_col]
         y_pred = dataframe[score_col]
+        logger.info(f"data before using calculating stats has {len(y_true)} rows.")
+        keep = ~(np.isnan(y_true) | np.isnan(y_pred))
+        logger.info(f"Calculating stats drops {len(y_true)-len(y_true[keep])} rows.")
         stats = calculate_bin_stats(y_true, y_pred, rho=self.rho).round(5).set_index(THRESHOLD)
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
