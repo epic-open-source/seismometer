@@ -171,7 +171,7 @@ def generate_analytics_data(
     )
     second_level = "Target" if top_level == "Score" else "Score"
     sg = Seismogram()
-    cohort_dict = cohort_dict or sg.available_cohort_groups
+    cohort_dict = cohort_dict or {}
     cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
     cohort_filter.MIN_ROWS = censor_threshold
     data = cohort_filter.filter(sg.dataframe)
