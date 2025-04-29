@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 from typing import Any, List, Optional
 
@@ -20,6 +21,8 @@ from seismometer.html import template
 from seismometer.seismogram import Seismogram
 
 from .analytics_table_config import COLORING_CONFIG_DEFAULT, AnalyticsTableConfig
+
+logger = logging.getLogger("seismometer")
 
 # region Analytics Table
 
@@ -132,6 +135,7 @@ class AnalyticsTable:
         self._initializing = False
         self.per_context = per_context
         self.censor_threshold = censor_threshold
+        logger.info(f"Starting analytics table, data has {len(self.df)} rows.")
 
     def _validate_df_statistics_data(self):
         if not self._initializing:  # Skip validation during initial setup
