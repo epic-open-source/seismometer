@@ -1,0 +1,1 @@
+Limit ``pyarrow`` version to ``>14.0.0,<20.0.0`` as ``use_legacy_dataset`` keyword is removed in later versions.
