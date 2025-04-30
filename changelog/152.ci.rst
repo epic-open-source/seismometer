@@ -1,0 +1,1 @@
+Updated GitHub Actions workflow to target Python 3.12.
