@@ -397,6 +397,16 @@ behavior: the Fairness Table, ``show_cohort_summaries``, and cohort summaries
 focused on a specific cohort attribute (e.g., ``Age``). These tools always exclude 
 rows with missing cohort values to focus analysis on well-represented groups.
 
+This behavior resembles the distinction between ``count(*)`` and ``count(Age)`` 
+in SQL: the former includes all rows regardless of missing values, while the 
+latter excludes rows where ``Age`` is null. Similarly, applying a cohort filter 
+places the analysis in the context of a specific cohort attribute, and rows with 
+missing or censored values in that column are excluded. In contrast, using an 
+empty cohort dictionary (``{}``) is considered outside that context, and all 
+rows are retained. The exceptions mentioned earlier occur in tools that 
+explicitly evaluate data within the context of a cohort attribute and therefore 
+apply stricter filtering.
+
 Example:
 
 Assume your data includes a categorical column ``age`` with values:
