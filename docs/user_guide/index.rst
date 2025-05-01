@@ -444,6 +444,38 @@ This results in two distinct filtering behaviors:
 This behavior ensures that full data is available for general analysis, while key 
 tools maintain statistical clarity by excluding underrepresented groups.
 
+Score Aggregation Behavior
+--------------------------
+
+When generating one row per context -- for example, by selecting the maximum 
+score -- ``seismometer`` applies cohort filtering *before* aggregation. 
+This means that the system first restricts the data to 
+only the rows that satisfy the cohort filter, and then selects one row per 
+context from that subset.
+
+This ordering differs from an alternative approach where aggregation would be 
+performed first and cohort filtering applied to the aggregated rows. The 
+ordering affects which contexts are included in the final result.
+
+Example:
+
+A context has two rows:
+- Row A: ``Age = '[0-10)'``, ``score = 0.9``
+- Row B: ``Age = '[10-20)'``, ``score = 0.95``
+
+With a cohort filter ``{"Age": "[0-10)"}``:
+
+- In the filter-then-aggregate approach (used by ``seismometer``):
+  - Only Row A is retained before aggregation.
+  - The context is included, and Row A is selected as the result.
+
+- In the aggregate-then-filter approach:
+  - Row B is selected first (e.g., as the max score).
+  - Since Row B does not satisfy the filter, the context is excluded.
+
+In other words, ``seismometer`` keeps a context if at least one of its rows 
+satisfies the cohort filter.
+
 Customizing the Notebook
 ========================
 
