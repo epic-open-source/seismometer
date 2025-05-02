@@ -18,7 +18,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install pre-commit
         run: |
           pip install --upgrade pip
@@ -27,7 +27,7 @@ jobs:
         run: |
           pre-commit run --all-files
   test-coverage:
-    name: Coverage py3.10
+    name: Coverage py3.12
     runs-on: ubuntu-latest
 
     steps:
@@ -36,7 +36,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -69,7 +69,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           pip install --upgrade pip
