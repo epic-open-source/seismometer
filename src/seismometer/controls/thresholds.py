@@ -42,11 +42,11 @@ class ProbabilitySliderListWidget(ValueWidget, VBox):
         readout_fmt = f".{decimals}f"
         values = tuple(0 for _ in names) if not value else tuple(value)  # set initial values
         values = tuple(min(1.0, max(0, val)) for val in values)  # clamp values to [0, 1]
-        self.value = {k: v for k, v in zip(self.names, values)}
+        self.value = {k: round(v, self.decimals) for k, v in zip(self.names, values)}
         self.sliders = {}
         for name, val in self.value.items():
             sub_slider = FloatSlider(
-                value=val,
+                value=round(val, self.decimals),
                 min=0,
                 max=1.0,
                 step=step_size,

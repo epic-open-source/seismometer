@@ -247,3 +247,52 @@ class TestGenerateAnalyticsData:
 
         # Combining scores for each (score, target) pair should have two positives
         assert result["Positives"].tolist() == [2, 2, 2, 2]
+
+    def test_generate_analytics_data_metric_differs_but_is_close(self, fake_seismo):
+        fake_seismo.event_aggregation_method = lambda target: "max"
+
+        rng = np.random.default_rng(42)
+        y_true = rng.integers(0, 2, size=1000)  # Balanced 0s and 1s
+        y_score = rng.uniform(0, 1, size=1000)  # Uniform prediction scores between 0 and 1
+        df = pd.DataFrame(
+            {
+                "target1": y_true,
+                "score1": y_score,
+            }
+        )
+
+        fake_seismo.dataframe = df
+
+        result_low = generate_analytics_data(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Sensitivity",
+            metric_values=[0.5],
+            decimals=3,
+            censor_threshold=1,
+        )
+        result_high = generate_analytics_data(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Sensitivity",
+            metric_values=[0.5],
+            decimals=5,
+            censor_threshold=1,
+        )
+
+        assert result_low is not None and result_high is not None
+
+        # Ensure both versions yield same structure
+        assert list(result_low.columns) == list(result_high.columns)
+
+        for col, atol in [("0.5_Threshold", 0.1), ("AUROC", 0.001)]:
+            assert col in result_low.columns and col in result_high.columns
+
+            val_low = result_low[col].iloc[0]
+            val_high = result_high[col].iloc[0]
+
+            # Values differ (better precision affects threshold resolution)
+            assert val_low != val_high
+
+            # But still close enough (numerically stable)
+            assert np.isclose(val_low, val_high, atol=atol)
