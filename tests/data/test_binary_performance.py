@@ -292,7 +292,9 @@ class TestGenerateAnalyticsData:
             val_high = result_high[col].iloc[0]
 
             # Values differ (better precision affects threshold resolution)
-            assert val_low != val_high, "Differing precision expected, test seed was chosen to verify these two values are not equal"
+            assert (
+                val_low != val_high
+            ), "Differing precision expected, test seed was chosen to verify these two values are not equal"
 
             # But still close enough (numerically stable)
             assert np.isclose(val_low, val_high, atol=atol)
