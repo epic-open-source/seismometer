@@ -163,14 +163,13 @@ class OrdinalCategoricalPlot:
         """
         if self.plot_type not in self.plot_functions:
             raise ValueError(f"Unknown plot type: {self.plot_type}")
-        sg = Seismogram()
-        if len(self.dataframe) < sg.censor_threshold:
-            return template.render_censored_plot_message(sg.censor_threshold)
+        if len(self.dataframe) < self.censor_threshold:
+            return template.render_censored_plot_message(self.censor_threshold)
         svg = self.plot_functions[self.plot_type](self)
         return (
             template.render_title_with_image(self.title, svg)
             if svg is not None
-            else template.render_censored_plot_message(sg.censor_threshold)
+            else template.render_censored_plot_message(self.censor_threshold)
         )
 
 
@@ -381,7 +380,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
 
     @property
     def metric_groups(self):
-        return self._metric_groups.value if self.include_groups else self.metrics_group
+        return self._metric_groups.value if self.include_groups else self.metric_group
 
     @property
     def metrics(self):
