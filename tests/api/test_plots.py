@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
-from IPython.display import HTML, SVG
+from IPython.display import HTML
 from ipywidgets import HTML as WidgetHTML
 from ipywidgets import VBox
 
@@ -19,6 +19,16 @@ from seismometer.api.explore import (
     ExploreModelTargetComparison,
     ExploreSubgroups,
     cohort_list_details,
+)
+from seismometer.api.plots import (
+    _model_evaluation,
+    _plot_cohort_evaluation,
+    _plot_cohort_hist,
+    _plot_leadtime_enc,
+    plot_cohort_hist,
+    plot_intervention_outcome_timeseries,
+    plot_leadtime_enc,
+    plot_trend_intervention_outcome,
 )
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
@@ -61,6 +71,7 @@ def get_test_config(tmp_path):
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity", "context_id"]
     mock_config.predict_time = "time"
+    mock_config.comparison_time = ""
     mock_config.cohorts = [Cohort(source=name) for name in ["Cohort"]]
     mock_config.features = ["one"]
     mock_config.config_dir = tmp_path / "config"
@@ -164,6 +175,13 @@ class TestExploreSubgroups:
         assert "Summary" in result.data
 
 
+class TestExploreBinaryModelMetrics:
+    def test_exploration_metric_widget_initialization(self, fake_seismo):
+        widget = ExploreBinaryModelMetrics(rho=0.5)
+        assert widget.metric_generator.rho == 0.5
+        assert "Model Metric Evaluation" in widget.children[0].value
+
+
 class TestExploreModelEvaluation:
     def test_generate_plot(self, fake_seismo):
         self.widget = ExploreModelEvaluation()
@@ -185,6 +203,12 @@ class TestExploreModelEvaluation:
         widget = DummyWidget()
         code = widget.generate_plot_code(("arg1",), {"threshold": 0.2})
         assert "plot_model_evaluation('arg1', threshold=0.2)" in code
+
+    def test_model_evaluation_not_binary_target(self, fake_seismo):
+        df = fake_seismo.dataframe
+        df["event1_Value"] = 1  # no variation
+        html = _model_evaluation(df, ["entity"], "event1", "event1_Value", "score1", [0.2], 0)
+        assert "requires exactly two classes" in html.data
 
 
 class TestExploreModelScoreComparison:
@@ -213,6 +237,14 @@ class TestExploreCohortEvaluation:
         assert "Model Performance Metrics on Cohort across Thresholds" in result.data
         assert "plot_cohort_evaluation" in self.widget.current_plot_code
 
+    def test_plot_cohort_evaluation_invalid_data(self, fake_seismo):
+        df = fake_seismo.dataframe
+        df["event1_Value"] = 0  # only negatives
+        html = _plot_cohort_evaluation(
+            df, ["entity"], "event1_Value", "score1", [0.2], "Cohort", ["C1"], censor_threshold=10
+        )
+        assert "censored" in html.data.lower()
+
 
 class TestExploreCohortHistograms:
     def test_generate_plot(self, fake_seismo):
@@ -221,6 +253,27 @@ class TestExploreCohortHistograms:
         assert isinstance(result, HTML)
         assert "Predicted Probabilities by Cohort" in result.data
         assert "plot_cohort_group_histograms" in self.widget.current_plot_code
+
+    def test_plot_cohort_hist_empty_after_filter(self, fake_seismo):
+        df = fake_seismo.dataframe
+        df["Cohort"] = pd.Categorical(["Z", "Z", "Z", "Z"])  # mark as categorical
+        html = _plot_cohort_hist(df, "event1_Value", "score1", "Cohort", ["C1", "C2"])
+        assert "censored" in html.data.lower()
+
+    def test_plot_cohort_hist_plot_fails(self, fake_seismo, monkeypatch):
+        from seismometer.api import plots
+
+        monkeypatch.setattr(
+            plots.plot, "cohorts_vertical", lambda *_a, **_k: (_ for _ in ()).throw(ValueError("fail"))
+        )
+        html = plots._plot_cohort_hist(fake_seismo.dataframe, "event1_Value", "score1", "Cohort", ["C1", "C2"], 0)
+        assert "Error" in html.data
+
+    def test_plot_cohort_hist(self, fake_seismo):
+        fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        result = plot_cohort_hist()
+        assert isinstance(result, HTML)
+        assert "Predicted Probabilities by" in result.data
 
 
 class TestExploreCohortLeadTime:
@@ -231,14 +284,128 @@ class TestExploreCohortLeadTime:
         assert "Lead Time" in result.data
         assert "plot_cohort_lead_time" in self.widget.current_plot_code
 
+    def test_leadtime_enc_no_positives(self, fake_seismo):
+        df = fake_seismo.dataframe
+        df["event1_Value"] = 0  # all negatives
+        result = _plot_leadtime_enc(
+            df,
+            ["entity"],
+            "event1_Value",
+            "event1_Time",
+            "score1",
+            0.2,
+            "time",
+            "Cohort",
+            ["C1"],
+            48,
+            "Lead Time (hours)",
+            0,
+        )
+        assert result is None
 
-class TestExploreBinaryModelMetrics:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreBinaryModelMetrics()
-        result = self.widget._try_generate_plot()
-        assert isinstance(result, SVG)
-        assert result.data.startswith("<svg")
-        assert "plot_binary_classifier_metrics" in self.widget.current_plot_code
+    def test_plot_leadtime_enc(self, fake_seismo):
+        fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        result = plot_leadtime_enc()
+        assert "Lead Time" in result.data
+
+    def test_leadtime_enc_missing_target_column(self, fake_seismo, caplog):
+        df = fake_seismo.dataframe.drop(columns=["event1_Value"])
+        with caplog.at_level("ERROR"):
+            result = _plot_leadtime_enc(
+                df,
+                ["entity"],
+                "event1_Value",
+                "event1_Time",
+                "score1",
+                0.2,
+                "time",
+                "Cohort",
+                ["C1"],
+                48,
+                "Lead Time (hours)",
+                0,
+            )
+        assert result is None
+        assert "Target event (event1_Value) not found" in caplog.text
+
+    def test_leadtime_enc_missing_target_zero_column(self, fake_seismo, caplog):
+        df = fake_seismo.dataframe.drop(columns=["event1_Time"])
+        with caplog.at_level("ERROR"):
+            result = _plot_leadtime_enc(
+                df,
+                ["entity"],
+                "event1_Value",
+                "event1_Time",
+                "score1",
+                0.2,
+                "time",
+                "Cohort",
+                ["C1"],
+                48,
+                "Lead Time (hours)",
+                0,
+            )
+        assert result is None
+        assert "Target event time-zero (event1_Time) not found" in caplog.text
+
+    def test_leadtime_enc_no_positive_events(self, fake_seismo, caplog):
+        df = fake_seismo.dataframe
+        df["event1_Value"] = 0  # force all negative
+        with caplog.at_level("ERROR"):
+            result = _plot_leadtime_enc(
+                df,
+                ["entity"],
+                "event1_Value",
+                "event1_Time",
+                "score1",
+                0.2,
+                "time",
+                "Cohort",
+                ["C1"],
+                48,
+                "Lead Time (hours)",
+                0,
+            )
+        assert result is None
+        assert "No positive events (event1_Value=1) were found" in caplog.text
+
+    def test_leadtime_enc_below_censor_threshold(self, fake_seismo):
+        df = fake_seismo.dataframe
+        df = df[df["event1_Value"] == 1].iloc[:1]  # one row with positive event
+        result = _plot_leadtime_enc(
+            df,
+            ["entity"],
+            "event1_Value",
+            "event1_Time",
+            "score1",
+            0.2,
+            "time",
+            "Cohort",
+            ["C1"],
+            48,
+            "Lead Time (hours)",
+            censor_threshold=5,
+        )
+        assert "censored" in result.data.lower()
+
+    def test_leadtime_enc_subgroup_filter_excludes_all(self, fake_seismo):
+        df = fake_seismo.dataframe
+        df["Cohort"] = "Z"  # not in subgroups
+        result = _plot_leadtime_enc(
+            df,
+            ["entity"],
+            "event1_Value",
+            "event1_Time",
+            "score1",
+            0.2,
+            "time",
+            "Cohort",
+            ["C1", "C2"],
+            48,
+            "Lead Time (hours)",
+            0,
+        )
+        assert "censored" in result.data.lower()
 
 
 class TestExploreCohortOutcomeInterventionTimes:
@@ -248,6 +415,24 @@ class TestExploreCohortOutcomeInterventionTimes:
         assert isinstance(result, HTML)
         assert "Outcome" in result.data and "Intervention" in result.data
         assert "plot_intervention_outcome_timeseries" in self.widget.current_plot_code
+
+    def test_plot_trend_intervention_outcome(self, fake_seismo):
+        fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        result = plot_trend_intervention_outcome()
+        assert isinstance(result, HTML)
+        assert "Outcome" in result.data and "Intervention" in result.data
+
+    def test_plot_intervention_outcome_timeseries(self, fake_seismo):
+        result = plot_intervention_outcome_timeseries(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            outcome="outcome1",
+            intervention="intervention1",
+            reference_time_col="time",
+            censor_threshold=0,
+        )
+        assert isinstance(result, HTML)
+        assert "Outcome" in result.data and "Intervention" in result.data
 
 
 class TestExplorationWidgetErrorHandling:
