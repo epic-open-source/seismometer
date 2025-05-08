@@ -183,3 +183,103 @@ class TestFairnessOptionsWidget:
 
         widget.disabled = False
         assert not widget.metric_list.disabled
+
+
+class TestExplorationFairnessWidget:
+    def test_initialization_sets_up_components(self, monkeypatch):
+        sg_mock = Mock()
+        sg_mock.available_cohort_groups = {"gender": ("M", "F"), "age": ("young", "old")}
+        monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
+
+        metrics = MetricGenerator(["Accuracy", "Sensitivity"], lambda df, names: {k: 1 for k in names})
+
+        widget = undertest.ExplorationFairnessWidget(metrics)
+
+        assert widget.metrics_generator == metrics
+        assert isinstance(widget.option_widget, undertest.FairnessOptionsWidget)
+        assert widget.option_widget.fairness_ratio == 0.2
+        assert widget.plot_function == undertest.custom_metrics_fairness_table
+
+    def test_generate_plot_args_returns_expected_values(self, monkeypatch):
+        sg_mock = Mock()
+        sg_mock.available_cohort_groups = {"gender": ("M", "F")}
+        monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
+
+        metrics = MetricGenerator(["AUC", "Accuracy"], lambda df, names: {k: 1 for k in names})
+        widget = undertest.ExplorationFairnessWidget(metrics)
+
+        # Simulate user selections
+        widget.option_widget.metric_list.value = ["AUC"]
+        widget.option_widget.cohort_list.value = {"gender": ("M",)}
+        widget.option_widget.fairness_slider.value = 0.4
+
+        args, kwargs = widget.generate_plot_args()
+
+        # Validate returned args
+        assert args[0] == metrics
+        assert args[1] == ["AUC"]
+        assert args[2] == {"gender": ("M",)}
+        assert args[3] == 0.4
+        assert kwargs == {}
+
+
+class TestExploreBinaryModelFairness:
+    def test_initialization_creates_components_correctly(self, monkeypatch):
+        sg_mock = Mock()
+        sg_mock.target_cols = ["readmit"]
+        sg_mock.output_list = ["risk_score"]
+        sg_mock.thresholds = [0.2, 0.5, 0.9]
+        sg_mock.available_cohort_groups = {"sex": ("M", "F")}
+        monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
+
+        widget = undertest.ExploreBinaryModelFairness(rho=0.8)
+
+        # Ensure the correct metric generator is used
+        assert isinstance(widget.metric_generator, undertest.BinaryClassifierMetricGenerator)
+        assert widget.metric_generator.rho == 0.8
+
+        # Ensure the option widget is a FairnessOptionsWidget with the right model options
+        assert isinstance(widget.option_widget, undertest.FairnessOptionsWidget)
+        assert widget.option_widget.model_options.target == "readmit"
+        assert widget.option_widget.model_options.score == "risk_score"
+        assert widget.option_widget.model_options.thresholds["Score Threshold"] == 0.9
+
+        # Ensure correct plot function is set
+        assert widget.plot_function == undertest.binary_metrics_fairness_table
+
+    def test_generate_plot_args_returns_expected_values(self, monkeypatch):
+        # Mock Seismogram with sample model data
+        sg_mock = Mock()
+        sg_mock.target_cols = ["target_col"]
+        sg_mock.output_list = ["score_col"]
+        sg_mock.thresholds = [0.5]
+        sg_mock.available_cohort_groups = {"group": ("A", "B")}
+        monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
+
+        # Instantiate widget
+        widget = undertest.ExploreBinaryModelFairness(rho=0.6)
+
+        # Simulate user selections
+        widget.option_widget.metric_list.value = ["Accuracy"]
+        widget.option_widget.cohort_list.value = {"group": ("A",)}
+        widget.option_widget.fairness_slider.value = 0.3
+
+        # Simulate model options
+        widget.option_widget.model_options.target_list.value = "target_col"
+        widget.option_widget.model_options.score_list.value = "score_col"
+        widget.option_widget.model_options.threshold_list.value = {"Score Threshold": 0.5}
+        widget.option_widget.model_options.per_context_checkbox.value = True
+
+        args, kwargs = widget.generate_plot_args()
+
+        # Assertions on returned values
+        assert args == (
+            widget.metric_generator,
+            ["Accuracy"],
+            {"group": ("A",)},
+            0.3,
+            "target_col",
+            "score_col",
+            0.5,
+        )
+        assert kwargs == {"per_context": True}
