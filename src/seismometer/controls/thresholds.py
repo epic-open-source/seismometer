@@ -15,41 +15,48 @@ logger = logging.getLogger("seismometer")
 
 class ProbabilitySliderListWidget(ValueWidget, VBox):
     """
-    Vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
+    Vertical list of sliders, bounded between 0 and 1 with a dynamic step size based on specified decimal precision.
     """
 
     value = traitlets.Dict(help="The names and values for the slider list")
 
-    def __init__(self, names: Iterable[str], value: Optional[Iterable[int]] = None):
-        """A vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
+    def __init__(self, names: Iterable[str], value: Optional[Iterable[float]] = None, decimals: int = 2):
+        """
+        Vertical list of sliders, bounded between 0 and 1 with a dynamic step size
+        based on specified decimal precision.
 
         Parameters
         ----------
         names : Iterable[str]
             Slider names
-        value : Optional[Iterable[int]], optional
+        value : Optional[Iterable[float]], optional
             Slider start values, by default None, starts all sliders at zero.
+        decimals : int, optional
+            Number of decimal places (determines slider step size, e.g., 2 → 0.01), by default 2.
         """
         self.names = tuple(names)  # cast to static tuple
         if value and len(value) != len(names):
             raise ValueError(f"Value length {len(value)} does not match names length {len(names)}")
+        self.decimals = decimals
+        step_size = 1 / 10**decimals
+        readout_fmt = f".{decimals}f"
         values = tuple(0 for _ in names) if not value else tuple(value)  # set initial values
         values = tuple(min(1.0, max(0, val)) for val in values)  # clamp values to [0, 1]
-        self.value = {k: v for k, v in zip(self.names, values)}
+        self.value = {k: round(v, self.decimals) for k, v in zip(self.names, values)}
         self.sliders = {}
         for name, val in self.value.items():
             sub_slider = FloatSlider(
-                value=val,
+                value=round(val, self.decimals),
                 min=0,
                 max=1.0,
-                step=0.01,
+                step=step_size,
                 description=name,
                 tooltip=name,
                 disabled=False,
                 continuous_update=False,
                 orientation="horizontal",
                 readout=True,
-                readout_format=".2f",
+                readout_format=readout_fmt,
                 style=WIDE_LABEL_STYLE,
             )
             self.sliders[name] = sub_slider
@@ -77,7 +84,8 @@ class ProbabilitySliderListWidget(ValueWidget, VBox):
             return
         if change:
             if (slider := change["owner"]) in self.sliders.values():
-                self.value[slider.description] = slider.value
+                rounded_val = round(slider.value, self.decimals)
+                self.value[slider.description] = rounded_val
 
     def _on_value_change(self, change=None):
         """Bubble up changes to sliders"""
@@ -85,33 +93,44 @@ class ProbabilitySliderListWidget(ValueWidget, VBox):
         if change:
             if val := change["new"]:
                 for key, value in val.items():
-                    self.sliders[key].value = value
+                    rounded_val = round(value, self.decimals)
+                    self.sliders[key].value = rounded_val
         self.value_update_in_progress = False
 
 
 class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
     """
-    Vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
+    A vertical list of probability sliders, each bounded between 0 and 1, with dynamic step size
+    based on the specified decimal precision.
+
     Monotonicity is maintained between the sliders so they are always ascending or descending in value.
+
+    Supports up to 6 sliders.
     """
 
-    def __init__(self, names: Iterable[str], value: Optional[Iterable[int]] = None, ascending: bool = True):
-        """A vertical list of sliders, bounded between 0 and 1 with a step of 0.01.
+    def __init__(
+        self, names: Iterable[str], value: Optional[Iterable[float]] = None, ascending: bool = True, decimals: int = 2
+    ):
+        """
+        A vertical list of sliders, bounded between 0 and 1 with dynamic step size
+        based on the specified decimal precision.
 
         Parameters
         ----------
         names : Iterable[str]
             Slider names
-        value : Optional[Iterable[int]], optional
+        value : Optional[Iterable[float]], optional
             Slider start values, by default None, starts all sliders at zero.
         ascending : bool, optional = True
             Forces sliders to be ascending, else decreasing.
             If initial values are not sorted, raise an ValueError.
+        decimals : int, optional
+            Number of decimal places for slider precision (affects step size and rounding), by default 2.
         """
         if len(names) > 6:
             raise ValueError("MonotonicProbabilitySliderListWidget only supports up to 6 sliders")
 
-        super().__init__(names, value)
+        super().__init__(names, value, decimals)
 
         thresholds = list(self.value.values())
         op = operator.le if ascending else operator.ge
@@ -158,4 +177,5 @@ class MonotonicProbabilitySliderListWidget(ProbabilitySliderListWidget):
                 new_tuple = [slider.value for slider in sliders[:slider_index]] + [
                     min(new, slider.value) for slider in sliders[slider_index:]
                 ]
+        new_tuple = [round(min(1.0, max(0.0, v)), self.decimals) for v in new_tuple]
         self.value = {k: v for k, v in zip(self.sliders.keys(), new_tuple)}

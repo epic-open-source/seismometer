@@ -12,6 +12,7 @@ from seismometer.controls.categorical_single_column import (
 )
 from seismometer.data.performance import MetricGenerator
 from seismometer.table.analytics_table import AnalyticsTableOptionsWidget, ExploreBinaryModelAnalytics
+from seismometer.table.analytics_table_config import AnalyticsTableConfig
 
 
 # region Test Base Classes
@@ -926,6 +927,38 @@ class TestExploreBinaryModelAnalytics:
             {},
         )
         assert kwargs == {"title": "Unit Test Title", "per_context": False}
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_slider_respects_decimals(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1_Value"]
+        fake_seismo.output_list = ["S1"]
+        fake_seismo.available_cohort_groups = {}
+
+        widget = ExploreBinaryModelAnalytics(title="Decimal Test")
+        decimals = widget.option_widget._metric_values.decimals
+        assert decimals == AnalyticsTableConfig().decimals
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_generate_plot_args_metric_slider_values_are_rounded(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1_Value"]
+        fake_seismo.output_list = ["S1"]
+        fake_seismo.available_cohort_groups = {}
+
+        widget = ExploreBinaryModelAnalytics(title="Slider Rounding Test")
+
+        # Simulate user moving sliders
+        widget.option_widget._metric_values.sliders["Metric Value 1"].value = 0.56789
+        widget.option_widget._metric_values.sliders["Metric Value 2"].value = 0.123456
+
+        args, _ = widget.generate_plot_args()
+
+        expected_rounded = (
+            round(0.56789, AnalyticsTableConfig().decimals),  # → 0.568
+            round(0.123456, AnalyticsTableConfig().decimals),  # → 0.123
+        )
+        assert args[3] == expected_rounded
 
 
 class TestAnalyticsTableOptionsWidget:
