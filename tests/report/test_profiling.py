@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, patch
 
@@ -96,7 +97,7 @@ class TestReportWrapper:
             mock_display.assert_called_once()
             iframe = mock_display.call_args[0][0]
             assert isinstance(iframe, IFrame)
-            assert iframe.src.endswith("fake/path/report.html")
+            assert re.search(r"fake[\\/]+path[\\/]+report\.html$", iframe.src)
 
     def test_display_report_link(self, dummy_wrapper):
         with patch("seismometer.report.profiling.display") as mock_display:
