@@ -48,6 +48,12 @@ class TestPercentSliderWidget:
         assert widget.sliders["a"].disabled
         assert widget.sliders["b"].disabled
 
+    def test_values_are_rounded_to_decimal_precision(self):
+        widget = undertest.ProbabilitySliderListWidget(("a", "b"), (0.1234, 0.5678), decimals=3)
+        assert widget.sliders["a"].value == round(0.1234, 3)
+        assert widget.sliders["b"].value == round(0.5678, 3)
+        assert widget.value == {"a": 0.123, "b": 0.568}
+
 
 class TestMonotonicPercentSliderWidget:
     def test_init(self):
@@ -120,3 +126,15 @@ class TestMonotonicPercentSliderWidget:
         with pytest.raises(ValueError):
             threshold_names = [str(x) for x in range(7)]
             undertest.MonotonicProbabilitySliderListWidget(threshold_names)
+
+    def test_slider_values_are_rounded_to_decimal_precision(self):
+        widget = undertest.MonotonicProbabilitySliderListWidget(("a", "b"), (0.1234, 0.5678), decimals=2)
+        assert widget.sliders["a"].value == round(0.1234, 2)
+        assert widget.sliders["b"].value == round(0.5678, 2)
+        assert widget.value == {"a": 0.12, "b": 0.57}
+
+    def test_slider_interaction_respects_decimals(self):
+        widget = undertest.MonotonicProbabilitySliderListWidget(("a", "b"), (0.1, 0.2), decimals=2)
+        widget.sliders["a"].value = 0.23456
+        assert widget.sliders["a"].value == round(0.23456, 2)
+        assert widget.value["a"] == 0.23

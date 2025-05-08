@@ -3,6 +3,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.metrics import roc_auc_score
 
 import seismometer.data.performance as undertest
 from seismometer.data.confidence.calculations import ValueWithCI, _RocRegionResults
@@ -289,3 +290,60 @@ class TestBinaryMetricGenerator:
         )
 
         assert actual == expected
+
+    def test_binary_metric_generator_with_threshold_precision(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        y_true = np.array([1, 0])
+        y_prob = np.array([0.9, 0.2])
+        df = pd.DataFrame({"truth": y_true, "score": y_prob})
+
+        # Low precision: coarse thresholds
+        low_precision = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"], threshold_precision=0)[0]
+
+        # High precision: fine-grained thresholds
+        high_precision = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"], threshold_precision=2)[0]
+
+        assert len(high_precision) > len(low_precision)
+        assert "Accuracy" in high_precision.columns
+
+    def test_score_threshold_row_lookup(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        y_true = np.array([1, 0])
+        y_prob = np.array([0.55, 0.25])
+        df = pd.DataFrame({"truth": y_true, "score": y_prob})
+
+        stats, _ = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"])
+        assert 55 in stats.index  # score_threshold=0.55 → index 55
+
+    def test_overall_stats_include_auc_with_precision(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        y_true = np.array([1, 1, 0, 0])
+        y_prob = np.array([0.9, 0.7, 0.4, 0.1])
+        df = pd.DataFrame({"truth": y_true, "score": y_prob})
+
+        _, overall = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"], threshold_precision=2)
+
+        assert "AUROC" in overall
+        assert 0.0 <= overall["AUROC"] <= 1.0
+        assert "AUPRC" in overall
+        assert 0.0 <= overall["AUPRC"] <= 1.0
+
+    def test_auc_precision_effect_on_larger_data(self):
+        rng = np.random.default_rng(42)
+        y_true = rng.integers(0, 2, size=1000)
+        y_prob = rng.uniform(0, 1, size=1000)
+
+        true_auc = roc_auc_score(y_true, y_prob)
+
+        # Coarse threshold grid
+        stats_coarse = undertest.calculate_bin_stats(y_true, y_prob, threshold_precision=0)
+        auc_coarse = undertest.auc(1 - stats_coarse["Specificity"], stats_coarse["Sensitivity"])
+
+        # Fine threshold grid
+        stats_fine = undertest.calculate_bin_stats(y_true, y_prob, threshold_precision=1)
+        auc_fine = undertest.auc(1 - stats_fine["Specificity"], stats_fine["Sensitivity"])
+
+        # Assertions
+        assert abs(auc_fine - true_auc) < abs(auc_coarse - true_auc)
+        assert abs(auc_fine - true_auc) < 0.001
+        assert abs(auc_coarse - true_auc) < 0.01
