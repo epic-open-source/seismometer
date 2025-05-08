@@ -82,6 +82,7 @@ def calculate_stats(
         target_col=target_col,
         score_col=score_col,
         metrics=metrics_to_display,
+        threshold_precision=decimals - 2,
     )
     stats = stats.reset_index()
 
