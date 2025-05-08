@@ -1,1 +1,1 @@
-Fix an issue with reading parquet files without Pandas metadata (e.g. those created by Polars)
+Fix an issue with reading parquet files without ``Pandas`` metadata (e.g., those created by ``Polars``).
