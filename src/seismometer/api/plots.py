@@ -142,8 +142,8 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
 
     score = score or sg.output
     ref_time = ref_time or sg.predict_time
-    target_event = pdh.event_value(target_event) or sg.target
-    target_zero = pdh.event_time(target_event) or sg.time_zero
+    target_event = pdh.event_value(target_event or sg.target)
+    target_zero = pdh.event_time(target_event or sg.time_zero)
     max_hours = sg.event_aggregation_window_hours(target_event)
     threshold = sg.thresholds[0]
     target_data = FilterRule.isin(target_event, (0, 1)).filter(sg.dataframe)

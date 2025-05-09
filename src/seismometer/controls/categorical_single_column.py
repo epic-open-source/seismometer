@@ -67,7 +67,7 @@ class OrdinalCategoricalSinglePlot:
         values = [value for value in values if not isna(value)]
         logger.warning(
             f"Metric values for metric {self.metric_col} are not provided. "
-            + f"Using values from the corresponding dataframe column: {self.values}."
+            + f"Using values from the corresponding dataframe column: {values}."
         )
         return values
 
@@ -139,14 +139,13 @@ class OrdinalCategoricalSinglePlot:
         """
         if self.plot_type not in self.plot_functions:
             raise ValueError(f"Unknown plot type: {self.plot_type}")
-        sg = Seismogram()
-        if len(self.dataframe) < sg.censor_threshold:
-            return template.render_censored_plot_message(sg.censor_threshold)
+        if len(self.dataframe) < self.censor_threshold:
+            return template.render_censored_plot_message(self.censor_threshold)
         svg = self.plot_functions[self.plot_type](self)
         return (
             template.render_title_with_image(self.title, svg)
             if svg is not None
-            else template.render_censored_plot_message(sg.censor_threshold)
+            else template.render_censored_plot_message(self.censor_threshold)
         )
 
 

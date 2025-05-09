@@ -1,1 +1,1 @@
-Fix a scaling issue causing annotations to be misplaced on the ROC plot of the evaluation 2x3
+Fix a scaling issue causing annotations to be misplaced on the ROC plot of the evaluation 2x3.

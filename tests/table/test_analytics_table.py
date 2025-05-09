@@ -141,6 +141,15 @@ class TestAnalyticsTable:
                 top_level="invalid_top_level",
             )
 
+    def test_metrics_to_display_invalid_metric(self, fake_seismo):
+        with pytest.raises(ValueError, match="Invalid metric name:"):
+            AnalyticsTable(
+                score_columns=["score1"],
+                target_columns=["target1"],
+                metric="Threshold",
+                metrics_to_display=["INVALID_METRIC"],
+            )
+
     def test_empty_df_and_statistics_data(self, fake_seismo):
         sg = Seismogram()
         sg.dataframe = None
@@ -357,3 +366,15 @@ class TestAnalyticsTable:
                 rounded = round(val, col_decimals)
                 formatted = f"{rounded:.{col_decimals}f}"
                 assert re.search(rf">\s*{formatted}\s*<", html)
+
+    def test_add_borders(self, fake_seismo):
+        table = AnalyticsTable(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Threshold",
+            censor_threshold=1,
+        )
+        data = table._generate_table_data()
+        gt = table.generate_initial_table(data)
+        gt = table.add_borders(gt, left_column=data.columns[2], right_column=data.columns[3])
+        assert gt is not None

@@ -126,7 +126,7 @@ def _score_target_levels_and_index(
     if by_target:
         groupby_groups.append(sg.target)
         grab_groups.append(sg.target)
-        index_rename.append(sg.target.strip("_Value"))
+        index_rename.append(sg.target.removesuffix("_Value"))
 
     return groupby_groups, grab_groups, index_rename
 

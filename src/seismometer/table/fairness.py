@@ -221,7 +221,7 @@ def fairness_table(
 
     fairness_data = pd.concat(fairness_groups)
     metric_data = pd.concat(metric_groups)
-    fairness_icons = pd.concat(icon_groups)
+    fairness_icons = pd.concat(icon_groups).astype(object)
 
     for cohort_column, cohort_class in metric_data.index:
         if metric_data.loc[(cohort_column, cohort_class), COUNT] < censor_threshold:

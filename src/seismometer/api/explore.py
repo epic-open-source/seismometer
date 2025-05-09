@@ -220,7 +220,7 @@ def cohort_list():
 @export
 def cohort_list_details(cohort_dict: dict[str, tuple[Any]]) -> HTML:
     """
-    Generates a HTML table of cohort details.
+    Generates an HTML table of cohort details.
 
     Parameters
     ----------

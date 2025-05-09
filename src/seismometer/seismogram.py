@@ -362,7 +362,7 @@ class Seismogram(object, metaclass=Singleton):
         try:
             self.thresholds: list[float] = self._metadata["thresholds"]
         except KeyError:
-            logger.warn("No thresholds set in metadata.json. Using [0.8, 0.5]")
+            logger.warning("No thresholds set in metadata.json. Using [0.8, 0.5]")
             self.thresholds = [0.8, 0.5]
 
         self.modelname: str = self._metadata.get("modelname", "UNDEFINED MODEL")
@@ -379,7 +379,7 @@ class Seismogram(object, metaclass=Singleton):
                 try:
                     new_col = resolve_cohorts(self.dataframe[cohort.source], cohort.splits)
                 except IndexError as exc:
-                    logger.warn(f"Failed to resolve cohort {disp_attr}: {exc}")
+                    logger.warning(f"Failed to resolve cohort {disp_attr}: {exc}")
                     continue
             else:
                 new_col = pd.Series(pd.Categorical(self.dataframe[cohort.source]))

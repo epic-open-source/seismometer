@@ -1,1 +1,1 @@
-Addresses #98 by adding ExploreOrdinalMetrics and ExploreCohortOrdinalMetrics to analyze feedback/categorical data.
+Addresses #98 by adding ``ExploreOrdinalMetrics`` and ``ExploreCohortOrdinalMetrics`` to analyze feedback/categorical data.

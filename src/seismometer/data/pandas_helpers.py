@@ -282,12 +282,17 @@ def _merge_event_counts(
     event_name: str,
     event_label: str,
     window_hrs: Optional[Number] = None,
-    min_offset: Number = 0,
+    min_offset: pd.Timedelta = pd.Timedelta(0, unit="hr"),
     l_ref: str = "Time",
-    r_ref: str = "Time",
+    r_ref: str = "~~reftime~~",
 ) -> pd.DataFrame:
     """Creates a new column for each event in the right frame's event_label column,
     counting the number of times that event has occurred"""
+
+    if l_ref == r_ref:
+        raise ValueError(
+            f"`l_ref` and `r_ref` must be different to avoid column collisions during merge (both are '{l_ref}')."
+        )
 
     if window_hrs is not None:
         # Filter out rows with missing times if checking window hours
