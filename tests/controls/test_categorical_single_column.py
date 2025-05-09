@@ -194,7 +194,7 @@ class TestOrdinalCategoricalSinglePlot:
     def test_extract_metric_values_falls_back_to_dataframe(self, fake_seismo, caplog):
         fake_seismo.metrics["Metric1"].metric_details.values = None  # trigger fallback
         caplog.set_level("WARNING")
-        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1")
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1",)})
         assert sorted(plot.values) == ["agree", "disagree", "neutral"]
         assert any("Metric values for metric Metric1 are not provided" in message for message in caplog.messages)
 
