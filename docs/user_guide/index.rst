@@ -269,15 +269,15 @@ designed for those related to categorical feedback. Likert plots are a powerful
 visualization tool for understanding the distribution of responses across different
 categories, making them ideal for analyzing feedback data.
 
-The `ExploreOrdinalMetrics` tool facilitates the comparison of the distribution 
+The ``ExploreOrdinalMetrics`` tool facilitates the comparison of the distribution 
 of different feedback columns for a specific cohort. This tool allows you to 
 visualize how feedback varies across different categories, helping to identify 
 patterns and trends in the data. For example, you can see if certain feedback 
 categories are more prevalent for specific readmission risk levels.
 
-Furthermore, the `ExploreCohortOrdinalMetrics` tool enables the exploration of 
+Furthermore, the ``ExploreCohortOrdinalMetrics`` tool enables the exploration of 
 the distribution of a specific feedback question (categorical column) across a 
-cohort attribute (e.g., `Age`). This tool is particularly useful for understanding 
+cohort attribute (e.g., ``Age``). This tool is particularly useful for understanding 
 how feedback varies across different demographic groups. For instance, you can 
 analyze how feedback on clarity differs among age groups, providing insights into 
 whether certain age groups find the data more or less clear.
@@ -292,9 +292,9 @@ interpret, and share data.
    :width: 7in
 
 In this example, we have a column indicating the likelihood of readmission risk 
-(`'low risk', 'neutral', 'high risk'`). Additionally, you have several categorical 
-columns corresponding to feedback (`'Very Poor', 'Poor', 'Neutral', 'Good', 
-'Excellent'`) about clarity, impact, effectiveness, and overall satisfaction. These 
+(``'low risk', 'neutral', 'high risk'``). Additionally, you have several categorical 
+columns corresponding to feedback (``'Very Poor', 'Poor', 'Neutral', 'Good', 
+'Excellent'``) about clarity, impact, effectiveness, and overall satisfaction. These 
 feedback columns provide valuable insights into how users perceive different aspects 
 of the data.
 
@@ -386,6 +386,95 @@ taken based on the outputs across the cohort groups.
    :alt: A graph with colorful rectangular bars Description
       automatically generated with medium confidence
    :width: 5in
+
+Cohort Selection Behavior
+==========================
+
+When no cohort values are selected (i.e., an empty cohort dictionary ``{}``), 
+``seismometer`` generally includes all rows by default, even those where the 
+cohort attribute is ``NaN``. However, there are intentional exceptions to this 
+behavior: the Fairness Table, ``show_cohort_summaries``, and cohort summaries 
+focused on a specific cohort attribute (e.g., ``Age``). These tools always exclude 
+rows with missing cohort values to focus analysis on well-represented groups.
+
+This behavior resembles the distinction between ``count(*)`` and ``count(Age)`` 
+in SQL: the former includes all rows regardless of missing values, while the 
+latter excludes rows where ``Age`` is null. Similarly, applying a cohort filter 
+places the analysis in the context of a specific cohort attribute, and rows with 
+missing or censored values in that column are excluded. In contrast, using an 
+empty cohort dictionary (``{}``) is considered outside that context, and all 
+rows are retained. The exceptions mentioned earlier occur in tools that 
+explicitly evaluate data within the context of a cohort attribute and therefore 
+apply stricter filtering.
+
+Example:
+
+Assume your data includes a categorical column ``age`` with values:
+
+``['[0-10)', '[10-20)', '[20-50)', '[50-70)', '70+']``
+
+And the cohort is defined as:
+
+.. code-block:: yaml
+
+   cohorts:
+     - source: age
+       display_name: Age
+
+``seismometer`` will create a new column ``Age``. During preprocessing, if any 
+values (e.g., ``'[0-10)'``) occur fewer than ``censor_min_count`` times, they 
+are removed from the list of valid categories and replaced with ``NaN`` in the 
+``Age`` column.
+
+This results in two distinct filtering behaviors:
+
+1. Filtering with all available categories selected 
+   (i.e., ``sg.available_cohort_groups``):  
+   Only rows where ``Age`` is one of the common categories 
+   (e.g., ``['[10-20)', '[20-50)', '[50-70)', '70+']``) are included.  
+   All rows where ``Age`` is ``NaN`` (such as those with rare ``[0-10)`` values) are 
+   excluded.
+
+2. Filtering with ``{}`` (an empty cohort dictionary):  
+   Generally, ``seismometer`` retains all rows, including those with ``Age`` as 
+   ``NaN``. However, in the Fairness Table, ``show_cohort_summaries``, and similar 
+   cohort summaries, this behavior is overridden and rows with missing cohort values 
+   are excluded, even under empty selection.
+
+This behavior ensures that full data is available for general analysis, while key 
+tools maintain statistical clarity by excluding underrepresented groups.
+
+Score Aggregation Behavior
+--------------------------
+
+When generating one row per context -- for example, by selecting the maximum 
+score -- ``seismometer`` applies cohort filtering *before* aggregation. 
+This means that the system first restricts the data to 
+only the rows that satisfy the cohort filter, and then selects one row per 
+context from that subset.
+
+This ordering differs from an alternative approach where aggregation would be 
+performed first and cohort filtering applied to the aggregated rows. The 
+ordering affects which contexts are included in the final result.
+
+Example:
+
+A context has two rows:
+- Row A: ``Age = '[0-10)'``, ``score = 0.9``
+- Row B: ``Age = '[10-20)'``, ``score = 0.95``
+
+With a cohort filter ``{"Age": "[0-10)"}``:
+
+- In the filter-then-aggregate approach (used by ``seismometer``):
+  - Only Row A is retained before aggregation.
+  - The context is included, and Row A is selected as the result.
+
+- In the aggregate-then-filter approach:
+  - Row B is selected first (e.g., as the max score).
+  - Since Row B does not satisfy the filter, the context is excluded.
+
+In other words, ``seismometer`` keeps a context if at least one of its rows 
+satisfies the cohort filter.
 
 Customizing the Notebook
 ========================

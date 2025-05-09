@@ -22,8 +22,8 @@ class OrdinalCategoricalSinglePlot:
     def __init__(
         self,
         metric_col: str,
-        plot_type="Likert Plot",
-        cohort_dict: Optional[dict[str, tuple]] = None,
+        plot_type: str = "Likert Plot",
+        cohort_dict: dict[str, tuple] = None,
         title: str = None,
     ):
         """
@@ -35,7 +35,7 @@ class OrdinalCategoricalSinglePlot:
             The metric column to be plotted.
         plot_type : str, optional
             Type of plot to generate, by default "Likert Plot".
-        cohort_dict : Optional[dict[str, tuple]], optional
+        cohort_dict : dict[str, tuple]
             Dictionary defining the cohort filter, by default None.
         title : Optional[str], optional
             Title of the plot, by default None.
@@ -45,7 +45,6 @@ class OrdinalCategoricalSinglePlot:
         self.title = title
 
         sg = Seismogram()
-        cohort_dict = cohort_dict or sg.available_cohort_groups
         self.cohort_col = next(iter(cohort_dict))
         self.cohort_values = list(cohort_dict[self.cohort_col])
         self.dataframe = sg.dataframe[[self.cohort_col, self.metric_col]]

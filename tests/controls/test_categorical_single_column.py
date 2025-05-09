@@ -99,7 +99,7 @@ def fake_seismo(tmp_path):
 
 class TestOrdinalCategoricalSinglePlot:
     def test_initialize_plot_functions(self, fake_seismo):
-        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1")
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Metric1": ["disagree"]})
         assert "Likert Plot" in plot.plot_functions
 
     def test_generate_plot_invalid_type_raises(self, fake_seismo):
@@ -108,7 +108,9 @@ class TestOrdinalCategoricalSinglePlot:
             plot.generate_plot()
 
     def test_extract_metric_values(self, fake_seismo):
-        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1")
+        plot = OrdinalCategoricalSinglePlot(
+            metric_col="Metric1", cohort_dict={"Metric1": ["disagree", "neutral", "agree"]}
+        )
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
 
