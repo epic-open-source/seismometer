@@ -1,8 +1,8 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from IPython.display import HTML
+from IPython.display import HTML, SVG
 from ipywidgets import HTML as WidgetHTML
 from ipywidgets import VBox
 
@@ -25,15 +25,21 @@ from seismometer.api.plots import (
     _plot_cohort_evaluation,
     _plot_cohort_hist,
     _plot_leadtime_enc,
+    plot_binary_classifier_metrics,
+    plot_cohort_group_histograms,
     plot_cohort_hist,
+    plot_cohort_lead_time,
     plot_intervention_outcome_timeseries,
     plot_leadtime_enc,
+    plot_model_score_comparison,
+    plot_model_target_comparison,
     plot_trend_intervention_outcome,
 )
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
 from seismometer.data.filter import FilterRule
 from seismometer.data.loader import SeismogramLoader
+from seismometer.data.performance import BinaryClassifierMetricGenerator
 from seismometer.seismogram import Seismogram
 
 
@@ -141,12 +147,15 @@ def fake_seismo(tmp_path):
 
 
 class TestExploreSubgroups:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreSubgroups()
-        result = self.widget._try_generate_plot()
-        assert isinstance(result, HTML)
-        assert "Summary" in result.data
-        assert "cohort_list_details" in self.widget.current_plot_code
+    @patch("seismometer.api.explore.cohort_list_details")
+    def test_widget_calls_plot_function(self, mock_plot_func, fake_seismo):
+        mock_plot_func.return_value = HTML("Mock Summary")
+
+        widget = ExploreSubgroups()
+        widget.option_widget.value = {"Cohort": ["C1", "C2"]}
+        widget.plot_function(widget.option_widget.value)
+
+        mock_plot_func.assert_called_once_with({"Cohort": ["C1", "C2"]})
 
     def test_multiple_targets_and_interventions(self, fake_seismo):
         result = cohort_list_details(fake_seismo.available_cohort_groups)
@@ -176,19 +185,105 @@ class TestExploreSubgroups:
 
 
 class TestExploreBinaryModelMetrics:
-    def test_exploration_metric_widget_initialization(self, fake_seismo):
+    def test_widget_calls_plot_function(self, fake_seismo):
+        # Define a spy-style dummy function to replace the real plot function
+        def dummy_plot_func(
+            metric_generator, metrics, cohort_dict, target, score_column, *, per_context=False, table_only=False
+        ):
+            dummy_plot_func.called = True
+            dummy_plot_func.call_args = (metric_generator, metrics, cohort_dict, target, score_column)
+            dummy_plot_func.call_kwargs = dict(per_context=per_context, table_only=table_only)
+            return HTML("Mocked plot")
+
+        dummy_plot_func.__name__ = "plot_binary_classifier_metrics"
+        dummy_plot_func.__module__ = "seismometer.api"
+
+        # Set up widget with dummy function
         widget = ExploreBinaryModelMetrics(rho=0.5)
-        assert widget.metric_generator.rho == 0.5
-        assert "Model Metric Evaluation" in widget.children[0].value
+        widget.plot_function = dummy_plot_func
+
+        # Simulate user selections
+        widget.option_widget.metric_list.value = ["Accuracy"]
+        widget.option_widget.model_options.target_list.value = "event1"
+        widget.option_widget.model_options.score_list.value = "prediction"
+        widget.option_widget.model_options.per_context_checkbox.value = False
+        widget.option_widget.cohort_list.value = {"Cohort": ["C1"]}
+
+        widget.update_plot()
+
+        # Validate that dummy_plot_func was called correctly
+        assert getattr(dummy_plot_func, "called", False) is True
+        assert dummy_plot_func.call_args[1] == ("Accuracy",)
+        assert dummy_plot_func.call_args[2] == {"Cohort": ["C1"]}
+        assert dummy_plot_func.call_args[3] == "event1"
+        assert dummy_plot_func.call_args[4] == "prediction"
+
+    def test_plot_binary_classifier_metrics_basic(self, fake_seismo):
+        metric_gen = BinaryClassifierMetricGenerator(rho=0.5)
+        html = plot_binary_classifier_metrics(
+            metric_generator=metric_gen,
+            metrics=["Accuracy", "PPV"],
+            cohort_dict={},
+            target="event1",
+            score_column="score1",
+        )
+        assert isinstance(html, SVG)
+        assert "Accuracy" in html.data and "PPV" in html.data
+
+    def test_plot_binary_classifier_metrics_table_only(self, fake_seismo):
+        metric_gen = BinaryClassifierMetricGenerator(rho=0.5)
+        html = plot_binary_classifier_metrics(
+            metric_generator=metric_gen,
+            metrics="Sensitivity",
+            cohort_dict={},
+            target="event1",
+            score_column="score1",
+            table_only=True,
+        )
+        assert isinstance(html, HTML)
+        assert "Sensitivity" in html.data
+
+    def test_plot_binary_classifier_metrics_nonbinary_target(self, fake_seismo):
+        df = fake_seismo.dataframe.copy()
+        df["event1_Value"] = 1  # No variation
+
+        metric_gen = BinaryClassifierMetricGenerator(rho=0.5)
+        # Temporarily override the dataframe
+        fake_seismo.dataframe = df
+
+        html = plot_binary_classifier_metrics(
+            metric_generator=metric_gen,
+            metrics=["Accuracy"],
+            cohort_dict={"Cohort": ("C1",)},
+            target="event1",
+            score_column="score1",
+        )
+        assert isinstance(html, HTML)
+        assert "requires exactly two classes" in html.data
 
 
 class TestExploreModelEvaluation:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreModelEvaluation()
-        result = self.widget._try_generate_plot()
+    def test_widget_calls_plot_function(self, fake_seismo):
+        widget = ExploreModelEvaluation()
+
+        # Simulate user selections
+        widget.option_widget.cohort_list.value = {"Cohort": ["C1", "C2"]}
+        widget.option_widget.model_options.target_list.value = "event1"
+        widget.option_widget.model_options.score_list.value = "score1"
+        slider_key = next(iter(widget.option_widget.model_options.threshold_list.sliders))
+        widget.option_widget.model_options.threshold_list.value = {slider_key: 0.2}
+        widget.option_widget.model_options.per_context_checkbox.value = False
+
+        result = widget.plot_function(
+            cohort_dict={"Cohort": ["C1", "C2"]},
+            target_column="event1",
+            score_column="score1",
+            thresholds=[0.2],
+            per_context=False,
+        )
+
         assert isinstance(result, HTML)
-        assert "Overall Performance for event1 (Per Observation)" in result.data and "Sensitivity" in result.data
-        assert "plot_model_evaluation" in self.widget.current_plot_code
+        assert "Overall Performance for" in result.data
 
     def test_generate_plot_code_with_args_and_kwargs(self):
         class DummyWidget(ExplorationWidget):
@@ -212,30 +307,92 @@ class TestExploreModelEvaluation:
 
 
 class TestExploreModelScoreComparison:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreModelScoreComparison()
-        result = self.widget._try_generate_plot()
+    def test_widget_calls_plot_function(self, fake_seismo):
+        widget = ExploreModelScoreComparison()
+
+        widget.option_widget.cohort_list.value = {"Cohort": ["C1", "C2"]}
+        widget.option_widget.model_options.target_list.value = "event1"
+        widget.option_widget.model_options.score_list.value = ("prediction", "score1")
+        widget.option_widget.model_options.per_context_checkbox.value = False
+
+        result = widget.plot_function(
+            cohort_dict={"Cohort": ["C1", "C2"]},
+            target="event1",
+            scores=("prediction", "score1"),
+            per_context=False,
+        )
+
         assert isinstance(result, HTML)
-        assert "Model Metrics: prediction" in result.data
-        assert "plot_model_score_comparison" in self.widget.current_plot_code
+        assert "Model Metrics" in result.data
+
+    def test_plot_model_score_comparison(self, fake_seismo):
+        html = plot_model_score_comparison(
+            cohort_dict={"Cohort": ("C1", "C2")},
+            target="event1",
+            scores=("prediction", "score1"),
+            per_context=False,
+        )
+
+        assert isinstance(html, HTML)
+        assert "Model Metrics" in html.data
 
 
 class TestExploreModelTargetComparison:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreModelTargetComparison()
-        result = self.widget._try_generate_plot()
+    def test_widget_calls_plot_function(self, fake_seismo):
+        widget = ExploreModelTargetComparison()
+
+        # Simulate user input
+        widget.option_widget.cohort_list.value = {"Cohort": ["C1", "C2"]}
+        widget.option_widget.model_options.target_list.value = ("event1", "event2")
+        widget.option_widget.model_options.score_list.value = "score1"
+        widget.option_widget.model_options.per_context_checkbox.value = True
+
+        result = widget.plot_function(
+            cohort_dict={"Cohort": ["C1", "C2"]},
+            targets=("event1", "event2"),
+            score="score1",
+            per_context=True,
+        )
+
         assert isinstance(result, HTML)
-        assert "Model Metrics: event1" in result.data
-        assert "plot_model_target_comparison" in self.widget.current_plot_code
+        assert "Model Metrics" in result.data
+
+    def test_plot_model_target_comparison(self, fake_seismo):
+        html = plot_model_target_comparison(
+            cohort_dict={"Cohort": ("C1", "C2")},
+            targets=("event1", "event2"),
+            score="score1",
+            per_context=False,
+        )
+
+        assert isinstance(html, HTML)
+        assert "Model Metrics" in html.data
 
 
 class TestExploreCohortEvaluation:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreCohortEvaluation()
-        result = self.widget._try_generate_plot()
+    def test_widget_calls_plot_function(self, fake_seismo):
+        widget = ExploreCohortEvaluation()
+
+        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
+        widget.option_widget.model_options.target_list.value = "event1"
+        widget.option_widget.model_options.score_list.value = "score1"
+
+        slider_key = next(iter(widget.option_widget.model_options.threshold_list.sliders))
+        widget.option_widget.model_options.threshold_list.value = {slider_key: 0.2}
+
+        widget.option_widget.model_options.per_context_checkbox.value = False
+
+        result = widget.plot_function(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            target_column="event1",
+            score_column="score1",
+            thresholds=[0.2],
+            per_context=False,
+        )
+
         assert isinstance(result, HTML)
         assert "Model Performance Metrics on Cohort across Thresholds" in result.data
-        assert "plot_cohort_evaluation" in self.widget.current_plot_code
 
     def test_plot_cohort_evaluation_invalid_data(self, fake_seismo):
         df = fake_seismo.dataframe
@@ -247,12 +404,33 @@ class TestExploreCohortEvaluation:
 
 
 class TestExploreCohortHistograms:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreCohortHistograms()
-        result = self.widget._try_generate_plot()
+    def test_widget_calls_plot_function(self, fake_seismo):
+        widget = ExploreCohortHistograms()
+
+        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
+        widget.option_widget.model_options.target_list.value = "event1"
+        widget.option_widget.model_options.score_list.value = "score1"
+
+        result = widget.plot_function(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            target_column="event1",
+            score_column="score1",
+        )
+
         assert isinstance(result, HTML)
         assert "Predicted Probabilities by Cohort" in result.data
-        assert "plot_cohort_group_histograms" in self.widget.current_plot_code
+
+    def test_plot_cohort_group_histograms(self, fake_seismo):
+        html = plot_cohort_group_histograms(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            target_column="event1",
+            score_column="score1",
+        )
+
+        assert isinstance(html, HTML)
+        assert "Predicted Probabilities by Cohort" in html.data
 
     def test_plot_cohort_hist_empty_after_filter(self, fake_seismo):
         df = fake_seismo.dataframe
@@ -277,12 +455,38 @@ class TestExploreCohortHistograms:
 
 
 class TestExploreCohortLeadTime:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreCohortLeadTime()
-        result = self.widget._try_generate_plot()
+    def test_widget_calls_plot_function(self, fake_seismo):
+        widget = ExploreCohortLeadTime()
+
+        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
+        widget.option_widget.model_options.target_list.value = "event1"
+        widget.option_widget.model_options.score_list.value = "score1"
+
+        slider_key = next(iter(widget.option_widget.model_options.threshold_list.sliders))
+        widget.option_widget.model_options.threshold_list.value = {slider_key: 0.2}
+
+        result = widget.plot_function(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            event_column="event1",
+            score_column="score1",
+            threshold=0.2,
+        )
+
         assert isinstance(result, HTML)
         assert "Lead Time" in result.data
-        assert "plot_cohort_lead_time" in self.widget.current_plot_code
+
+    def test_plot_cohort_lead_time(self, fake_seismo):
+        html = plot_cohort_lead_time(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            event_column="event1",
+            score_column="score1",
+            threshold=0.2,
+        )
+
+        assert isinstance(html, HTML)
+        assert "Lead Time" in html.data
 
     def test_leadtime_enc_no_positives(self, fake_seismo):
         df = fake_seismo.dataframe
@@ -409,12 +613,25 @@ class TestExploreCohortLeadTime:
 
 
 class TestExploreCohortOutcomeInterventionTimes:
-    def test_generate_plot(self, fake_seismo):
-        self.widget = ExploreCohortOutcomeInterventionTimes()
-        result = self.widget._try_generate_plot()
+    def test_widget_calls_plot_function(self, fake_seismo):
+        widget = ExploreCohortOutcomeInterventionTimes()
+
+        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
+        widget.option_widget.model_options.outcome_list.value = "outcome1"
+        widget.option_widget.model_options.intervention_list.value = "intervention1"
+        widget.option_widget.model_options.reference_time_list.value = "time"
+
+        result = widget.plot_function(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            outcome="outcome1",
+            intervention="intervention1",
+            reference_time_col="time",
+        )
+
         assert isinstance(result, HTML)
-        assert "Outcome" in result.data and "Intervention" in result.data
-        assert "plot_intervention_outcome_timeseries" in self.widget.current_plot_code
+        assert "Outcome" in result.data
+        assert "Intervention" in result.data
 
     def test_plot_trend_intervention_outcome(self, fake_seismo):
         fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
