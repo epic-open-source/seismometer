@@ -79,7 +79,7 @@ class TestMergeFrames:
         pd.testing.assert_frame_equal(actual.reset_index(drop=True), expect, check_like=True, check_dtype=False)
 
     @pytest.mark.parametrize("strategy", ["forward", "nearest", "first", "last"])
-    def test_merge_with_strategy_variants(self, strategy):
+    def test_merge_strategies_do_not_generate_additional_rows(self, strategy):
         preds = pd.DataFrame(
             {
                 "Id": [1, 1],
@@ -92,13 +92,16 @@ class TestMergeFrames:
 
         events = pd.DataFrame(
             {
-                "Id": [1, 1],
+                "Id": [1, 1, 1, 1, 1],
                 "Time": [
+                    pd.Timestamp("2023-12-31 01:30:00"),
+                    pd.Timestamp("2024-01-01 00:30:00"),
                     pd.Timestamp("2024-01-01 01:30:00"),
                     pd.Timestamp("2024-01-01 02:30:00"),
+                    pd.Timestamp("2024-01-01 10:30:00"),
                 ],
-                "Type": ["MyEvent", "MyEvent"],
-                "Value": [10, 20],
+                "Type": ["MyEvent", "MyEvent", "MyEvent", "MyEvent", "MyEvent"],
+                "Value": [10, 20, 10, 20, 10],
             }
         )
 
