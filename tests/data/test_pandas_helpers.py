@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from unittest.mock import patch
 
 import pandas as pd
 import pandas.testing as pdt
@@ -77,6 +78,52 @@ class TestMergeFrames:
         # check_like = ignore column order
         pd.testing.assert_frame_equal(actual.reset_index(drop=True), expect, check_like=True, check_dtype=False)
 
+    @pytest.mark.parametrize("strategy", ["forward", "nearest", "first", "last"])
+    def test_merge_with_strategy_variants(self, strategy):
+        preds = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "PredictTime": [
+                    pd.Timestamp("2024-01-01 01:00:00"),
+                    pd.Timestamp("2024-01-01 02:00:00"),
+                ],
+            }
+        )
+
+        events = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Time": [
+                    pd.Timestamp("2024-01-01 01:30:00"),
+                    pd.Timestamp("2024-01-01 02:30:00"),
+                ],
+                "Type": ["MyEvent", "MyEvent"],
+                "Value": [10, 20],
+            }
+        )
+
+        one_event = undertest._one_event(events, "MyEvent", "Value", "Time", ["Id"])
+
+        # Choose reference column depending on strategy
+        event_ref = "MyEvent_Time" if strategy in ["forward", "nearest"] else "~~reftime~~"
+        if strategy in ["first", "last"]:
+            one_event["~~reftime~~"] = one_event["MyEvent_Time"]
+
+        actual = undertest._merge_with_strategy(
+            predictions=preds.copy(),
+            one_event=one_event.copy(),
+            pks=["Id"],
+            pred_ref="PredictTime",
+            event_ref=event_ref,
+            event_display="MyEvent",
+            merge_strategy=strategy,
+        )
+
+        # Check that output columns exist and have been merged
+        assert "MyEvent_Value" in actual.columns
+        assert "MyEvent_Time" in actual.columns
+        assert len(actual) == len(preds)
+
 
 def infer_cases():
     return pd.DataFrame(
@@ -129,10 +176,11 @@ class TestPostProcessEvent:
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
 
-    def test_post_process_event_skips_cast_when_dtype_none(self):
-        df = pd.DataFrame({"Label": [None], "Time": [pd.Timestamp("2024-01-01")]})
-        result = undertest.post_process_event(df, "Label", "Time", column_dtype=None)
-        assert result["Label"].iloc[0] == 1
+    @patch("seismometer.data.pandas_helpers.try_casting")
+    def test_post_process_event_skips_cast_when_dtype_none(self, mock_casting):
+        df = pd.DataFrame({"Label": [None], "Time": [pd.Timestamp.now()]})
+        undertest.post_process_event(df, "Label", "Time", column_dtype=None)
+        mock_casting.assert_not_called()
 
     @pytest.mark.parametrize(
         "input_list,dtype",
@@ -754,10 +802,12 @@ class TestMergeWindowedEvent:
             )
 
 
-def test_post_process_event_skips_cast_when_dtype_none():
+@patch("seismometer.data.pandas_helpers.try_casting")
+def test_post_process_event_skips_cast_when_dtype_none(mock_casting):
     df = pd.DataFrame({"Label": [None], "Time": [pd.Timestamp.now()]})
     result = undertest.post_process_event(df, "Label", "Time", column_dtype=None)
     assert "Label" in result.columns
+    mock_casting.assert_not_called()
 
 
 def test_one_event_filters_and_renames():

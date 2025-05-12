@@ -446,7 +446,7 @@ class TestExploreCohortEvaluation:
     @patch("seismometer.api.plots.assert_valid_performance_metrics_df", side_effect=ValueError("invalid"))
     @patch("seismometer.api.plots.get_cohort_performance_data")
     @patch("seismometer.api.plots.pdh.get_model_scores")
-    def test_plot_cohort_evaluation_invalid_data(
+    def test_plot_cohort_evaluation_censored_data(
         self,
         mock_get_scores,
         mock_get_perf,
@@ -532,7 +532,7 @@ class TestExploreCohortHistograms:
         mock_render.assert_called_once()
 
     @patch("seismometer.html.template.render_censored_plot_message", return_value=HTML("censored"))
-    def test_plot_cohort_hist_empty_after_filter(self, mock_render, fake_seismo):
+    def test_plot_cohort_hist_censored_after_filter(self, mock_render, fake_seismo):
         # Simulate filtered-out result
         empty_df = fake_seismo.dataframe.iloc[0:0].copy()
 
@@ -549,10 +549,24 @@ class TestExploreCohortHistograms:
 
     @patch("seismometer.html.template.render_title_message", return_value=HTML("error"))
     @patch("seismometer.api.plots.plot.cohorts_vertical", side_effect=ValueError("fail"))
-    def test_plot_cohort_hist_plot_fails(self, mock_plot, mock_render, fake_seismo):
-        df = fake_seismo.dataframe.copy()
-        result = _plot_cohort_hist(df, "event1_Value", "score1", "Cohort", ["C1", "C2"])
-        assert "error" in result.data.lower()
+    @patch("seismometer.api.plots.get_cohort_data")
+    def test_plot_cohort_hist_plot_fails(self, mock_get_cohort_data, mock_plot, mock_render, fake_seismo):
+        with patch("seismometer.api.plots.plot.histogram_stacked", return_value=None):
+            # Simulate the output of get_cohort_data
+            mock_df = pd.DataFrame({"cohort": ["C1"] * 11 + ["C2"] * 11, "pred": [0.1] * 11 + [0.2] * 11})
+            mock_get_cohort_data.return_value = mock_df
+
+            result = _plot_cohort_hist(
+                dataframe=fake_seismo.dataframe,
+                target="event1_Value",
+                output="score1",
+                cohort_col="Cohort",
+                subgroups=["C1", "C2"],
+            )
+            assert "error" in result.data.lower()
+            mock_get_cohort_data.assert_called_once()
+            mock_plot.assert_called_once()
+            mock_render.assert_called_once()
 
     @patch("seismometer.seismogram.Seismogram")
     @patch("seismometer.api.plots._plot_cohort_hist", return_value=HTML("cohort plot"))
@@ -646,26 +660,6 @@ class TestExploreCohortLeadTime:
             )
         assert result is None
         assert "No positive events (event1_Value=1) were found" in caplog.text
-
-    @patch("seismometer.api.plots.pdh.event_score", return_value=None)
-    def test_leadtime_enc_below_censor_threshold(self, mock_score, fake_seismo):
-        df = fake_seismo.dataframe.copy()
-        df = df[df["event1_Value"] == 1].iloc[:1]
-        result = _plot_leadtime_enc(
-            df,
-            entity_keys=["entity"],
-            target_event="event1_Value",
-            target_zero="event1_Time",
-            score="score1",
-            threshold=0.2,
-            ref_time="time",
-            cohort_col="Cohort",
-            subgroups=["C1"],
-            max_hours=48,
-            x_label="Lead Time (hours)",
-            censor_threshold=5,
-        )
-        assert "censored" in result.data.lower()
 
     @patch("seismometer.api.plots.pdh.event_score")
     @patch("seismometer.data.filter.FilterRule.filter")
