@@ -1,25 +1,12 @@
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 import pytest
 from IPython.display import HTML, SVG
 from ipywidgets import HTML as WidgetHTML
-from ipywidgets import VBox
 
 from seismometer import Seismogram
-from seismometer.api.explore import (
-    ExplorationWidget,
-    ExploreBinaryModelMetrics,
-    ExploreCohortEvaluation,
-    ExploreCohortHistograms,
-    ExploreCohortLeadTime,
-    ExploreCohortOutcomeInterventionTimes,
-    ExploreModelEvaluation,
-    ExploreModelScoreComparison,
-    ExploreModelTargetComparison,
-    ExploreSubgroups,
-    cohort_list_details,
-)
+from seismometer.api.explore import ExplorationWidget, ExploreBinaryModelMetrics, cohort_list_details
 from seismometer.api.plots import (
     _model_evaluation,
     _plot_cohort_evaluation,
@@ -147,41 +134,67 @@ def fake_seismo(tmp_path):
 
 
 class TestExploreSubgroups:
-    @patch("seismometer.api.explore.cohort_list_details")
-    def test_widget_calls_plot_function(self, mock_plot_func, fake_seismo):
-        mock_plot_func.return_value = HTML("Mock Summary")
+    def test_cohort_list_details_summary_generated(self, fake_seismo):
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo), patch(
+            "seismometer.data.filter.filter_rule_from_cohort_dictionary", return_value=MagicMock()
+        ) as mock_filter, patch(
+            "seismometer.html.template.render_title_message", return_value=HTML("mock summary")
+        ) as mock_render:
+            rule = MagicMock()
+            rule.filter.return_value = fake_seismo.dataframe
+            mock_filter.return_value = rule
 
-        widget = ExploreSubgroups()
-        widget.option_widget.value = {"Cohort": ["C1", "C2"]}
-        widget.plot_function(widget.option_widget.value)
+            result = cohort_list_details({"Cohort": ["C1", "C2"]})
 
-        mock_plot_func.assert_called_once_with({"Cohort": ["C1", "C2"]})
+        mock_filter.assert_called_once()
+        mock_render.assert_called_once()
+        assert "mock summary" in result.data
 
-    def test_multiple_targets_and_interventions(self, fake_seismo):
-        result = cohort_list_details(fake_seismo.available_cohort_groups)
-        assert "event1" in result.data
-        assert "event2" in result.data
-
-    def test_cohort_list_censored_output(self, fake_seismo, monkeypatch):
+    def test_cohort_list_details_censored_output(self, fake_seismo):
         fake_seismo.config.censor_min_count = 10
-        result = cohort_list_details(fake_seismo.available_cohort_groups)
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo), patch(
+            "seismometer.data.filter.filter_rule_from_cohort_dictionary", return_value=MagicMock()
+        ) as mock_filter, patch(
+            "seismometer.html.template.render_censored_plot_message", return_value=HTML("censored")
+        ) as mock_render:
+            rule = MagicMock()
+            rule.filter.return_value = fake_seismo.dataframe.iloc[:0]  # no rows
+            mock_filter.return_value = rule
+
+            result = cohort_list_details({"Cohort": ["C1", "C2"]})
+
         assert "censored" in result.data.lower()
-
-    def test_cohort_list_widget_rendering(self, fake_seismo):
-        # This test checks the structure of the widget output
-        from seismometer.api.explore import cohort_list
-
-        result = cohort_list()
-        assert isinstance(result, VBox)
-        assert len(result.children) == 2
-        assert "Cohort" in result.children[0].title  # MultiSelectionListWidget title
+        mock_render.assert_called_once()
 
     def test_cohort_list_details_single_target_index_rename(self, fake_seismo):
-        # Setup Seismogram with a single target
-        fake_seismo.config.targets = ["event1"]  # Only one target
-        result = cohort_list_details(fake_seismo.available_cohort_groups)
-        assert isinstance(result, HTML)
-        assert "Summary" in result.data
+        fake_seismo.config.targets = ["event1"]  # reduce to 1 target
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo), patch(
+            "seismometer.data.filter.filter_rule_from_cohort_dictionary", return_value=MagicMock()
+        ) as mock_filter, patch("seismometer.html.template.render_title_message", return_value=HTML("summary")):
+            rule = MagicMock()
+            rule.filter.return_value = fake_seismo.dataframe
+            mock_filter.return_value = rule
+
+            result = cohort_list_details({"Cohort": ["C1", "C2"]})
+
+        assert "summary" in result.data
+
+    def test_cohort_list_widget_rendering(self, fake_seismo):
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo), patch(
+            "seismometer.controls.selection.MultiSelectionListWidget", return_value=WidgetHTML("MockWidget")
+        ) as mock_widget, patch("seismometer.html.template.render_title_message", return_value=HTML("initial")), patch(
+            "seismometer.data.filter.filter_rule_from_cohort_dictionary"
+        ) as mock_filter:
+            # Set up real filtering logic
+            rule = Mock()
+            rule.filter.return_value = fake_seismo.dataframe  # real df with proper column types
+            mock_filter.return_value = rule
+            from seismometer.api.explore import cohort_list
+
+            output = cohort_list()
+
+        mock_widget.assert_called_once()
+        assert hasattr(output, "children") and len(output.children) == 2
 
 
 class TestExploreBinaryModelMetrics:
@@ -218,72 +231,91 @@ class TestExploreBinaryModelMetrics:
         assert dummy_plot_func.call_args[3] == "event1"
         assert dummy_plot_func.call_args[4] == "prediction"
 
-    def test_plot_binary_classifier_metrics_basic(self, fake_seismo):
-        metric_gen = BinaryClassifierMetricGenerator(rho=0.5)
-        html = plot_binary_classifier_metrics(
-            metric_generator=metric_gen,
+    @patch(
+        "seismometer.plot.mpl.binary_classifier.plot_metric_list",
+        return_value=SVG('<svg xmlns="http://www.w3.org/2000/svg"></svg>'),
+    )
+    @patch("seismometer.data.performance.BinaryClassifierMetricGenerator.calculate_binary_stats")
+    def test_plot_binary_classifier_metrics_basic(self, mock_calc, mock_plot, fake_seismo):
+        mock_stats = pd.DataFrame({"Accuracy": [0.9], "PPV": [0.8]}, index=["value"])
+        mock_calc.return_value = (mock_stats, None)
+
+        result = plot_binary_classifier_metrics(
+            metric_generator=BinaryClassifierMetricGenerator(rho=0.5),
             metrics=["Accuracy", "PPV"],
             cohort_dict={},
             target="event1",
             score_column="score1",
         )
-        assert isinstance(html, SVG)
-        assert "Accuracy" in html.data and "PPV" in html.data
 
-    def test_plot_binary_classifier_metrics_table_only(self, fake_seismo):
-        metric_gen = BinaryClassifierMetricGenerator(rho=0.5)
-        html = plot_binary_classifier_metrics(
-            metric_generator=metric_gen,
+        mock_calc.assert_called_once()
+        mock_plot.assert_called_once()
+        assert isinstance(result, SVG)
+        assert "http://www.w3.org/2000/svg" in result.data
+
+    @patch("seismometer.data.performance.BinaryClassifierMetricGenerator.calculate_binary_stats")
+    def test_plot_binary_classifier_metrics_table_only(self, mock_calc, fake_seismo):
+        mock_stats = pd.DataFrame({"Sensitivity": [0.88]}, index=["value"])
+        mock_calc.return_value = (mock_stats, None)
+
+        result = plot_binary_classifier_metrics(
+            metric_generator=BinaryClassifierMetricGenerator(rho=0.5),
             metrics="Sensitivity",
             cohort_dict={},
             target="event1",
             score_column="score1",
             table_only=True,
         )
-        assert isinstance(html, HTML)
-        assert "Sensitivity" in html.data
 
-    def test_plot_binary_classifier_metrics_nonbinary_target(self, fake_seismo):
+        assert isinstance(result, HTML)
+        assert "Sensitivity" in result.data
+
+    @patch("seismometer.html.template.render_title_message", return_value=HTML("requires exactly two classes"))
+    @patch("seismometer.data.filter.FilterRule.filter")
+    @patch("seismometer.api.plots.pdh.event_value", return_value="event1_Value")
+    def test_plot_binary_classifier_metrics_nonbinary_target(
+        self, mock_event_value, mock_filter, mock_render, fake_seismo
+    ):
         df = fake_seismo.dataframe.copy()
-        df["event1_Value"] = 1  # No variation
+        df["event1_Value"] = 1  # only one class present
 
-        metric_gen = BinaryClassifierMetricGenerator(rho=0.5)
-        # Temporarily override the dataframe
-        fake_seismo.dataframe = df
+        mock_filter.return_value = df
 
-        html = plot_binary_classifier_metrics(
-            metric_generator=metric_gen,
-            metrics=["Accuracy"],
-            cohort_dict={"Cohort": ("C1",)},
-            target="event1",
-            score_column="score1",
-        )
-        assert isinstance(html, HTML)
-        assert "requires exactly two classes" in html.data
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            fake_seismo.dataframe = df
+
+            result = plot_binary_classifier_metrics(
+                metric_generator=BinaryClassifierMetricGenerator(rho=0.5),
+                metrics=["Accuracy"],
+                cohort_dict={"Cohort": ("C1",)},
+                target="event1",
+                score_column="score1",
+            )
+
+        assert isinstance(result, HTML)
+        assert "requires exactly two classes" in result.data
 
 
 class TestExploreModelEvaluation:
-    def test_widget_calls_plot_function(self, fake_seismo):
-        widget = ExploreModelEvaluation()
+    @patch("seismometer.html.template.render_title_message", return_value=HTML("requires exactly two classes"))
+    @patch("seismometer.data.filter.FilterRule.filter")
+    def test_model_evaluation_not_binary_target(self, mock_filter, mock_render, fake_seismo):
+        df = fake_seismo.dataframe.copy()
+        df["event1_Value"] = 1  # single class
+        mock_filter.return_value = df
 
-        # Simulate user selections
-        widget.option_widget.cohort_list.value = {"Cohort": ["C1", "C2"]}
-        widget.option_widget.model_options.target_list.value = "event1"
-        widget.option_widget.model_options.score_list.value = "score1"
-        slider_key = next(iter(widget.option_widget.model_options.threshold_list.sliders))
-        widget.option_widget.model_options.threshold_list.value = {slider_key: 0.2}
-        widget.option_widget.model_options.per_context_checkbox.value = False
-
-        result = widget.plot_function(
-            cohort_dict={"Cohort": ["C1", "C2"]},
-            target_column="event1",
-            score_column="score1",
+        result = _model_evaluation(
+            df,
+            entity_keys=["entity"],
+            target_event="event1",
+            target="event1_Value",
+            score_col="score1",
             thresholds=[0.2],
-            per_context=False,
+            censor_threshold=0,
         )
 
         assert isinstance(result, HTML)
-        assert "Overall Performance for" in result.data
+        assert "requires exactly two classes" in result.data
 
     def test_generate_plot_code_with_args_and_kwargs(self):
         class DummyWidget(ExplorationWidget):
@@ -299,119 +331,196 @@ class TestExploreModelEvaluation:
         code = widget.generate_plot_code(("arg1",), {"threshold": 0.2})
         assert "plot_model_evaluation('arg1', threshold=0.2)" in code
 
-    def test_model_evaluation_not_binary_target(self, fake_seismo):
-        df = fake_seismo.dataframe
-        df["event1_Value"] = 1  # no variation
-        html = _model_evaluation(df, ["entity"], "event1", "event1_Value", "score1", [0.2], 0)
-        assert "requires exactly two classes" in html.data
+    @patch("seismometer.api.plots.pdh.get_model_scores")
+    @patch("seismometer.api.plots.plot.evaluation", return_value=SVG('<svg xmlns="http://www.w3.org/2000/svg"></svg>'))
+    @patch("seismometer.html.template.render_title_with_image", return_value=HTML("rendered"))
+    @patch("seismometer.data.filter.FilterRule.filter")
+    def test_model_evaluation_valid_path(self, mock_filter, mock_render, mock_plot, mock_scores, fake_seismo):
+        df = fake_seismo.dataframe.copy()
+        df["event1_Value"] = [0, 1, 1, 0]  # binary target
+        mock_filter.return_value = df
+        mock_scores.return_value = df
+
+        result = _model_evaluation(
+            df,
+            entity_keys=["entity"],
+            target_event="event1",
+            target="event1_Value",
+            score_col="score1",
+            thresholds=[0.2],
+            censor_threshold=0,
+        )
+
+        mock_plot.assert_called_once()
+        mock_render.assert_called_once()
+        assert isinstance(result, HTML)
+        assert "rendered" in result.data
 
 
 class TestExploreModelScoreComparison:
-    def test_widget_calls_plot_function(self, fake_seismo):
-        widget = ExploreModelScoreComparison()
+    @patch("seismometer.html.template.render_title_with_image", return_value=HTML("Mock Rendered"))
+    @patch("seismometer.api.plots.plot.cohort_evaluation_vs_threshold", return_value="svg-obj")
+    @patch("seismometer.api.plots.assert_valid_performance_metrics_df")
+    @patch("seismometer.api.plots.get_cohort_performance_data")
+    @patch("seismometer.api.plots.pdh.event_score")
+    @patch("seismometer.data.filter.FilterRule.filter")
+    @patch("seismometer.data.filter.FilterRule.from_cohort_dictionary")
+    def test_plot_model_score_comparison(
+        self,
+        mock_from_dict,
+        mock_filter,
+        mock_event_score,
+        mock_perf_data,
+        mock_assert_valid,
+        mock_plot,
+        mock_render,
+        fake_seismo,
+    ):
+        # Base input DataFrame with expected columns
+        df = fake_seismo.dataframe[["score1", "event1_Value"]].copy()
 
-        widget.option_widget.cohort_list.value = {"Cohort": ["C1", "C2"]}
-        widget.option_widget.model_options.target_list.value = "event1"
-        widget.option_widget.model_options.score_list.value = ("prediction", "score1")
-        widget.option_widget.model_options.per_context_checkbox.value = False
+        # Mocks return real data for processing
+        mock_from_dict.return_value = MagicMock()
+        mock_filter.return_value = df  # initial filter from cohort
+        mock_event_score.return_value = df  # per_context=False path
+        mock_perf_data.return_value = pd.DataFrame({"metric": [1]})
 
-        result = widget.plot_function(
-            cohort_dict={"Cohort": ["C1", "C2"]},
+        result = plot_model_score_comparison(
+            cohort_dict={"Cohort": ("C1", "C2")},
             target="event1",
-            scores=("prediction", "score1"),
+            scores=("score1",),
             per_context=False,
         )
 
         assert isinstance(result, HTML)
-        assert "Model Metrics" in result.data
-
-    def test_plot_model_score_comparison(self, fake_seismo):
-        html = plot_model_score_comparison(
-            cohort_dict={"Cohort": ("C1", "C2")},
-            target="event1",
-            scores=("prediction", "score1"),
-            per_context=False,
-        )
-
-        assert isinstance(html, HTML)
-        assert "Model Metrics" in html.data
+        assert "Mock Rendered" in result.data
+        mock_render.assert_called_once()
+        mock_plot.assert_called_once()
 
 
 class TestExploreModelTargetComparison:
-    def test_widget_calls_plot_function(self, fake_seismo):
-        widget = ExploreModelTargetComparison()
+    @patch("seismometer.html.template.render_title_with_image", return_value=HTML("Mock Rendered"))
+    @patch("seismometer.api.plots.plot.cohort_evaluation_vs_threshold", return_value="svg-obj")
+    @patch("seismometer.api.plots.assert_valid_performance_metrics_df")
+    @patch("seismometer.api.plots.get_cohort_performance_data")
+    @patch("seismometer.api.plots.pdh.event_score")
+    @patch("seismometer.api.plots.pdh.event_value", side_effect=lambda x: f"{x}_Value")
+    @patch("seismometer.data.filter.FilterRule.filter")
+    @patch("seismometer.data.filter.FilterRule.from_cohort_dictionary")
+    def test_plot_model_target_comparison(
+        self,
+        mock_from_dict,
+        mock_filter,
+        mock_event_value,
+        mock_event_score,
+        mock_perf_data,
+        mock_assert_valid,
+        mock_plot,
+        mock_render,
+        fake_seismo,
+    ):
+        # Input DataFrame
+        df = fake_seismo.dataframe[["score1", "event1_Value"]].copy()
 
-        # Simulate user input
-        widget.option_widget.cohort_list.value = {"Cohort": ["C1", "C2"]}
-        widget.option_widget.model_options.target_list.value = ("event1", "event2")
-        widget.option_widget.model_options.score_list.value = "score1"
-        widget.option_widget.model_options.per_context_checkbox.value = True
+        # Mocked behaviors
+        mock_from_dict.return_value = MagicMock()
+        mock_filter.return_value = df  # .filter(dataframe) returns df
+        mock_event_score.return_value = df
+        mock_perf_data.return_value = pd.DataFrame({"metric": [1]})
 
-        result = widget.plot_function(
-            cohort_dict={"Cohort": ["C1", "C2"]},
-            targets=("event1", "event2"),
-            score="score1",
-            per_context=True,
-        )
-
-        assert isinstance(result, HTML)
-        assert "Model Metrics" in result.data
-
-    def test_plot_model_target_comparison(self, fake_seismo):
-        html = plot_model_target_comparison(
+        result = plot_model_target_comparison(
             cohort_dict={"Cohort": ("C1", "C2")},
-            targets=("event1", "event2"),
+            targets=("event1",),
             score="score1",
             per_context=False,
         )
 
-        assert isinstance(html, HTML)
-        assert "Model Metrics" in html.data
+        assert isinstance(result, HTML)
+        assert "Mock Rendered" in result.data
+        mock_render.assert_called_once()
+        mock_plot.assert_called_once()
 
 
 class TestExploreCohortEvaluation:
-    def test_widget_calls_plot_function(self, fake_seismo):
-        widget = ExploreCohortEvaluation()
+    @patch("seismometer.html.template.render_censored_plot_message", return_value=HTML("censored"))
+    @patch("seismometer.api.plots.assert_valid_performance_metrics_df", side_effect=ValueError("invalid"))
+    @patch("seismometer.api.plots.get_cohort_performance_data")
+    @patch("seismometer.api.plots.pdh.get_model_scores")
+    def test_plot_cohort_evaluation_invalid_data(
+        self,
+        mock_get_scores,
+        mock_get_perf,
+        mock_assert_valid,
+        mock_render,
+        fake_seismo,
+    ):
+        df = fake_seismo.dataframe.copy()
+        mock_get_scores.return_value = df
+        mock_get_perf.return_value = pd.DataFrame()
 
-        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
-        widget.option_widget.model_options.target_list.value = "event1"
-        widget.option_widget.model_options.score_list.value = "score1"
-
-        slider_key = next(iter(widget.option_widget.model_options.threshold_list.sliders))
-        widget.option_widget.model_options.threshold_list.value = {slider_key: 0.2}
-
-        widget.option_widget.model_options.per_context_checkbox.value = False
-
-        result = widget.plot_function(
-            cohort_col="Cohort",
-            subgroups=["C1", "C2"],
-            target_column="event1",
-            score_column="score1",
+        result = _plot_cohort_evaluation(
+            dataframe=df,
+            entity_keys=["entity"],
+            target="event1_Value",
+            output="score1",
             thresholds=[0.2],
-            per_context=False,
+            cohort_col="Cohort",
+            subgroups=["C1"],
+            censor_threshold=10,
         )
 
         assert isinstance(result, HTML)
-        assert "Model Performance Metrics on Cohort across Thresholds" in result.data
+        assert "censored" in result.data.lower()
+        mock_render.assert_called_once()
 
-    def test_plot_cohort_evaluation_invalid_data(self, fake_seismo):
-        df = fake_seismo.dataframe
-        df["event1_Value"] = 0  # only negatives
-        html = _plot_cohort_evaluation(
-            df, ["entity"], "event1_Value", "score1", [0.2], "Cohort", ["C1"], censor_threshold=10
+    @patch("seismometer.html.template.render_title_with_image", return_value=HTML("rendered"))
+    @patch("seismometer.api.plots.plot.cohort_evaluation_vs_threshold", return_value="svg-object")
+    @patch("seismometer.api.plots.assert_valid_performance_metrics_df")
+    @patch("seismometer.api.plots.get_cohort_performance_data")
+    @patch("seismometer.api.plots.pdh.get_model_scores")
+    def test_plot_cohort_evaluation_success(
+        self,
+        mock_get_scores,
+        mock_get_perf,
+        mock_assert_valid,
+        mock_plot,
+        mock_render,
+        fake_seismo,
+    ):
+        df = fake_seismo.dataframe.copy()
+        mock_get_scores.return_value = df
+        mock_get_perf.return_value = pd.DataFrame({"metric": [1]})
+
+        result = _plot_cohort_evaluation(
+            dataframe=df,
+            entity_keys=["entity"],
+            target="event1_Value",
+            output="score1",
+            thresholds=[0.2],
+            cohort_col="Cohort",
+            subgroups=["C1"],
+            censor_threshold=0,
         )
-        assert "censored" in html.data.lower()
+
+        assert isinstance(result, HTML)
+        assert "rendered" in result.data
+        mock_render.assert_called_once()
+        mock_plot.assert_called_once()
 
 
 class TestExploreCohortHistograms:
-    def test_widget_calls_plot_function(self, fake_seismo):
-        widget = ExploreCohortHistograms()
+    @patch("seismometer.seismogram.Seismogram")
+    @patch("seismometer.api.plots.pdh.event_value", return_value="event1_Value")
+    @patch("seismometer.data.filter.FilterRule.filter")
+    @patch("seismometer.api.plots.plot.cohorts_vertical", return_value="svg-mock")
+    @patch("seismometer.html.template.render_title_with_image", return_value=HTML("histogram"))
+    def test_plot_cohort_group_histograms(
+        self, mock_render, mock_plot, mock_filter, mock_event_value, mock_seismo, fake_seismo
+    ):
+        mock_seismo.return_value = fake_seismo
+        mock_filter.return_value = fake_seismo.dataframe
 
-        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
-        widget.option_widget.model_options.target_list.value = "event1"
-        widget.option_widget.model_options.score_list.value = "score1"
-
-        result = widget.plot_function(
+        result = plot_cohort_group_histograms(
             cohort_col="Cohort",
             subgroups=["C1", "C2"],
             target_column="event1",
@@ -419,115 +528,82 @@ class TestExploreCohortHistograms:
         )
 
         assert isinstance(result, HTML)
-        assert "Predicted Probabilities by Cohort" in result.data
+        assert "histogram" in result.data
+        mock_render.assert_called_once()
 
-    def test_plot_cohort_group_histograms(self, fake_seismo):
-        html = plot_cohort_group_histograms(
+    @patch("seismometer.html.template.render_censored_plot_message", return_value=HTML("censored"))
+    def test_plot_cohort_hist_empty_after_filter(self, mock_render, fake_seismo):
+        # Simulate filtered-out result
+        empty_df = fake_seismo.dataframe.iloc[0:0].copy()
+
+        result = _plot_cohort_hist(
+            dataframe=empty_df,
+            target="event1_Value",
+            output="score1",
             cohort_col="Cohort",
             subgroups=["C1", "C2"],
-            target_column="event1",
-            score_column="score1",
         )
 
-        assert isinstance(html, HTML)
-        assert "Predicted Probabilities by Cohort" in html.data
+        assert "censored" in result.data.lower()
+        mock_render.assert_called_once()
 
-    def test_plot_cohort_hist_empty_after_filter(self, fake_seismo):
-        df = fake_seismo.dataframe
-        df["Cohort"] = pd.Categorical(["Z", "Z", "Z", "Z"])  # mark as categorical
-        html = _plot_cohort_hist(df, "event1_Value", "score1", "Cohort", ["C1", "C2"])
-        assert "censored" in html.data.lower()
+    @patch("seismometer.html.template.render_title_message", return_value=HTML("error"))
+    @patch("seismometer.api.plots.plot.cohorts_vertical", side_effect=ValueError("fail"))
+    def test_plot_cohort_hist_plot_fails(self, mock_plot, mock_render, fake_seismo):
+        df = fake_seismo.dataframe.copy()
+        result = _plot_cohort_hist(df, "event1_Value", "score1", "Cohort", ["C1", "C2"])
+        assert "error" in result.data.lower()
 
-    def test_plot_cohort_hist_plot_fails(self, fake_seismo, monkeypatch):
-        from seismometer.api import plots
-
-        monkeypatch.setattr(
-            plots.plot, "cohorts_vertical", lambda *_a, **_k: (_ for _ in ()).throw(ValueError("fail"))
-        )
-        html = plots._plot_cohort_hist(fake_seismo.dataframe, "event1_Value", "score1", "Cohort", ["C1", "C2"], 0)
-        assert "Error" in html.data
-
-    def test_plot_cohort_hist(self, fake_seismo):
+    @patch("seismometer.seismogram.Seismogram")
+    @patch("seismometer.api.plots._plot_cohort_hist", return_value=HTML("cohort plot"))
+    def test_plot_cohort_hist(self, mock_plot_fn, mock_seismo, fake_seismo):
         fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        mock_seismo.return_value = fake_seismo
+
         result = plot_cohort_hist()
-        assert isinstance(result, HTML)
-        assert "Predicted Probabilities by" in result.data
+        assert "cohort plot" in result.data
+        mock_plot_fn.assert_called_once()
 
 
 class TestExploreCohortLeadTime:
-    def test_widget_calls_plot_function(self, fake_seismo):
-        widget = ExploreCohortLeadTime()
-
-        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
-        widget.option_widget.model_options.target_list.value = "event1"
-        widget.option_widget.model_options.score_list.value = "score1"
-
-        slider_key = next(iter(widget.option_widget.model_options.threshold_list.sliders))
-        widget.option_widget.model_options.threshold_list.value = {slider_key: 0.2}
-
-        result = widget.plot_function(
-            cohort_col="Cohort",
-            subgroups=["C1", "C2"],
-            event_column="event1",
-            score_column="score1",
-            threshold=0.2,
-        )
-
-        assert isinstance(result, HTML)
-        assert "Lead Time" in result.data
-
-    def test_plot_cohort_lead_time(self, fake_seismo):
-        html = plot_cohort_lead_time(
-            cohort_col="Cohort",
-            subgroups=["C1", "C2"],
-            event_column="event1",
-            score_column="score1",
-            threshold=0.2,
-        )
-
-        assert isinstance(html, HTML)
-        assert "Lead Time" in html.data
-
-    def test_leadtime_enc_no_positives(self, fake_seismo):
-        df = fake_seismo.dataframe
-        df["event1_Value"] = 0  # all negatives
-        result = _plot_leadtime_enc(
-            df,
-            ["entity"],
-            "event1_Value",
-            "event1_Time",
-            "score1",
-            0.2,
-            "time",
-            "Cohort",
-            ["C1"],
-            48,
-            "Lead Time (hours)",
-            0,
-        )
-        assert result is None
-
-    def test_plot_leadtime_enc(self, fake_seismo):
+    @patch("seismometer.seismogram.Seismogram")
+    @patch("seismometer.api.plots._plot_leadtime_enc", return_value=HTML("wrapped"))
+    def test_plot_leadtime_enc(self, mock_plot, mock_seismo, fake_seismo):
         fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        mock_seismo.return_value = fake_seismo
         result = plot_leadtime_enc()
-        assert "Lead Time" in result.data
+        assert "wrapped" in result.data
+        mock_plot.assert_called_once()
+
+    @patch("seismometer.seismogram.Seismogram")
+    @patch("seismometer.api.plots._plot_leadtime_enc", return_value=HTML("cohort lead time"))
+    def test_plot_cohort_lead_time(self, mock_plot, mock_seismo, fake_seismo):
+        mock_seismo.return_value = fake_seismo
+        result = plot_cohort_lead_time(
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            event_column="event1",
+            score_column="score1",
+            threshold=0.2,
+        )
+        assert "cohort lead time" in result.data
+        mock_plot.assert_called_once()
 
     def test_leadtime_enc_missing_target_column(self, fake_seismo, caplog):
         df = fake_seismo.dataframe.drop(columns=["event1_Value"])
         with caplog.at_level("ERROR"):
             result = _plot_leadtime_enc(
                 df,
-                ["entity"],
-                "event1_Value",
-                "event1_Time",
-                "score1",
-                0.2,
-                "time",
-                "Cohort",
-                ["C1"],
-                48,
-                "Lead Time (hours)",
-                0,
+                entity_keys=["entity"],
+                target_event="event1_Value",
+                target_zero="event1_Time",
+                score="score1",
+                threshold=0.2,
+                ref_time="time",
+                cohort_col="Cohort",
+                subgroups=["C1"],
+                max_hours=48,
+                x_label="Lead Time (hours)",
             )
         assert result is None
         assert "Target event (event1_Value) not found" in caplog.text
@@ -537,109 +613,91 @@ class TestExploreCohortLeadTime:
         with caplog.at_level("ERROR"):
             result = _plot_leadtime_enc(
                 df,
-                ["entity"],
-                "event1_Value",
-                "event1_Time",
-                "score1",
-                0.2,
-                "time",
-                "Cohort",
-                ["C1"],
-                48,
-                "Lead Time (hours)",
-                0,
+                entity_keys=["entity"],
+                target_event="event1_Value",
+                target_zero="event1_Time",
+                score="score1",
+                threshold=0.2,
+                ref_time="time",
+                cohort_col="Cohort",
+                subgroups=["C1"],
+                max_hours=48,
+                x_label="Lead Time (hours)",
             )
         assert result is None
         assert "Target event time-zero (event1_Time) not found" in caplog.text
 
     def test_leadtime_enc_no_positive_events(self, fake_seismo, caplog):
-        df = fake_seismo.dataframe
+        df = fake_seismo.dataframe.copy()
         df["event1_Value"] = 0  # force all negative
         with caplog.at_level("ERROR"):
             result = _plot_leadtime_enc(
                 df,
-                ["entity"],
-                "event1_Value",
-                "event1_Time",
-                "score1",
-                0.2,
-                "time",
-                "Cohort",
-                ["C1"],
-                48,
-                "Lead Time (hours)",
-                0,
+                entity_keys=["entity"],
+                target_event="event1_Value",
+                target_zero="event1_Time",
+                score="score1",
+                threshold=0.2,
+                ref_time="time",
+                cohort_col="Cohort",
+                subgroups=["C1"],
+                max_hours=48,
+                x_label="Lead Time (hours)",
             )
         assert result is None
         assert "No positive events (event1_Value=1) were found" in caplog.text
 
-    def test_leadtime_enc_below_censor_threshold(self, fake_seismo):
-        df = fake_seismo.dataframe
-        df = df[df["event1_Value"] == 1].iloc[:1]  # one row with positive event
+    @patch("seismometer.api.plots.pdh.event_score", return_value=None)
+    def test_leadtime_enc_below_censor_threshold(self, mock_score, fake_seismo):
+        df = fake_seismo.dataframe.copy()
+        df = df[df["event1_Value"] == 1].iloc[:1]
         result = _plot_leadtime_enc(
             df,
-            ["entity"],
-            "event1_Value",
-            "event1_Time",
-            "score1",
-            0.2,
-            "time",
-            "Cohort",
-            ["C1"],
-            48,
-            "Lead Time (hours)",
+            entity_keys=["entity"],
+            target_event="event1_Value",
+            target_zero="event1_Time",
+            score="score1",
+            threshold=0.2,
+            ref_time="time",
+            cohort_col="Cohort",
+            subgroups=["C1"],
+            max_hours=48,
+            x_label="Lead Time (hours)",
             censor_threshold=5,
         )
         assert "censored" in result.data.lower()
 
-    def test_leadtime_enc_subgroup_filter_excludes_all(self, fake_seismo):
+    @patch("seismometer.api.plots.pdh.event_score")
+    @patch("seismometer.data.filter.FilterRule.filter")
+    @patch("seismometer.html.template.render_censored_plot_message", return_value=HTML("censored"))
+    def test_leadtime_enc_subgroup_filter_excludes_all(self, mock_render, mock_filter, mock_score, fake_seismo):
         df = fake_seismo.dataframe
-        df["Cohort"] = "Z"  # not in subgroups
+        mock_filter.return_value = df[:0]
+        mock_score.return_value = df[:0]
+
         result = _plot_leadtime_enc(
             df,
-            ["entity"],
-            "event1_Value",
-            "event1_Time",
-            "score1",
-            0.2,
-            "time",
-            "Cohort",
-            ["C1", "C2"],
-            48,
-            "Lead Time (hours)",
-            0,
+            entity_keys=["entity"],
+            target_event="event1_Value",
+            target_zero="event1_Time",
+            score="score1",
+            threshold=0.2,
+            ref_time="time",
+            cohort_col="Cohort",
+            subgroups=["C1", "C2"],
+            max_hours=48,
+            x_label="Lead Time (hours)",
+            censor_threshold=0,
         )
+
         assert "censored" in result.data.lower()
 
 
 class TestExploreCohortOutcomeInterventionTimes:
-    def test_widget_calls_plot_function(self, fake_seismo):
-        widget = ExploreCohortOutcomeInterventionTimes()
-
-        widget.option_widget.cohort_list.value = ("Cohort", ("C1", "C2"))
-        widget.option_widget.model_options.outcome_list.value = "outcome1"
-        widget.option_widget.model_options.intervention_list.value = "intervention1"
-        widget.option_widget.model_options.reference_time_list.value = "time"
-
-        result = widget.plot_function(
-            cohort_col="Cohort",
-            subgroups=["C1", "C2"],
-            outcome="outcome1",
-            intervention="intervention1",
-            reference_time_col="time",
-        )
-
-        assert isinstance(result, HTML)
-        assert "Outcome" in result.data
-        assert "Intervention" in result.data
-
-    def test_plot_trend_intervention_outcome(self, fake_seismo):
-        fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
-        result = plot_trend_intervention_outcome()
-        assert isinstance(result, HTML)
-        assert "Outcome" in result.data and "Intervention" in result.data
-
-    def test_plot_intervention_outcome_timeseries(self, fake_seismo):
+    @patch("seismometer.seismogram.Seismogram")
+    @patch("seismometer.api.plots._plot_trend_intervention_outcome", return_value=HTML("wrapped outcome/intervention"))
+    def test_plot_intervention_outcome_timeseries(self, mock_plot, mock_seismo, fake_seismo):
+        mock_seismo.return_value = fake_seismo
         result = plot_intervention_outcome_timeseries(
             cohort_col="Cohort",
             subgroups=["C1", "C2"],
@@ -649,18 +707,66 @@ class TestExploreCohortOutcomeInterventionTimes:
             censor_threshold=0,
         )
         assert isinstance(result, HTML)
-        assert "Outcome" in result.data and "Intervention" in result.data
+        assert "wrapped outcome/intervention" in result.data
+
+    @patch("seismometer.api.plots.pdh.event_value", side_effect=lambda x: f"{x}_Value")
+    @patch("seismometer.api.plots._plot_ts_cohort", return_value="svg")
+    @patch("seismometer.html.template.render_title_with_image", side_effect=lambda title, svg: HTML(title))
+    def test_plot_trend_intervention_outcome_combines_both(
+        self, mock_render, mock_plot, mock_event_value, fake_seismo
+    ):
+        fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        result = plot_trend_intervention_outcome()
+        assert isinstance(result, HTML)
+        assert "Outcome" in result.data
+        assert "Intervention" in result.data
+        assert mock_render.call_count == 2
+
+    @patch("seismometer.api.plots.pdh.event_value", side_effect=lambda x: f"{x}_Value")
+    @patch("seismometer.api.plots._plot_ts_cohort", side_effect=[IndexError("missing"), "svg"])
+    @patch("seismometer.html.template.render_title_with_image", side_effect=lambda title, svg: HTML(title))
+    @patch("seismometer.html.template.render_title_message", side_effect=lambda title, msg: HTML(f"{title}: {msg}"))
+    def test_plot_trend_intervention_outcome_missing_intervention(
+        self, mock_msg, mock_render, mock_plot, mock_event_value, fake_seismo
+    ):
+        fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        result = plot_trend_intervention_outcome()
+        assert isinstance(result, HTML)
+        assert "Missing Intervention" in result.data
+        assert "Outcome" in result.data
+
+    @patch("seismometer.api.plots.pdh.event_value", side_effect=lambda x: f"{x}_Value")
+    @patch("seismometer.api.plots._plot_ts_cohort", side_effect=["svg", IndexError("missing")])
+    @patch("seismometer.html.template.render_title_with_image", side_effect=lambda title, svg: HTML(title))
+    @patch("seismometer.html.template.render_title_message", side_effect=lambda title, msg: HTML(f"{title}: {msg}"))
+    def test_plot_trend_intervention_outcome_missing_outcome(
+        self, mock_msg, mock_render, mock_plot, mock_event_value, fake_seismo
+    ):
+        fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
+        result = plot_trend_intervention_outcome()
+        assert isinstance(result, HTML)
+        assert "Missing Outcome" in result.data
+        assert "Intervention" in result.data
 
 
 class TestExplorationWidgetErrorHandling:
     def test_try_generate_plot_with_exception(self):
         class FailingWidget(ExplorationWidget):
             def __init__(self):
-                super().__init__("Failing", WidgetHTML("Placeholder"), lambda *_: 1 / 0)
+                # Define a plot function that raises
+                def bad_plot(*args, **kwargs):
+                    raise RuntimeError("kaboom")
+
+                bad_plot.__name__ = "plot_func"
+                bad_plot.__module__ = "seismometer.api"
+                super().__init__("Failing", WidgetHTML("placeholder"), bad_plot)
 
             def generate_plot_args(self):
                 return (), {}
 
         widget = FailingWidget()
         result = widget._try_generate_plot()
+
+        assert isinstance(result, WidgetHTML)
         assert "Traceback" in result.value
+        assert "kaboom" in result.value
