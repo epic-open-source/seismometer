@@ -1,1 +1,0 @@
-Fixed a bug in ``generate_analytics_data`` where ``per_context=True`` caused data contamination across iterations due to in-place modification of the input DataFrame.
