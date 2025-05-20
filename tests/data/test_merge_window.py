@@ -1252,7 +1252,7 @@ class TestMergeEventCounts:
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
         return
 
-    def test_merge_count_some_times_missing(self):
+    def test_merge_count_some_times_missing(self, caplog):
         # Test merge_windowed_event with merge strategy of "count" and some event times missing
         ids = [1, 2]
         ctxs = [1, 2]
@@ -1283,19 +1283,23 @@ class TestMergeEventCounts:
         expected_vals = [4, 3]  # Expect ID 1 to have value of 4 and ID 2 to have value of 3
         expected = pd.DataFrame({undertest.event_value_count("TestEvent", "1"): expected_vals})
 
-        actual = undertest.merge_windowed_event(
-            predictions,
-            "PredictTime",
-            events,
-            event_name,
-            ["Id"],
-            window_hrs=12,
-            min_leadtime_hrs=0,
-            merge_strategy="count",
-        )
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            actual = undertest.merge_windowed_event(
+                predictions,
+                "PredictTime",
+                events,
+                event_name,
+                ["Id"],
+                window_hrs=12,
+                min_leadtime_hrs=0,
+                merge_strategy="count",
+            )
 
         actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+        assert len(caplog.records) == 1
+        assert "Found 3 rows" in caplog.text
 
     def test_merge_count_all_times_missing(self):
         # Test merge_windowed_event with merge strategy of "count" all event times missing
