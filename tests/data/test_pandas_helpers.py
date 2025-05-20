@@ -539,7 +539,7 @@ class TestMergeEventCounts:
             result = undertest._merge_event_counts(
                 preds, events, ["Id"], "MyEvent", "Label", window_hrs=1, l_ref="Time", r_ref="~~reftime~~"
             )
-            assert "rows with missing times" in caplog.text
+            assert "1 rows with missing times" in caplog.text
             assert result.shape[0] == preds.shape[0]
             assert "MyEvent~C_Count" not in result.columns
 
@@ -568,17 +568,19 @@ class TestMergeEventCounts:
         assert len([c for c in result.columns if "_Count" in c]) == undertest.MAXIMUM_COUNT_CATS
         assert "Maximum number of unique events" in caplog.text
 
-    def test_counts_are_correct(self, base_counts_data):
+    def test_counts_are_correct(self, base_counts_data, caplog):
         preds, events = base_counts_data
         events["~~reftime~~"] = events["Event_Time"]
-        result = undertest._merge_event_counts(
-            preds, events, ["Id"], "MyEvent", "Label", window_hrs=5, l_ref="Time", r_ref="~~reftime~~"
-        )
+        with caplog.at_level("WARNING"):
+            result = undertest._merge_event_counts(
+                preds, events, ["Id"], "MyEvent", "Label", window_hrs=5, l_ref="Time", r_ref="~~reftime~~"
+            )
 
         assert result["Label~A_Count"].iloc[0] == 0
         assert result["Label~B_Count"].iloc[0] == 1
         assert result["Label~A_Count"].iloc[1] == 1
         assert result["Label~B_Count"].iloc[1] == 0
+        assert "1 rows with missing times" in caplog.text
 
     def test_merge_event_counts_raises_on_non_timedelta(self, base_counts_data):
         preds, events = base_counts_data
