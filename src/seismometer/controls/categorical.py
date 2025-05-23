@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Union
+from collections import defaultdict
+from typing import List, Optional, Union
 
 import pandas as pd
 
@@ -57,11 +58,17 @@ class OrdinalCategoricalPlot:
         self.dataframe = cohort_filter.filter(sg.dataframe)
         self.censor_threshold = sg.censor_threshold
 
-        self.values = self._extract_metric_values() if self.metrics else []
+        self.values = self._extract_metric_values()
 
     def _extract_metric_values(self):
         """
         Extracts the ordered set of values from all selected metrics.
+
+        For each metric, uses `metric.metric_details.values` if available;
+        otherwise, raises an error — order must be explicitly defined.
+
+        Combines value lists if they are consistent and impose a unique order.
+        Raises a ValueError if a merge is ambiguous or inconsistent.
 
         Raises
         ------
@@ -86,15 +93,66 @@ class OrdinalCategoricalPlot:
 
             value_lists.append(list(values))
 
-        first = value_lists[0]
-        for other in value_lists[1:]:
-            if first != other:
-                raise ValueError("Inconsistent metric values provided across selected metrics.")
+        result = self._merge_ordered_lists(lists=value_lists)
 
-        if len(first) > MAX_CATEGORY_SIZE:
-            raise ValueError(f"Total number of values ({len(first)}) exceeds MAX_CATEGORY_SIZE ({MAX_CATEGORY_SIZE}).")
+        if len(result) > MAX_CATEGORY_SIZE:
+            raise ValueError(
+                f"Total number of values ({len(result)}) exceeds MAX_CATEGORY_SIZE ({MAX_CATEGORY_SIZE})."
+            )
 
-        return first
+        return result
+
+    def _merge_ordered_lists(self, lists: List[List[str]]) -> List[str]:
+        """
+        Merges multiple ordered lists into a single linear order.
+
+        Only succeeds if there is a unique valid next element at every step,
+        based on the in-degree of the graph built from pairwise relationships.
+
+        Parameters
+        ----------
+        lists : list of list of str
+            Input ordered value lists.
+
+        Returns
+        -------
+        list of str
+            Merged, globally consistent linear order.
+
+        Raises
+        ------
+        ValueError
+            If there are conflicting or ambiguous orderings.
+        """
+        graph = defaultdict(set)
+        in_degree = defaultdict(int)
+        all_nodes = set()
+
+        # Step 1: Build graph edges from each list
+        for lst in lists:
+            all_nodes.update(lst)
+            for a, b in zip(lst, lst[1:]):
+                if b not in graph[a]:
+                    graph[a].add(b)
+                    in_degree[b] += 1
+                in_degree.setdefault(a, 0)
+
+        result = []
+
+        # Step 2: Repeatedly find the only valid next node
+        while len(result) < len(all_nodes):
+            candidates = [n for n in all_nodes if in_degree[n] == 0 and n not in result]
+
+            if len(candidates) != 1:
+                raise ValueError("Inconsistent or ambiguous ordering: cannot determine a unique next value.")
+
+            node = candidates[0]
+            result.append(node)
+
+            for neighbor in graph[node]:
+                in_degree[neighbor] -= 1
+
+        return result
 
     @classmethod
     def initialize_plot_functions(cls):
