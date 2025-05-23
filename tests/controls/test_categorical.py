@@ -109,11 +109,36 @@ class TestOrdinalCategoricalPlot:
         plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
         assert "Likert Plot" in plot.plot_functions
 
+    def test_generate_plot_invalid_type_raises(self, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"], plot_type="Unknown")
+        with pytest.raises(ValueError, match="Unknown plot type: Unknown"):
+            plot.generate_plot()
+
+    def test_extract_metric_values_invalid_metric_raises(self, fake_seismo):
+        with pytest.raises(ValueError, match="Metric Foo is not a valid metric."):
+            OrdinalCategoricalPlot(metrics=["Foo"])
+
     def test_extract_metric_values(self, fake_seismo):
         plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
         plot.dataframe = sample_data()
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
+
+    def test_extract_metric_values_none_values_raises(self, fake_seismo):
+        fake_seismo.metrics["Metric1"].metric_details.values = None
+        with pytest.raises(ValueError, match="Metric values for metric Metric1 are not provided"):
+            OrdinalCategoricalPlot(metrics=["Metric1"])
+
+    def test_extract_metric_values_inconsistent_raises(self, fake_seismo):
+        fake_seismo.metrics["Metric1"].metric_details.values = ["disagree", "neutral", "agree"]
+        fake_seismo.metrics["Metric2"].metric_details.values = ["low", "medium", "high"]
+        with pytest.raises(ValueError, match="Inconsistent metric values provided"):
+            OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
+
+    def test_extract_metric_values_too_many_categories_raises(self, fake_seismo):
+        fake_seismo.metrics["Metric1"].metric_details.values = [f"v{i}" for i in range(100)]  # > MAX_CATEGORY_SIZE
+        with pytest.raises(ValueError, match="exceeds MAX_CATEGORY_SIZE"):
+            OrdinalCategoricalPlot(metrics=["Metric1"])
 
     def test_count_values_in_columns(self, fake_seismo):
         plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
@@ -173,6 +198,13 @@ class TestOrdinalCategoricalPlot:
         plot.plot_functions["Custom Plot"] = CustomPlot.custom_plot
         html = plot.generate_plot()
         assert isinstance(html, HTML)
+
+    def test_generate_plot_returns_censored_message_when_below_threshold(self, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
+        plot.censor_threshold = 10
+        result = plot.generate_plot()
+        assert isinstance(result, HTML)
+        assert f"There are {plot.censor_threshold} or fewer observations" in result.data
 
 
 class TestOrdinalCategoricalPlotFunction:

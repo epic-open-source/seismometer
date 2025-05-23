@@ -1,5 +1,8 @@
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
+import yaml
 from ydata_profiling.model.alerts import Alert, AlertType
 
 from seismometer.report.alerting import AlertConfigProvider, AlertDef
@@ -203,3 +206,41 @@ class Test_Alert_Thresholding:
         )
 
         assert cfg._alert_threshold_met(alert)
+
+    def test_alert_config_file_loaded_from_file(self):
+        cfg = {"alerts": {"constant": {"severity": "#123456"}}}
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "alert_config.yml"
+            with open(config_path, "w") as f:
+                yaml.dump(cfg, f)
+
+            provider = AlertConfigProvider(config_path)
+            assert provider._config.alerts["constant"].severity == "#123456"
+
+    def test_alert_config_file_not_found_falls_back(self, caplog):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with caplog.at_level("DEBUG"):
+                provider = AlertConfigProvider(Path(tmpdir) / "missing_config.yml")
+                assert provider._config.alerts == {}
+                assert "No config file found" in caplog.text
+
+    def test_alert_config_file_from_directory_path(self, tmp_path):
+        config = {"alerts": {"constant": {"severity": "#abcdef"}}}
+        config_file = tmp_path / "alert_config.yml"
+        config_file.write_text(yaml.dump(config))
+        provider = AlertConfigProvider(tmp_path)
+        assert provider._config.alerts["constant"].severity == "#abcdef"
+
+    def test_alert_style_default_and_custom(self):
+        alert = Alert(AlertType.CONSTANT)
+        provider = AlertConfigProvider.__new__(AlertConfigProvider)
+        provider._config = type(
+            "MockConfig", (), {"alerts": {"constant": type("MockAlert", (), {"severity": "#ffff00"})()}}
+        )
+        assert provider._alert_style(alert) == "#ffff00"
+
+        alert = Alert(AlertType.MISSING)
+        provider._config = type("MockConfig", (), {"alerts": {}})
+        from seismometer.plot.mpl._ux import alert_colors
+
+        assert provider._alert_style(alert) == alert_colors.Warning

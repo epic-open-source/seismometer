@@ -170,6 +170,58 @@ def test_bin_stats_point_thresholds():
     pd.testing.assert_frame_equal(actual, expected[actual.columns], check_dtype=False)
 
 
+def test_threshold_precision_increases_rows():
+    y_true = np.array([1, 0])
+    y_prob = np.array([0.5, 0.3])
+
+    # Use default threshold precision (0): 101 rows (0–100)
+    default_stats = undertest.calculate_bin_stats(y_true, y_prob)
+    assert len(default_stats) == 101
+
+    # Now try precision=2 → 10,001 thresholds
+    high_precision_stats = undertest.calculate_bin_stats(y_true, y_prob, threshold_precision=2)
+    assert len(high_precision_stats) == 100 * 10**2 + 1
+
+
+def test_thresholds_are_rounded_correctly():
+    y_true = np.array([1, 0])
+    y_prob = np.array([0.6, 0.3])
+    threshold_precision = 2
+
+    stats = undertest.calculate_bin_stats(y_true, y_prob, threshold_precision=threshold_precision)
+    thresholds = stats["Threshold"].to_numpy()
+
+    step = 1 / 10**threshold_precision
+    assert np.allclose(np.diff(thresholds[::-1]), step, atol=1e-6)
+
+
+def test_all_metrics_valid_with_high_threshold_precision():
+    y_true = np.array([1, 1, 0, 0])
+    y_prob = np.array([0.9, 0.7, 0.4, 0.2])
+
+    stats = undertest.calculate_bin_stats(y_true, y_prob, threshold_precision=2)
+
+    all_metrics = undertest.STATNAMES + [f"NNT@{undertest.DEFAULT_RHO:0.3n}"]
+
+    for metric in all_metrics:
+        assert metric in stats.columns
+        values = stats[metric].dropna()
+
+        if metric in {"Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "Flag Rate"}:
+            assert (0.0 <= values).all() and (values <= 1.0).all()
+
+        elif metric in {"TP", "FP", "TN", "FN"}:
+            assert (values >= 0).all()
+            assert pd.api.types.is_integer_dtype(values)
+
+        elif metric in {"LR+", "NetBenefitScore", "NNE", f"NNT@{undertest.DEFAULT_RHO:0.3n}"}:
+            finite_values = values[np.isfinite(values)]
+            assert (finite_values >= 0).all()
+
+        else:
+            assert pd.api.types.is_numeric_dtype(values)
+
+
 def sumall(a, b):
     return a.sum() + b.sum()
 
