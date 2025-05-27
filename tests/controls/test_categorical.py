@@ -34,9 +34,16 @@ def get_test_config(tmp_path):
             group_keys="Group1",
             metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
         ),
+        "Metric3": Metric(
+            source="Metric3",
+            display_name="Metric3",
+            type="categorical_feedback",
+            group_keys="Group2",
+            metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
+        ),
     }
-    mock_config.metric_groups = {"Group1": ["Metric1", "Metric2"], "Group2": ["Metric1"]}
-    mock_config.metric_types = {"categorical_feedback": ["Metric1", "Metric2"]}
+    mock_config.metric_groups = {"Group1": ["Metric1", "Metric2"], "Group2": ["Metric1", "Metric3"]}
+    mock_config.metric_types = {"categorical_feedback": ["Metric1", "Metric2", "Metric3"]}
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity"]
     mock_config.predict_time = "time"
@@ -72,6 +79,7 @@ def get_test_data():
             "Cohort": ["C1", "C2", "C1", "C3"],
             "Metric1": ["disagree", "neutral", "agree", "disagree"],
             "Metric2": ["agree", "neutral", "disagree", "agree"],
+            "Metric3": ["agree", "disagree", "disagree", "agree"],
             "score1": [0.1, 0.4, 0.35, 0.8],
             "score2": [0.2, 0.5, 0.3, 0.7],
             "target1": [0, 1, 0, 1],
@@ -132,7 +140,9 @@ class TestOrdinalCategoricalPlot:
     def test_extract_metric_values_inconsistent_raises(self, fake_seismo):
         fake_seismo.metrics["Metric1"].metric_details.values = ["disagree", "neutral", "agree"]
         fake_seismo.metrics["Metric2"].metric_details.values = ["low", "medium", "high"]
-        with pytest.raises(ValueError, match="Inconsistent metric values provided"):
+        with pytest.raises(
+            ValueError, match="Inconsistent or ambiguous ordering: cannot determine a unique next value."
+        ):
             OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
 
     def test_extract_metric_values_too_many_categories_raises(self, fake_seismo):
@@ -213,3 +223,57 @@ class TestOrdinalCategoricalPlotFunction:
         cohort_dict = {"Cohort": ["C1"]}
         html = ordinal_categorical_plot(metrics, cohort_dict, title="Test Plot")
         assert isinstance(html, HTML)
+
+
+class TestMergeOrderedLists:
+    @pytest.mark.parametrize(
+        "input_lists,expected",
+        [
+            ([["a", "b", "c"], ["a", "b"], ["b", "c"]], ["a", "b", "c"]),
+            ([["x", "y"], ["y", "z"]], ["x", "y", "z"]),
+            ([["1", "2", "3"], ["1", "2"], ["2", "3"]], ["1", "2", "3"]),
+            ([["dog", "cat"], ["cat", "mouse"]], ["dog", "cat", "mouse"]),
+            ([["a", "b"], ["b", "c"], ["a", "c"]], ["a", "b", "c"]),  # linearizable
+        ],
+    )
+    def test_merge_ordered_lists_success(self, input_lists, expected, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        result = plot._merge_ordered_lists(input_lists)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "input_lists",
+        [
+            [["a", "b"], ["a", "c"]],  # branching (ambiguous: could go to b or c)
+            [["a", "b"], ["b", "a"]],  # cycle
+            [["m", "n"], ["n", "o"], ["o", "m"]],  # 3-cycle
+            [["1", "2"], ["3", "4"]],  # disconnected components
+            [["apple", "banana"], ["banana", "cherry"], ["banana", "kiwi"]],  # ambiguous ordering
+        ],
+    )
+    def test_merge_ordered_lists_failure(self, input_lists, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        with pytest.raises(ValueError, match="cannot determine a unique next value"):
+            plot._merge_ordered_lists(input_lists)
+
+    def test_merge_ordered_lists_empty_lists(self, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        result = plot._merge_ordered_lists([])
+        assert result == []
+
+
+class TestExtractMetricValues:
+    @pytest.mark.parametrize(
+        "metric_defs,expected",
+        [
+            ({"Metric1": ["a", "b", "c"], "Metric2": ["a", "b", "c"]}, ["a", "b", "c"]),
+            ({"Metric1": ["x", "y", "z"], "Metric2": ["y", "z"]}, ["x", "y", "z"]),
+            ({"Metric1": ["a", "b"], "Metric2": ["b", "c"], "Metric3": ["a", "c"]}, ["a", "b", "c"]),
+        ],
+    )
+    def test_extract_metric_values_success(self, metric_defs, expected, fake_seismo):
+        for name, values in metric_defs.items():
+            fake_seismo.metrics[name].metric_details.values = values
+
+        plot = OrdinalCategoricalPlot(metrics=list(metric_defs.keys()))
+        assert plot.values == expected
