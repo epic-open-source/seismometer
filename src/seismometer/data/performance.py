@@ -1,10 +1,14 @@
 import logging
+import sys
 from numbers import Number
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider, ObservableGauge
+from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from sklearn.metrics import auc
 
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
@@ -35,6 +39,7 @@ class MetricGenerator:
         metric_names: list[str],
         metric_fn: Callable[..., dict[str, float]],
         default_metrics: Optional[list[str]] = None,
+        otlp_path: Optional[str] = None,
     ):
         """
         A class that generates metrics from a dataframe.
@@ -48,6 +53,8 @@ class MetricGenerator:
             The metric "Count" is reserved.
         metric_fn : Callable[[pd.DataFrame, list[str], ...], list[str], dict[str, float]]
             Function that generates metrics from a dataframe.
+        otlp_path: where OpenTelemetry-generated metrics should be written.
+            Set to None for stdout (dump to console)
         """
         if not metric_names:
             raise ValueError("metric_names must be a non-empty list of supported metrics")
@@ -58,8 +65,48 @@ class MetricGenerator:
         self.metric_names = metric_names
         self.metric_fn = metric_fn
         self.default_metrics = default_metrics or metric_names
+        if otlp_path is not None:
+            self.exhaust_file_path = otlp_path
+        self.setup_otel_metrics()
 
-    def __call__(self, dataframe: pd.DataFrame, metric_names: list[str] = None, **kwargs) -> dict[str, float]:
+    def __del__(self):
+        if self.exhaust_file_path is not None:
+            self.otlp_exhaust.close()
+
+    def setup_otel_metrics(self, metric_names=None):
+        """This initializes the instruments for the
+        various metrics we would like to collect, and
+        also opens the file we are writing to.
+
+        Parameters
+        ----------
+        metric_names : list[str], optional
+            Which metrics to initialize instruments for
+        """
+        # The IO object to write OTel data into.
+        self.otlp_exhaust: sys.IO
+        if hasattr(self, "exhaust_file_path"):
+            self.otlp_exhaust = open(self.exhaust_file_path, "r")
+        else:
+            self.otlp_exhaust = sys.stdout
+        reader = PeriodicExportingMetricReader(ConsoleMetricExporter(out=self.otlp_exhaust))
+        meterProvider = MeterProvider(metric_readers=[reader])
+        metrics.set_meter_provider(meterProvider)
+        # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
+        self.meter = metrics.get_meter("Seismo-meter")
+        # Keep it like this for now: just make an instrument for each metric we are measuring
+        # TODO: worry about the type of each metric being measured
+        # TODO: get better descriptions for each metric besides just the name
+        # This is a map from metric name to corresponding instrument
+        self.instruments: dict[str, ObservableGauge] = {}
+        if not metric_names:
+            metric_names = self.metric_names
+        for mn in metric_names:
+            self.instruments[mn] = self.meter.create_gauge(mn, description=mn)
+
+    def __call__(
+        self, dataframe: pd.DataFrame, metric_names: list[str] = None, record_metrics=True, **kwargs
+    ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
 
@@ -67,6 +114,8 @@ class MetricGenerator:
         ----------
         dataframe : pd.DataFrame
             The dataframe to generate metrics from.
+
+        record_metrics: whether to generate OpenTelemetry metrics from this call.
 
         Returns
         -------
@@ -82,6 +131,8 @@ class MetricGenerator:
             return {name: np.nan for name in metric_names}
         full_metrics = self.delegate_call(dataframe, metric_names, **kwargs)
         filtered_metrics = {k: v for k, v in full_metrics.items() if k in metric_names}
+        if record_metrics:
+            self._populate_metrics(filtered_metrics)
         return filtered_metrics
 
     def delegate_call(self, dataframe: pd.DataFrame, metric_names: list[str], **kwargs) -> dict[str, float]:
@@ -106,6 +157,24 @@ class MetricGenerator:
         """
         return self.metric_fn(dataframe, metric_names, **kwargs)
 
+    def _populate_metrics(self, metrics):
+        """Populate the OpenTelemetry instruments with data from
+        the model.
+
+        Parameters
+        ----------
+        metrics : dict[str, float].
+            The actual data we are populating.
+        """
+        if not metrics:
+            # metrics = self()
+            raise Exception()
+        for name in self.instruments.keys():
+            # I think metrics.keys() is a subset of self.instruments.keys()
+            # but I am not 100% on it. So this stays for now.
+            if name in metrics:
+                self.instruments[name].set(metrics[name])
+
     def __repr__(self):
         return f"MetricGenerator(metric_names={self.metric_names}, metric_fn={self.metric_fn.__name__})"
 
@@ -124,6 +193,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         self.rho = rho or DEFAULT_RHO
         self.default_metrics = PERFORMANCE
+        self.setup_otel_metrics(self.default_metrics)
 
     @property
     def metric_names(self):
