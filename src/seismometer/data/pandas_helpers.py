@@ -299,7 +299,7 @@ def _merge_event_counts(
         if len(right_filtered := right[right[r_ref].notna()]) == 0:
             logger.warning(f"No times found for {event_name}! Unable to merge any counts.")
             return left
-        if diff := len(right) - len(right_filtered) > 0:
+        if (diff := len(right) - len(right_filtered)) > 0:
             logger.warning(f"Found {diff} rows with missing times for {event_name}. These rows will be ignored.")
             right = right_filtered
 
