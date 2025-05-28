@@ -17,6 +17,23 @@ from seismometer.configuration.model import DictionaryItem
 
 # region Fakes and Data Prep
 def fake_config(prediction_file):
+    
+    # Some loaders need some data structures to be present to function
+    class FakeDictionaryItem:
+        def __init__(self, name, dtype):
+            self.name = name
+            self.dtype = dtype
+            
+    class FakePredictionDictionary:
+        def __init__(self):
+            self.predictions = [FakeDictionaryItem("id", "object")]
+
+    class FakeDataUsage:
+        def __init__(self):
+            self.entity_id = "id"
+            self.context_id = None
+            self.predict_time = None
+
     # Create a fake configuration object
     class FakeConfigProvider:
         def __init__(self):
@@ -29,6 +46,8 @@ def fake_config(prediction_file):
             # Intentionally empty, but used in logic for "all feattures"
             self.features = []  # This should be overwritten in tests
             self.cohorts = []
+            self.prediction_defs = FakePredictionDictionary()
+            self.usage = FakeDataUsage()
 
         @property
         def prediction_columns(self):
@@ -72,6 +91,24 @@ def pandas_parquet_setup():
     return fake_config(file)
 
 
+def csv_setup():
+    file = Path("predictions.csv")
+
+    data = pred_frame()
+    data.to_csv(file, index = False)
+
+    return fake_config(file)
+
+
+def tsv_setup():
+    file = Path("predictions.tsv")
+
+    data = pred_frame()
+    data.to_csv(file, sep = "\t", index = False)
+
+    return fake_config(file)
+
+
 def non_pandas_parquet_setup():
     file = Path("predictions.parquet")
 
@@ -93,6 +130,8 @@ def non_pandas_parquet_setup():
     [
         [pandas_parquet_setup, undertest.parquet_loader],
         [non_pandas_parquet_setup, undertest.parquet_loader],
+        [csv_setup, undertest.csv_loader],
+        [tsv_setup, undertest.tsv_loader]
     ],
 )
 @pytest.mark.usefixtures("tmp_as_current")
