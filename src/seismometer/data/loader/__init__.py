@@ -44,13 +44,17 @@ def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None)
     """
     
     # Default filetype: parquet
-    prediction_file_extension = _get_file_extension(config.prediction_path)
     prediction_loader: ConfigOnlyHook = prediction.parquet_loader
-    if prediction_file_extension in prediction_loaders: prediction_loader = prediction_loaders[prediction_file_extension]
-
-    event_file_extension = _get_file_extension(config.event_path)
     event_loader: ConfigOnlyHook = event.parquet_loader
-    if event_file_extension in event_loaders: event_loader = event_loaders[event_file_extension]
+
+    # config should be able to be any object without immediately giving
+    # an error
+    if isinstance(config, ConfigProvider):
+        prediction_file_extension = _get_file_extension(config.prediction_path)
+        if prediction_file_extension in prediction_loaders: prediction_loader = prediction_loaders[prediction_file_extension]
+
+        event_file_extension = _get_file_extension(config.event_path)
+        if event_file_extension in event_loaders: event_loader = event_loaders[event_file_extension]
 
     return SeismogramLoader(
         config,
