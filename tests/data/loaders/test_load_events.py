@@ -16,13 +16,12 @@ from seismometer.configuration.model import Event
 
 # region Fakes and Data Prep
 def fake_config(event_file):
-            
     # Some loaders need some data structures to be present to function
     class FakeDictionaryItem:
         def __init__(self, name, dtype):
             self.name = name
             self.dtype = dtype
-            
+
     class FakePredictionDictionary:
         def __init__(self):
             self.predictions = [FakeDictionaryItem("id", "object")]
@@ -108,7 +107,7 @@ def csv_setup():
     file = Path("events.csv")
 
     data = event_frame()
-    data.to_csv(file, index = False)
+    data.to_csv(file, index=False)
 
     return fake_config(file)
 
@@ -117,7 +116,7 @@ def tsv_setup():
     file = Path("events.tsv")
 
     data = event_frame()
-    data.to_csv(file, sep = "\t", index = False)
+    data.to_csv(file, sep="\t", index=False)
 
     return fake_config(file)
 
@@ -125,10 +124,12 @@ def tsv_setup():
 # region Tests
 @pytest.mark.parametrize(
     "setup_fn,load_fn",
-    [[pandas_parquet_setup, undertest.parquet_loader],
-    [non_pandas_parquet_setup, undertest.parquet_loader],
-    [csv_setup, undertest.csv_loader],
-    [tsv_setup, undertest.tsv_loader]]
+    [
+        [pandas_parquet_setup, undertest.parquet_loader],
+        [non_pandas_parquet_setup, undertest.parquet_loader],
+        [csv_setup, undertest.csv_loader],
+        [tsv_setup, undertest.tsv_loader],
+    ],
 )
 @pytest.mark.usefixtures("tmp_as_current")
 class TestPredictionLoad:

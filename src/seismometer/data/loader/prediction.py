@@ -31,6 +31,7 @@ def csv_loader(config: ConfigProvider) -> pd.DataFrame:
     """
     return _sv_loader(config, ",")
 
+
 def tsv_loader(config: ConfigProvider) -> pd.DataFrame:
     """
     Load the predictions frame from a TSV file based on config.prediction_path.
@@ -48,6 +49,7 @@ def tsv_loader(config: ConfigProvider) -> pd.DataFrame:
         The predictions dataframe.
     """
     return _sv_loader(config, "\t")
+
 
 def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
     """
@@ -197,6 +199,7 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
 # other
 
+
 def _infer_datetime(dataframe, cols=None, override_categories=None):
     """Infers datetime columns based on column name and casts to pandas.datatime."""
     if cols is None:
@@ -207,6 +210,7 @@ def _infer_datetime(dataframe, cols=None, override_categories=None):
             continue
     return dataframe
 
+
 def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
     """General loader for CSV or TSV files"""
     if not config.features:  # no features ==> all features
@@ -216,7 +220,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FutureWarning)
-            with open(config.prediction_path, 'r') as f:
+            with open(config.prediction_path, "r") as f:
                 dict_reader = csv.DictReader(f, delimiter=sep)
                 present_columns = set(dict_reader.fieldnames)
 
@@ -234,6 +238,6 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
     usage = config.usage
     for col in [usage.entity_id, usage.context_id, usage.predict_time]:
         if col is not None and defined_types[col] == "object":
-                dataframe[col] = dataframe[col].astype(str)
+            dataframe[col] = dataframe[col].astype(str)
 
     return dataframe.sort_index(axis=1)

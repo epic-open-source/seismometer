@@ -11,6 +11,7 @@ PARQUET = ".parquet"
 CSV = ".csv"
 TSV = ".tsv"
 
+
 def get_fake_config(prediction_path: Optional[str] = "predict.parquet", event_path: Optional[str] = "event.parquet"):
     fake_config = Mock(spec=undertest.ConfigProvider)
     fake_config.prediction_path = Path(prediction_path)

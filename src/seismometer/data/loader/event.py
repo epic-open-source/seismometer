@@ -29,6 +29,7 @@ def csv_loader(config: ConfigProvider) -> pd.DataFrame:
     """
     return _sv_loader(config, ",")
 
+
 def tsv_loader(config: ConfigProvider) -> pd.DataFrame:
     """
     Loads the events frame from a csv file based on config.event_path.
@@ -235,7 +236,9 @@ def _get_source_type(config: ConfigProvider, event: Event) -> str:
 
     return dtype
 
+
 # other
+
 
 def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
     """General loader for CSV or TSV files"""
@@ -252,7 +255,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
         for col in [usage.entity_id, usage.context_id, usage.predict_time]:
             if col is not None and defined_types[col] == "object":
                 events[col] = events[col].astype(str)
-    except BaseException as e:
+    except BaseException:
         logger.debug(f"No events found at {config.event_path}")
         events = pd.DataFrame(columns=config.entity_keys + ["Type", "Time", "Value"])
 

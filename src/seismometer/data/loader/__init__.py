@@ -7,24 +7,20 @@ from seismometer.configuration import ConfigProvider
 
 from .pipeline import ConfigFrameHook, ConfigOnlyHook, MergeFramesHook, SeismogramLoader
 
-
 """
 Dictionary of data loaders of the form prediction_loaders[file_extension] = loader.
 """
 prediction_loaders = {
     ".parquet": prediction.parquet_loader,
     ".csv": prediction.csv_loader,
-    ".tsv": prediction.tsv_loader
+    ".tsv": prediction.tsv_loader,
 }
 
 """
 Dictionary of data loaders of the form event_loaders[file_extension] = loader.
 """
-event_loaders = {
-    ".parquet": event.parquet_loader,
-    ".csv": event.csv_loader,
-    ".tsv": event.tsv_loader
-}
+event_loaders = {".parquet": event.parquet_loader, ".csv": event.csv_loader, ".tsv": event.tsv_loader}
+
 
 def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None) -> SeismogramLoader:
     """
@@ -44,7 +40,7 @@ def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None)
     SeismogramLoader
         Instance of the SeismogramLoader class, with load_data() method ready to be called
     """
-    
+
     # Default filetype: parquet
     prediction_loader: ConfigOnlyHook = prediction.parquet_loader
     event_loader: ConfigOnlyHook = event.parquet_loader
@@ -53,10 +49,12 @@ def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None)
     # an error
     if isinstance(config, ConfigProvider):
         prediction_file_extension = _get_file_extension(config.prediction_path)
-        if prediction_file_extension in prediction_loaders: prediction_loader = prediction_loaders[prediction_file_extension]
+        if prediction_file_extension in prediction_loaders:
+            prediction_loader = prediction_loaders[prediction_file_extension]
 
         event_file_extension = _get_file_extension(config.event_path)
-        if event_file_extension in event_loaders: event_loader = event_loaders[event_file_extension]
+        if event_file_extension in event_loaders:
+            event_loader = event_loaders[event_file_extension]
 
     return SeismogramLoader(
         config,
@@ -68,7 +66,9 @@ def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None)
         post_load_fn=post_load_fn,
     )
 
+
 # helper functions
+
 
 def _get_file_extension(path: str) -> str:
     """
