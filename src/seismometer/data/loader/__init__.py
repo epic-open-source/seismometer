@@ -13,7 +13,8 @@ Dictionary of data loaders of the form prediction_loaders[file_extension] = load
 """
 prediction_loaders = {
     ".parquet": prediction.parquet_loader,
-    ".csv": prediction.csv_loader
+    ".csv": prediction.csv_loader,
+    ".tsv": prediction.tsv_loader
 }
 
 """
@@ -21,7 +22,8 @@ Dictionary of data loaders of the form event_loaders[file_extension] = loader.
 """
 event_loaders = {
     ".parquet": event.parquet_loader,
-    ".csv": event.csv_loader
+    ".csv": event.csv_loader,
+    ".tsv": event.tsv_loader
 }
 
 def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None) -> SeismogramLoader:

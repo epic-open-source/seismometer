@@ -31,6 +31,24 @@ def csv_loader(config: ConfigProvider) -> pd.DataFrame:
     """
     return _sv_loader(config, ",")
 
+def tsv_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Load the predictions frame from a TSV file based on config.prediction_path.
+
+    Will restrict the loaded columns to those specified in config.features, if present.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        The predictions dataframe.
+    """
+    return _sv_loader(config, "\t")
+
 def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
     """
     Load the predictions frame from a parquet file based on config.prediction_path.
@@ -192,21 +210,21 @@ def _infer_datetime(dataframe, cols=None, override_categories=None):
 def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
     """General loader for CSV or TSV files"""
     if not config.features:  # no features ==> all features
-        dataframe = pd.read_csv(config.prediction_path)
+        dataframe = pd.read_csv(config.prediction_path, sep=sep)
     else:
         desired_columns = set(config.prediction_columns)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FutureWarning)
             with open(config.prediction_path, 'r') as f:
-                dict_reader = csv.DictReader(f)
+                dict_reader = csv.DictReader(f, delimiter=sep)
                 present_columns = set(dict_reader.fieldnames)
 
         if config.target in present_columns:
             desired_columns.add(config.target)
         actual_columns = desired_columns & present_columns
         _log_column_mismatch(actual_columns, desired_columns, present_columns)
-        dataframe = pd.read_csv(config.prediction_path, delimiter=sep, usecols=list(actual_columns))
+        dataframe = pd.read_csv(config.prediction_path, sep=sep, usecols=list(actual_columns))
 
     dataframe = _rename_targets(config, dataframe)
 
@@ -215,7 +233,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
     defined_types = gather_prediction_types(config)
     usage = config.usage
     for col in [usage.entity_id, usage.context_id, usage.predict_time]:
-        if defined_types[col] == "object":
-            dataframe[col] = dataframe[col].astype(str)
+        if col is not None and defined_types[col] == "object":
+                dataframe[col] = dataframe[col].astype(str)
 
     return dataframe.sort_index(axis=1)

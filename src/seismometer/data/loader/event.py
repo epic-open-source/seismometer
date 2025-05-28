@@ -29,6 +29,25 @@ def csv_loader(config: ConfigProvider) -> pd.DataFrame:
     """
     return _sv_loader(config, ",")
 
+def tsv_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Loads the events frame from a csv file based on config.event_path.
+
+    Maps the non-key columns to the standard names "Type", "Time", "Value".
+    Will log debug message and return an empty dataframe if read_csv fails.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        the events dataframe with standarized column names.
+    """
+    return _sv_loader(config, "\t")
+
 
 def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
     """
@@ -221,7 +240,7 @@ def _get_source_type(config: ConfigProvider, event: Event) -> str:
 def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
     """General loader for CSV or TSV files"""
     try:
-        events = pd.read_csv(config.event_path).rename(
+        events = pd.read_csv(config.event_path, sep=sep).rename(
             columns={config.ev_type: "Type", config.ev_time: "Time", config.ev_value: "Value"},
             copy=False,
         )
@@ -231,7 +250,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
         defined_types = gather_prediction_types(config)
         usage = config.usage
         for col in [usage.entity_id, usage.context_id, usage.predict_time]:
-            if defined_types[col] == "object":
+            if col is not None and defined_types[col] == "object":
                 events[col] = events[col].astype(str)
     except BaseException as e:
         logger.debug(f"No events found at {config.event_path}")
