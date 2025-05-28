@@ -126,6 +126,7 @@ class Seismogram(object, metaclass=Singleton):
 
         logger.debug("Loading dataframe from dataloader.")
         self.dataframe = self.dataloader.load_data(predictions, events)
+        self.dataframe = self._apply_load_time_filters(self.dataframe)
 
         self.create_cohorts()
         self._set_df_counts()
@@ -368,6 +369,37 @@ class Seismogram(object, metaclass=Singleton):
             self.thresholds = [0.8, 0.5]
 
         self.modelname: str = self._metadata.get("modelname", "UNDEFINED MODEL")
+
+    def _apply_load_time_filters(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Applies all load-time filters by building a single composite mask for filtering.
+        Returns a filtered DataFrame.
+        """
+        mask = np.ones(len(df), dtype=bool)
+        for rule in self.config.usage.load_time_filters:
+            column = rule.source
+            if column not in df.columns:
+                raise ValueError(f"Filter source column '{column}' not found in data.")
+            # Default: full True array (neutral for include/keep_top)
+            column_mask = np.ones(len(df), dtype=bool)
+            if rule.action == "keep_top":
+                top_values = df[column].value_counts().nlargest(MAXIMUM_NUM_COHORTS).index
+                column_mask = df[column].isin(top_values).values
+            elif rule.action in {"include", "exclude"}:
+                submask = np.ones(len(df), dtype=bool)
+                if rule.values:
+                    submask &= df[column].isin(rule.values).values
+                if rule.range:
+                    if rule.range.min is not None:
+                        submask &= df[column].values >= rule.range.min
+                    if rule.range.max is not None:
+                        submask &= df[column].values <= rule.range.max
+                column_mask = submask if rule.action == "include" else ~submask
+            else:
+                raise ValueError(f"Unsupported filter action: {rule.action}")
+            # Combine with global mask
+            mask &= column_mask
+        return df[mask]
 
     def create_cohorts(self) -> None:
         """Creates data columns for each cohort defined in configuration."""

@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger("seismometer")
 
@@ -209,6 +209,70 @@ class BaseDetails(BaseModel):
     """ The group or groups to which the metric belongs."""
 
 
+class FilterRange(BaseModel):
+    """
+    A numeric range filter specifying minimum and/or maximum values.
+
+    Attributes
+    ----------
+    min : Optional[float]
+        The minimum allowed value (inclusive).
+    max : Optional[float]
+        The maximum allowed value (inclusive).
+    """
+
+    min: Optional[float] = None
+    max: Optional[float] = None
+
+
+class LoadTimeFilter(BaseModel):
+    """
+    A filter rule applied at data ingestion time to restrict the Seismogram data.
+
+    Attributes
+    ----------
+    source : str
+        The name of the column to filter.
+    action : Literal["include", "exclude", keep_top"]
+        The type of filtering to apply.
+        - "include": keep only rows matching the specified values or range
+        - "exclude": remove rows matching the specified values or range
+        - "keep_top": retain only the top MAXIMUM_NUM_COHORTS most frequent values (used with categorical variables)
+    values : Optional[List[Union[str, int, List[str], List[int]]]]
+        A list of allowed or disallowed values, by default None.
+    range : Optional[FilterRange]
+        A numeric range with min and/or max bounds, by default None. Typically used with numeric columns.
+    """
+
+    source: str
+    action: Literal["include", "exclude", "keep_top"] = "keep_top"
+    values: Optional[List[Union[str, int, List[str], List[int]]]] = None
+    range: Optional[FilterRange] = None
+
+    @model_validator(mode="after")
+    def validate_filter_config(self) -> "LoadTimeFilter":
+        """
+        Validates the consistency of filter fields after model is initialized.
+        Ensures appropriate combinations of action, values, and range.
+        """
+        if self.action in ("include", "exclude"):
+            if self.values is None and self.range is None:
+                raise ValueError(
+                    f"Filter with action '{self.action}' must specify at least one of 'values' or 'range'."
+                )
+            if self.values is not None and self.range is not None:
+                logger.warning(
+                    f"Filter on '{self.source}' specifies both 'values' and 'range'; "
+                    "'values' will be used and 'range' will be ignored."
+                )
+
+        elif self.action == "keep_top":
+            if self.values is not None or self.range is not None:
+                logger.warning(f"Filter on '{self.source}' with action 'keep_top' ignores 'values' and 'range'.")
+
+        return self
+
+
 class MetricDetails(BaseModel):
     """Contains details about a metric."""
 
@@ -384,7 +448,8 @@ class DataUsage(BaseModel):
     """
     metrics: list[Metric] = []
     """A list of all metrics to load."""
-
+    load_time_filters: list[LoadTimeFilter] = []
+    """A list of filters to apply at load time to reduce the working dataset."""
     censor_min_count: int = Field(10, ge=10)
     """ The minimum size of a cohort to be considered displayable. """
 
