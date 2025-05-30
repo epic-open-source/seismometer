@@ -273,6 +273,21 @@ class LoadTimeFilter(BaseModel):
         return self
 
 
+class CohortHierarchy(BaseModel):
+    """A list of cohort columns representing a hierarchical dependency."""
+
+    name: str
+    hierarchy: List[str]
+
+    @model_validator(mode="after")
+    def validate_hierarchy_structure(self) -> "CohortHierarchy":
+        if len(self.hierarchy) < 2:
+            raise ValueError(f"Cohort hierarchy '{self.name}' must have at least 2 fields.")
+        if len(set(self.hierarchy)) < len(self.hierarchy):
+            raise ValueError(f"Cohort hierarchy '{self.name}' has duplicate fields.")
+        return self
+
+
 class MetricDetails(BaseModel):
     """Contains details about a metric."""
 
@@ -446,6 +461,8 @@ class DataUsage(BaseModel):
 
     Must have at least one target event.
     """
+    cohort_hierarchies: List[CohortHierarchy] = []
+    """A list of ordered cohort source groups defining hierarchical dependencies."""
     metrics: list[Metric] = []
     """A list of all metrics to load."""
     load_time_filters: list[LoadTimeFilter] = []

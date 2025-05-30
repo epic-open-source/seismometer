@@ -7,7 +7,7 @@ from seismometer.configuration.export_config import ExportConfig
 from seismometer.configuration.metrics import MetricConfig
 from seismometer.core.io import load_yaml
 
-from .model import DataUsage, Event, EventDictionary, Metric, OtherInfo, PredictionDictionary
+from .model import CohortHierarchy, DataUsage, Event, EventDictionary, Metric, OtherInfo, PredictionDictionary
 
 
 class ConfigProvider:
@@ -295,6 +295,11 @@ class ConfigProvider:
     def entity_keys(self) -> list:
         """List of entity and context ids."""
         return [k for k in [self.entity_id, self.context_id] if k is not None]
+
+    @property
+    def cohort_hierarchies(self) -> list[CohortHierarchy]:
+        """Ordered lists of cohort columns representing configured hierarchies."""
+        return self.usage.cohort_hierarchies
 
     @property
     def metrics(self) -> dict:

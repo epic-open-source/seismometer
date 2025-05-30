@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
-from seismometer.configuration.model import Metric
+from seismometer.configuration.model import CohortHierarchy, Metric
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -75,6 +75,7 @@ class Seismogram(object, metaclass=Singleton):
         logger.debug("Initializing the empty dataframe.")
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
+        self.cohort_hierarchies: list[CohortHierarchy] = []
         self.metrics: dict[str, Metric] = {}
         self.metric_types: dict[str, list[str]] = {}
         self.metric_groups: dict[str, list[str]] = {}
@@ -129,6 +130,7 @@ class Seismogram(object, metaclass=Singleton):
         self.dataframe = self._apply_load_time_filters(self.dataframe)
 
         self.create_cohorts()
+        self._validate_and_resolve_cohort_hierarchies()
         self._set_df_counts()
 
         # UI Controls
@@ -437,6 +439,24 @@ class Seismogram(object, metaclass=Singleton):
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
+
+    def _validate_and_resolve_cohort_hierarchies(self):
+        source_to_display = {c.source: c.display_name for c in self._cohorts}
+
+        resolved_hierarchies = []
+
+        for hierarchy in self.config.usage.cohort_hierarchies:
+            resolved_levels = []
+            for level in hierarchy.hierarchy:
+                if level not in source_to_display:
+                    raise ValueError(
+                        f"Cohort hierarchy '{hierarchy.name}' references undefined cohort source: '{level}'"
+                    )
+                resolved_levels.append(source_to_display[level])
+
+            resolved_hierarchies.append(CohortHierarchy(name=hierarchy.name, hierarchy=resolved_levels))
+
+        self.cohort_hierarchies = resolved_hierarchies
 
     def _is_binary_array(self, arr):
         # Convert the input to a NumPy array if it isn't already
