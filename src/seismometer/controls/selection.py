@@ -4,12 +4,14 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Button, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
+from seismometer.seismogram import Seismogram
+
 from .styles import DROPDOWN_LAYOUT, WIDE_BUTTON_LAYOUT, WIDE_LABEL_STYLE, html_title
 
 
 class SelectionListWidget(ValueWidget, VBox):
     """
-    Vertical list of buttons for selection of an subset of values
+    Vertical list of buttons for selection of a subset of values
     """
 
     value = traitlets.Tuple(help="The selected values for the button list")
@@ -106,6 +108,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         title: str = None,
         border: bool = False,
         show_all: bool = False,
+        hierarchies: Optional[list[list[str]]] = None,
     ):
         """
         A table of buttons organized into columns by their keys. Collapsable to save space.
@@ -132,6 +135,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         else:
             values = {k: tuple(v) for k, v in values.items()}
         self.value = values
+        self.hierarchies = hierarchies or []
 
         selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
         for key in options:
@@ -140,15 +144,58 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             selection_widget.observe(self._on_subselection_change, "value")
         self.value_update_in_progress = False
         self.title_box = HTML()
+
+        hierarchy_keys = set()  # all keys used in any hierarchy
+        hierarchy_widgets_list = []
+
+        # Step 1: group widgets by hierarchy
+        for hierarchy in self.hierarchies:
+            visible_keys = [key for key in hierarchy.hierarchy if key in self.selection_widgets]
+            ordered_groups = []  # groups of widgets corresponding to the hierarchy to display horizontally
+
+            if len(visible_keys) >= 2:
+                for i, key in enumerate(visible_keys):
+                    ordered_groups.append(self.selection_widgets[key])
+                    hierarchy_keys.add(key)
+                    if i < len(visible_keys) - 1:
+                        ordered_groups.append(HTML(value="→", layout=Layout(width="10px", align_self="center")))
+            hierarchy_widgets_list.append(
+                Box(
+                    children=ordered_groups,
+                    layout=Layout(
+                        display="flex",
+                        flex_flow="row wrap",
+                        align_items="flex-start",
+                        grid_gap="3px",
+                        border="solid 1px var(--jp-border-color1)" if border else None,
+                        padding="var(--jp-cell-padding)" if border else None,
+                    ),
+                )
+            )
+
+        # Step 2: add non-hierarchical widgets
+        non_hierarchical_widgets = [self.selection_widgets[key] for key in options if key not in hierarchy_keys]
+        non_hierarchical_widget_box = Box(
+            children=non_hierarchical_widgets,
+            layout=Layout(
+                display="flex",
+                flex_flow="row wrap",
+                align_items="flex-start",
+                grid_gap="20px",
+                border="solid 1px var(--jp-border-color1)" if border else None,
+                padding="var(--jp-cell-padding)" if border else None,
+            ),
+        )
+
         self.children = [
             self.title_box,
-            Box(
-                children=[self.selection_widgets[key] for key in self.selection_widgets],
+            VBox(
+                children=hierarchy_widgets_list + [non_hierarchical_widget_box],
                 layout=Layout(
                     display="flex",
-                    flex_flow="row wrap",
+                    flex_flow="column",
                     align_items="flex-start",
-                    grid_gap="20px",
+                    grid_gap="12px",
                     border="solid 1px var(--jp-border-color1)" if border else None,
                     padding="var(--jp-cell-padding)" if border else None,
                 ),
@@ -169,11 +216,51 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             widget.disabled = disabled
 
     def _on_subselection_change(self, change=None):
-        """Sets the observable value."""
-        if self.value_update_in_progress:
-            return
-        if change and change["owner"] in self.selection_widgets.values():
-            self.value = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
+        """Sets the observable value and updates options based on parent selections."""
+        sg = Seismogram()
+        self.value_update_in_progress = True
+
+        # Track latest selections for chaining
+        selected = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
+
+        for hierarchy in self.hierarchies:
+            lvls = hierarchy.hierarchy
+            for index in range(len(lvls) - 1):
+                parent_lvl = lvls[index]
+                child_lvl = lvls[index + 1]
+
+                if parent_lvl not in self.selection_widgets or child_lvl not in self.selection_widgets:
+                    continue
+
+                child_widget = self.selection_widgets[child_lvl]
+                parent_values = selected.get(parent_lvl, ())
+
+                combo_df = sg._cohort_hierarchy_combinations.get(tuple(lvls))
+                if combo_df is None or parent_lvl not in combo_df.columns or child_lvl not in combo_df.columns:
+                    continue
+
+                if parent_values:
+                    filtered = combo_df[combo_df[parent_lvl].isin(parent_values)][child_lvl].dropna().unique()
+                else:
+                    filtered = combo_df[child_lvl].dropna().unique()
+
+                new_options = sorted(set(filtered))
+
+                # Update child widget options
+                child_widget._update_options(new_options)
+
+                # Filter current value to valid options
+                child_widget.value = tuple(val for val in child_widget.value if val in new_options)
+
+                # Update selected to pass along to next level
+                if child_widget.value:
+                    selected[child_lvl] = child_widget.value
+                elif child_lvl in selected:
+                    del selected[child_lvl]
+
+        # Final value assignment
+        self.value = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
+        self.value_update_in_progress = False
 
     def _on_value_change(self, change=None):
         """Bubble up changes."""
