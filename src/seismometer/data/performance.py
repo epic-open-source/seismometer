@@ -137,10 +137,8 @@ class MetricGenerator:
         if len(dataframe) == 0:
             # Universal defaults, if no data frame, return NaN
             return {name: np.nan for name in metric_names}
-        full_metrics = self.delegate_call(dataframe, metric_names, attributes, **kwargs)
+        full_metrics = self.delegate_call(dataframe, metric_names, attributes, record_metrics=record_metrics, **kwargs)
         filtered_metrics = {k: v for k, v in full_metrics.items() if k in metric_names}
-        if record_metrics:
-            self._populate_metrics(attributes, filtered_metrics)
         return filtered_metrics
 
     def delegate_call(
@@ -257,6 +255,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         target_col: str,
         score_col: str,
         score_threshold: float = 0.5,
+        record_metrics: bool = True,
     ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
@@ -279,12 +278,16 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names, cohort)[0]
+        stats = self.calculate_binary_stats(
+            dataframe, target_col, score_col, metric_names, cohort, record_metrics=record_metrics
+        )[0]
         score_threshold_integer = int(score_threshold * 100)
         stats = stats.loc[score_threshold_integer]
         return stats.to_dict()
 
-    def calculate_binary_stats(self, dataframe, target_col, score_col, metrics, cohort, threshold_precision=0):
+    def calculate_binary_stats(
+        self, dataframe, target_col, score_col, metrics, cohort, threshold_precision=0, record_metrics=True
+    ):
         """
         Calculates binary stats for all thresholds.
 
@@ -317,7 +320,8 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
 
         column_info = {"target_column": target_col, "score_column": score_col}
         rho_info = {"rho": self.rho}
-        self._populate_metrics(cohort | column_info | rho_info, stats)
+        if record_metrics:
+            self._populate_metrics(cohort | column_info | rho_info, stats)
 
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
