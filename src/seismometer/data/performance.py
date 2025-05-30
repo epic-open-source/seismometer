@@ -2,13 +2,13 @@ import logging
 import sys
 from numbers import Number
 from pathlib import Path
-from typing import Callable, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from opentelemetry import metrics
-from opentelemetry.sdk.metrics import MeterProvider, ObservableGauge
-from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, Gauge, PeriodicExportingMetricReader
 from sklearn.metrics import auc
 
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
@@ -98,14 +98,19 @@ class MetricGenerator:
         # TODO: worry about the type of each metric being measured
         # TODO: get better descriptions for each metric besides just the name
         # This is a map from metric name to corresponding instrument
-        self.instruments: dict[str, ObservableGauge] = {}
+        self.instruments: dict[str, Gauge] = {}
         if not metric_names:
             metric_names = self.metric_names
         for mn in metric_names:
             self.instruments[mn] = self.meter.create_gauge(mn, description=mn)
 
     def __call__(
-        self, dataframe: pd.DataFrame, metric_names: list[str] = None, record_metrics=True, **kwargs
+        self,
+        dataframe: pd.DataFrame,
+        cohort: dict[str, tuple[Any]],
+        metric_names: list[str] = None,
+        record_metrics=True,
+        **kwargs,
     ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
@@ -114,6 +119,9 @@ class MetricGenerator:
         ----------
         dataframe : pd.DataFrame
             The dataframe to generate metrics from.
+
+        cohort: dict[str, tuple[Any]]
+            Which cohort we are selecting on to generate these metrics.
 
         record_metrics: whether to generate OpenTelemetry metrics from this call.
 
@@ -129,13 +137,15 @@ class MetricGenerator:
         if len(dataframe) == 0:
             # Universal defaults, if no data frame, return NaN
             return {name: np.nan for name in metric_names}
-        full_metrics = self.delegate_call(dataframe, metric_names, **kwargs)
+        full_metrics = self.delegate_call(dataframe, metric_names, cohort, **kwargs)
         filtered_metrics = {k: v for k, v in full_metrics.items() if k in metric_names}
         if record_metrics:
-            self._populate_metrics(filtered_metrics)
+            self._populate_metrics(cohort, filtered_metrics)
         return filtered_metrics
 
-    def delegate_call(self, dataframe: pd.DataFrame, metric_names: list[str], **kwargs) -> dict[str, float]:
+    def delegate_call(
+        self, dataframe: pd.DataFrame, metric_names: list[str], cohort: dict[str, tuple[Any]], **kwargs
+    ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
 
@@ -147,6 +157,9 @@ class MetricGenerator:
         metric_names : list[str]
             List of metric names to generate.
 
+        cohort: dict[str, tuple[Any]]
+            Which cohort we are selecting on.
+
         kwargs:
             anything additional the delegate needs.
 
@@ -157,7 +170,7 @@ class MetricGenerator:
         """
         return self.metric_fn(dataframe, metric_names, **kwargs)
 
-    def _populate_metrics(self, metrics):
+    def _populate_metrics(self, cohort, metrics):
         """Populate the OpenTelemetry instruments with data from
         the model.
 
@@ -166,14 +179,43 @@ class MetricGenerator:
         metrics : dict[str, float].
             The actual data we are populating.
         """
-        if not metrics:
+        if metrics is None:
             # metrics = self()
             raise Exception()
         for name in self.instruments.keys():
             # I think metrics.keys() is a subset of self.instruments.keys()
             # but I am not 100% on it. So this stays for now.
             if name in metrics:
-                self.instruments[name].set(metrics[name])
+                self._log_to_instrument(cohort, self.instruments[name], metrics[name])
+
+    def _log_to_instrument(self, cohort_info, instrument: Gauge, data):
+        """Write information to a single instrument. We need this
+        wrapper function because the data we are logging may be a
+        type such as a series, in which case we need to log each
+        entry separately or at least do some extra preprocessing.
+
+        Parameters
+        ----------
+        cohort_info : dict[str, tuple[Any]]
+            Which cohort we are logging a measurement from.
+        instrument : opentelemetry.sdk.metrics.Gauge
+            The OpenTelemetry Gauge that we are recording a
+            measurement to. Should be one of self.instruments.
+        data
+            The data we are recording. Could conceivably be either
+            a numeric value or a series.
+        """
+
+        def set_one_datapoint(value):
+            instrument.set({"value": value, "parameters": cohort_info})
+
+        if isinstance(data, (int, float)):
+            set_one_datapoint(data)
+        elif isinstance(data, pd.Series):
+            for k, v in data.items():
+                set_one_datapoint(v)
+        else:
+            raise Exception(f"Unrecognized data format for OTel logging: {type(data)}")
 
     def __repr__(self):
         return f"MetricGenerator(metric_names={self.metric_names}, metric_fn={self.metric_fn.__name__})"
@@ -203,6 +245,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         self,
         dataframe: pd.DataFrame,
         metric_names: list[str],
+        cohort: dict[str, tuple[Any]],
         *,
         target_col: str,
         score_col: str,
@@ -229,12 +272,12 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names)[0]
+        stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names, cohort)[0]
         score_threshold_integer = int(score_threshold * 100)
         stats = stats.loc[score_threshold_integer]
         return stats.to_dict()
 
-    def calculate_binary_stats(self, dataframe, target_col, score_col, metrics, threshold_precision=0):
+    def calculate_binary_stats(self, dataframe, target_col, score_col, metrics, cohort, threshold_precision=0):
         """
         Calculates binary stats for all thresholds.
 
@@ -248,6 +291,8 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             The column in the dataframe that contains the predicted scores.
         metrics: list[str], optional
             List of metrics to filter down to.
+        cohort: dict[str, tuple[Any]]
+            Which population we are selecting on, for logging purposes.
         threshold_precision : int, optional
             Number of decimal places to use when generating thresholds as percentages.
             - E.g., `threshold_precision=0` yields thresholds like 0, 1, ..., 100 (coarse).
@@ -262,6 +307,9 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             .round(5)
             .set_index(THRESHOLD)
         )
+
+        self._populate_metrics(cohort, stats)
+
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
 

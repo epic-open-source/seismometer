@@ -201,7 +201,7 @@ def fairness_table(
             cohort_dataframe = cohort_filter.filter(dataframe)
 
             index_value = {COUNT: len(cohort_dataframe)}
-            metrics = metric_fn(cohort_dataframe, metric_list, **kwargs)
+            metrics = metric_fn(cohort_dataframe, cohort_dict, metric_list, **kwargs)
             index_value.update(metrics)
 
             cohort_values.append(index_value)
