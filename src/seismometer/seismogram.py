@@ -377,6 +377,8 @@ class Seismogram(object, metaclass=Singleton):
         Applies all load-time filters by building a single composite mask for filtering.
         Returns a filtered DataFrame.
         """
+        if not self.config.usage.load_time_filters:
+            return df
         mask = np.ones(len(df), dtype=bool)
         for rule in self.config.usage.load_time_filters:
             column = rule.source
@@ -441,6 +443,8 @@ class Seismogram(object, metaclass=Singleton):
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
 
     def _validate_and_resolve_cohort_hierarchies(self):
+        if not self.config.usage.cohort_hierarchies:
+            return
         source_to_display = {c.source: c.display_name for c in self._cohorts}
 
         resolved_hierarchies = []
