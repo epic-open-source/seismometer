@@ -4,8 +4,6 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Button, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
-from seismometer.seismogram import Seismogram
-
 from .styles import DROPDOWN_LAYOUT, WIDE_BUTTON_LAYOUT, WIDE_LABEL_STYLE, html_title
 
 
@@ -135,8 +133,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         else:
             values = {k: tuple(v) for k, v in values.items()}
         self.value = values
-        sg = Seismogram()
-        self.hierarchies = hierarchies or sg.cohort_hierarchies
+        self.hierarchies = hierarchies or []
 
         selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
         for key in options:
@@ -196,7 +193,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
                     display="flex",
                     flex_flow="column",
                     align_items="flex-start",
-                    gap="12px",
+                    grid_gap="12px",
                     border="solid 1px var(--jp-border-color1)" if border else None,
                     padding="var(--jp-cell-padding)" if border else None,
                 ),

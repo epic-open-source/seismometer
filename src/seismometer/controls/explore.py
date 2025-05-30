@@ -300,6 +300,7 @@ class ModelScoreComparisonAndCohortsWidget(Box, ValueWidget):
         target_names: tuple[Any],
         score_names: tuple[Any],
         per_context: bool = False,
+        hierarchies=None,
     ):
         """
         Widget for model based options and cohort selection, including scores to compare.
@@ -315,7 +316,9 @@ class ModelScoreComparisonAndCohortsWidget(Box, ValueWidget):
         per_context : bool, optional
             if scores should be grouped by context, by default False
         """
-        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+        self.cohort_list = MultiSelectionListWidget(
+            options=cohort_groups, title="Cohort Filter", hierarchies=hierarchies
+        )
         self.model_options = ModelScoreComparisonOptionsWidget(target_names, score_names, per_context)
         self.cohort_list.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
@@ -459,6 +462,7 @@ class ModelTargetComparisonAndCohortsWidget(Box, ValueWidget):
         target_names: tuple[Any],
         score_names: tuple[Any],
         per_context: bool = False,
+        hierarchies=None,
     ):
         """
         Widget for model based options and cohort selection, including multiple targets.
@@ -474,7 +478,9 @@ class ModelTargetComparisonAndCohortsWidget(Box, ValueWidget):
         per_context : bool, optional
             If scores should be grouped by context, by default False.
         """
-        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+        self.cohort_list = MultiSelectionListWidget(
+            options=cohort_groups, title="Cohort Filter", hierarchies=hierarchies
+        )
         self.model_options = ModelTargetComparisonOptionsWidget(target_names, score_names, per_context)
         self.cohort_list.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
@@ -531,6 +537,7 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
         score_names: tuple[Any],
         thresholds: dict[str, float],
         per_context: bool = False,
+        hierarchies=None,
     ):
         """
         Widget for model based options and cohort selection.
@@ -548,7 +555,9 @@ class ModelOptionsAndCohortsWidget(Box, ValueWidget):
         per_context : bool, optional
             If scores should be grouped by context, by default False.
         """
-        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+        self.cohort_list = MultiSelectionListWidget(
+            options=cohort_groups, title="Cohort Filter", hierarchies=hierarchies
+        )
         self.model_options = ModelOptionsWidget(target_names, score_names, thresholds, per_context)
         self.cohort_list.observe(self._on_value_change, "value")
         self.model_options.observe(self._on_value_change, "value")
@@ -1024,7 +1033,9 @@ class ExplorationSubpopulationWidget(ExplorationWidget):
 
         sg = Seismogram()
         cohort_groups = sg.available_cohort_groups
-        option_widget = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+        option_widget = MultiSelectionListWidget(
+            options=cohort_groups, title="Cohort Filter", hierarchies=sg.cohort_hierarchies
+        )
         option_widget.layout = BOX_GRID_LAYOUT
         super().__init__(
             title=title,
@@ -1272,7 +1283,11 @@ class ExplorationScoreComparisonByCohortWidget(ExplorationWidget):
         super().__init__(
             title,
             option_widget=ModelScoreComparisonAndCohortsWidget(
-                sg.available_cohort_groups, sg.target_cols, sg.output_list, per_context=False
+                sg.available_cohort_groups,
+                sg.target_cols,
+                sg.output_list,
+                per_context=False,
+                hierarchies=sg.cohort_hierarchies,
             ),
             plot_function=plot_function,
         )
@@ -1323,7 +1338,11 @@ class ExplorationTargetComparisonByCohortWidget(ExplorationWidget):
         super().__init__(
             title,
             option_widget=ModelTargetComparisonAndCohortsWidget(
-                sg.available_cohort_groups, sg.target_cols, sg.output_list, per_context=False
+                sg.available_cohort_groups,
+                sg.target_cols,
+                sg.output_list,
+                per_context=False,
+                hierarchies=sg.cohort_hierarchies,
             ),
             plot_function=plot_function,
         )
@@ -1360,6 +1379,7 @@ class BinaryModelMetricOptions(Box, ValueWidget):
         score_names: tuple[Any],
         per_context: bool = True,
         default_metrics: Optional[tuple[str]] = None,
+        hierarchies=None,
     ):
         """
         Widget for selecting interventions and outcomes across categories in a cohort group.
@@ -1386,7 +1406,9 @@ class BinaryModelMetricOptions(Box, ValueWidget):
 
         self.model_options = ModelOptionsWidget(target_names, score_names, per_context=per_context)
         self.model_options.children = list(self.model_options.children) + [self.metric_list]
-        self.cohort_list = MultiSelectionListWidget(options=cohort_groups, title="Cohort Filter")
+        self.cohort_list = MultiSelectionListWidget(
+            options=cohort_groups, title="Cohort Filter", hierarchies=hierarchies
+        )
 
         super().__init__(children=[self.model_options, self.cohort_list], layout=BOX_GRID_LAYOUT)
 
@@ -1492,6 +1514,7 @@ class ExplorationMetricWidget(ExplorationWidget):
                 sg.output_list,
                 per_context=False,
                 default_metrics=default_metrics,
+                hierarchies=sg.cohort_hierarchies,
             ),
             plot_function=plot_function,
         )
