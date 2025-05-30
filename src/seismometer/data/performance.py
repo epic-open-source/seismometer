@@ -207,7 +207,7 @@ class MetricGenerator:
         """
 
         def set_one_datapoint(value):
-            instrument.set({"value": value, "parameters": cohort_info})
+            instrument.set(value, attributes=cohort_info)
 
         if isinstance(data, (int, float)):
             set_one_datapoint(data)
