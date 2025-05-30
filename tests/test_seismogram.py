@@ -488,6 +488,8 @@ class TestSeismogramLoadData:
         config.features = []
         config.events = {"event1": Mock(window_hr=1)}
         config.prediction_columns = ["entity", "time"]
+        config.usage.load_time_filters = None
+        config.usage.cohort_hierarchies = None
 
         sg.load_data()
 
@@ -524,6 +526,8 @@ class TestSeismogramLoadData:
         config.features = []
         config.events = {"event1": Mock(window_hr=1)}
         config.prediction_columns = ["entity", "time"]
+        config.usage.load_time_filters = None
+        config.usage.cohort_hierarchies = None
 
         sg.load_data(reset=True)
 
