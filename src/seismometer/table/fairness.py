@@ -201,7 +201,10 @@ def fairness_table(
             cohort_dataframe = cohort_filter.filter(dataframe)
 
             index_value = {COUNT: len(cohort_dataframe)}
-            metrics = metric_fn(cohort_dataframe, {cohort_column: cohort_class}, metric_list, **kwargs)
+            thresholding_info = {"fairness_ratio": fairness_ratio, "score_threshold": kwargs["score_threshold"]}
+            metrics = metric_fn(
+                cohort_dataframe, {cohort_column: cohort_class} | thresholding_info, metric_list, **kwargs
+            )
             index_value.update(metrics)
 
             cohort_values.append(index_value)

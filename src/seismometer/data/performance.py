@@ -107,7 +107,7 @@ class MetricGenerator:
     def __call__(
         self,
         dataframe: pd.DataFrame,
-        cohort: dict[str, tuple[Any]],
+        attributes: dict[str, tuple[Any]],
         metric_names: list[str] = None,
         record_metrics=True,
         **kwargs,
@@ -121,7 +121,7 @@ class MetricGenerator:
             The dataframe to generate metrics from.
 
         cohort: dict[str, tuple[Any]]
-            Which cohort we are selecting on to generate these metrics.
+            Which cohort + other parameters we are selecting on to generate these metrics.
 
         record_metrics: whether to generate OpenTelemetry metrics from this call.
 
@@ -137,10 +137,10 @@ class MetricGenerator:
         if len(dataframe) == 0:
             # Universal defaults, if no data frame, return NaN
             return {name: np.nan for name in metric_names}
-        full_metrics = self.delegate_call(dataframe, metric_names, cohort, **kwargs)
+        full_metrics = self.delegate_call(dataframe, metric_names, attributes, **kwargs)
         filtered_metrics = {k: v for k, v in full_metrics.items() if k in metric_names}
         if record_metrics:
-            self._populate_metrics(cohort, filtered_metrics)
+            self._populate_metrics(attributes, filtered_metrics)
         return filtered_metrics
 
     def delegate_call(
@@ -170,12 +170,19 @@ class MetricGenerator:
         """
         return self.metric_fn(dataframe, metric_names, **kwargs)
 
-    def _populate_metrics(self, cohort, metrics):
+    def _populate_metrics(self, attributes, metrics):
         """Populate the OpenTelemetry instruments with data from
         the model.
 
         Parameters
         ----------
+        attributes: dict[str, Union[str, int]]
+            All information associated with this metric. For instance,
+                - what cohort is this a part of?
+                - what metric is this actually?
+                - what are the score and fairness thresholds?
+                - etc.
+
         metrics : dict[str, float].
             The actual data we are populating.
         """
@@ -186,9 +193,9 @@ class MetricGenerator:
             # I think metrics.keys() is a subset of self.instruments.keys()
             # but I am not 100% on it. So this stays for now.
             if name in metrics:
-                self._log_to_instrument(cohort, self.instruments[name], metrics[name])
+                self._log_to_instrument(attributes, self.instruments[name], metrics[name])
 
-    def _log_to_instrument(self, cohort_info, instrument: Gauge, data):
+    def _log_to_instrument(self, attributes, instrument: Gauge, data):
         """Write information to a single instrument. We need this
         wrapper function because the data we are logging may be a
         type such as a series, in which case we need to log each
@@ -207,7 +214,7 @@ class MetricGenerator:
         """
 
         def set_one_datapoint(value):
-            instrument.set(value, attributes=cohort_info)
+            instrument.set(value, attributes=attributes)
 
         if isinstance(data, (int, float)):
             set_one_datapoint(data)
@@ -308,7 +315,9 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             .set_index(THRESHOLD)
         )
 
-        self._populate_metrics(cohort, stats)
+        column_info = {"target_column": target_col, "score_column": score_col}
+        rho_info = {"rho": self.rho}
+        self._populate_metrics(cohort | column_info | rho_info, stats)
 
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
