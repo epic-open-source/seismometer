@@ -4,12 +4,14 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Button, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
+from seismometer.seismogram import Seismogram
+
 from .styles import DROPDOWN_LAYOUT, WIDE_BUTTON_LAYOUT, WIDE_LABEL_STYLE, html_title
 
 
 class SelectionListWidget(ValueWidget, VBox):
     """
-    Vertical list of buttons for selection of an subset of values
+    Vertical list of buttons for selection of a subset of values
     """
 
     value = traitlets.Tuple(help="The selected values for the button list")
@@ -106,6 +108,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         title: str = None,
         border: bool = False,
         show_all: bool = False,
+        hierarchies: Optional[list[list[str]]] = None,
     ):
         """
         A table of buttons organized into columns by their keys. Collapsable to save space.
@@ -132,6 +135,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         else:
             values = {k: tuple(v) for k, v in values.items()}
         self.value = values
+        sg = Seismogram()
+        self.hierarchies = hierarchies or sg.cohort_hierarchies
 
         selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
         for key in options:
@@ -140,15 +145,58 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             selection_widget.observe(self._on_subselection_change, "value")
         self.value_update_in_progress = False
         self.title_box = HTML()
+
+        hierarchy_keys = set()  # all keys used in any hierarchy
+        hierarchy_widgets_list = []
+
+        # Step 1: group widgets by hierarchy
+        for hierarchy in self.hierarchies:
+            visible_keys = [key for key in hierarchy.hierarchy if key in self.selection_widgets]
+            ordered_groups = []  # groups of widgets corresponding to the hierarchy to display horizontally
+
+            if len(visible_keys) >= 2:
+                for i, key in enumerate(visible_keys):
+                    ordered_groups.append(self.selection_widgets[key])
+                    hierarchy_keys.add(key)
+                    if i < len(visible_keys) - 1:
+                        ordered_groups.append(HTML(value="→", layout=Layout(width="10px", align_self="center")))
+            hierarchy_widgets_list.append(
+                Box(
+                    children=ordered_groups,
+                    layout=Layout(
+                        display="flex",
+                        flex_flow="row wrap",
+                        align_items="flex-start",
+                        grid_gap="3px",
+                        border="solid 1px var(--jp-border-color1)" if border else None,
+                        padding="var(--jp-cell-padding)" if border else None,
+                    ),
+                )
+            )
+
+        # Step 2: add non-hierarchical widgets
+        non_hierarchical_widgets = [self.selection_widgets[key] for key in options if key not in hierarchy_keys]
+        non_hierarchical_widget_box = Box(
+            children=non_hierarchical_widgets,
+            layout=Layout(
+                display="flex",
+                flex_flow="row wrap",
+                align_items="flex-start",
+                grid_gap="20px",
+                border="solid 1px var(--jp-border-color1)" if border else None,
+                padding="var(--jp-cell-padding)" if border else None,
+            ),
+        )
+
         self.children = [
             self.title_box,
-            Box(
-                children=[self.selection_widgets[key] for key in self.selection_widgets],
+            VBox(
+                children=hierarchy_widgets_list + [non_hierarchical_widget_box],
                 layout=Layout(
                     display="flex",
-                    flex_flow="row wrap",
+                    flex_flow="column",
                     align_items="flex-start",
-                    grid_gap="20px",
+                    gap="12px",
                     border="solid 1px var(--jp-border-color1)" if border else None,
                     padding="var(--jp-cell-padding)" if border else None,
                 ),
