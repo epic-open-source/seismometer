@@ -1,15 +1,13 @@
 import logging
-import sys
 from numbers import Number
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from opentelemetry import metrics
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, Gauge, PeriodicExportingMetricReader
 from sklearn.metrics import auc
+
+from seismometer.data import otel
 
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
 from .decorators import export
@@ -65,44 +63,7 @@ class MetricGenerator:
         self.metric_names = metric_names
         self.metric_fn = metric_fn
         self.default_metrics = default_metrics or metric_names
-        if otlp_path is not None:
-            self.exhaust_file_path = otlp_path
-        self.setup_otel_metrics()
-
-    def __del__(self):
-        if self.exhaust_file_path is not None:
-            self.otlp_exhaust.close()
-
-    def setup_otel_metrics(self, metric_names=None):
-        """This initializes the instruments for the
-        various metrics we would like to collect, and
-        also opens the file we are writing to.
-
-        Parameters
-        ----------
-        metric_names : list[str], optional
-            Which metrics to initialize instruments for
-        """
-        # The IO object to write OTel data into.
-        self.otlp_exhaust: sys.IO
-        if hasattr(self, "exhaust_file_path"):
-            self.otlp_exhaust = open(self.exhaust_file_path, "r")
-        else:
-            self.otlp_exhaust = sys.stdout
-        reader = PeriodicExportingMetricReader(ConsoleMetricExporter(out=self.otlp_exhaust))
-        meterProvider = MeterProvider(metric_readers=[reader])
-        metrics.set_meter_provider(meterProvider)
-        # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
-        self.meter = metrics.get_meter("Seismo-meter")
-        # Keep it like this for now: just make an instrument for each metric we are measuring
-        # TODO: worry about the type of each metric being measured
-        # TODO: get better descriptions for each metric besides just the name
-        # This is a map from metric name to corresponding instrument
-        self.instruments: dict[str, Gauge] = {}
-        if not metric_names:
-            metric_names = self.metric_names
-        for mn in metric_names:
-            self.instruments[mn] = self.meter.create_gauge(mn, description=mn)
+        self.recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, output_path=otlp_path)
 
     def __call__(
         self,
@@ -168,67 +129,13 @@ class MetricGenerator:
         """
         return self.metric_fn(dataframe, metric_names, **kwargs)
 
-    def _populate_metrics(self, attributes, metrics):
-        """Populate the OpenTelemetry instruments with data from
-        the model.
-
-        Parameters
-        ----------
-        attributes: dict[str, Union[str, int]]
-            All information associated with this metric. For instance,
-                - what cohort is this a part of?
-                - what metric is this actually?
-                - what are the score and fairness thresholds?
-                - etc.
-
-        metrics : dict[str, float].
-            The actual data we are populating.
-        """
-        if metrics is None:
-            # metrics = self()
-            raise Exception()
-        for name in self.instruments.keys():
-            # I think metrics.keys() is a subset of self.instruments.keys()
-            # but I am not 100% on it. So this stays for now.
-            if name in metrics:
-                self._log_to_instrument(attributes, self.instruments[name], metrics[name])
-
-    def _log_to_instrument(self, attributes, instrument: Gauge, data):
-        """Write information to a single instrument. We need this
-        wrapper function because the data we are logging may be a
-        type such as a series, in which case we need to log each
-        entry separately or at least do some extra preprocessing.
-
-        Parameters
-        ----------
-        cohort_info : dict[str, tuple[Any]]
-            Which cohort we are logging a measurement from.
-        instrument : opentelemetry.sdk.metrics.Gauge
-            The OpenTelemetry Gauge that we are recording a
-            measurement to. Should be one of self.instruments.
-        data
-            The data we are recording. Could conceivably be either
-            a numeric value or a series.
-        """
-
-        def set_one_datapoint(value):
-            instrument.set(value, attributes=attributes)
-
-        if isinstance(data, (int, float)):
-            set_one_datapoint(data)
-        elif isinstance(data, pd.Series):
-            for k, v in data.items():
-                set_one_datapoint(v)
-        else:
-            raise Exception(f"Unrecognized data format for OTel logging: {type(data)}")
-
     def __repr__(self):
         return f"MetricGenerator(metric_names={self.metric_names}, metric_fn={self.metric_fn.__name__})"
 
 
 @export
 class BinaryClassifierMetricGenerator(MetricGenerator):
-    def __init__(self, rho: float = None):
+    def __init__(self, rho: float = None, otlp_path: str = None):
         """
         A class that generates Binary classifier metrics from a dataframe.
         Keeps track of available metric names as well as the function to call to generate them.
@@ -240,7 +147,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         self.rho = rho or DEFAULT_RHO
         self.default_metrics = PERFORMANCE
-        self.setup_otel_metrics(self.default_metrics)
+        self.recorder = otel.OpenTelemetryRecorder(metric_names=self.default_metrics, output_path=otlp_path)
 
     @property
     def metric_names(self):
@@ -321,7 +228,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         column_info = {"target_column": target_col, "score_column": score_col}
         rho_info = {"rho": self.rho}
         if record_metrics:
-            self._populate_metrics(cohort | column_info | rho_info, stats)
+            self.recorder.populate_metrics(cohort | column_info | rho_info, stats)
 
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
