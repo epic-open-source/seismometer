@@ -531,7 +531,7 @@ class CategoricalOptionsWidget(Box, ValueWidget, traitlets.HasTraits):
             title="Metrics",
         )
 
-        self._cohort_dict = MultiSelectionListWidget(cohort_dict, title="Cohorts", hierarchies=sg.cohort_hierarchies)
+        self._cohort_dict = MultiSelectionListWidget(cohort_dict, title="Cohorts")
         v_children = [html_title("Plot Options")]
 
         if self.include_groups:

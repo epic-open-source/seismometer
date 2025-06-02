@@ -422,7 +422,6 @@ class FairnessOptionsWidget(Box, ValueWidget):
         *,
         model_options_widget=None,
         default_metrics=None,
-        hierarchies=None,
     ):
         """
         Widget for selecting fairness options
@@ -443,7 +442,7 @@ class FairnessOptionsWidget(Box, ValueWidget):
         self.model_options_widget = model_options_widget
         default_metrics = default_metrics or metric_names
         self.metric_list = MultiselectDropdownWidget(metric_names, value=default_metrics, title="Fairness Metrics")
-        self.cohort_list = MultiSelectionListWidget(cohort_dict, title="Cohorts", hierarchies=hierarchies)
+        self.cohort_list = MultiSelectionListWidget(cohort_dict, title="Cohorts")
         self.fairness_slider = FloatSlider(
             min=0.01,
             max=1.00,

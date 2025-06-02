@@ -140,9 +140,7 @@ def cohort_comparison_report(exclude_cols: list[str] = None):
     sg = Seismogram()
     from seismometer.controls.cohort_comparison import ComparisonReportGenerator
 
-    comparison_selections = ComparisonReportGenerator(
-        sg.available_cohort_groups, exclude_cols=exclude_cols, hierarchies=sg.cohort_hierarchies
-    )
+    comparison_selections = ComparisonReportGenerator(sg.available_cohort_groups, exclude_cols=exclude_cols)
     comparison_selections.show()
 
 
