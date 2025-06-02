@@ -4,8 +4,6 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Button, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
-from seismometer.seismogram import Seismogram
-
 from .styles import DROPDOWN_LAYOUT, WIDE_BUTTON_LAYOUT, WIDE_LABEL_STYLE, html_title
 
 
@@ -126,6 +124,9 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         show_all : bool, optional
             If True, show all optoins, else show only selected, by default False.
         """
+        from seismometer.seismogram import Seismogram
+
+        sg = Seismogram()
         super().__init__()
         self.title = title
         self.options = options
@@ -135,7 +136,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         else:
             values = {k: tuple(v) for k, v in values.items()}
         self.value = values
-        self.hierarchies = hierarchies or []
+        self.hierarchies = hierarchies or sg.cohort_hierarchies or []
 
         selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
         for key in options:
@@ -217,6 +218,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
 
     def _on_subselection_change(self, change=None):
         """Sets the observable value and updates options based on parent selections."""
+        from seismometer.seismogram import Seismogram
+
         sg = Seismogram()
         self.value_update_in_progress = True
 

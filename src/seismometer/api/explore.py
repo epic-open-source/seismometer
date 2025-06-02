@@ -199,10 +199,7 @@ def cohort_list():
 
     options = sg.available_cohort_groups
 
-    sg = Seismogram()
-    comparison_selections = MultiSelectionListWidget(
-        options, title="Cohort", show_all=True, hierarchies=sg.cohort_hierarchies
-    )
+    comparison_selections = MultiSelectionListWidget(options, title="Cohort", show_all=True)
     output = Output()
 
     def on_widget_value_changed(*args):
