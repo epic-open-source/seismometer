@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 import seismometer.controls.selection as undertest
@@ -52,7 +54,10 @@ class TestSelectionListWidget:
 
 @pytest.mark.parametrize("show_all", [True, False])
 class TestMultiSelectionListWidget:
-    def test_init(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"]},
             values={"a": ["a", "b"], "b": ["c"]},
@@ -63,14 +68,20 @@ class TestMultiSelectionListWidget:
         assert widget.title == "title"
         assert widget.value == {"a": ("a", "b"), "b": ("c",)}
 
-    def test_init_no_value(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init_no_value(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"]},
             show_all=show_all,
         )
         assert widget.value == {}
 
-    def test_value_propagation(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_value_propagation(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,
@@ -81,7 +92,10 @@ class TestMultiSelectionListWidget:
         assert widget.selection_widgets["b"].value == ("c",)
         assert widget.selection_widgets["d"].value == ()
 
-    def test_on_subselection_changed(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_on_subselection_changed(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,
@@ -92,7 +106,10 @@ class TestMultiSelectionListWidget:
         assert widget.selection_widgets["b"].value == ()
         assert widget.selection_widgets["d"].value == ()
 
-    def test_display_text(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_display_text(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,
@@ -102,7 +119,10 @@ class TestMultiSelectionListWidget:
         widget.value = {"a": ("a", "b"), "b": ("c",)}
         assert widget.get_selection_text() == "a: a, b\nb: c"
 
-    def test_disabled(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_disabled(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,

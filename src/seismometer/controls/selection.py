@@ -218,10 +218,12 @@ class MultiSelectionListWidget(ValueWidget, VBox):
 
     def _on_subselection_change(self, change=None):
         """Sets the observable value and updates options based on parent selections."""
+        if self.value_update_in_progress:
+            return
+
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
-        self.value_update_in_progress = True
 
         # Track latest selections for chaining
         selected = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
@@ -263,7 +265,6 @@ class MultiSelectionListWidget(ValueWidget, VBox):
 
         # Final value assignment
         self.value = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
-        self.value_update_in_progress = False
 
     def _on_value_change(self, change=None):
         """Bubble up changes."""
