@@ -128,6 +128,7 @@ def fake_seismo(tmp_path):
     sg.create_cohorts()
     sg.thresholds = [0.2]
     sg.available_cohort_groups = {"Cohort": ["C1", "C2"]}
+    sg.cohort_hierarchies = None
     yield sg
 
     Seismogram.kill()

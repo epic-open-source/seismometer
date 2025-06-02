@@ -282,7 +282,10 @@ class TestModelOptionsWidget:
 
 
 class TestModelOptionsAndCohortsWidget:
-    def test_init(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelOptionsAndCohortsWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2"],
@@ -297,7 +300,10 @@ class TestModelOptionsAndCohortsWidget:
         assert widget.thresholds == {"T1": 0.2, "T2": 0.1}
         assert widget.group_scores is True
 
-    def test_disable(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_disable(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelOptionsAndCohortsWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2"],
@@ -312,7 +318,10 @@ class TestModelOptionsAndCohortsWidget:
 
 
 class TestModelOptionsAndCohortGroupWidget:
-    def test_init(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelOptionsAndCohortGroupWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2"],
@@ -328,7 +337,10 @@ class TestModelOptionsAndCohortGroupWidget:
         assert widget.thresholds == {"T1": 0.2, "T2": 0.1}
         assert widget.group_scores is True
 
-    def test_disable(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_disable(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelOptionsAndCohortGroupWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2"],
@@ -497,7 +509,10 @@ class TestModelTargetComparisonOptionsWidget:
 
 
 class TestModelScoreComparisonAndCohortsWidget:
-    def test_init(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelScoreComparisonAndCohortsWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2"],
@@ -512,7 +527,10 @@ class TestModelScoreComparisonAndCohortsWidget:
         )
         assert widget.group_scores is False
 
-    def test_disable(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_disable(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelScoreComparisonAndCohortsWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2"],
@@ -525,7 +543,10 @@ class TestModelScoreComparisonAndCohortsWidget:
 
 
 class TestModelTargetComparisonAndCohortsWidget:
-    def test_init(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelTargetComparisonAndCohortsWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2", "T3"],
@@ -540,7 +561,10 @@ class TestModelTargetComparisonAndCohortsWidget:
         assert widget.score == "S1"
         assert widget.group_scores is False
 
-    def test_disable(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_disable(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.ModelTargetComparisonAndCohortsWidget(
             cohort_groups={"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]},
             target_names=["T1", "T2"],
@@ -571,7 +595,7 @@ class TestExplorationSubpopulationWidget:
         assert widget.current_plot_code == "test_explore.plot_function({})"
         plot_function.assert_called_once_with({})  # default value
 
-    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    @patch("seismometer.seismogram.Seismogram", return_value=Mock())
     def test_option_update(self, mock_seismo):
         fake_seismo = mock_seismo()
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
@@ -605,6 +629,7 @@ class TestExplorationModelSubgroupEvaluationWidget:
         fake_seismo.thresholds = [0.1, 0.2]
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
+        fake_seismo.cohort_hierarchies = None
 
         plot_function = Mock(return_value="some result")
         plot_function.__name__ = "plot_function"
@@ -626,6 +651,7 @@ class TestExplorationModelSubgroupEvaluationWidget:
         fake_seismo.thresholds = [0.1, 0.2]
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
+        fake_seismo.cohort_hierarchies = None
 
         plot_function = Mock(return_value="some result")
         plot_function.__name__ = "plot_function"
@@ -767,7 +793,10 @@ class FakeMetricGenerator(MetricGenerator):
 
 
 class TestBinaryModelMetricOptions:
-    def test_init(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         metric_generator = FakeMetricGenerator()
         widget = undertest.BinaryModelMetricOptions(
             metric_generator,
@@ -782,7 +811,10 @@ class TestBinaryModelMetricOptions:
         assert widget.target == "T1"
         assert widget.score == "S1"
 
-    def test_disable(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_disable(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         metric_generator = FakeMetricGenerator()
         widget = undertest.BinaryModelMetricOptions(
             metric_generator,
@@ -1583,6 +1615,7 @@ class TestExploreBinaryModelFairness:
         sg_mock.output_list = ["risk_score"]
         sg_mock.thresholds = [0.2, 0.5, 0.9]
         sg_mock.available_cohort_groups = {"sex": ("M", "F")}
+        sg_mock.cohort_hierarchies = None
         monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
 
         widget = ExploreBinaryModelFairness(rho=0.8)
@@ -1607,6 +1640,7 @@ class TestExploreBinaryModelFairness:
         sg_mock.output_list = ["score_col"]
         sg_mock.thresholds = [0.5]
         sg_mock.available_cohort_groups = {"group": ("A", "B")}
+        sg_mock.cohort_hierarchies = None
         monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
 
         # Instantiate widget
