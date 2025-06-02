@@ -128,7 +128,7 @@ class OrdinalCategoricalPlot:
         in_degree = defaultdict(int)
         all_nodes = set()
 
-        # Step 1: Build graph edges from each list
+        # Step 1: Build directed graph from the order of each list
         for lst in lists:
             all_nodes.update(lst)
             for a, b in zip(lst, lst[1:]):
@@ -139,7 +139,8 @@ class OrdinalCategoricalPlot:
 
         result = []
 
-        # Step 2: Repeatedly find the only valid next node
+        # Step 2: Find total ordering by returning a sequence of directed graph sources (the least element in
+        #         each ordered graph)
         while len(result) < len(all_nodes):
             candidates = [n for n in all_nodes if in_degree[n] == 0 and n not in result]
 
@@ -149,8 +150,11 @@ class OrdinalCategoricalPlot:
             node = candidates[0]
             result.append(node)
 
+            # remove the node from the graph
             for neighbor in graph[node]:
                 in_degree[neighbor] -= 1
+            del graph[node]
+            del in_degree[node]
 
         return result
 
