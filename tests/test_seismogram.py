@@ -6,9 +6,17 @@ import pytest
 
 import seismometer.seismogram  # noqa : needed for patching
 from seismometer.configuration import ConfigProvider
-from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
+from seismometer.configuration.model import (
+    Cohort,
+    CohortHierarchy,
+    Event,
+    FilterRange,
+    LoadTimeFilter,
+    Metric,
+    MetricDetails,
+)
 from seismometer.data.loader import SeismogramLoader
-from seismometer.seismogram import Seismogram
+from seismometer.seismogram import MAXIMUM_NUM_COHORTS, Seismogram
 
 
 def get_test_config(tmp_path):
@@ -545,3 +553,229 @@ class TestSeismogramLoadData:
 
         assert sg.thresholds == [0.8, 0.5]
         assert "No thresholds set in metadata.json" in caplog.text
+
+
+class TestSeismogramLoadTimeFilters:
+    def test_keep_top_filters_excessive_categories(self, fake_seismo):
+        sg = Seismogram()
+        # Create MAX + 1 categories with descending frequencies
+        values = []
+        for i in range(MAXIMUM_NUM_COHORTS + 1):
+            values += [f"cat_{i}"] * (MAXIMUM_NUM_COHORTS + 1 - i)
+        df = pd.DataFrame({"col": values})
+
+        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action="keep_top")]
+        result = sg._apply_load_time_filters(df)
+
+        top_values = df["col"].value_counts().nlargest(MAXIMUM_NUM_COHORTS).index
+        assert set(result["col"].unique()) == set(top_values)
+
+    def test_keep_top_with_few_categories_returns_all(self, fake_seismo):
+        sg = Seismogram()
+        values = ["A", "B", "C", "A", "B", "C", "C"]
+        assert len(set(values)) < MAXIMUM_NUM_COHORTS
+        df = pd.DataFrame({"col": values})
+
+        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action="keep_top")]
+        result = sg._apply_load_time_filters(df)
+
+        # Expect all original rows to remain
+        assert result.equals(df)
+
+    @pytest.mark.parametrize(
+        "action, values, range_, expected",
+        [
+            ("include", ["A", "C"], None, ["A", "C"]),
+            ("include", None, FilterRange(min=5, max=10), [5, 10]),
+            ("exclude", ["B", "D"], None, ["A", "C"]),
+            ("exclude", None, FilterRange(min=5, max=10), [1, 20]),
+        ],
+        ids=["include-values", "include-range", "exclude-values", "exclude-range"],
+    )
+    def test_include_exclude_with_values_or_range(self, action, values, range_, expected, fake_seismo):
+        sg = Seismogram()
+        col_data = ["A", "B", "C", "D"] if values else [1, 5, 10, 20]
+        df = pd.DataFrame({"col": col_data})
+        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action=action, values=values, range=range_)]
+
+        result = sg._apply_load_time_filters(df)
+        assert sorted(result["col"].tolist()) == sorted(expected)
+
+    @pytest.mark.parametrize(
+        "action, values, range_, expected_warning, expected_result",
+        [
+            ("include", [1], FilterRange(min=0), "both 'values' and 'range'", [1]),
+            ("exclude", [1], FilterRange(min=0), "both 'values' and 'range'", [2, 3]),
+        ],
+        ids=["include-both", "exclude-both"],
+    )
+    def test_include_exclude_with_both(
+        self, action, values, range_, expected_warning, expected_result, fake_seismo, caplog
+    ):
+        sg = Seismogram()
+        df = pd.DataFrame({"col": [1, 2, 3]})
+        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action=action, values=values, range=range_)]
+
+        with caplog.at_level("WARNING", logger="seismometer"):
+            result = sg._apply_load_time_filters(df)
+
+        assert expected_warning in caplog.text
+        assert sorted(result["col"].tolist()) == sorted(expected_result)
+
+    def test_missing_column_raises_error(self, fake_seismo):
+        sg = Seismogram()
+        df = pd.DataFrame({"col": [1, 2, 3]})
+
+        sg.config.usage.load_time_filters = [LoadTimeFilter(source="missing_col", action="include", values=[1])]
+
+        with pytest.raises(ValueError, match="missing_col"):
+            sg._apply_load_time_filters(df)
+
+    def test_range_filter_raises_if_column_values_not_comparable(self, fake_seismo):
+        sg = Seismogram()
+        df = pd.DataFrame({"col": ["a", "b", "c"]})  # strings
+
+        sg.config.usage.load_time_filters = [
+            LoadTimeFilter(source="col", action="include", range=FilterRange(min=1, max=10))
+        ]
+
+        with pytest.raises(ValueError, match="Range filter on column 'col' failed. Ensure values are comparable."):
+            sg._apply_load_time_filters(df)
+
+
+class TestSeismogramResolveCohortHierarchies:
+    def test_valid_cohort_hierarchies_are_resolved(self, fake_seismo):
+        sg = Seismogram()
+        sg.dataframe = pd.DataFrame({"cohort1": [0], "cohort2": [1]})
+        sg._cohorts = [
+            Cohort(source="cohort1", display_name="Cohort 1"),
+            Cohort(source="cohort2", display_name="Cohort 2"),
+        ]
+        sg.config.usage.cohort_hierarchies = [CohortHierarchy(name="Test Hierarchy", hierarchy=["cohort1", "cohort2"])]
+
+        sg._validate_and_resolve_cohort_hierarchies()
+
+        assert len(sg.cohort_hierarchies) == 1
+        resolved = sg.cohort_hierarchies[0]
+        assert resolved.name == "Test Hierarchy"
+        assert resolved.hierarchy == ["Cohort 1", "Cohort 2"]
+
+    def test_raises_error_on_unknown_cohort_source(self, fake_seismo):
+        sg = Seismogram()
+        sg.dataframe = pd.DataFrame({"cohort1": [0]})
+        sg._cohorts = [Cohort(source="cohort1", display_name="Cohort 1")]
+
+        sg.config.usage.cohort_hierarchies = [CohortHierarchy(name="Bad", hierarchy=["cohort1", "unknown"])]
+
+        with pytest.raises(ValueError, match="references undefined cohort source: 'unknown'"):
+            sg._validate_and_resolve_cohort_hierarchies()
+
+    def test_skips_when_no_hierarchies_configured(self, fake_seismo):
+        sg = Seismogram()
+        sg.config.usage.cohort_hierarchies = None
+
+        # Should not raise or modify anything
+        sg._validate_and_resolve_cohort_hierarchies()
+
+        assert sg.cohort_hierarchies == []
+
+
+class TestSeismogramBuildCohortHierarchyCombinations:
+    @pytest.mark.parametrize(
+        "cohorts, hierarchies, df_data, expected_results",
+        [
+            # Valid single hierarchy
+            (
+                [
+                    Cohort(source="cohort1", display_name="Cohort 1"),
+                    Cohort(source="cohort2", display_name="Cohort 2"),
+                ],
+                [CohortHierarchy(name="Demo", hierarchy=["cohort1", "cohort2"])],
+                pd.DataFrame(
+                    {
+                        "cohort1": ["A", "A", "B", None],
+                        "cohort2": [1, 1, 2, 2],
+                    }
+                ).assign(
+                    **{
+                        "Cohort 1": lambda df: df["cohort1"],
+                        "Cohort 2": lambda df: df["cohort2"],
+                    }
+                ),
+                {
+                    ("Cohort 1", "Cohort 2"): pd.DataFrame(
+                        {
+                            "Cohort 1": ["A", "B"],
+                            "Cohort 2": [1, 2],
+                        }
+                    )
+                },
+            ),
+            # Invalid hierarchy (missing column)
+            (
+                [
+                    Cohort(source="c1", display_name="C1"),
+                    Cohort(source="c2", display_name="C2"),
+                    Cohort(source="missing", display_name="MISSING"),
+                ],
+                [CohortHierarchy(name="Invalid", hierarchy=["c1", "missing"])],
+                pd.DataFrame(
+                    {
+                        "c1": ["a", "b"],
+                        "c2": ["x", "y"],
+                        "C1": ["a", "b"],
+                        "C2": ["x", "y"],
+                        # No "MISSING" column → should skip
+                    }
+                ),
+                {},
+            ),
+            # Multiple valid hierarchies
+            (
+                [
+                    Cohort(source="a", display_name="A"),
+                    Cohort(source="b", display_name="B"),
+                    Cohort(source="c", display_name="C"),
+                ],
+                [
+                    CohortHierarchy(name="H1", hierarchy=["a", "b"]),
+                    CohortHierarchy(name="H2", hierarchy=["b", "c"]),
+                ],
+                pd.DataFrame(
+                    {
+                        "a": ["x", "x", "u"],
+                        "b": ["y", "y", "v"],
+                        "c": ["z", "w", "w"],
+                    }
+                ).assign(
+                    **{
+                        "A": lambda df: df["a"],
+                        "B": lambda df: df["b"],
+                        "C": lambda df: df["c"],
+                    }
+                ),
+                {
+                    ("A", "B"): pd.DataFrame({"A": ["u", "x"], "B": ["v", "y"]}),
+                    ("B", "C"): pd.DataFrame({"B": ["v", "y", "y"], "C": ["w", "w", "z"]}),
+                },
+            ),
+        ],
+        ids=["valid-hierarchy", "missing-column", "multiple-hierarchies"],
+    )
+    def test_build_cohort_hierarchy_combinations(self, cohorts, hierarchies, df_data, expected_results, fake_seismo):
+        sg = Seismogram()
+        sg._cohorts = cohorts
+        sg.config.usage.cohort_hierarchies = hierarchies
+        sg.config.cohort_hierarchies = hierarchies
+        sg.dataframe = df_data
+
+        sg._build_cohort_hierarchy_combinations()
+
+        actual_keys = set(sg._cohort_hierarchy_combinations.keys())
+        expected_keys = set(expected_results.keys())
+        assert actual_keys == expected_keys
+
+        for key in expected_keys:
+            actual_df = sg._cohort_hierarchy_combinations[key].reset_index(drop=True)
+            expected_df = expected_results[key].reset_index(drop=True)
+            pd.testing.assert_frame_equal(actual_df, expected_df)

@@ -1,8 +1,11 @@
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
+from ipywidgets import HTML
 
 import seismometer.controls.selection as undertest
+from seismometer.configuration.model import CohortHierarchy
 
 
 class TestSelectionListWidget:
@@ -138,6 +141,127 @@ class TestMultiSelectionListWidget:
         assert not widget.selection_widgets["a"].disabled
         assert not widget.selection_widgets["b"].disabled
         assert not widget.selection_widgets["d"].disabled
+
+
+class TestMultiSelectionListWidgetHierarchyFiltering:
+    @patch("seismometer.seismogram.Seismogram")
+    def test_parent_filters_child_options(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        hierarchy = ["level1", "level2"]
+        df = pd.DataFrame([("A", "X"), ("A", "Y"), ("B", "Z")], columns=hierarchy)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"level1": ["A", "B", "C"], "level2": ["X", "Y", "Z"]},
+            values={},
+        )
+
+        widget.selection_widgets["level1"].value = ("A",)
+        assert sorted(widget.selection_widgets["level2"].options) == ["X", "Y"]
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_child_shows_all_if_no_parent_selected(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        hierarchy = ["p", "c"]
+        df = pd.DataFrame([("X", "1"), ("Y", "2"), ("Z", "3")], columns=hierarchy)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"p": ["X", "Y", "Z"], "c": ["1", "2", "3"]},
+            values={},
+        )
+
+        widget.selection_widgets["p"].value = ()  # No parent selected
+        assert sorted(widget.selection_widgets["c"].options) == ["1", "2", "3"]
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_child_value_dropped_if_invalid(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        hierarchy = ["region", "site"]
+        df = pd.DataFrame([("North", "Alpha"), ("South", "Beta")], columns=hierarchy)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"region": ["North", "South"], "site": ["Alpha", "Beta", "Gamma"]},
+            values={},
+        )
+
+        widget.selection_widgets["site"].value = ("Beta", "Gamma")
+        widget.selection_widgets["region"].value = ("South",)
+        assert widget.selection_widgets["site"].value == ("Beta",)
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_first_level_update_cascades_to_second_level(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        hierarchy = ["lvl1", "lvl2"]
+        df = pd.DataFrame([("A", "x1"), ("A", "x2"), ("B", "y1")], columns=hierarchy)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"lvl1": ["A", "B"], "lvl2": ["x1", "x2", "y1", "z1"]},
+            values={},
+        )
+
+        widget.selection_widgets["lvl2"].value = ("x1", "y1")
+        widget.selection_widgets["lvl1"].value = ("B",)
+        assert sorted(widget.selection_widgets["lvl2"].options) == ["y1"]
+        assert widget.selection_widgets["lvl2"].value == ("y1",)
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_three_level_hierarchy_filters_correctly(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        hierarchy = ["lvl1", "lvl2", "lvl3"]
+        df = pd.DataFrame(
+            [
+                ("A", "X", "i"),
+                ("A", "X", "j"),
+                ("A", "Y", "k"),
+                ("B", "Z", "l"),
+            ],
+            columns=hierarchy,
+        )
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="3lvl", hierarchy=hierarchy)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"lvl1": ["A", "B"], "lvl2": ["X", "Y", "Z"], "lvl3": ["i", "j", "k", "l"]},
+            values={},
+        )
+
+        widget.selection_widgets["lvl2"].value = ("X",)
+        widget.selection_widgets["lvl1"].value = ("A",)
+        assert sorted(widget.selection_widgets["lvl3"].options) == ["i", "j"]
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_hierarchy_with_multiple_visible_keys_renders_correct_arrow_count(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        hierarchy = CohortHierarchy(name="demo", hierarchy=["level1", "level2", "level3"])
+        fake_seismo.cohort_hierarchies = [hierarchy]
+        fake_seismo._cohort_hierarchy_combinations = {}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={
+                "level1": ["A"],
+                "level2": ["B"],
+                "level3": ["C"],
+            },
+            values={"level1": ["A"], "level2": ["B"], "level3": ["C"]},
+            hierarchies=[hierarchy],
+            show_all=True,
+        )
+
+        hierarchy_vbox = widget.children[1]  # VBox of hierarchy + non-hierarchy
+        hierarchy_boxes = hierarchy_vbox.children[0:-1]  # exclude non-hierarchical box
+
+        for box in hierarchy_boxes:
+            arrow_widgets = [child for child in box.children if isinstance(child, HTML) and child.value == "→"]
+            assert (
+                len(arrow_widgets) == len(hierarchy.hierarchy) - 1
+            ), f"Expected {len(hierarchy.hierarchy) - 1} arrows, found {len(arrow_widgets)}"
 
 
 class TestDisjointSelectionListsWidget:
