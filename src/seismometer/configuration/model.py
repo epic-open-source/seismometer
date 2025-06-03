@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 logger = logging.getLogger("seismometer")
 
@@ -474,6 +474,35 @@ class DataUsage(BaseModel):
     def default_comparison(cls, comparison_time: str, values: dict) -> str:
         """Return the default comparison_time."""
         return comparison_time or values.data.get("predict_time")
+
+    @field_validator("cohort_hierarchies")
+    @classmethod
+    def validate_hierarchies_disjoint(cls, hierarchies: list[CohortHierarchy], info: ValidationInfo):
+        """
+        Validates that all cohort hierarchies are disjoint (no column used in more than one hierarchy).
+
+        Parameters
+        ----------
+        hierarchies : list[CohortHierarchy]
+            List of cohort hierarchies to validate.
+        info : ValidationInfo
+            Validation metadata (unused).
+
+        Returns
+        -------
+        list[CohortHierarchy]
+            The original list if valid.
+
+        Raises
+        ------
+        ValueError
+            If any column appears in more than one hierarchy.
+        """
+        all_fields = [col for h in hierarchies for col in h.hierarchy]
+        duplicates = {col for col in all_fields if all_fields.count(col) > 1}
+        if duplicates:
+            raise ValueError(f"Cohort hierarchy fields must be disjoint; found duplicates: {sorted(duplicates)}")
+        return hierarchies
 
     @field_validator("events")
     def reduce_events_to_unique_names(cls, events, values) -> list[Cohort]:
