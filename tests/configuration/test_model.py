@@ -355,3 +355,49 @@ class TestDataUsage:
         assert len(data_usage.cohorts) == 1
         data_usage.cohorts[0].source == "cohort1"
         data_usage.cohorts[0].display_name == "cohort1"
+
+    def test_filter_defaults_are_none(self):
+        filter_range = undertest.FilterRange()
+        assert filter_range.min is None
+        assert filter_range.max is None
+
+    def test_filter_can_set_bounds(self):
+        filter_range = undertest.FilterRange(min=10, max=100)
+        assert filter_range.min == 10
+        assert filter_range.max == 100
+
+
+class TestLoadTimeFilter:
+    @pytest.mark.parametrize(
+        "action, values, range_, should_raise, expected_warning",
+        [
+            # Valid: keep_top with nothing
+            ("keep_top", None, None, False, None),
+            # Valid: include with values
+            ("include", ["A", "B"], None, False, None),
+            # Valid: exclude with range
+            ("exclude", None, undertest.FilterRange(min=0, max=10), False, None),
+            # Invalid: include with neither values nor range
+            ("include", None, None, True, None),
+            # Invalid: exclude with neither values nor range
+            ("exclude", None, None, True, None),
+            # Warning: include with both values and range
+            ("include", ["A"], undertest.FilterRange(min=0), False, "both 'values' and 'range'"),
+            # Warning: keep_top with values and range
+            ("keep_top", ["A"], undertest.FilterRange(min=0), False, "ignores 'values' and 'range'"),
+        ],
+    )
+    def test_filter_validation_behavior(self, caplog, action, values, range_, should_raise, expected_warning):
+        kwargs = dict(source="some_col", action=action, values=values, range=range_)
+        if should_raise:
+            with pytest.raises(ValueError):
+                undertest.LoadTimeFilter(**kwargs)
+        else:
+            with caplog.at_level("WARNING", logger="seismometer"):
+                f = undertest.LoadTimeFilter(**kwargs)
+                assert f.action == action
+                assert f.source == "some_col"
+            if expected_warning:
+                assert expected_warning in caplog.text
+            else:
+                assert "WARNING" not in caplog.text

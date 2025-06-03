@@ -21,6 +21,16 @@ data_usage:
         - 35
         - 50
         - 65
+    - source: facility
+      display_name: Facility
+    - source: department
+      display_name: Department
+  # cohort hierarchies to consider  
+  cohort_hierarchies:
+    - name: Facility-Department
+      hierarchy:
+        - facility
+        - department
   # The event_table allows mapping of event columns to those expected by the tool
   # The table must have the entity_id column and may have context_id column if being used
   event_table:
