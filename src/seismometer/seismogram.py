@@ -132,8 +132,6 @@ class Seismogram(object, metaclass=Singleton):
 
         self.create_cohorts()
         self._validate_and_resolve_cohort_hierarchies()
-        if self.cohort_hierarchies:
-            self._build_cohort_hierarchy_combinations()
         self._set_df_counts()
 
         # UI Controls

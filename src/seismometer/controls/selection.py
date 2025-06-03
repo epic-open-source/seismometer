@@ -224,6 +224,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         from seismometer.seismogram import Seismogram
 
         sg = Seismogram()
+        if not sg._cohort_hierarchy_combinations:
+            sg._build_cohort_hierarchy_combinations()
 
         # Track latest selections for chaining
         selected = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
