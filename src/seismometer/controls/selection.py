@@ -159,7 +159,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
                     ordered_groups.append(self.selection_widgets[key])
                     hierarchy_keys.add(key)
                     if i < len(visible_keys) - 1:
-                        ordered_groups.append(HTML(value="→", layout=Layout(width="10px", align_self="center")))
+                        ordered_groups.append(HTML(value="→", layout=Layout(width="10px", align_self="flex-start")))
             hierarchy_widgets_list.append(
                 Box(
                     children=ordered_groups,
