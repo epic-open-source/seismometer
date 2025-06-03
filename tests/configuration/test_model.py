@@ -385,6 +385,11 @@ class TestLoadTimeFilter:
             ("include", ["A"], undertest.FilterRange(min=0), False, "both 'values' and 'range'"),
             # Warning: keep_top with values and range
             ("keep_top", ["A"], undertest.FilterRange(min=0), False, "ignores 'values' and 'range'"),
+            # One of values or range
+            ("keep_top", ["A"], None, False, "ignores 'values' and 'range'"),
+            ("keep_top", None, undertest.FilterRange(min=0), False, "ignores 'values' and 'range'"),
+            # Both values and range
+            ("keep_top", ["A"], undertest.FilterRange(min=0), False, "ignores 'values' and 'range'"),
         ],
     )
     def test_filter_validation_behavior(self, caplog, action, values, range_, should_raise, expected_warning):
@@ -401,3 +406,21 @@ class TestLoadTimeFilter:
                 assert expected_warning in caplog.text
             else:
                 assert "WARNING" not in caplog.text
+
+
+class TestCohortHierarchy:
+    def test_valid_hierarchy_is_accepted(self):
+        h = undertest.CohortHierarchy(name="Demo", hierarchy=["location", "department"])
+        assert h.name == "Demo"
+        assert h.hierarchy == ["location", "department"]
+
+    @pytest.mark.parametrize(
+        "hierarchy,expected_error",
+        [
+            (["only_one"], "must have at least 2 fields"),
+            (["a", "b", "a"], "duplicate fields"),
+        ],
+    )
+    def test_invalid_hierarchy_raises(self, hierarchy, expected_error):
+        with pytest.raises(ValueError, match=expected_error):
+            undertest.CohortHierarchy(name="Invalid", hierarchy=hierarchy)
