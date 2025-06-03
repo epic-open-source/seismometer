@@ -5,6 +5,8 @@ import pandas as pd
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, Gauge, PeriodicExportingMetricReader
 
+from seismometer.core.io import slugify
+
 
 class OpenTelemetryRecorder:
     def __init__(self, metric_names: List[str], output_path: str = None):
@@ -39,7 +41,7 @@ class OpenTelemetryRecorder:
         self.instruments: dict[str, Gauge] = {}
         self.metric_names = metric_names
         for mn in metric_names:
-            self.instruments[mn] = self.meter.create_gauge(mn, description=mn)
+            self.instruments[mn] = self.meter.create_gauge(slugify(mn), description=mn)
 
     def populate_metrics(self, attributes, metrics):
         """Populate the OpenTelemetry instruments with data from
