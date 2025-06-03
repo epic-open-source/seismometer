@@ -23,6 +23,22 @@ from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 
+EVAL_METRICS = [
+    "Sensitivity",
+    "Specificity",
+    "PPV",
+    "Accuracy",
+    "Flag Rate",
+    "NPV",
+    "LR+",
+    "NetBenefitScore",
+    "NNE",
+    "TP",
+    "FP",
+    "TN",
+    "FN",
+]
+
 
 @export
 def plot_cohort_hist():
@@ -355,6 +371,7 @@ def plot_cohort_evaluation(
         subgroups,
         sg.censor_threshold,
         per_context,
+        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS),
     )
 
 
@@ -371,6 +388,7 @@ def _plot_cohort_evaluation(
     per_context_id: bool = False,
     aggregation_method: str = "max",
     ref_time: str = None,
+    recorder: otel.OpenTelemetryRecorder = None,
 ) -> HTML:
     """
     Plots model performance metrics split by on a cohort attribute.
@@ -419,6 +437,14 @@ def _plot_cohort_evaluation(
     plot_data = get_cohort_performance_data(
         data, cohort_col, proba=output, true=target, splits=subgroups, censor_threshold=censor_threshold
     )
+    if recorder is not None:
+        # Go through all cohort values, by means of:
+        cohort_categories = list(set(list(plot_data["cohort"])))
+        for category in cohort_categories:
+            for t in thresholds:
+                p = plot_data[plot_data["Threshold"] == t * 100]
+                row = p[p["cohort"] == category]
+                recorder.populate_metrics(attributes={cohort_col: category, "threshold": t}, metrics=row)
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
@@ -503,23 +529,7 @@ def plot_model_evaluation(
         per_context,
         aggregation_method,
         ref_time,
-        recorder=otel.OpenTelemetryRecorder(
-            metric_names=[
-                "Sensitivity",
-                "Specificity",
-                "PPV",
-                "Accuracy",
-                "Flag Rate",
-                "NPV",
-                "LR+",
-                "NetBenefitScore",
-                "NNE",
-                "TP",
-                "FP",
-                "TN",
-                "FN",
-            ]
-        ),
+        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS),
         cohort=cohort_dict,
     )
 
