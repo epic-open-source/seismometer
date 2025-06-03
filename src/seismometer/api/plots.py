@@ -8,7 +8,7 @@ from IPython.display import HTML, SVG
 import seismometer.plot as plot
 from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.core.decorators import export
-from seismometer.data import get_cohort_data, get_cohort_performance_data
+from seismometer.data import get_cohort_data, get_cohort_performance_data, otel
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import (
@@ -503,6 +503,24 @@ def plot_model_evaluation(
         per_context,
         aggregation_method,
         ref_time,
+        recorder=otel.OpenTelemetryRecorder(
+            metric_names=[
+                "Sensitivity",
+                "Specificity",
+                "PPV",
+                "Accuracy",
+                "Flag Rate",
+                "NPV",
+                "LR+",
+                "NetBenefitScore",
+                "NNE",
+                "TP",
+                "FP",
+                "TN",
+                "FN",
+            ]
+        ),
+        cohort=cohort_dict,
     )
 
 
@@ -518,6 +536,8 @@ def _model_evaluation(
     per_context_id: bool = False,
     aggregation_method: str = "max",
     ref_time: Optional[str] = None,
+    recorder: otel.OpenTelemetryRecorder = None,
+    cohort: dict = {},
 ) -> HTML:
     """
     plots common model evaluation metrics
@@ -545,6 +565,8 @@ def _model_evaluation(
         ignored if per_context_id is False
     ref_time : Optional[str], optional
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
+    recorder: otel.OpenTelemetryRecorder = None
+        Where to dump metrics from this call. If none, will not dump metrics.
 
     Returns
     -------
@@ -574,6 +596,12 @@ def _model_evaluation(
     # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
     stats = calculate_bin_stats(data[target], data[score_col])
     ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95, force_percentages=True)
+    if recorder is not None:
+        params = {"target_column": target, "score_column": score_col}
+        for t in thresholds:
+            recorder.populate_metrics(
+                attributes=params | cohort | {"threshold": t}, metrics=stats[stats["Threshold"] == t * 100]
+            )
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
