@@ -394,11 +394,22 @@ class Seismogram(object, metaclass=Singleton):
                 submask = np.ones(len(df), dtype=bool)
                 if rule.values:
                     submask &= df[column].isin(rule.values).values
-                if rule.range:
-                    if rule.range.min is not None:
-                        submask &= df[column].values >= rule.range.min
-                    if rule.range.max is not None:
-                        submask &= df[column].values <= rule.range.max
+                elif rule.range:
+                    try:
+                        if rule.range.min is not None:
+                            submask &= df[column].values >= rule.range.min
+                        if rule.range.max is not None:
+                            submask &= df[column].values <= rule.range.max
+                    except (TypeError, ValueError) as e:
+                        bounds_str = ", ".join(
+                            f"{label}={val}"
+                            for label, val in [("min", rule.range.min), ("max", rule.range.max)]
+                            if val is not None
+                        )
+                        raise ValueError(
+                            f"Range filter on column '{column}' failed. Ensure values are comparable to {bounds_str}."
+                            f" Underlying error: {e}"
+                        )
                 column_mask = submask if rule.action == "include" else ~submask
             else:
                 raise ValueError(f"Unsupported filter action: {rule.action}")
