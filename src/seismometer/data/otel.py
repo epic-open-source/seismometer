@@ -8,8 +8,26 @@ from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, Gauge, Perio
 from seismometer.core.io import slugify
 
 
+# stdout
+class CollectionManager:
+    default_otel_path = "output.json"
+
+    def __init__(self):
+        if self.default_otel_path is not None:
+            self.otlp_exhaust = open(self.default_otel_path, "w")
+        else:
+            self.otlp_exhaust = sys.stdout
+
+    def __del__(self):
+        if self.default_otel_path is not None:
+            self.otlp_exhaust.close()
+
+
+cm = CollectionManager()
+
+
 class OpenTelemetryRecorder:
-    def __init__(self, metric_names: List[str], output_path: str = None):
+    def __init__(self, metric_names: List[str], name: str = "Seismo-meter"):
         """_summary_
 
         Parameters
@@ -22,18 +40,10 @@ class OpenTelemetryRecorder:
             Leave this blank for output to be stdout -- e.g. dumped to the console.S
         """
 
-        # The IO object to write OTel data into.
-        self.otlp_exhaust: sys.IO
-        if output_path is not None:
-            self.otlp_exhaust = open(output_path, "r")
-            self.output_file_path = output_path  # Store for closing later
-        else:
-            self.otlp_exhaust = sys.stdout
-            self.output_file_path = None
-        reader = PeriodicExportingMetricReader(ConsoleMetricExporter(out=self.otlp_exhaust))
+        reader = PeriodicExportingMetricReader(ConsoleMetricExporter(out=cm.otlp_exhaust), export_interval_millis=5000)
         meter_provider = MeterProvider(metric_readers=[reader])
         # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
-        self.meter = meter_provider.get_meter("Seismo-meter")
+        self.meter = meter_provider.get_meter(name)
         # Keep it like this for now: just make an instrument for each metric we are measuring
         # TODO: worry about the type of each metric being measured
         # TODO: get better descriptions for each metric besides just the name
@@ -89,14 +99,9 @@ class OpenTelemetryRecorder:
         def set_one_datapoint(value):
             instrument.set(value, attributes=attributes)
 
-        if isinstance(data, (int, float)):
+        if isinstance(data, (int, float, str, list)):
             set_one_datapoint(data)
         elif isinstance(data, pd.Series):
-            for k, v in data.items():
-                set_one_datapoint(v)
+            set_one_datapoint(list(data))
         else:
             raise Exception(f"Unrecognized data format for OTel logging: {type(data)}")
-
-    def __del__(self):
-        if self.output_file_path is not None:
-            self.otlp_exhaust.close()
