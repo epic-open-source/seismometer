@@ -135,7 +135,7 @@ class MetricGenerator:
 
 @export
 class BinaryClassifierMetricGenerator(MetricGenerator):
-    def __init__(self, rho: float = None, otlp_path: str = None):
+    def __init__(self, rho: float = None):
         """
         A class that generates Binary classifier metrics from a dataframe.
         Keeps track of available metric names as well as the function to call to generate them.
@@ -147,7 +147,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         self.rho = rho or DEFAULT_RHO
         self.default_metrics = PERFORMANCE
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=self.default_metrics, output_path=otlp_path)
+        self.recorder = otel.OpenTelemetryRecorder(metric_names=self.default_metrics)
 
     @property
     def metric_names(self):
