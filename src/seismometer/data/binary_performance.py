@@ -34,6 +34,7 @@ def calculate_stats(
     metrics_to_display: Optional[List[str]] = None,
     cohort: Optional[dict[str, tuple[Any]]] = None,
     decimals: int = 3,
+    record_metrics=True,
 ) -> dict:
     """
     Calculates overall performance statistics such as AUROC and threshold-specific statistics
@@ -85,6 +86,7 @@ def calculate_stats(
         metrics=metrics_to_display,
         cohort=cohort,
         threshold_precision=decimals - 2,
+        record_metrics=record_metrics,
     )
     stats = stats.reset_index()
 
@@ -133,6 +135,7 @@ def generate_analytics_data(
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
     censor_threshold: int = 10,
+    record_metrics: bool = True,
 ) -> Optional[pd.DataFrame]:
     """
     Generates a DataFrame containing calculated statistics for each combination of scores and targets.
@@ -205,6 +208,7 @@ def generate_analytics_data(
                 metrics_to_display=metrics_to_display,
                 cohort=cohort_dict,
                 decimals=decimals,
+                record_metrics=record_metrics,
             )
         )
         rows_list.append(current_row)
