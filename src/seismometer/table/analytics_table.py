@@ -9,10 +9,12 @@ from great_tables import GT, loc, style
 from ipywidgets import HTML, Dropdown, GridBox, Layout, VBox
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
+from seismometer.api.plots import EVAL_METRICS
 from seismometer.controls.explore import ExplorationWidget, _combine_scores_checkbox
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.controls.thresholds import MonotonicProbabilitySliderListWidget
+from seismometer.data import otel
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
 from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
@@ -330,6 +332,32 @@ class AnalyticsTable:
 
         gt = self.generate_initial_table(data)
 
+        METRICS = EVAL_METRICS + OVERALL_PERFORMANCE
+        recorder = otel.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table Meter")
+        # The column names are
+        for column in data.columns:
+            base_attributes = {}
+            metric_name = None
+            if column in METRICS:
+                metric_name = column
+            else:
+                for value in self.metric_values:
+                    if column.startswith(f"{value}_"):
+                        metric_name = column.lstrip(f"{value}_")
+                        base_attributes = {"metric value": value}
+                        break
+            if metric_name is None:
+                continue
+            # The table in the graphic is definitely indexed by score + target, so
+            # we will be storing those as attributes and the rest of the row as a
+            # bunch of key-value pairs.
+            # TODO: add more functionality to populate_metrics to expedite this sort
+            # of process, as I expect it will end up being quite common.
+            for i in range(len(data["Score"])):
+                row = data.to_dict("records")[i]
+                attributes = base_attributes | {"Score": row["Score"], "Target": row["Target"]}
+                recorder.populate_metrics(attributes=attributes, metrics={metric_name: row[column]})
+
         # Group columns of the form value_*** together
         for value in self.metric_values:
             columns = [column for column in data.columns if column.startswith(f"{value}_")]
@@ -376,6 +404,7 @@ class AnalyticsTable:
             metrics_to_display=self.metrics_to_display,
             decimals=self.decimals,
             censor_threshold=self.censor_threshold,
+            record_metrics=False,
         )
         if data is None:
             return None
