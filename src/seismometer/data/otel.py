@@ -1,3 +1,4 @@
+import logging
 import sys
 from typing import List
 
@@ -7,10 +8,12 @@ from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, Gauge, Perio
 
 from seismometer.core.io import slugify
 
+logger = logging.getLogger("Seismometer OpenTelemetry")
+
 
 # stdout
 class CollectionManager:
-    default_otel_path = "output.json"
+    default_otel_path = None
 
     def __init__(self):
         if self.default_otel_path is not None:
@@ -77,6 +80,8 @@ class OpenTelemetryRecorder:
             # but I am not 100% on it. So this stays for now.
             if name in metrics:
                 self._log_to_instrument(attributes, self.instruments[name], metrics[name])
+        if not any([name in metrics for name in self.instruments.keys()]):
+            logger.warning("No metrics populated with this call!")
 
     def _log_to_instrument(self, attributes, instrument: Gauge, data):
         """Write information to a single instrument. We need this
