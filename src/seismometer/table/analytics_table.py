@@ -333,7 +333,7 @@ class AnalyticsTable:
         gt = self.generate_initial_table(data)
 
         METRICS = EVAL_METRICS + OVERALL_PERFORMANCE
-        recorder = otel.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table Meter")
+        recorder = otel.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table")
         # The column names are
         for column in data.columns:
             base_attributes = {}

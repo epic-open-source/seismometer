@@ -371,7 +371,7 @@ def plot_cohort_evaluation(
         subgroups,
         sg.censor_threshold,
         per_context,
-        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS),
+        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS, name=f"Performance split by {cohort_col}"),
     )
 
 
@@ -529,7 +529,7 @@ def plot_model_evaluation(
         per_context,
         aggregation_method,
         ref_time,
-        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS),
+        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS, name="Model Performance"),
         cohort=cohort_dict,
     )
 

@@ -63,7 +63,7 @@ class MetricGenerator:
         self.metric_names = metric_names
         self.metric_fn = metric_fn
         self.default_metrics = default_metrics or metric_names
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, output_path=otlp_path)
+        self.recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, name="Dataframe metric generator")
 
     def __call__(
         self,
@@ -147,7 +147,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         self.rho = rho or DEFAULT_RHO
         self.default_metrics = PERFORMANCE
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=self.default_metrics)
+        self.recorder = otel.OpenTelemetryRecorder(metric_names=self.default_metrics, name="Binary Classifier")
 
     @property
     def metric_names(self):

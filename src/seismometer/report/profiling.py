@@ -192,7 +192,7 @@ class SingleReportWrapper(ReportWrapper):
 
         alert_types = ["imbalance", "missing", "zeros"]
         # TODO: add units of percent for each of these
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=alert_types)
+        self.recorder = otel.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
         for alert in self._parsed_alerts.alerts:
             # alert.display_html is something like:
             # <a href="#pp_var_4085253654425318375"><code>A1Cresult</code></a> is highly imbalanced (54.4%).
