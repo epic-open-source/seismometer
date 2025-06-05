@@ -190,6 +190,10 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         )[0]
         score_threshold_integer = int(score_threshold * 100)
         stats = stats.loc[score_threshold_integer]
+        column_info = {"target_column": target_col, "score_column": score_col}
+        rho_info = {"rho": self.rho}
+        if record_metrics:
+            self.recorder.populate_metrics(cohort | column_info | rho_info, stats)
         return stats.to_dict()
 
     def calculate_binary_stats(
@@ -224,11 +228,6 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             .round(5)
             .set_index(THRESHOLD)
         )
-
-        column_info = {"target_column": target_col, "score_column": score_col}
-        rho_info = {"rho": self.rho}
-        if record_metrics:
-            self.recorder.populate_metrics(cohort | column_info | rho_info, stats)
 
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
