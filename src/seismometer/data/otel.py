@@ -104,7 +104,7 @@ class OpenTelemetryRecorder:
         def set_one_datapoint(value):
             instrument.set(value, attributes=attributes)
 
-        if isinstance(data, (int, float, str, list)):
+        if isinstance(data, (int, float, str, list, dict)):
             set_one_datapoint(data)
         elif isinstance(data, pd.Series):
             set_one_datapoint(list(data))
