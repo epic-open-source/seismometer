@@ -353,6 +353,7 @@ class AnalyticsTable:
             # bunch of key-value pairs.
             # TODO: add more functionality to populate_metrics to expedite this sort
             # of process, as I expect it will end up being quite common.
+            metric_name = metric_name.replace("\xa0", " ")
             for i in range(len(data["Score"])):
                 row = data.to_dict("records")[i]
                 attributes = base_attributes | {"Score": row["Score"], "Target": row["Target"]}
