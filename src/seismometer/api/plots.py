@@ -312,7 +312,21 @@ def _plot_leadtime_enc(
     counts = summary_data[cohort_col].value_counts()
     good_groups = counts.loc[counts > censor_threshold].index
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
-
+    # TODO: unbind this from being strictly quartiles
+    recorder = otel.OpenTelemetryRecorder(
+        metric_names=["First quartile", "Second quartile", "Third quartile"], name="Time Lead"
+    )
+    for group in good_groups:
+        group_row = summary_data[summary_data[cohort_col] == group]
+        leads = group_row[target_zero] - group_row[ref_time]
+        recorder.populate_metrics(
+            attributes={cohort_col: group},
+            metrics={
+                "First quartile": str(leads.quantile(0.25)),
+                "Second quartile": str(leads.quantile(0.50)),
+                "Third quartile": str(leads.quantile(0.75)),
+            },
+        )
     if len(summary_data.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
 
