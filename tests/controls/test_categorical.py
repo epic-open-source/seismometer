@@ -371,6 +371,14 @@ class TestMergeOrderedLists:
             ({"m": {"n"}, "n": {"o"}, "o": {"m"}}, ["m", "n", "o", "m"]),
             # Self-loop
             ({"x": {"x"}}, ["x", "x"]),
+            # No cycle: empty graph
+            ({}, []),
+            # No cycle: simple chain
+            ({"a": {"b"}, "b": {"c"}, "c": set()}, []),
+            # No cycle: longer chain
+            ({"a": {"b"}, "b": {"c"}, "c": {"d"}, "d": set()}, []),
+            # Disconnected nodes with no cycles
+            ({"a": {"b"}, "b": set(), "x": {"y"}, "y": set()}, []),
         ],
     )
     def test_finds_cycle_correctly(self, graph, expected_cycle, fake_seismo):
