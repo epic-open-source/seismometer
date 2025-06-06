@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
@@ -140,9 +140,7 @@ class TestOrdinalCategoricalPlot:
     def test_extract_metric_values_inconsistent_raises(self, fake_seismo):
         fake_seismo.metrics["Metric1"].metric_details.values = ["disagree", "neutral", "agree"]
         fake_seismo.metrics["Metric2"].metric_details.values = ["low", "medium", "high"]
-        with pytest.raises(
-            ValueError, match="Inconsistent or ambiguous ordering: cannot determine a unique next value."
-        ):
+        with pytest.raises(ValueError, match="Ambiguous ordering: multiple values could be the next in sequence"):
             OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
 
     def test_extract_metric_values_too_many_categories_raises(self, fake_seismo):
@@ -227,39 +225,158 @@ class TestOrdinalCategoricalPlotFunction:
 
 class TestMergeOrderedLists:
     @pytest.mark.parametrize(
-        "input_lists,expected",
+        "metric_to_values,expected",
         [
-            ([["a", "b", "c"], ["a", "b"], ["b", "c"]], ["a", "b", "c"]),
-            ([["x", "y"], ["y", "z"]], ["x", "y", "z"]),
-            ([["1", "2", "3"], ["1", "2"], ["2", "3"]], ["1", "2", "3"]),
-            ([["dog", "cat"], ["cat", "mouse"]], ["dog", "cat", "mouse"]),
-            ([["a", "b"], ["b", "c"], ["a", "c"]], ["a", "b", "c"]),  # linearizable
+            ({"m1": ["a", "b", "c"], "m2": ["a", "b"], "m3": ["b", "c"]}, ["a", "b", "c"]),
+            ({"m1": ["x", "y"], "m2": ["y", "z"]}, ["x", "y", "z"]),
+            ({"m1": ["1", "2", "3"], "m2": ["1", "2"], "m3": ["2", "3"]}, ["1", "2", "3"]),
+            ({"m1": ["dog", "cat"], "m2": ["cat", "mouse"]}, ["dog", "cat", "mouse"]),
+            ({"m1": ["a", "b"], "m2": ["b", "c"], "m3": ["a", "c"]}, ["a", "b", "c"]),
         ],
     )
-    def test_merge_ordered_lists_success(self, input_lists, expected, fake_seismo):
+    def test_merge_ordered_lists_success(self, metric_to_values, expected, fake_seismo):
         plot = OrdinalCategoricalPlot(metrics=["Metric1"])
-        result = plot._merge_ordered_lists(input_lists)
+        result = plot._merge_ordered_lists(metric_to_values)
         assert result == expected
 
     @pytest.mark.parametrize(
-        "input_lists",
+        "metric_to_values, expected_message_substrings, expected_metric_substrings",
         [
-            [["a", "b"], ["a", "c"]],  # branching (ambiguous: could go to b or c)
-            [["a", "b"], ["b", "a"]],  # cycle
-            [["m", "n"], ["n", "o"], ["o", "m"]],  # 3-cycle
-            [["1", "2"], ["3", "4"]],  # disconnected components
-            [["apple", "banana"], ["banana", "cherry"], ["banana", "kiwi"]],  # ambiguous ordering
+            # Case 1: Ambiguous — branching from 'a' to both 'b' and 'c'
+            (
+                {"m1": ["a", "b"], "m2": ["a", "c"]},
+                ["Ambiguous ordering", " - b:", " - c:"],
+                ["m1", "m2"],
+            ),
+            # Case 2: 2-node cycle — a → b → a
+            (
+                {"m1": ["a", "b"], "m2": ["b", "a"]},
+                ["Cycle path:", "a → b", "b → a"],
+                ["m1", "m2"],
+            ),
+            # Case 3: 3-node cycle — m → n → o → m
+            (
+                {"m1": ["m", "n"], "m2": ["n", "o"], "m3": ["o", "m"]},
+                ["Cycle path:", "m → n", "n → o", "o → m"],
+                ["m1", "m2", "m3"],
+            ),
+            # Case 4: Ambiguous — disconnected components (1,2 and 3,4 are unrelated)
+            (
+                {"m1": ["1", "2"], "m2": ["3", "4"]},
+                ["Ambiguous ordering", " - 1:", " - 3:"],
+                ["m1", "m2"],
+            ),
+            # Case 5: Ambiguous — banana → cherry and banana → kiwi creates ambiguity
+            (
+                {
+                    "m1": ["apple", "banana"],
+                    "m2": ["banana", "cherry"],
+                    "m3": ["banana", "kiwi"],
+                },
+                ["Ambiguous ordering", " - cherry:", " - kiwi:"],
+                ["m2", "m3"],
+            ),
         ],
     )
-    def test_merge_ordered_lists_failure(self, input_lists, fake_seismo):
+    def test_merge_ordered_lists_error_messages(
+        self,
+        metric_to_values,
+        expected_message_substrings,
+        expected_metric_substrings,
+        fake_seismo,
+    ):
         plot = OrdinalCategoricalPlot(metrics=["Metric1"])
-        with pytest.raises(ValueError, match="cannot determine a unique next value"):
-            plot._merge_ordered_lists(input_lists)
+        with pytest.raises(ValueError) as exc_info:
+            plot._merge_ordered_lists(metric_to_values)
+
+        error_msg = str(exc_info.value)
+
+        for substring in expected_message_substrings:
+            assert substring in error_msg, f"Expected '{substring}' in error message."
+
+        for metric in expected_metric_substrings:
+            assert metric in error_msg, f"Expected metric '{metric}' in error message."
+
+    def test_merge_failure_includes_metric_debug_info(self, fake_seismo):
+        # Provide conflicting metric value orders
+        fake_seismo.metrics["Metric1"].metric_details.values = ["a", "b"]
+        fake_seismo.metrics["Metric2"].metric_details.values = ["a", "c"]
+
+        with pytest.raises(ValueError) as exc_info:
+            _ = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
+
+        msg = str(exc_info.value)
+
+        # Assert original error message appears
+        assert "Ambiguous ordering" in msg
+
+        # Assert per-metric value debug info is included
+        assert "Metric1: ['a', 'b']" in msg
+        assert "Metric2: ['a', 'c']" in msg
+
+    @pytest.mark.parametrize(
+        "candidates, graph, metric_to_values, expected_handler",
+        [
+            # Case 1: triggers _report_cycle_error
+            (
+                [],
+                {"a": {"b"}, "b": {"a"}},  # cycle
+                {"m1": ["a", "b"], "m2": ["b", "a"]},
+                "_report_cycle_error",
+            ),
+            # Case 2: triggers _report_ambiguous_error
+            (
+                ["a", "b"],
+                {"a": set(), "b": set()},  # ambiguous: two sources
+                {"m1": ["a"], "m2": ["b"]},
+                "_report_ambiguous_error",
+            ),
+        ],
+    )
+    def test_dispatches_to_correct_handler(
+        self,
+        candidates,
+        graph,
+        metric_to_values,
+        expected_handler,
+        fake_seismo,
+    ):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        partial_order = []
+
+        with patch.object(plot, "_report_cycle_error", wraps=plot._report_cycle_error) as cycle_spy, patch.object(
+            plot, "_report_ambiguous_error", wraps=plot._report_ambiguous_error
+        ) as ambiguous_spy:
+            with pytest.raises(ValueError):
+                plot._handle_ordering_error(candidates, graph, metric_to_values, partial_order)
+
+            if expected_handler == "_report_cycle_error":
+                cycle_spy.assert_called_once()
+                ambiguous_spy.assert_not_called()
+            else:
+                ambiguous_spy.assert_called_once()
+                cycle_spy.assert_not_called()
 
     def test_merge_ordered_lists_empty_lists(self, fake_seismo):
         plot = OrdinalCategoricalPlot(metrics=["Metric1"])
-        result = plot._merge_ordered_lists([])
+        result = plot._merge_ordered_lists({})
         assert result == []
+
+    @pytest.mark.parametrize(
+        "graph,expected_cycle",
+        [
+            # Simple 2-node cycle
+            ({"a": {"b"}, "b": {"a"}}, ["a", "b", "a"]),
+            # 3-node cycle
+            ({"m": {"n"}, "n": {"o"}, "o": {"m"}}, ["m", "n", "o", "m"]),
+            # Self-loop
+            ({"x": {"x"}}, ["x", "x"]),
+        ],
+    )
+    def test_finds_cycle_correctly(self, graph, expected_cycle, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        result = plot._find_any_cycle(graph)
+        assert result == expected_cycle
 
 
 class TestExtractMetricValues:
