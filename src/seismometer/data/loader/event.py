@@ -5,9 +5,33 @@ import pandas as pd
 import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Event
-from seismometer.data.loader.utils import gather_prediction_types
+from seismometer.data.loader.utils import gather_prediction_types, get_file_extension
 
 logger = logging.getLogger("seismometer")
+
+
+def loader(config: ConfigProvider):
+    """
+    Loads the events dataframe based on config.event_path.
+
+    Chooses the load function from the file extension.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        The events dataframe.
+    """
+    loaders = {
+        ".csv": csv_loader,
+        ".tsv": tsv_loader,
+        ".parquet": parquet_loader,
+    }
+    return loaders[get_file_extension(config.prediction_path)](config)
 
 
 def csv_loader(config: ConfigProvider) -> pd.DataFrame:

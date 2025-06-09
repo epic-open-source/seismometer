@@ -8,9 +8,33 @@ import pyarrow.parquet as pq
 
 import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider, ConfigurationError
-from seismometer.data.loader.utils import gather_prediction_types
+from seismometer.data.loader.utils import gather_prediction_types, get_file_extension
 
 logger = logging.getLogger("seismometer")
+
+
+def loader(config: ConfigProvider):
+    """
+    Load the predictions dataframe based on config.prediction_path.
+
+    Chooses the load function from the file extension.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        The predictions dataframe.
+    """
+    loaders = {
+        ".csv": csv_loader,
+        ".tsv": tsv_loader,
+        ".parquet": parquet_loader,
+    }
+    return loaders[get_file_extension(config.prediction_path)](config)
 
 
 def csv_loader(config: ConfigProvider) -> pd.DataFrame:

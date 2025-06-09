@@ -7,20 +7,6 @@ from seismometer.configuration import ConfigProvider
 
 from .pipeline import ConfigFrameHook, ConfigOnlyHook, MergeFramesHook, SeismogramLoader
 
-"""
-Dictionary of data loaders of the form prediction_loaders[file_extension] = loader.
-"""
-prediction_loaders = {
-    ".parquet": prediction.parquet_loader,
-    ".csv": prediction.csv_loader,
-    ".tsv": prediction.tsv_loader,
-}
-
-"""
-Dictionary of data loaders of the form event_loaders[file_extension] = loader.
-"""
-event_loaders = {".parquet": event.parquet_loader, ".csv": event.csv_loader, ".tsv": event.tsv_loader}
-
 
 def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None) -> SeismogramLoader:
     """
@@ -41,38 +27,12 @@ def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None)
         Instance of the SeismogramLoader class, with load_data() method ready to be called
     """
 
-    # Default filetype: parquet
-    prediction_loader: ConfigOnlyHook = prediction.parquet_loader
-    event_loader: ConfigOnlyHook = event.parquet_loader
-
-    # config should be able to be any object without immediately giving
-    # an error
-    if isinstance(config, ConfigProvider):
-        prediction_file_extension = _get_file_extension(config.prediction_path)
-        if prediction_file_extension in prediction_loaders:
-            prediction_loader = prediction_loaders[prediction_file_extension]
-
-        event_file_extension = _get_file_extension(config.event_path)
-        if event_file_extension in event_loaders:
-            event_loader = event_loaders[event_file_extension]
-
     return SeismogramLoader(
         config,
-        prediction_fn=prediction_loader,
+        prediction_fn=prediction.loader,
         post_predict_fn=prediction.dictionary_types,
-        event_fn=event_loader,
+        event_fn=event.loader,
         post_event_fn=event.post_transform_fn,
         merge_fn=event.merge_onto_predictions,
         post_load_fn=post_load_fn,
     )
-
-
-# helper functions
-
-
-def _get_file_extension(path: str) -> str:
-    """
-    Gets the file extension from a path in lowercase, e.g. "predictions.parquet" => ".parquet"
-    """
-    _, extension = os.path.splitext(path)
-    return extension.lower()
