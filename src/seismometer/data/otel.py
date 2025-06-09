@@ -31,7 +31,7 @@ class ExportManager:
         self.readers = []
         self.otlp_exhaust = None
         if file_output_path is not None:
-            self.otlp_exhaust = open(self.default_otel_path, "w")
+            self.otlp_exhaust = open(file_output_path, "w")
             self.readers.append(
                 PeriodicExportingMetricReader(
                     ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
@@ -48,7 +48,8 @@ class ExportManager:
             self.otlp_exhaust.close()
 
 
-export_manager = ExportManager(prom_port=9464)
+# For debug purposes: dump to stdout, and also to exporter path
+export_manager = ExportManager(file_output_path="/dev/stdout", prom_port=9464)
 
 
 class OpenTelemetryRecorder:
