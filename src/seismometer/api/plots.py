@@ -322,7 +322,9 @@ def _plot_leadtime_enc(
         recorder.populate_metrics(
             attributes={cohort_col: group},
             metrics={
-                f"Quantile {i} out of {NUMBER_QUANTILES}": str(leads.quantile(i / NUMBER_QUANTILES))
+                # Exporting in hours for now
+                f"Quantile {i} out of {NUMBER_QUANTILES}": (leads.quantile(i / NUMBER_QUANTILES)).total_seconds()
+                / 3600
                 for i in range(1, NUMBER_QUANTILES)
             },
         )
