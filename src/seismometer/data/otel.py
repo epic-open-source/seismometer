@@ -1,32 +1,54 @@
 import logging
-import sys
 from typing import List
 
 import pandas as pd
+from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, Gauge, PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from prometheus_client import start_http_server
 
 from seismometer.core.io import slugify
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
 
 
-# stdout
-class CollectionManager:
-    default_otel_path = None
+# Class which stores info about exporting metrics.
+class ExportManager:
+    def __init__(self, file_output_path=None, prom_port=None):
+        """Create a place to export files.
 
-    def __init__(self):
-        if self.default_otel_path is not None:
+        Parameters
+        ----------
+        file_output_path : str, optional
+            Where metrics are to be dumped to for debugging purposes, if needed.
+        prom_port : int, optional
+            What port (local HTTP server for instance) metrics are to be dumped,
+            for Prometheus exporting purposes.
+        """
+        if file_output_path is None and prom_port is None:
+            raise Exception("Metrics must go somewhere!")
+        self.readers = []
+        self.otlp_exhaust = None
+        if file_output_path is not None:
             self.otlp_exhaust = open(self.default_otel_path, "w")
-        else:
-            self.otlp_exhaust = sys.stdout
+            self.readers.append(
+                PeriodicExportingMetricReader(
+                    ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
+                )
+            )
+        if prom_port is not None:
+            start_http_server(port=prom_port, addr="localhost")
+            self.readers.append(PrometheusMetricReader())
+        self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
+        self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
 
     def __del__(self):
-        if self.default_otel_path is not None:
+        if self.otlp_exhaust is not None:
             self.otlp_exhaust.close()
 
 
-cm = CollectionManager()
+export_manager = ExportManager(prom_port=9464)
 
 
 class OpenTelemetryRecorder:
@@ -43,8 +65,7 @@ class OpenTelemetryRecorder:
             Leave this blank for output to be stdout -- e.g. dumped to the console.S
         """
 
-        reader = PeriodicExportingMetricReader(ConsoleMetricExporter(out=cm.otlp_exhaust), export_interval_millis=5000)
-        meter_provider = MeterProvider(metric_readers=[reader])
+        meter_provider = export_manager.meter_provider
         # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
         self.meter = meter_provider.get_meter(name)
         # Keep it like this for now: just make an instrument for each metric we are measuring
