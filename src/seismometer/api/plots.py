@@ -124,10 +124,31 @@ def _plot_cohort_hist(
     good_groups = cCount.loc[cCount > censor_threshold].index
     cData = cData.loc[cData["cohort"].isin(good_groups)]
 
+    # TODO: send data through a histogram?
+
     if len(cData.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
 
-    bins = np.histogram_bin_edges(cData["pred"], bins=20)
+    bin_count = 20
+    bins = np.histogram_bin_edges(cData["pred"], bins=bin_count)
+    recorder = otel.OpenTelemetryRecorder(
+        metric_names=[f"Bin {i+1} out of {bin_count - 1}" for i in range(bin_count - 1)], name="Cohort Histogram"
+    )
+    for subgroup in subgroups:
+        for true in [0.0, 1.0]:
+            attributes = {cohort_col: subgroup, "true": true}
+            metrics = {
+                f"Bin {i+1} out of {bin_count - 1}": len(
+                    cData[
+                        (bins[i] <= cData["pred"])
+                        & (cData["pred"] < bins[i + 1])
+                        & (cData["cohort"] == subgroup)
+                        & (cData["true"] == true)
+                    ]
+                )
+                for i in range(bin_count - 1)
+            }
+            recorder.populate_metrics(attributes=attributes, metrics=metrics)
     try:
         svg = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
         title = f"Predicted Probabilities by {cohort_col}"
