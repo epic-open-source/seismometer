@@ -1,4 +1,4 @@
-# Seismometer
+# Seismometer – Part of Epic’s AI Trust and Assurance Suite
 
 [![Docs](https://img.shields.io/badge/docs-stable-blue)](https://epic-open-source.github.io/seismometer/)
 [![PyPI](https://img.shields.io/pypi/v/seismometer)](https://pypi.org/project/seismometer/)
