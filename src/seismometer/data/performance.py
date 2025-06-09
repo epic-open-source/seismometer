@@ -185,9 +185,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         dict[str, float]
             A dictionary of metric names and their values.
         """
-        stats = self.calculate_binary_stats(
-            dataframe, target_col, score_col, metric_names, cohort, record_metrics=record_metrics
-        )[0]
+        stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names)[0]
         score_threshold_integer = int(score_threshold * 100)
         stats = stats.loc[score_threshold_integer]
         column_info = {"target_column": target_col, "score_column": score_col}
@@ -196,9 +194,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             self.recorder.populate_metrics(cohort | column_info | rho_info, stats)
         return stats.to_dict()
 
-    def calculate_binary_stats(
-        self, dataframe, target_col, score_col, metrics, cohort, threshold_precision=0, record_metrics=True
-    ):
+    def calculate_binary_stats(self, dataframe, target_col, score_col, metrics, threshold_precision=0):
         """
         Calculates binary stats for all thresholds.
 

@@ -84,9 +84,7 @@ def calculate_stats(
         target_col=target_col,
         score_col=score_col,
         metrics=metrics_to_display,
-        cohort=cohort,
         threshold_precision=decimals - 2,
-        record_metrics=record_metrics,
     )
     stats = stats.reset_index()
 
