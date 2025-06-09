@@ -113,8 +113,8 @@ class OpenTelemetryRecorder:
 
         Parameters
         ----------
-        cohort_info : dict[str, tuple[Any]]
-            Which cohort we are logging a measurement from.
+        attributes : dict[str, tuple[Any]]
+            Which parameters go into this measurement.
         instrument : opentelemetry.sdk.metrics.Gauge
             The OpenTelemetry Gauge that we are recording a
             measurement to. Should be one of self.instruments.
@@ -126,9 +126,16 @@ class OpenTelemetryRecorder:
         def set_one_datapoint(value):
             instrument.set(value, attributes=attributes)
 
-        if isinstance(data, (int, float, str, list, dict)):
+        if isinstance(data, (int, float)):
             set_one_datapoint(data)
-        elif isinstance(data, pd.Series):
-            set_one_datapoint(list(data))
+        elif isinstance(data, (list, pd.Series)):
+            for datapoint in data:
+                set_one_datapoint(datapoint)
+        elif isinstance(data, dict):
+            for k, v in data.items():
+                # Augment attributes with keys of dictionary
+                self._log_to_instrument(attributes | {"key": k}, instrument, v)
+        elif isinstance(data, str):
+            raise Exception(f"Cannot log strings as metrics in OTel. Tried to log {data} as a metric.")
         else:
-            raise Exception(f"Unrecognized data format for OTel logging: {type(data)}")
+            raise Exception(f"Unrecognized data format for OTel logging: {str(type(data))}")
