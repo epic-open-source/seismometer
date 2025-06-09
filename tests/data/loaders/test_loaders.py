@@ -31,17 +31,13 @@ class TestLoaderFactory:
         "attr_name,extension,expected",
         [
             # Constructor exposed
-            ("prediction_fn", PARQUET, undertest.prediction.parquet_loader),
-            ("event_fn", PARQUET, undertest.event.parquet_loader),
-            ("prediction_fn", CSV, undertest.prediction.csv_loader),
-            ("event_fn", CSV, undertest.event.csv_loader),
-            ("prediction_fn", TSV, undertest.prediction.tsv_loader),
-            ("event_fn", TSV, undertest.event.tsv_loader),
-            ("post_predict_fn", PARQUET, undertest.prediction.dictionary_types),
+            ("prediction_fn", PARQUET, undertest.prediction.loader),
+            ("event_fn", CSV, undertest.event.loader),
+            ("post_predict_fn", TSV, undertest.prediction.dictionary_types),
             ("post_event_fn", PARQUET, undertest.event.post_transform_fn),
-            ("merge_fn", PARQUET, undertest.event.merge_onto_predictions),
+            ("merge_fn", CSV, undertest.event.merge_onto_predictions),
             # Internal passthru_frame
-            ("prediction_from_memory", PARQUET, _passthru_framehook),
+            ("prediction_from_memory", TSV, _passthru_framehook),
             ("event_from_memory", PARQUET, _passthru_framehook),
         ],
     )
