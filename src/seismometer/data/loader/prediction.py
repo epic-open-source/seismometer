@@ -34,7 +34,8 @@ def loader(config: ConfigProvider):
         ".tsv": tsv_loader,
         ".parquet": parquet_loader,
     }
-    return get_loader_from_path(loaders, config.prediction_path, parquet_loader)
+    loader = get_loader_from_path(loaders, config.prediction_path, parquet_loader)
+    return loader(config)
 
 
 def csv_loader(config: ConfigProvider) -> pd.DataFrame:
