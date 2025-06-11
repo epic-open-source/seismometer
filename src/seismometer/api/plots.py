@@ -476,13 +476,16 @@ def _plot_cohort_evaluation(
         data, cohort_col, proba=output, true=target, splits=subgroups, censor_threshold=censor_threshold
     )
     if recorder is not None:
+        base_attributes = {"target": target, "score": output}
         # Go through all cohort values, by means of:
         cohort_categories = list(set(list(plot_data["cohort"])))
         for category in cohort_categories:
             for t in thresholds:
                 p = plot_data[plot_data["Threshold"] == t * 100]
                 row = p[p["cohort"] == category]
-                recorder.populate_metrics(attributes={cohort_col: category, "threshold": t}, metrics=row)
+                recorder.populate_metrics(
+                    attributes={cohort_col: category, "threshold": t} | base_attributes, metrics=row
+                )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
