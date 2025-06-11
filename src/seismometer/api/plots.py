@@ -134,6 +134,7 @@ def _plot_cohort_hist(
     recorder = otel.OpenTelemetryRecorder(
         metric_names=[f"Bin {i+1} out of {bin_count - 1}" for i in range(bin_count - 1)], name="Cohort Histogram"
     )
+    base_attributes = {"target": target, "score": output}
     for subgroup in subgroups:
         for true in [0.0, 1.0]:
             attributes = {cohort_col: subgroup, "true": true}
@@ -148,7 +149,7 @@ def _plot_cohort_hist(
                 )
                 for i in range(bin_count - 1)
             }
-            recorder.populate_metrics(attributes=attributes, metrics=metrics)
+            recorder.populate_metrics(attributes=attributes | base_attributes, metrics=metrics)
     try:
         svg = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
         title = f"Predicted Probabilities by {cohort_col}"
