@@ -38,7 +38,7 @@ class ExportManager:
                 )
             )
         if prom_port is not None:
-            start_http_server(port=prom_port, addr="localhost")
+            start_http_server(port=prom_port, addr="0.0.0.0")
             self.readers.append(PrometheusMetricReader())
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
