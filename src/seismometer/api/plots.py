@@ -511,6 +511,7 @@ def model_evaluation(per_context_id=False):
         per_context_id,
         sg.event_aggregation_method(sg.target),
         sg.predict_time,
+        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS, name="Model Performance"),
     )
 
 
