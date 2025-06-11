@@ -337,11 +337,12 @@ def _plot_leadtime_enc(
     NUMBER_QUANTILES = 4
     metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
     recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, name="Time Lead")
+    base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
     for group in good_groups:
         group_row = summary_data[summary_data[cohort_col] == group]
         leads = group_row[target_zero] - group_row[ref_time]
         recorder.populate_metrics(
-            attributes={cohort_col: group},
+            attributes={cohort_col: group} | base_attributes,
             metrics={
                 # Exporting in hours for now
                 f"Quantile {i} out of {NUMBER_QUANTILES}": (leads.quantile(i / NUMBER_QUANTILES)).total_seconds()
