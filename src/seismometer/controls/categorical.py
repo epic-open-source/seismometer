@@ -133,15 +133,12 @@ class OrdinalCategoricalPlot:
         all_nodes = set()
 
         # Step 1: Build directed graph from the order of each list
-        for metric in metric_to_values:
-            lst = metric_to_values[metric]
+        for metric, lst in metric_to_values.items():
             all_nodes.update(lst)
             for a, b in zip(lst, lst[1:]):
                 if b not in graph[a]:
                     graph[a].add(b)
                     in_degree[b] += 1
-                in_degree.setdefault(a, 0)
-
         result = []
 
         # Step 2: Find total ordering by returning a sequence of directed graph sources (the least element in
@@ -158,8 +155,8 @@ class OrdinalCategoricalPlot:
             # remove the node from the graph
             for neighbor in graph[node]:
                 in_degree[neighbor] -= 1
-            del graph[node]
-            del in_degree[node]
+            graph.pop(node, None)
+            in_degree.pop(node, None)
 
         return result
 
@@ -289,7 +286,8 @@ class OrdinalCategoricalPlot:
         """
         visited = set()
 
-        def dfs(node, path):
+        def dfs(node: str, path: list[str]) -> Optional[list[str]]:
+            """Performs depth-first search to find and return a cycle path starting from the given node."""
             if node in path:
                 idx = path.index(node)
                 return path[idx:] + [node]

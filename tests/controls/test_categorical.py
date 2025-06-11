@@ -232,6 +232,8 @@ class TestMergeOrderedLists:
             ({"m1": ["1", "2", "3"], "m2": ["1", "2"], "m3": ["2", "3"]}, ["1", "2", "3"]),
             ({"m1": ["dog", "cat"], "m2": ["cat", "mouse"]}, ["dog", "cat", "mouse"]),
             ({"m1": ["a", "b"], "m2": ["b", "c"], "m3": ["a", "c"]}, ["a", "b", "c"]),
+            ({"m1": ["a"]}, ["a"]),
+            ({"m1": ["a"], "m2": ["a"]}, ["a"]),
         ],
     )
     def test_merge_ordered_lists_success(self, metric_to_values, expected, fake_seismo):
