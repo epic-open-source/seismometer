@@ -38,8 +38,11 @@ class ExportManager:
                 )
             )
         if prom_port is not None:
-            start_http_server(port=prom_port, addr="0.0.0.0")
-            self.readers.append(PrometheusMetricReader())
+            try:
+                start_http_server(port=prom_port, addr="0.0.0.0")
+                self.readers.append(PrometheusMetricReader())
+            except OSError:
+                logger.warning("Port is already in use. Ignoring ...")
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
 
