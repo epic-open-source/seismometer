@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List
 
 import pandas as pd
@@ -11,6 +12,24 @@ from prometheus_client import start_http_server
 from seismometer.core.io import slugify
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
+
+
+def config_otel_stoppage() -> bool:
+    """Get from the environment whether we should export metrics at all, or not.
+
+    Returns
+    -------
+    bool
+        Whether or not all OTel outputs will be disabled.
+    """
+    raw_stop = os.getenv("SEISMO_NO_OTEL", "FALSE")
+    if raw_stop not in ["TRUE", "FALSE"]:
+        logger.warn("Unrecognized value for SISMO_NO_OTEL. Defaulting to false (metrics will be output ...)")
+        raw_stop = "FALSE"
+    return bool(raw_stop)
+
+
+STOP_ALL_OTEL = config_otel_stoppage()
 
 
 # Class which stores info about exporting metrics.
@@ -26,6 +45,11 @@ class ExportManager:
             What port (local HTTP server for instance) metrics are to be dumped,
             for Prometheus exporting purposes.
         """
+
+        if STOP_ALL_OTEL:
+            self.otlp_exhaust = None
+            return
+
         if file_output_path is None and prom_port is None:
             raise Exception("Metrics must go somewhere!")
         self.readers = []
@@ -37,6 +61,8 @@ class ExportManager:
                     ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
                 )
             )
+        else:
+            self.otlp_exhaust = None  # Save this for closing files down at the end of execution
         if prom_port is not None:
             try:
                 start_http_server(port=prom_port, addr="0.0.0.0")
@@ -69,6 +95,10 @@ class OpenTelemetryRecorder:
             Leave this blank for output to be stdout -- e.g. dumped to the console.S
         """
 
+        # If we are not recording metrics, don't bother.
+        if STOP_ALL_OTEL:
+            return
+
         meter_provider = export_manager.meter_provider
         # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
         self.meter = meter_provider.get_meter(name)
@@ -97,6 +127,10 @@ class OpenTelemetryRecorder:
         metrics : dict[str, float].
             The actual data we are populating.
         """
+
+        if STOP_ALL_OTEL:
+            return
+
         if metrics is None:
             # metrics = self()
             raise Exception()
