@@ -405,7 +405,6 @@ class AnalyticsTable:
             metrics_to_display=self.metrics_to_display,
             decimals=self.decimals,
             censor_threshold=self.censor_threshold,
-            record_metrics=False,
         )
         if data is None:
             return None

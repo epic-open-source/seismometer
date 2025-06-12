@@ -11,6 +11,7 @@ from ipywidgets import HTML, Box, FloatSlider, Layout, ValueWidget, VBox
 from seismometer.controls.explore import ExplorationWidget, ModelOptionsWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
+from seismometer.data import otel
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
@@ -142,6 +143,7 @@ def fairness_table(
     cohort_dict: dict[str, tuple[Any]] = None,
     *,
     censor_threshold: int = 10,
+    rho: float = 0.5,
     **kwargs,
 ) -> HTML:
     """
@@ -191,6 +193,8 @@ def fairness_table(
     if not cohort_dict:
         raise ValueError("No cohorts provided for fairness evaluation")
 
+    recorder = otel.OpenTelemetryRecorder(metric_names=metric_list, name="Fairness Table Metric Generator")
+
     for cohort_column in cohort_dict:
         cohort_indices = []
         cohort_values = []
@@ -202,9 +206,12 @@ def fairness_table(
 
             index_value = {COUNT: len(cohort_dataframe)}
             thresholding_info = {"fairness_ratio": fairness_ratio, "score_threshold": kwargs["score_threshold"]}
+            column_info = {"target_column": kwargs["target_col"], "score_column": kwargs["score_col"]}
+            rho_info = {"rho": rho}
             metrics = metric_fn(
                 cohort_dataframe, {cohort_column: cohort_class} | thresholding_info, metric_list, **kwargs
             )
+            recorder.populate_metrics(kwargs["cohort"] | column_info | rho_info, metrics)
             index_value.update(metrics)
 
             cohort_values.append(index_value)
@@ -335,6 +342,7 @@ def binary_metrics_fairness_table(
         target_col=target_column,
         score_col=score,
         score_threshold=threshold,
+        rho=metric_generator.rho,
     )
 
 

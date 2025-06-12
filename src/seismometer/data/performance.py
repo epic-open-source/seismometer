@@ -1,7 +1,7 @@
 import logging
 from numbers import Number
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -68,9 +68,7 @@ class MetricGenerator:
     def __call__(
         self,
         dataframe: pd.DataFrame,
-        attributes: dict[str, tuple[Any]],
         metric_names: list[str] = None,
-        record_metrics=True,
         **kwargs,
     ) -> dict[str, float]:
         """
@@ -84,8 +82,6 @@ class MetricGenerator:
         cohort: dict[str, tuple[Any]]
             Which cohort + other parameters we are selecting on to generate these metrics.
 
-        record_metrics: whether to generate OpenTelemetry metrics from this call.
-
         Returns
         -------
         dict[str, float]
@@ -98,13 +94,11 @@ class MetricGenerator:
         if len(dataframe) == 0:
             # Universal defaults, if no data frame, return NaN
             return {name: np.nan for name in metric_names}
-        full_metrics = self.delegate_call(dataframe, metric_names, attributes, record_metrics=record_metrics, **kwargs)
+        full_metrics = self.delegate_call(dataframe, metric_names, **kwargs)
         filtered_metrics = {k: v for k, v in full_metrics.items() if k in metric_names}
         return filtered_metrics
 
-    def delegate_call(
-        self, dataframe: pd.DataFrame, metric_names: list[str], cohort: dict[str, tuple[Any]], **kwargs
-    ) -> dict[str, float]:
+    def delegate_call(self, dataframe: pd.DataFrame, metric_names: list[str], **kwargs) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
 
@@ -157,12 +151,10 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         self,
         dataframe: pd.DataFrame,
         metric_names: list[str],
-        cohort: dict[str, tuple[Any]],
         *,
         target_col: str,
         score_col: str,
         score_threshold: float = 0.5,
-        record_metrics: bool = True,
     ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
@@ -188,10 +180,6 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         stats = self.calculate_binary_stats(dataframe, target_col, score_col, metric_names)[0]
         score_threshold_integer = int(score_threshold * 100)
         stats = stats.loc[score_threshold_integer]
-        column_info = {"target_column": target_col, "score_column": score_col}
-        rho_info = {"rho": self.rho}
-        if record_metrics:
-            self.recorder.populate_metrics(cohort | column_info | rho_info, stats)
         return stats.to_dict()
 
     def calculate_binary_stats(self, dataframe, target_col, score_col, metrics, threshold_precision=0):
