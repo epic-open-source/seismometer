@@ -97,6 +97,7 @@ class OpenTelemetryRecorder:
 
         # If we are not recording metrics, don't bother.
         if STOP_ALL_OTEL:
+            self.metric_names = []
             return
 
         meter_provider = export_manager.meter_provider
