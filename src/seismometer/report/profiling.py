@@ -176,6 +176,12 @@ class SingleReportWrapper(ReportWrapper):
 
         super().__init__()
 
+        # Some tests mock out self._parse_alerts, which will give an error when
+        # self.parsed_alerts (a field, not a method!) is accessed below this if
+        # statement. So, even though it is theoretically always set, we will set
+        # it here anyway just in case.
+        self._parsed_alerts = ParsedAlertList(alerts=[])
+
         if not Path(self._html_path).is_file() or not Path(self._alert_path).is_file():
             logger.debug(f"Generating and saving report: {self._html_path}")
             self.generate_report()
@@ -250,7 +256,6 @@ class SingleReportWrapper(ReportWrapper):
                         ),
                     )
                 )
-
         self._parsed_alerts = ParsedAlertList(alerts=alerts)
         self._serialize_alerts()
 
