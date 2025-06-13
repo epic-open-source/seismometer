@@ -26,7 +26,7 @@ def config_otel_stoppage() -> bool:
     if raw_stop not in ["TRUE", "FALSE"]:
         logger.warn("Unrecognized value for SISMO_NO_OTEL. Defaulting to false (metrics will be output ...)")
         raw_stop = "FALSE"
-    return bool(raw_stop)
+    return raw_stop == "TRUE"
 
 
 STOP_ALL_OTEL = config_otel_stoppage()
