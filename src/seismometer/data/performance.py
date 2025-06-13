@@ -73,9 +73,6 @@ class MetricGenerator:
         dataframe : pd.DataFrame
             The dataframe to generate metrics from.
 
-        cohort: dict[str, tuple[Any]]
-            Which cohort + other parameters we are selecting on to generate these metrics.
-
         Returns
         -------
         dict[str, float]
@@ -103,9 +100,6 @@ class MetricGenerator:
 
         metric_names : list[str]
             List of metric names to generate.
-
-        cohort: dict[str, tuple[Any]]
-            Which cohort we are selecting on.
 
         kwargs:
             anything additional the delegate needs.
