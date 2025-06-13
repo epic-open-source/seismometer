@@ -137,7 +137,6 @@ def _plot_cohort_hist(
     recorder = otel.OpenTelemetryRecorder(
         metric_names=[f"Bin {i+1} out of {bin_count - 1}" for i in range(bin_count - 1)], name="Cohort Histogram"
     )
-    print(otel.STOP_ALL_OTEL)
     base_attributes = {"target": target, "score": output}
     # Get all possible combinations of other attributes
     df_other_attributes = cData.drop(columns=["pred", "cohort"])
