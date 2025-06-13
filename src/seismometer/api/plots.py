@@ -1,4 +1,7 @@
+import functools
+import itertools
 import logging
+import operator
 from typing import Any, Optional
 
 import numpy as np
@@ -134,17 +137,34 @@ def _plot_cohort_hist(
     recorder = otel.OpenTelemetryRecorder(
         metric_names=[f"Bin {i+1} out of {bin_count - 1}" for i in range(bin_count - 1)], name="Cohort Histogram"
     )
+    print(otel.STOP_ALL_OTEL)
     base_attributes = {"target": target, "score": output}
+    # Get all possible combinations of other attributes
+    df_other_attributes = cData.drop(columns=["pred", "cohort"])
+    if not df_other_attributes.empty:
+        # So if column "A" has attributes A_false and A_true, and B has 1, 2, 3, then
+        # we will exhaust through all combinations of these attributes.
+        selections = list(
+            itertools.product(*[df_other_attributes[col].unique() for col in df_other_attributes.columns])
+        )
+        # Now we put them into a dictionary for ease of processing
+        selections = [dict(zip(df_other_attributes.columns, s)) for s in selections]
+    else:
+        # If there are in fact no other attributes, get a list so we don't just skip logging entirely
+        selections = [{}]
     for subgroup in subgroups:
-        for true in [0.0, 1.0]:
-            attributes = {cohort_col: subgroup, "true": true}
+        for selection in selections:
+            attributes = {cohort_col: subgroup} | selection
+            selection_condition = (
+                functools.reduce(operator.and_, (cData[k] == v for k, v in selection.items())) if selection else True
+            )
             metrics = {
                 f"Bin {i+1} out of {bin_count - 1}": len(
                     cData[
                         (bins[i] <= cData["pred"])
                         & (cData["pred"] < bins[i + 1])
                         & (cData["cohort"] == subgroup)
-                        & (cData["true"] == true)
+                        & selection_condition
                     ]
                 )
                 for i in range(bin_count - 1)
