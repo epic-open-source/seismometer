@@ -64,7 +64,7 @@ def read_otel_info(file_path: str) -> dict:
 
 
 # This will be set once usage_config.yml is done downloading, in run_startup.
-OTEL_INFO = None
+OTEL_INFO = {}
 
 
 def get_metric_config(metric_name: str) -> dict:
