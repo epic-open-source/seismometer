@@ -483,7 +483,8 @@ def _plot_cohort_evaluation(
         ignored if per_context_id is False
     ref_time : str, optional
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
-
+    recorder: OpenTelemetryRecorder
+        The object that metrics can be logged to.
     Returns
     -------
     HTML
