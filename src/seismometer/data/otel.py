@@ -173,10 +173,6 @@ class OpenTelemetryRecorder:
         ----------
         metric_names : List[str]
             These are the kinds of metrics we want to be collecting. E.g. fairness, accuracy.
-        output : str, optional
-            This is the file path where outputted metrics should be dumped. For now, we are just dealing
-            with file path, but further support for OTel exporters will be added in the future.
-            Leave this blank for output to be stdout -- e.g. dumped to the console.S
         """
 
         # If we are not recording metrics, don't bother.
