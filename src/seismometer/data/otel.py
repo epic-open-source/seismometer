@@ -58,7 +58,7 @@ def read_otel_info(file_path: str) -> dict:
         return yaml.safe_load(file)["otel_info"]
     except FileNotFoundError:
         raise Exception("Could not find usage config file for metric setup!")
-    except KeyError:
+    except (KeyError, TypeError):
         logger.warning("No OTel config found. Will be defaulting ...")
         return {}
 
