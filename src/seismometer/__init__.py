@@ -10,6 +10,7 @@ import pandas as pd
 
 # API
 from seismometer.api import *
+from seismometer.data import otel
 
 __version__ = importlib.metadata.version("seismometer")
 logger = logging.getLogger("seismometer")
@@ -65,3 +66,5 @@ def run_startup(
     sg = Seismogram(config, loader)
 
     sg.load_data(predictions=predictions_frame, events=events_frame)
+
+    otel.OTEL_INFO = otel.read_otel_info(config.config.usage_config)

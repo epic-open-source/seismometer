@@ -59,7 +59,12 @@ class MetricGenerator:
         self.metric_fn = metric_fn
         self.default_metrics = default_metrics or metric_names
 
-    def __call__(self, dataframe: pd.DataFrame, metric_names: list[str] = None, **kwargs) -> dict[str, float]:
+    def __call__(
+        self,
+        dataframe: pd.DataFrame,
+        metric_names: list[str] = None,
+        **kwargs,
+    ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
 
@@ -178,6 +183,8 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             The column in the dataframe that contains the predicted scores.
         metrics: list[str], optional
             List of metrics to filter down to.
+        cohort: dict[str, tuple[Any]]
+            Which population we are selecting on, for logging purposes.
         threshold_precision : int, optional
             Number of decimal places to use when generating thresholds as percentages.
             - E.g., `threshold_precision=0` yields thresholds like 0, 1, ..., 100 (coarse).
@@ -192,6 +199,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             .round(5)
             .set_index(THRESHOLD)
         )
+
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
 
