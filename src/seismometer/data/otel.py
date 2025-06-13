@@ -1,12 +1,14 @@
 import logging
 import os
-from typing import List
+from typing import Any, Callable, List
 
 import numpy as np
 import pandas as pd
+import yaml
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
+from opentelemetry.metrics import Meter
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, Gauge, PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from prometheus_client import start_http_server
 
@@ -31,6 +33,85 @@ def config_otel_stoppage() -> bool:
 
 
 STOP_ALL_OTEL = config_otel_stoppage()
+
+
+def read_otel_info(file_path: str) -> dict:
+    """Reads in the OTel information (which metrics to load, etc.) from a file.
+
+    Parameters
+    ----------
+    file_path : str
+        Where to read from.
+
+    Returns
+    -------
+    dict
+        The YAML object.
+
+    Raises
+    ------
+    Exception
+        If there is no file at the specified location.
+    """
+    try:
+        file = open(file_path, "r")
+        return yaml.safe_load(file)["otel_info"]
+    except FileNotFoundError:
+        raise Exception("Could not find usage config file for metric setup!")
+    except KeyError:
+        logger.warning("No OTel config found. Will be defaulting ...")
+        return {}
+
+
+# This will be set once usage_config.yml is done downloading, in run_startup.
+OTEL_INFO = None
+
+
+def get_metric_config(metric_name: str) -> dict:
+    """_summary_
+
+    Parameters
+    ----------
+    metric_name : str
+        The metric.
+
+    Returns
+    -------
+    dict
+        The configuration, as described in RFC #4 as a dictionary.
+        E.g. {"output_metrics": True}, etc.
+    """
+
+    METRIC_DEFAULTS = {"output_metrics": True, "log_all": False, "granularity": 4, "measurement_type": "Gauge"}
+
+    if metric_name in OTEL_INFO:
+        ret = OTEL_INFO[metric_name]
+    else:
+        ret = {}
+    # Overwrite defaults with whatever is in the dictionary.
+    return METRIC_DEFAULTS | ret
+
+
+def get_metric_creator(metric_name: str, meter: Meter) -> Callable:
+    """Takes in the name of a metric and determines the OTel function which creates
+    the corresponding instrument.
+
+    Parameters
+    ----------
+    metric_name : str
+        Which metric, like "Accuracy".
+    meter: Meter
+        Which meter is providing these instruments.
+
+    Returns
+    -------
+    Callable
+        The function creating the right metric instrument.
+
+    """
+    TYPES = {"Gauge": meter.create_gauge, "Counter": meter.create_up_down_counter, "Histogram": meter.create_histogram}
+    typestring = get_metric_config(metric_name)["measurement_type"]
+    return TYPES[typestring] if typestring in TYPES else Meter.create_gauge
 
 
 # Class which stores info about exporting metrics.
@@ -105,13 +186,13 @@ class OpenTelemetryRecorder:
         # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
         self.meter = meter_provider.get_meter(name)
         # Keep it like this for now: just make an instrument for each metric we are measuring
-        # TODO: worry about the type of each metric being measured
         # TODO: get better descriptions for each metric besides just the name
         # This is a map from metric name to corresponding instrument
-        self.instruments: dict[str, Gauge] = {}
+        self.instruments: dict[str, Any] = {}
         self.metric_names = metric_names
         for mn in metric_names:
-            self.instruments[mn] = self.meter.create_gauge(slugify(mn), description=mn)
+            creator_fn = get_metric_creator(mn, self.meter)
+            self.instruments[mn] = creator_fn(slugify(mn), description=mn)
 
     def populate_metrics(self, attributes, metrics):
         """Populate the OpenTelemetry instruments with data from
@@ -139,12 +220,12 @@ class OpenTelemetryRecorder:
         for name in self.instruments.keys():
             # I think metrics.keys() is a subset of self.instruments.keys()
             # but I am not 100% on it. So this stays for now.
-            if name in metrics:
+            if name in metrics and get_metric_config(name)["output_metrics"]:
                 self._log_to_instrument(attributes, self.instruments[name], metrics[name])
         if not any([name in metrics for name in self.instruments.keys()]):
             logger.warning("No metrics populated with this call!")
 
-    def _log_to_instrument(self, attributes, instrument: Gauge, data):
+    def _log_to_instrument(self, attributes, instrument: Any, data):
         """Write information to a single instrument. We need this
         wrapper function because the data we are logging may be a
         type such as a series, in which case we need to log each
@@ -154,8 +235,8 @@ class OpenTelemetryRecorder:
         ----------
         attributes : dict[str, tuple[Any]]
             Which parameters go into this measurement.
-        instrument : opentelemetry.sdk.metrics.Gauge
-            The OpenTelemetry Gauge that we are recording a
+        instrument : Any
+            The OpenTelemetry instrument that we are recording a
             measurement to. Should be one of self.instruments.
         data
             The data we are recording. Could conceivably be either
