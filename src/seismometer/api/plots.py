@@ -354,13 +354,21 @@ def _plot_leadtime_enc(
     good_groups = counts.loc[counts > censor_threshold].index
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
     # TODO: read this from config somehow
-    NUMBER_QUANTILES = 4
+    log_all = otel.get_metric_config("Time Lead")["log_all"]
+    NUMBER_QUANTILES = otel.get_metric_config("Time Lead")["granularity"]
     metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
+    if log_all:
+        metric_names += ["time-lead"]
     recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, name="Time Lead")
     base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
     for group in good_groups:
         group_row = summary_data[summary_data[cohort_col] == group]
         leads = group_row[target_zero] - group_row[ref_time]
+        if log_all:
+            recorder.populate_metrics(
+                attributes={cohort_col: group} | base_attributes,
+                metrics={"time-lead": list(leads)},
+            )
         recorder.populate_metrics(
             attributes={cohort_col: group} | base_attributes,
             metrics={

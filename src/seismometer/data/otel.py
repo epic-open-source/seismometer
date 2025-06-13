@@ -111,6 +111,8 @@ def get_metric_creator(metric_name: str, meter: Meter) -> Callable:
     """
     TYPES = {"Gauge": meter.create_gauge, "Counter": meter.create_up_down_counter, "Histogram": meter.create_histogram}
     typestring = get_metric_config(metric_name)["measurement_type"]
+    if "Time Lead" in metric_name.lower():
+        return TYPES["Histogram"]
     return TYPES[typestring] if typestring in TYPES else Meter.create_gauge
 
 
