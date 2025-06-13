@@ -28,7 +28,7 @@ data_usage:
   # cohort hierarchies to consider  
   cohort_hierarchies:
     - name: Facility-Department
-      hierarchy:
+      column_order:
         - facility
         - department
   # The event_table allows mapping of event columns to those expected by the tool

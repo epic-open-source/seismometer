@@ -4,6 +4,8 @@ from typing import Optional
 import traitlets
 from ipywidgets import HTML, Box, Button, Dropdown, Label, Layout, Stack, ToggleButton, ValueWidget, VBox, jslink
 
+from seismometer.configuration.model import CohortHierarchy
+
 from .styles import DROPDOWN_LAYOUT, WIDE_BUTTON_LAYOUT, WIDE_LABEL_STYLE, html_title
 
 
@@ -106,7 +108,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         title: str = None,
         border: bool = False,
         show_all: bool = False,
-        hierarchies: Optional[list[list[str]]] = None,
+        hierarchies: Optional[list[CohortHierarchy]] = None,
     ):
         """
         A table of buttons organized into columns by their keys. Collapsable to save space.
@@ -123,6 +125,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             If True, display a border around the widget, by default False.
         show_all : bool, optional
             If True, show all optoins, else show only selected, by default False.
+        hierarchies: Optional[list[CohortHierarchy]], optional
+            List of cohort hierarchies to consider, by default None.
         """
         from seismometer.seismogram import Seismogram
 
@@ -151,15 +155,17 @@ class MultiSelectionListWidget(ValueWidget, VBox):
 
         # Step 1: group widgets by hierarchy
         for hierarchy in self.hierarchies:
-            visible_keys = [key for key in hierarchy.hierarchy if key in self.selection_widgets]
-            ordered_groups = []  # groups of widgets corresponding to the hierarchy to display horizontally
+            visible_keys = [key for key in hierarchy.column_order if key in options]
 
-            if len(visible_keys) >= 2:
-                for i, key in enumerate(visible_keys):
-                    ordered_groups.append(self.selection_widgets[key])
-                    hierarchy_keys.add(key)
-                    if i < len(visible_keys) - 1:
-                        ordered_groups.append(HTML(value="→", layout=Layout(width="10px", align_self="flex-start")))
+            widgets = [self.selection_widgets[key] for key in visible_keys]
+            hierarchy_keys.update(visible_keys)
+
+            # Create one arrow widget
+            arrow = HTML(value="→", layout=Layout(width="10px", align_self="flex-start"))
+            # Add widget + arrow groups for all but the last widget
+            label = Label(value=f"{hierarchy.name}: ", layout=Layout(min_width="120px"))
+            ordered_groups = [label] + sum([[widget, arrow] for widget in widgets[:-1]], []) + [widgets[-1]]
+
             hierarchy_widgets_list.append(
                 Box(
                     children=ordered_groups,
@@ -175,7 +181,11 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             )
 
         # Step 2: add non-hierarchical widgets
-        non_hierarchical_widgets = [self.selection_widgets[key] for key in options if key not in hierarchy_keys]
+        non_hierarchical_keys = [key for key in options if key not in hierarchy_keys]
+        # Add spacer label only if there are cohort hierarchies
+        non_hierarchical_widgets = (
+            [Label(value="", layout=Layout(min_width="120px", align_self="flex-start"))] if self.hierarchies else []
+        ) + [self.selection_widgets[key] for key in non_hierarchical_keys]
         non_hierarchical_widget_box = Box(
             children=non_hierarchical_widgets,
             layout=Layout(
@@ -231,7 +241,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         selected = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
 
         for hierarchy in self.hierarchies:
-            lvls = hierarchy.hierarchy
+            lvls = hierarchy.column_order
             for index in range(len(lvls) - 1):
                 parent_lvl = lvls[index]
                 child_lvl = lvls[index + 1]
