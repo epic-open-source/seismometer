@@ -2,6 +2,7 @@ import logging
 import os
 from typing import List
 
+import numpy as np
 import pandas as pd
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.metrics import MeterProvider
@@ -164,8 +165,11 @@ class OpenTelemetryRecorder:
         def set_one_datapoint(value):
             instrument.set(value, attributes=attributes)
 
+        # Some code seems to be logging numpy int64s so here we are.
         if isinstance(data, (int, float)):
             set_one_datapoint(data)
+        elif isinstance(data, (np.int64, np.float64)):
+            set_one_datapoint(data.item())
         elif isinstance(data, (list, pd.Series)):
             for datapoint in data:
                 set_one_datapoint(datapoint)
