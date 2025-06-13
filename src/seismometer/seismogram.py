@@ -408,8 +408,7 @@ class Seismogram(object, metaclass=Singleton):
                         )
                         raise ValueError(
                             f"Range filter on column '{column}' failed. Ensure values are comparable to {bounds_str}."
-                            f" Underlying error: {e}"
-                        )
+                        ) from e
                 column_mask = submask if rule.action == "include" else ~submask
             else:
                 raise ValueError(f"Unsupported filter action: {rule.action}")
@@ -463,14 +462,14 @@ class Seismogram(object, metaclass=Singleton):
 
         for hierarchy in self.config.usage.cohort_hierarchies:
             resolved_levels = []
-            for level in hierarchy.hierarchy:
+            for level in hierarchy.column_order:
                 if level not in source_to_display:
                     raise ValueError(
                         f"Cohort hierarchy '{hierarchy.name}' references undefined cohort source: '{level}'"
                     )
                 resolved_levels.append(source_to_display[level])
 
-            resolved_hierarchies.append(CohortHierarchy(name=hierarchy.name, hierarchy=resolved_levels))
+            resolved_hierarchies.append(CohortHierarchy(name=hierarchy.name, column_order=resolved_levels))
 
         self.cohort_hierarchies = resolved_hierarchies
 
@@ -478,7 +477,7 @@ class Seismogram(object, metaclass=Singleton):
         """Precompute distinct value combinations for each defined cohort hierarchy."""
         source_to_display = {c.source: c.display_name for c in self._cohorts}
         for hierarchy in self.config.cohort_hierarchies:
-            lvls = hierarchy.hierarchy
+            lvls = hierarchy.column_order
             if not all(k in self.dataframe.columns for k in lvls):
                 continue  # skip invalid ones
             lvls = [source_to_display[lvl] for lvl in lvls]

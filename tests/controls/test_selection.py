@@ -147,10 +147,10 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
     @patch("seismometer.seismogram.Seismogram")
     def test_parent_filters_child_options(self, mock_seismo):
         fake_seismo = mock_seismo.return_value
-        hierarchy = ["level1", "level2"]
-        df = pd.DataFrame([("A", "X"), ("A", "Y"), ("B", "Z")], columns=hierarchy)
-        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+        column_order = ["level1", "level2"]
+        df = pd.DataFrame([("A", "X"), ("A", "Y"), ("B", "Z")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"level1": ["A", "B", "C"], "level2": ["X", "Y", "Z"]},
@@ -163,10 +163,10 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
     @patch("seismometer.seismogram.Seismogram")
     def test_child_shows_all_if_no_parent_selected(self, mock_seismo):
         fake_seismo = mock_seismo.return_value
-        hierarchy = ["p", "c"]
-        df = pd.DataFrame([("X", "1"), ("Y", "2"), ("Z", "3")], columns=hierarchy)
-        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+        column_order = ["p", "c"]
+        df = pd.DataFrame([("X", "1"), ("Y", "2"), ("Z", "3")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"p": ["X", "Y", "Z"], "c": ["1", "2", "3"]},
@@ -179,10 +179,10 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
     @patch("seismometer.seismogram.Seismogram")
     def test_child_value_dropped_if_invalid(self, mock_seismo):
         fake_seismo = mock_seismo.return_value
-        hierarchy = ["region", "site"]
-        df = pd.DataFrame([("North", "Alpha"), ("South", "Beta")], columns=hierarchy)
-        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+        column_order = ["region", "site"]
+        df = pd.DataFrame([("North", "Alpha"), ("South", "Beta")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"region": ["North", "South"], "site": ["Alpha", "Beta", "Gamma"]},
@@ -196,10 +196,10 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
     @patch("seismometer.seismogram.Seismogram")
     def test_first_level_update_cascades_to_second_level(self, mock_seismo):
         fake_seismo = mock_seismo.return_value
-        hierarchy = ["lvl1", "lvl2"]
-        df = pd.DataFrame([("A", "x1"), ("A", "x2"), ("B", "y1")], columns=hierarchy)
-        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", hierarchy=hierarchy)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+        column_order = ["lvl1", "lvl2"]
+        df = pd.DataFrame([("A", "x1"), ("A", "x2"), ("B", "y1")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"lvl1": ["A", "B"], "lvl2": ["x1", "x2", "y1", "z1"]},
@@ -214,7 +214,7 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
     @patch("seismometer.seismogram.Seismogram")
     def test_three_level_hierarchy_filters_correctly(self, mock_seismo):
         fake_seismo = mock_seismo.return_value
-        hierarchy = ["lvl1", "lvl2", "lvl3"]
+        column_order = ["lvl1", "lvl2", "lvl3"]
         df = pd.DataFrame(
             [
                 ("A", "X", "i"),
@@ -222,10 +222,10 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
                 ("A", "Y", "k"),
                 ("B", "Z", "l"),
             ],
-            columns=hierarchy,
+            columns=column_order,
         )
-        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="3lvl", hierarchy=hierarchy)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(hierarchy): df}
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="3lvl", column_order=column_order)]
+        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"lvl1": ["A", "B"], "lvl2": ["X", "Y", "Z"], "lvl3": ["i", "j", "k", "l"]},
@@ -239,7 +239,7 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
     @patch("seismometer.seismogram.Seismogram")
     def test_hierarchy_with_multiple_visible_keys_renders_correct_arrow_count(self, mock_seismo):
         fake_seismo = mock_seismo.return_value
-        hierarchy = CohortHierarchy(name="demo", hierarchy=["level1", "level2", "level3"])
+        hierarchy = CohortHierarchy(name="demo", column_order=["level1", "level2", "level3"])
         fake_seismo.cohort_hierarchies = [hierarchy]
         fake_seismo._cohort_hierarchy_combinations = {}
 
@@ -260,8 +260,8 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
         for box in hierarchy_boxes:
             arrow_widgets = [child for child in box.children if isinstance(child, HTML) and child.value == "→"]
             assert (
-                len(arrow_widgets) == len(hierarchy.hierarchy) - 1
-            ), f"Expected {len(hierarchy.hierarchy) - 1} arrows, found {len(arrow_widgets)}"
+                len(arrow_widgets) == len(hierarchy.column_order) - 1
+            ), f"Expected {len(hierarchy.column_order) - 1} arrows, found {len(arrow_widgets)}"
 
 
 class TestDisjointSelectionListsWidget:

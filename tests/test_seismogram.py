@@ -651,21 +651,23 @@ class TestSeismogramResolveCohortHierarchies:
             Cohort(source="cohort1", display_name="Cohort 1"),
             Cohort(source="cohort2", display_name="Cohort 2"),
         ]
-        sg.config.usage.cohort_hierarchies = [CohortHierarchy(name="Test Hierarchy", hierarchy=["cohort1", "cohort2"])]
+        sg.config.usage.cohort_hierarchies = [
+            CohortHierarchy(name="Test Hierarchy", column_order=["cohort1", "cohort2"])
+        ]
 
         sg._validate_and_resolve_cohort_hierarchies()
 
         assert len(sg.cohort_hierarchies) == 1
         resolved = sg.cohort_hierarchies[0]
         assert resolved.name == "Test Hierarchy"
-        assert resolved.hierarchy == ["Cohort 1", "Cohort 2"]
+        assert resolved.column_order == ["Cohort 1", "Cohort 2"]
 
     def test_raises_error_on_unknown_cohort_source(self, fake_seismo):
         sg = Seismogram()
         sg.dataframe = pd.DataFrame({"cohort1": [0]})
         sg._cohorts = [Cohort(source="cohort1", display_name="Cohort 1")]
 
-        sg.config.usage.cohort_hierarchies = [CohortHierarchy(name="Bad", hierarchy=["cohort1", "unknown"])]
+        sg.config.usage.cohort_hierarchies = [CohortHierarchy(name="Bad", column_order=["cohort1", "unknown"])]
 
         with pytest.raises(ValueError, match="references undefined cohort source: 'unknown'"):
             sg._validate_and_resolve_cohort_hierarchies()
@@ -690,7 +692,7 @@ class TestSeismogramBuildCohortHierarchyCombinations:
                     Cohort(source="cohort1", display_name="Cohort 1"),
                     Cohort(source="cohort2", display_name="Cohort 2"),
                 ],
-                [CohortHierarchy(name="Demo", hierarchy=["cohort1", "cohort2"])],
+                [CohortHierarchy(name="Demo", column_order=["cohort1", "cohort2"])],
                 pd.DataFrame(
                     {
                         "cohort1": ["A", "A", "B", None],
@@ -718,7 +720,7 @@ class TestSeismogramBuildCohortHierarchyCombinations:
                     Cohort(source="c2", display_name="C2"),
                     Cohort(source="missing", display_name="MISSING"),
                 ],
-                [CohortHierarchy(name="Invalid", hierarchy=["c1", "missing"])],
+                [CohortHierarchy(name="Invalid", column_order=["c1", "missing"])],
                 pd.DataFrame(
                     {
                         "c1": ["a", "b"],
@@ -738,8 +740,8 @@ class TestSeismogramBuildCohortHierarchyCombinations:
                     Cohort(source="c", display_name="C"),
                 ],
                 [
-                    CohortHierarchy(name="H1", hierarchy=["a", "b"]),
-                    CohortHierarchy(name="H2", hierarchy=["b", "c"]),
+                    CohortHierarchy(name="H1", column_order=["a", "b"]),
+                    CohortHierarchy(name="H2", column_order=["b", "c"]),
                 ],
                 pd.DataFrame(
                     {

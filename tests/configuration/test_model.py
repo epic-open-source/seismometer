@@ -410,17 +410,17 @@ class TestLoadTimeFilter:
 
 class TestCohortHierarchy:
     def test_valid_hierarchy_is_accepted(self):
-        h = undertest.CohortHierarchy(name="Demo", hierarchy=["location", "department"])
+        h = undertest.CohortHierarchy(name="Demo", column_order=["location", "department"])
         assert h.name == "Demo"
-        assert h.hierarchy == ["location", "department"]
+        assert h.column_order == ["location", "department"]
 
     @pytest.mark.parametrize(
-        "hierarchy,expected_error",
+        "column_order,expected_error",
         [
             (["only_one"], "must have at least 2 fields"),
             (["a", "b", "a"], "duplicate fields"),
         ],
     )
-    def test_invalid_hierarchy_raises(self, hierarchy, expected_error):
+    def test_invalid_hierarchy_raises(self, column_order, expected_error):
         with pytest.raises(ValueError, match=expected_error):
-            undertest.CohortHierarchy(name="Invalid", hierarchy=hierarchy)
+            undertest.CohortHierarchy(name="Invalid", column_order=column_order)

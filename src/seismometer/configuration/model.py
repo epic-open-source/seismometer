@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Union
 
@@ -262,7 +263,7 @@ class LoadTimeFilter(BaseModel):
                 )
             if self.values is not None and self.range is not None:
                 logger.warning(
-                    f"Filter on '{self.source}' specifies both 'values' and 'range'; "
+                    f"Filter on '{self.source}' with action '{self.action}' specifies both 'values' and 'range'; "
                     "'values' will be used and 'range' will be ignored."
                 )
 
@@ -277,13 +278,13 @@ class CohortHierarchy(BaseModel):
     """A list of cohort columns representing a hierarchical dependency."""
 
     name: str
-    hierarchy: List[str]
+    column_order: List[str]
 
     @model_validator(mode="after")
     def validate_hierarchy_structure(self) -> "CohortHierarchy":
-        if len(self.hierarchy) < 2:
+        if len(self.column_order) < 2:
             raise ValueError(f"Cohort hierarchy '{self.name}' must have at least 2 fields.")
-        if len(set(self.hierarchy)) < len(self.hierarchy):
+        if len(set(self.column_order)) < len(self.column_order):
             raise ValueError(f"Cohort hierarchy '{self.name}' has duplicate fields.")
         return self
 
@@ -498,8 +499,9 @@ class DataUsage(BaseModel):
         ValueError
             If any column appears in more than one hierarchy.
         """
-        all_fields = [col for h in hierarchies for col in h.hierarchy]
-        duplicates = {col for col in all_fields if all_fields.count(col) > 1}
+        all_fields = [col for h in hierarchies for col in h.column_order]
+        field_counts = Counter(all_fields)
+        duplicates = {col for col, count in field_counts.items() if count > 1}
         if duplicates:
             raise ValueError(f"Cohort hierarchy fields must be disjoint; found duplicates: {sorted(duplicates)}")
         return hierarchies
