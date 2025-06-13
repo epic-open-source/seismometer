@@ -208,10 +208,10 @@ def fairness_table(
             thresholding_info = {"fairness_ratio": fairness_ratio, "score_threshold": kwargs["score_threshold"]}
             column_info = {"target_column": kwargs["target_col"], "score_column": kwargs["score_col"]}
             rho_info = {"rho": rho}
-            metrics = metric_fn(
-                cohort_dataframe, {cohort_column: cohort_class} | thresholding_info, metric_list, **kwargs
+            metrics = metric_fn(cohort_dataframe, metric_list, **kwargs)
+            recorder.populate_metrics(
+                {cohort_column: cohort_class} | column_info | rho_info | thresholding_info, metrics
             )
-            recorder.populate_metrics(kwargs["cohort"] | column_info | rho_info, metrics)
             index_value.update(metrics)
 
             cohort_values.append(index_value)
