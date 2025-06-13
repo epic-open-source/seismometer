@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.metrics import Meter
+from opentelemetry.metrics import Histogram, Meter, UpDownCounter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -244,7 +244,17 @@ class OpenTelemetryRecorder:
         """
 
         def set_one_datapoint(value):
-            instrument.set(value, attributes=attributes)
+            # The SDK doesn't expose Gauge as a type, so we need to get creative here.
+            if type(instrument).__name__ == "_Gauge":
+                instrument.set(value, attributes=attributes)
+            elif isinstance(instrument, UpDownCounter):
+                instrument.add(value, attributes=attributes)
+            elif isinstance(instrument, Histogram):
+                instrument.record(value, attributes=attributes)
+            else:
+                raise Exception(
+                    f"Internal error: one of the instruments is not a recognized type: {str(type(instrument))}"
+                )
 
         # Some code seems to be logging numpy int64s so here we are.
         if isinstance(data, (int, float)):
