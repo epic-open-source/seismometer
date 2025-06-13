@@ -134,6 +134,7 @@ class TestReportFunctions:
         sg.entity_keys = []
         sg.output_path = "/tmp"
         sg.dataframe = Mock()
+        sg.cohort_hierarchies = None
         mock_seismogram.return_value = sg
 
         def wrap_filter(mock_filter, is_empty):

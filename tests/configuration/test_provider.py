@@ -29,7 +29,10 @@ class TestConfigProvider:
             ("comparison_time", "ScoringTime"),
             ("outcomes", {}),
             ("interventions", {}),
-            ("prediction_columns", ["Age", "Input", "Score", "ScoringTime", "encounter_id", "id"]),
+            (
+                "prediction_columns",
+                ["Age", "Input", "Score", "ScoringTime", "department", "encounter_id", "facility", "id"],
+            ),
             ("censor_min_count", 15),
         ],
     )
@@ -56,3 +59,7 @@ class TestConfigProvider:
         config = undertest.ConfigProvider(res / TEST_CONFIG)
         config.usage.outputs = outputs
         assert config.output_list == output_list
+
+    def test_cohort_hierarchies_property(self, res):
+        config = undertest.ConfigProvider(res / TEST_CONFIG)
+        assert config.cohort_hierarchies == config.usage.cohort_hierarchies
