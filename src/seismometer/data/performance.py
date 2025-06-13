@@ -7,8 +7,6 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import auc
 
-from seismometer.data import otel
-
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
 from .decorators import export
 
@@ -37,7 +35,6 @@ class MetricGenerator:
         metric_names: list[str],
         metric_fn: Callable[..., dict[str, float]],
         default_metrics: Optional[list[str]] = None,
-        otlp_path: Optional[str] = None,
     ):
         """
         A class that generates metrics from a dataframe.
@@ -51,8 +48,6 @@ class MetricGenerator:
             The metric "Count" is reserved.
         metric_fn : Callable[[pd.DataFrame, list[str], ...], list[str], dict[str, float]]
             Function that generates metrics from a dataframe.
-        otlp_path: where OpenTelemetry-generated metrics should be written.
-            Set to None for stdout (dump to console)
         """
         if not metric_names:
             raise ValueError("metric_names must be a non-empty list of supported metrics")
@@ -63,7 +58,6 @@ class MetricGenerator:
         self.metric_names = metric_names
         self.metric_fn = metric_fn
         self.default_metrics = default_metrics or metric_names
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, name="Dataframe metric generator")
 
     def __call__(
         self,
@@ -141,7 +135,6 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         self.rho = rho or DEFAULT_RHO
         self.default_metrics = PERFORMANCE
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=self.default_metrics, name="Binary Classifier")
 
     @property
     def metric_names(self):
