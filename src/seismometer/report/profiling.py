@@ -204,8 +204,13 @@ class SingleReportWrapper(ReportWrapper):
             # <a href="#pp_var_4085253654425318375"><code>A1Cresult</code></a> is highly imbalanced (54.4%).
             # So we're going to extract the relevant parts for logging: A1Cresult and 54.4%.
             results = re.search(r"<code>(.+)</code>.+\((.*)%\)", alert.display_html)
-            variable = results.group(1)
-            percentage = float(results.group(2))
+            if results is None:
+                # We didn't find anything.
+                variable = "unknown"
+                percentage = float("nan")
+            else:
+                variable = results.group(1)
+                percentage = float(results.group(2))
             self.recorder.populate_metrics(attributes={"variable": variable}, metrics={alert.name.lower(): percentage})
 
     def generate_report(self) -> None:
