@@ -32,7 +32,6 @@ def calculate_stats(
     metric: str,
     metric_values: List[str],
     metrics_to_display: Optional[List[str]] = None,
-    cohort: Optional[dict[str, tuple[Any]]] = None,
     decimals: int = 3,
 ) -> dict:
     """
@@ -202,7 +201,6 @@ def generate_analytics_data(
                 metric=metric,
                 metric_values=metric_values,
                 metrics_to_display=metrics_to_display,
-                cohort=cohort_dict,
                 decimals=decimals,
             )
         )
