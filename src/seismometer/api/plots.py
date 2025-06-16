@@ -353,7 +353,7 @@ def _plot_leadtime_enc(
     counts = summary_data[cohort_col].value_counts()
     good_groups = counts.loc[counts > censor_threshold].index
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
-    # TODO: read this from config somehow
+
     log_all = otel.get_metric_config("Time Lead")["log_all"]
     NUMBER_QUANTILES = otel.get_metric_config("Time Lead")["granularity"]
     metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
