@@ -183,8 +183,6 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             The column in the dataframe that contains the predicted scores.
         metrics: list[str], optional
             List of metrics to filter down to.
-        cohort: dict[str, tuple[Any]]
-            Which population we are selecting on, for logging purposes.
         threshold_precision : int, optional
             Number of decimal places to use when generating thresholds as percentages.
             - E.g., `threshold_precision=0` yields thresholds like 0, 1, ..., 100 (coarse).
