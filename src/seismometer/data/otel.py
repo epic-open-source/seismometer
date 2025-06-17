@@ -225,6 +225,8 @@ class OpenTelemetryRecorder:
                 self._log_to_instrument(attributes, self.instruments[name], metrics[name])
         if not any([name in metrics for name in self.instruments.keys()]):
             logger.warning("No metrics populated with this call!")
+            logger.warning(f"Instruments available: {self.metric_names}")
+            logger.warning(f"Metrics provided for population: {metrics.keys()}")
 
     def _log_to_instrument(self, attributes, instrument: Any, data):
         """Write information to a single instrument. We need this
