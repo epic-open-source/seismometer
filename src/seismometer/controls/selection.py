@@ -109,6 +109,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         border: bool = False,
         show_all: bool = False,
         hierarchies: Optional[list[CohortHierarchy]] = None,
+        hierarchy_combinations: Optional[dict[tuple[str], "pd.DataFrame"]] = None,
     ):
         """
         A table of buttons organized into columns by their keys. Collapsable to save space.
@@ -127,10 +128,9 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             If True, show all optoins, else show only selected, by default False.
         hierarchies: Optional[list[CohortHierarchy]], optional
             List of cohort hierarchies to consider, by default None.
+        hierarchy_combinations: Optional[dict[tuple[str], pd.DataFrame]], optional
+            Mapping of each hierarchy to valid combinations of values across its levels, by default None.
         """
-        from seismometer.seismogram import Seismogram
-
-        sg = Seismogram()
         super().__init__()
         self.title = title
         self.options = options
@@ -140,7 +140,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         else:
             values = {k: tuple(v) for k, v in values.items()}
         self.value = values
-        self.hierarchies = hierarchies or sg.cohort_hierarchies or []
+        self.hierarchies = hierarchies or []
+        self.hierarchy_combinations = hierarchy_combinations or {}
 
         selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
         for key in options:
@@ -231,12 +232,6 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         if self.value_update_in_progress:
             return
 
-        from seismometer.seismogram import Seismogram
-
-        sg = Seismogram()
-        if not sg._cohort_hierarchy_combinations:
-            sg._build_cohort_hierarchy_combinations()
-
         # Track latest selections for chaining
         selected = {k: tuple(v.value) for k, v in self.selection_widgets.items() if len(v.value)}
 
@@ -252,7 +247,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
                 child_widget = self.selection_widgets[child_lvl]
                 parent_values = selected.get(parent_lvl, ())
 
-                combo_df = sg._cohort_hierarchy_combinations.get(tuple(lvls))
+                combo_df = self.hierarchy_combinations.get(tuple(lvls))
                 if combo_df is None or parent_lvl not in combo_df.columns or child_lvl not in combo_df.columns:
                     continue
 
