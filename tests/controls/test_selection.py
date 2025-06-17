@@ -150,11 +150,13 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
         column_order = ["level1", "level2"]
         df = pd.DataFrame([("A", "X"), ("A", "Y"), ("B", "Z")], columns=column_order)
         fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"level1": ["A", "B", "C"], "level2": ["X", "Y", "Z"]},
             values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
         )
 
         widget.selection_widgets["level1"].value = ("A",)
@@ -166,11 +168,13 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
         column_order = ["p", "c"]
         df = pd.DataFrame([("X", "1"), ("Y", "2"), ("Z", "3")], columns=column_order)
         fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"p": ["X", "Y", "Z"], "c": ["1", "2", "3"]},
             values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
         )
 
         widget.selection_widgets["p"].value = ()  # No parent selected
@@ -182,11 +186,13 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
         column_order = ["region", "site"]
         df = pd.DataFrame([("North", "Alpha"), ("South", "Beta")], columns=column_order)
         fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"region": ["North", "South"], "site": ["Alpha", "Beta", "Gamma"]},
             values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
         )
 
         widget.selection_widgets["site"].value = ("Beta", "Gamma")
@@ -199,11 +205,13 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
         column_order = ["lvl1", "lvl2"]
         df = pd.DataFrame([("A", "x1"), ("A", "x2"), ("B", "y1")], columns=column_order)
         fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"lvl1": ["A", "B"], "lvl2": ["x1", "x2", "y1", "z1"]},
             values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
         )
 
         widget.selection_widgets["lvl2"].value = ("x1", "y1")
@@ -225,11 +233,13 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
             columns=column_order,
         )
         fake_seismo.cohort_hierarchies = [CohortHierarchy(name="3lvl", column_order=column_order)]
-        fake_seismo._cohort_hierarchy_combinations = {tuple(column_order): df}
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
 
         widget = undertest.MultiSelectionListWidget(
             options={"lvl1": ["A", "B"], "lvl2": ["X", "Y", "Z"], "lvl3": ["i", "j", "k", "l"]},
             values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
         )
 
         widget.selection_widgets["lvl2"].value = ("X",)
@@ -241,7 +251,7 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
         fake_seismo = mock_seismo.return_value
         hierarchy = CohortHierarchy(name="demo", column_order=["level1", "level2", "level3"])
         fake_seismo.cohort_hierarchies = [hierarchy]
-        fake_seismo._cohort_hierarchy_combinations = {}
+        fake_seismo.cohort_hierarchy_combinations = {}
 
         widget = undertest.MultiSelectionListWidget(
             options={
@@ -251,6 +261,7 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
             },
             values={"level1": ["A"], "level2": ["B"], "level3": ["C"]},
             hierarchies=[hierarchy],
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
             show_all=True,
         )
 

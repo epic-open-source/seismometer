@@ -497,12 +497,13 @@ class TestSeismogramLoadData:
         config.events = {"event1": Mock(window_hr=1)}
         config.prediction_columns = ["entity", "time"]
         config.usage.load_time_filters = None
-        config.usage.cohort_hierarchies = None
+        config.cohort_hierarchies = []
 
         sg.load_data()
 
         assert "cohort1" in sg.available_cohort_groups
         assert isinstance(sg.dataframe, pd.DataFrame)
+        Seismogram.kill()
 
     def test_load_data_does_not_reload_if_data_present(self, fake_seismo):
         sg = Seismogram()
@@ -535,11 +536,12 @@ class TestSeismogramLoadData:
         config.events = {"event1": Mock(window_hr=1)}
         config.prediction_columns = ["entity", "time"]
         config.usage.load_time_filters = None
-        config.usage.cohort_hierarchies = None
+        config.cohort_hierarchies = []
 
         sg.load_data(reset=True)
 
         assert sg.dataframe["entity"].iloc[0] == 2
+        Seismogram.kill()
 
     def test_warns_and_defaults_on_missing_thresholds(self, tmp_path, fake_seismo, caplog):
         metadata_path = tmp_path / "metadata.json"
@@ -651,9 +653,7 @@ class TestSeismogramResolveCohortHierarchies:
             Cohort(source="cohort1", display_name="Cohort 1"),
             Cohort(source="cohort2", display_name="Cohort 2"),
         ]
-        sg.config.usage.cohort_hierarchies = [
-            CohortHierarchy(name="Test Hierarchy", column_order=["cohort1", "cohort2"])
-        ]
+        sg.config.cohort_hierarchies = [CohortHierarchy(name="Test Hierarchy", column_order=["cohort1", "cohort2"])]
 
         sg._validate_and_resolve_cohort_hierarchies()
 
@@ -667,14 +667,14 @@ class TestSeismogramResolveCohortHierarchies:
         sg.dataframe = pd.DataFrame({"cohort1": [0]})
         sg._cohorts = [Cohort(source="cohort1", display_name="Cohort 1")]
 
-        sg.config.usage.cohort_hierarchies = [CohortHierarchy(name="Bad", column_order=["cohort1", "unknown"])]
+        sg.config.cohort_hierarchies = [CohortHierarchy(name="Bad", column_order=["cohort1", "unknown"])]
 
         with pytest.raises(ValueError, match="references undefined cohort source: 'unknown'"):
             sg._validate_and_resolve_cohort_hierarchies()
 
     def test_skips_when_no_hierarchies_configured(self, fake_seismo):
         sg = Seismogram()
-        sg.config.usage.cohort_hierarchies = None
+        sg.config.cohort_hierarchies = []
 
         # Should not raise or modify anything
         sg._validate_and_resolve_cohort_hierarchies()
@@ -767,17 +767,16 @@ class TestSeismogramBuildCohortHierarchyCombinations:
     def test_build_cohort_hierarchy_combinations(self, cohorts, hierarchies, df_data, expected_results, fake_seismo):
         sg = Seismogram()
         sg._cohorts = cohorts
-        sg.config.usage.cohort_hierarchies = hierarchies
         sg.config.cohort_hierarchies = hierarchies
         sg.dataframe = df_data
 
         sg._build_cohort_hierarchy_combinations()
 
-        actual_keys = set(sg._cohort_hierarchy_combinations.keys())
+        actual_keys = set(sg.cohort_hierarchy_combinations.keys())
         expected_keys = set(expected_results.keys())
         assert actual_keys == expected_keys
 
         for key in expected_keys:
-            actual_df = sg._cohort_hierarchy_combinations[key].reset_index(drop=True)
+            actual_df = sg.cohort_hierarchy_combinations[key].reset_index(drop=True)
             expected_df = expected_results[key].reset_index(drop=True)
             pd.testing.assert_frame_equal(actual_df, expected_df)
