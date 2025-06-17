@@ -4,6 +4,12 @@
 Integration Guide
 =================
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+
+    prometheus
+
 This guide contains references to systems and packages that integrate with Seismometer. If you are interested in including your content here, either open a pull request or reach out to OpenSourceContributions-Python@epic.com
 
 Vendor Specific Resources
@@ -26,10 +32,14 @@ Seismometer Community
 You might also be interested in using ``seismometer`` with other open source tools that assess complementary facets of AI systems deployed in specific settings. The following table provides a list of such 
 tools and links to relevant code/documentation.
 
-+----------------------------+----------------------------------------------------------+---------------------------------------------+
-| Package name               | Description                                              | Link                                        |
-+============================+==========================================================+=============================================+
-| APLUSML                    | A Python Library for Usefulness Simulations of ML Models | `Example notebook integrating seismometer`_ |
-+----------------------------+----------------------------------------------------------+---------------------------------------------+
++----------------------------+-------------------------------------------------------------+-----------------------------------------------+
+| Package name               | Description                                                 | Link                                          |
++============================+=============================================================+===============================================+
+| APLUSML                    | A Python Library for Usefulness Simulations of ML Models    | `Example notebook integrating seismometer`_   |
++----------------------------+-------------------------------------------------------------+-----------------------------------------------+
+| Prometheus                 | A place for metrics to be collected for later visualization | `Integration of seismometer with Prometheus`_ |
++----------------------------+-------------------------------------------------------------+-----------------------------------------------+
 
 .. _Example notebook integrating seismometer: https://github.com/som-shahlab/aplusml/blob/main/tutorials/synthetic_pad_seismometer.ipynb
+
+.. _Integration of seismometer with Prometheus: :doc:`Prometheus instructions <prometheus>`
