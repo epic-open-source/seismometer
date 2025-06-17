@@ -682,6 +682,10 @@ def _model_evaluation(
             recorder.populate_metrics(
                 attributes=params | cohort | {"threshold": t}, metrics=stats[stats["Threshold"] == t * 100]
             )
+        for metric in stats.columns:
+            log_all = otel.get_metric_config(metric)["log_all"]
+            if log_all:
+                recorder.populate_metrics(attributes=params | cohort, metrics={metric: stats[metric].to_dict()})
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
