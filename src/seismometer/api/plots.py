@@ -519,7 +519,7 @@ def _plot_cohort_evaluation(
                 if log_all:
                     recorder.populate_metrics(
                         attributes={cohort_col: category} | base_attributes,
-                        metrics=plot_data[plot_data["cohort"] == category].to_dict(),
+                        metrics=plot_data[plot_data["cohort"] == category],
                     )
     try:
         assert_valid_performance_metrics_df(plot_data)
@@ -692,7 +692,7 @@ def _model_evaluation(
         for metric in stats.columns:
             log_all = otel.get_metric_config(metric)["log_all"]
             if log_all:
-                recorder.populate_metrics(attributes=params | cohort, metrics={metric: stats[metric].to_dict()})
+                recorder.populate_metrics(attributes=params | cohort, metrics={metric: stats[metric]})
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
@@ -1195,6 +1195,13 @@ def binary_classifier_metric_evaluation(
     if isinstance(metrics, str):
         metrics = [metrics]
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
+    print(stats)
+    recorder = otel.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
+    attributes = {"score_col": score_col, "target": target}
+    for metric in metrics:
+        log_all = otel.get_metric_config(metric)["log_all"]
+        if log_all:
+            recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric]})
     if table_only:
         return HTML(stats[metrics].T.to_html())
     return plot.binary_classifier.plot_metric_list(stats, metrics)

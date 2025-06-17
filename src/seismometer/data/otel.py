@@ -264,11 +264,13 @@ class OpenTelemetryRecorder:
             set_one_datapoint(data)
         elif isinstance(data, (np.int64, np.float64)):
             set_one_datapoint(data.item())
-        elif isinstance(data, (list, pd.Series)):
+        elif isinstance(data, list):
             for datapoint in data:
                 set_one_datapoint(datapoint)
-        elif isinstance(data, dict):
-            for k, v in data.items():
+        elif isinstance(data, (dict, pd.Series)):
+            # Same logic for both dictionary and (labeled) series,
+            # but we would need to get the dictionary representation of the series first.
+            for k, v in dict(data).items():
                 # Augment attributes with keys of dictionary
                 self._log_to_instrument(attributes | {"key": k}, instrument, v)
         elif isinstance(data, str):
