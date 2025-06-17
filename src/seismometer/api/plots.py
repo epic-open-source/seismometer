@@ -15,6 +15,7 @@ from seismometer.data import get_cohort_data, get_cohort_performance_data, otel
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import (
+    STATNAMES,
     BinaryClassifierMetricGenerator,
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
@@ -519,7 +520,7 @@ def _plot_cohort_evaluation(
                 if log_all:
                     recorder.populate_metrics(
                         attributes={cohort_col: category} | base_attributes,
-                        metrics=plot_data[plot_data["cohort"] == category],
+                        metrics=plot_data[plot_data["cohort"] == category].set_index("Threshold").to_dict(),
                     )
     try:
         assert_valid_performance_metrics_df(plot_data)
@@ -692,7 +693,10 @@ def _model_evaluation(
         for metric in stats.columns:
             log_all = otel.get_metric_config(metric)["log_all"]
             if log_all:
-                recorder.populate_metrics(attributes=params | cohort, metrics={metric: stats[metric]})
+                recorder.populate_metrics(
+                    attributes=params | cohort,
+                    metrics={metric: stats[[metric, "Threshold"]].set_index("Threshold").to_dict()},
+                )
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
@@ -1001,6 +1005,16 @@ def plot_model_score_comparison(
         splits=list(scores),
         censor_threshold=sg.censor_threshold,
     )
+    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
+    for metric in plot_data.columns:
+        log_all = otel.get_metric_config(metric)["log_all"]
+        if log_all:
+            for score in scores:
+                p = plot_data[plot_data["cohort"] == score]
+                p = p[["Threshold", metric]]
+                recorder.populate_metrics(
+                    attributes={"cohort": score}, metrics={metric: p.set_index("Threshold").to_dict()}
+                )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
@@ -1195,13 +1209,12 @@ def binary_classifier_metric_evaluation(
     if isinstance(metrics, str):
         metrics = [metrics]
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
-    print(stats)
     recorder = otel.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
     attributes = {"score_col": score_col, "target": target}
     for metric in metrics:
         log_all = otel.get_metric_config(metric)["log_all"]
         if log_all:
-            recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric]})
+            recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric].to_dict()})
     if table_only:
         return HTML(stats[metrics].T.to_html())
     return plot.binary_classifier.plot_metric_list(stats, metrics)
