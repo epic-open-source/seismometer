@@ -1,6 +1,9 @@
+import functools
+import itertools
 import logging
+import operator
 import os
-from typing import Any, Callable, List
+from typing import Any, Callable, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -270,3 +273,60 @@ class OpenTelemetryRecorder:
             raise Exception(f"Cannot log strings as metrics in OTel. Tried to log {data} as a metric.")
         else:
             raise Exception(f"Unrecognized data format for OTel logging: {str(type(data))}")
+
+    def log_by_cohort(
+        self,
+        base_attributes: Dict[str, Any],
+        dataframe: pd.DataFrame,
+        cohorts: Dict[str, List[str]],
+        intersecting: bool,
+    ):
+        """Take data from a dataframe and log it, selecting by all cohorts provided.
+
+        Parameters
+        ----------
+        base_attributes : Dict[str, Any]
+            The information we want to store with every individual metric log. This might be, for example, every
+            parameter used to generate this data.
+        dataframe : pd.DataFrame
+            The actual dataframe containing the data we want to log.
+        cohorts : Dict[str, List[str]]
+            Which cohorts we want to select on. For instance:
+            {"Age": ["[10-20)", "70+"], "Race": ["AfricanAmerican", "Caucasian"]}
+        intersecting: bool
+            Whether we are logging each combination of separate cohorts or not.
+            Given the example cohorts above:
+                - intersecting=False would log data for Age=[10-20), Age=70+, Race=AfricanAmerican, and Race=Caucasian.
+                - intersecting=True: Age=[10,20) and Race=AfricanAmerican, Age=[20, 50) and Race=Caucasian, etc.
+        """
+        if not intersecting:
+            # Simpler case: just go through each label provided.
+            for cohort_category in cohorts.keys():
+                for cohort_value in cohorts[cohort_category]:
+                    # We want to log all of the attributes passed in, but also what cohorts we are selecting on.
+                    attributes = base_attributes | {cohort_category: cohort_value}
+                    metrics = dataframe[dataframe[cohort_category] == cohort_value]
+                    for row in metrics:
+                        self.populate_metrics(attributes=attributes, metrics=row)
+            # More complex: go through each combination of attributes.
+        else:
+            if cohorts:
+                keys = cohorts.keys()
+                # So if column "A" has attributes A_false and A_true, and B has 1, 2, 3, then
+                # we will exhaust through all combinations of these attributes.
+                selections = list(itertools.product(*[cohorts[key].unique() for key in keys]))
+                # Now we put them into a dictionary for ease of processing
+                selections = [dict(zip(keys, s)) for s in selections]
+            else:
+                # If there are in fact no other attributes, get a list so we don't just skip logging entirely
+                selections = [{}]
+            for selection in selections:
+                attributes = base_attributes | selection
+                selection_condition = (
+                    functools.reduce(operator.and_, (dataframe[k] == v for k, v in selection.items()))
+                    if selection
+                    else True
+                )
+                metrics = dataframe[selection_condition]
+                for row in metrics:
+                    self.populate_metrics(attributes=attributes, metrics=row)
