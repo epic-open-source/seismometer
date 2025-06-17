@@ -1013,7 +1013,7 @@ def plot_model_score_comparison(
                 p = plot_data[plot_data["cohort"] == score]
                 p = p[["Threshold", metric]]
                 recorder.populate_metrics(
-                    attributes={"cohort": score}, metrics={metric: p.set_index("Threshold").to_dict()}
+                    attributes={"Score Column": score}, metrics={metric: p.set_index("Threshold").to_dict()}
                 )
     try:
         assert_valid_performance_metrics_df(plot_data)
@@ -1086,7 +1086,7 @@ def plot_model_target_comparison(
                 p = plot_data[plot_data["cohort"] == target]
                 p = p[["Threshold", metric]]
                 recorder.populate_metrics(
-                    attributes={"cohort": target}, metrics={metric: p.set_index("Threshold").to_dict()}
+                    attributes={"Target Column": target}, metrics={metric: p.set_index("Threshold").to_dict()}
                 )
     try:
         assert_valid_performance_metrics_df(plot_data)
