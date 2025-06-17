@@ -1078,6 +1078,16 @@ def plot_model_target_comparison(
         splits=list(targets),
         censor_threshold=sg.censor_threshold,
     )
+    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
+    for metric in plot_data.columns:
+        log_all = otel.get_metric_config(metric)["log_all"]
+        if log_all:
+            for target in targets:
+                p = plot_data[plot_data["cohort"] == target]
+                p = p[["Threshold", metric]]
+                recorder.populate_metrics(
+                    attributes={"cohort": target}, metrics={metric: p.set_index("Threshold").to_dict()}
+                )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
