@@ -514,6 +514,13 @@ def _plot_cohort_evaluation(
                 recorder.populate_metrics(
                     attributes={cohort_col: category, "threshold": t} | base_attributes, metrics=row
                 )
+            for metric in plot_data.columns:
+                log_all = otel.get_metric_config(metric)["log_all"]
+                if log_all:
+                    recorder.populate_metrics(
+                        attributes={cohort_col: category} | base_attributes,
+                        metrics=plot_data[plot_data["cohort"] == category].to_dict(),
+                    )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
