@@ -128,8 +128,6 @@ def _plot_cohort_hist(
     good_groups = cCount.loc[cCount > censor_threshold].index
     cData = cData.loc[cData["cohort"].isin(good_groups)]
 
-    # TODO: send data through a histogram?
-
     if len(cData.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
 

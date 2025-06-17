@@ -351,8 +351,6 @@ class AnalyticsTable:
             # The table in the graphic is definitely indexed by score + target, so
             # we will be storing those as attributes and the rest of the row as a
             # bunch of key-value pairs.
-            # TODO: add more functionality to populate_metrics to expedite this sort
-            # of process, as I expect it will end up being quite common.
             metric_name = metric_name.replace("\xa0", " ")
             for i in range(len(data["Score"])):
                 row = data.to_dict("records")[i]

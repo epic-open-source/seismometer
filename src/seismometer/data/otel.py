@@ -187,7 +187,6 @@ class OpenTelemetryRecorder:
         # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
         self.meter = meter_provider.get_meter(name)
         # Keep it like this for now: just make an instrument for each metric we are measuring
-        # TODO: get better descriptions for each metric besides just the name
         # This is a map from metric name to corresponding instrument
         self.instruments: dict[str, Any] = {}
         self.metric_names = metric_names
