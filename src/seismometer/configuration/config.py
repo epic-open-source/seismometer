@@ -299,7 +299,7 @@ class ConfigProvider:
     @property
     def cohort_hierarchies(self) -> list[CohortHierarchy]:
         """Ordered lists of cohort columns representing configured hierarchies."""
-        return self.usage.cohort_hierarchies
+        return self.usage.cohort_hierarchies or []
 
     @property
     def metrics(self) -> dict:

@@ -422,6 +422,8 @@ class FairnessOptionsWidget(Box, ValueWidget):
         *,
         model_options_widget=None,
         default_metrics=None,
+        hierarchies: Optional[list["CohortHierarchy"]] = None,
+        hierarchy_combinations: Optional[dict[tuple[str], pd.DataFrame]] = None,
     ):
         """
         Widget for selecting fairness options
@@ -438,11 +440,17 @@ class FairnessOptionsWidget(Box, ValueWidget):
             Additional model options if needed, will appear before fairness options, by default None.
         default_metrics : Optional[tuple[str]], optional
             Default list of metrics to select initially for fairness evaluation, by default None.
+        hierarchies: Optional[list[CohortHierarchy]], optional
+            List of cohort hierarchies to consider, by default None.
+        hierarchy_combinations: Optional[dict[tuple[str], pd.DataFrame]], optional
+            Mapping of each hierarchy to valid combinations of values across its levels, by default None.
         """
         self.model_options_widget = model_options_widget
         default_metrics = default_metrics or metric_names
         self.metric_list = MultiselectDropdownWidget(metric_names, value=default_metrics, title="Fairness Metrics")
-        self.cohort_list = MultiSelectionListWidget(cohort_dict, title="Cohorts")
+        self.cohort_list = MultiSelectionListWidget(
+            cohort_dict, title="Cohorts", hierarchies=hierarchies, hierarchy_combinations=hierarchy_combinations
+        )
         self.fairness_slider = FloatSlider(
             min=0.01,
             max=1.00,
@@ -540,7 +548,13 @@ class ExplorationFairnessWidget(ExplorationWidget):
 
         super().__init__(
             title="Fairness Audit",
-            option_widget=FairnessOptionsWidget(metric_names, sg.available_cohort_groups, fairness_ratio=0.25),
+            option_widget=FairnessOptionsWidget(
+                metric_names,
+                sg.available_cohort_groups,
+                fairness_ratio=0.25,
+                hierarchies=sg.cohort_hierarchies,
+                hierarchy_combinations=sg.cohort_hierarchy_combinations,
+            ),
             plot_function=custom_metrics_fairness_table,
             initial_plot=False,
         )
@@ -588,6 +602,8 @@ class ExploreBinaryModelFairness(ExplorationWidget):
                 fairness_ratio=0.25,
                 model_options_widget=model_options_widget,
                 default_metrics=["Accuracy", "Sensitivity", "Specificity", "PPV"],
+                hierarchies=sg.cohort_hierarchies,
+                hierarchy_combinations=sg.cohort_hierarchy_combinations,
             ),
             plot_function=binary_metrics_fairness_table,
             initial_plot=False,

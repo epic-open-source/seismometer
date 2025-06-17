@@ -76,7 +76,7 @@ class Seismogram(object, metaclass=Singleton):
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
         self.cohort_hierarchies: list[CohortHierarchy] = []
-        self._cohort_hierarchy_combinations = {}
+        self.cohort_hierarchy_combinations = {}
         self.metrics: dict[str, Metric] = {}
         self.metric_types: dict[str, list[str]] = {}
         self.metric_groups: dict[str, list[str]] = {}
@@ -132,6 +132,7 @@ class Seismogram(object, metaclass=Singleton):
 
         self.create_cohorts()
         self._validate_and_resolve_cohort_hierarchies()
+        self._build_cohort_hierarchy_combinations()
         self._set_df_counts()
 
         # UI Controls
@@ -454,13 +455,13 @@ class Seismogram(object, metaclass=Singleton):
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
 
     def _validate_and_resolve_cohort_hierarchies(self):
-        if not self.config.usage.cohort_hierarchies:
+        if not self.config.cohort_hierarchies:
             return
         source_to_display = {c.source: c.display_name for c in self._cohorts}
 
         resolved_hierarchies = []
 
-        for hierarchy in self.config.usage.cohort_hierarchies:
+        for hierarchy in self.config.cohort_hierarchies:
             resolved_levels = []
             for level in hierarchy.column_order:
                 if level not in source_to_display:
@@ -482,7 +483,7 @@ class Seismogram(object, metaclass=Singleton):
                 continue  # skip invalid ones
             lvls = [source_to_display[lvl] for lvl in lvls]
             combinations_df = self.dataframe[lvls].dropna().drop_duplicates().sort_values(lvls).reset_index(drop=True)
-            self._cohort_hierarchy_combinations[tuple(lvls)] = combinations_df
+            self.cohort_hierarchy_combinations[tuple(lvls)] = combinations_df
 
     def _is_binary_array(self, arr):
         # Convert the input to a NumPy array if it isn't already
