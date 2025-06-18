@@ -3,6 +3,7 @@ import itertools
 import logging
 import operator
 import os
+import sys
 from typing import Any, Callable, Dict, List
 
 import numpy as np
@@ -121,16 +122,20 @@ def get_metric_creator(metric_name: str, meter: Meter) -> Callable:
 
 # Class which stores info about exporting metrics.
 class ExportManager:
-    def __init__(self, file_output_path=None, prom_port=None):
+    def __init__(self, file_output_path=None, prom_port=None, dump_to_stdout=False):
         """Create a place to export files.
 
         Parameters
         ----------
         file_output_path : str, optional
             Where metrics are to be dumped to for debugging purposes, if needed.
+            Set this to the object sys.stdout (NOT the string) in order to just
+            log metrics to the console.
         prom_port : int, optional
             What port (local HTTP server for instance) metrics are to be dumped,
             for Prometheus exporting purposes.
+        dump_to_stdout: bool, optional
+            Whether to dump the metrics to stdout.
         """
 
         if STOP_ALL_OTEL:
@@ -142,14 +147,17 @@ class ExportManager:
         self.readers = []
         self.otlp_exhaust = None
         if file_output_path is not None:
-            self.otlp_exhaust = open(file_output_path, "w")
+            if file_output_path == sys.stdout:
+                self.otlp_exhaust = sys.stdout
+            else:
+                self.otlp_exhaust = open(
+                    file_output_path, "w"
+                )  # Save this for closing files down at the end of execution
             self.readers.append(
                 PeriodicExportingMetricReader(
                     ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
                 )
             )
-        else:
-            self.otlp_exhaust = None  # Save this for closing files down at the end of execution
         if prom_port is not None:
             try:
                 start_http_server(port=prom_port, addr="0.0.0.0")
@@ -160,12 +168,12 @@ class ExportManager:
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
 
     def __del__(self):
-        if self.otlp_exhaust is not None:
+        if self.otlp_exhaust is not None and self.otlp_exhaust != sys.stdout:
             self.otlp_exhaust.close()
 
 
 # For debug purposes: dump to stdout, and also to exporter path
-export_manager = ExportManager(file_output_path="/dev/stdout", prom_port=9464)
+export_manager = ExportManager(file_output_path=sys.stdout, prom_port=9464)
 
 
 class OpenTelemetryRecorder:
