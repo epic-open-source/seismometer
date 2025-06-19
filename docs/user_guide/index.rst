@@ -655,10 +655,10 @@ Use cases
 Cohort hierarchies are especially useful when:
 
 - Some cohort fields have many distinct values, and only a few are relevant in context
-(e.g., departments that exist only within a selected location)
+  (e.g., departments that exist only within a selected location).
 - Certain values only make sense in context (e.g., a specialty only exists in one
-  department)
-- You want to simplify filtering by following meaningful relationships between fields
+  department).
+- You want to simplify filtering by following meaningful relationships between fields.
 
 This structure avoids overwhelming dropdowns, improves selection relevance, and speeds
 up exploration.
@@ -776,11 +776,11 @@ information on this option.
          - source: gender
            display_name: Gender
          - source: location
-            display_name: Location
+           display_name: Location
          - source: department
-            display_name: Department
+           display_name: Department
          - source: specialty
-            display_name: Specialty
+           display_name: Specialty
       # Limit the dataset early based on contextual fields (not model inputs)
       load_time_filters:
          - source: location

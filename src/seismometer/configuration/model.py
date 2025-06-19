@@ -211,44 +211,37 @@ class BaseDetails(BaseModel):
 
 
 class FilterRange(BaseModel):
-    """
-    A numeric range filter specifying minimum and/or maximum values.
-
-    Attributes
-    ----------
-    min : Optional[float]
-        The minimum allowed value (inclusive).
-    max : Optional[float]
-        The maximum allowed value (inclusive).
-    """
+    """A numeric range filter specifying minimum and/or maximum values."""
 
     min: Optional[float] = None
+    """The minimum allowed value (inclusive)."""
+
     max: Optional[float] = None
+    """The maximum allowed value (inclusive)."""
 
 
 class LoadTimeFilter(BaseModel):
-    """
-    A filter rule applied at data ingestion time to restrict the Seismogram data.
-
-    Attributes
-    ----------
-    source : str
-        The name of the column to filter.
-    action : Literal["include", "exclude", keep_top"]
-        The type of filtering to apply.
-        - "include": keep only rows matching the specified values or range
-        - "exclude": remove rows matching the specified values or range
-        - "keep_top": retain only the top MAXIMUM_NUM_COHORTS most frequent values (used with categorical variables)
-    values : Optional[List[Union[str, int, List[str], List[int]]]]
-        A list of allowed or disallowed values, by default None.
-    range : Optional[FilterRange]
-        A numeric range with min and/or max bounds, by default None. Typically used with numeric columns.
-    """
+    """A filter rule applied at data ingestion time to restrict the Seismogram data."""
 
     source: str
+    """The name of the column to filter."""
+
     action: Literal["include", "exclude", "keep_top"] = "keep_top"
+    """
+    The type of filtering to apply.
+
+    - "include": keep only rows matching the specified values or range
+    - "exclude": remove rows matching the specified values or range
+    - "keep_top": retain only the top MAXIMUM_NUM_COHORTS most frequent values
+    """
+
     values: Optional[List[Union[str, int, List[str], List[int]]]] = None
+    """A list of allowed or disallowed values, by default None."""
+
     range: Optional[FilterRange] = None
+    """
+    A numeric range with min and/or max bounds, by default None. Typically used with numeric columns.
+    """
 
     @model_validator(mode="after")
     def validate_filter_config(self) -> "LoadTimeFilter":
