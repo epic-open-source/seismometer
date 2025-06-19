@@ -115,8 +115,6 @@ def get_metric_creator(metric_name: str, meter: Meter) -> Callable:
     """
     TYPES = {"Gauge": meter.create_gauge, "Counter": meter.create_up_down_counter, "Histogram": meter.create_histogram}
     typestring = get_metric_config(metric_name)["measurement_type"]
-    if "Time Lead" in metric_name.lower():
-        return TYPES["Histogram"]
     return TYPES[typestring] if typestring in TYPES else Meter.create_gauge
 
 
@@ -215,7 +213,7 @@ class OpenTelemetryRecorder:
                 - what are the score and fairness thresholds?
                 - etc.
 
-        metrics : dict[str, float].
+        metrics : dict[str, Any].
             The actual data we are populating.
         """
 
@@ -290,7 +288,7 @@ class OpenTelemetryRecorder:
         base_attributes: Dict[str, Any],
         dataframe: pd.DataFrame,
         cohorts: Dict[str, List[str]],
-        intersecting: bool,
+        intersecting: bool = False,
         metric_maker: Callable = None,
     ):
         """Take data from a dataframe and log it, selecting by all cohorts provided.
@@ -322,8 +320,11 @@ class OpenTelemetryRecorder:
                     # We want to log all of the attributes passed in, but also what cohorts we are selecting on.
                     attributes = base_attributes | {cohort_category: cohort_value}
                     metrics = dataframe[dataframe[cohort_category] == cohort_value]
-                    for row in metrics:
-                        self.populate_metrics(attributes=attributes, metrics=row)
+                    if metric_maker is not None:
+                        self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
+                    else:
+                        for row in metrics:
+                            self.populate_metrics(attributes=attributes, metrics=row)
             # More complex: go through each combination of attributes.
         else:
             if cohorts:
