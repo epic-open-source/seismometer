@@ -323,8 +323,7 @@ class OpenTelemetryRecorder:
                     if metric_maker is not None:
                         self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
                     else:
-                        for row in metrics:
-                            self.populate_metrics(attributes=attributes, metrics=row)
+                        self.populate_metrics(attributes=attributes, metrics=metrics)
             # More complex: go through each combination of attributes.
         else:
             if cohorts:
@@ -337,6 +336,8 @@ class OpenTelemetryRecorder:
             else:
                 # If there are in fact no other attributes, get a list so we don't just skip logging entirely
                 selections = [{}]
+            if len(selections) > 100:
+                logger.warning("More than 100 cohort groups were provided. This might take a while.")
             for selection in selections:
                 attributes = base_attributes | selection
                 selection_condition = (
