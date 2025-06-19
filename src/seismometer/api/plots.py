@@ -493,20 +493,24 @@ def _plot_cohort_evaluation(
         base_attributes = {"target": target, "score": output}
         # Go through all cohort values, by means of:
         cohort_categories = list(set(list(plot_data["cohort"])))
-        for category in cohort_categories:
-            for t in thresholds:
-                p = plot_data[plot_data["Threshold"] == t * 100]
-                row = p[p["cohort"] == category]
-                recorder.populate_metrics(
-                    attributes={cohort_col: category, "threshold": t} | base_attributes, metrics=row
+        for t in thresholds:
+            p = plot_data[plot_data["Threshold"] == t * 100].set_index("Threshold")
+            recorder.log_by_cohort(
+                base_attributes=base_attributes | {"threshold": t}, dataframe=p, cohorts={"cohort": cohort_categories}
+            )
+        for metric in plot_data.columns:
+
+            def maker(frame):
+                return frame.set_index("Threshold")[[metric]].to_dict()
+
+            log_all = otel.get_metric_config(metric)["log_all"]
+            if log_all:
+                recorder.log_by_cohort(
+                    base_attributes=base_attributes,
+                    dataframe=plot_data,
+                    cohorts={"cohort": cohort_categories},
+                    metric_maker=maker,
                 )
-            for metric in plot_data.columns:
-                log_all = otel.get_metric_config(metric)["log_all"]
-                if log_all:
-                    recorder.populate_metrics(
-                        attributes={cohort_col: category} | base_attributes,
-                        metrics=plot_data[plot_data["cohort"] == category].set_index("Threshold").to_dict(),
-                    )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
