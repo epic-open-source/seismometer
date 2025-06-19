@@ -75,6 +75,7 @@ def get_test_config(tmp_path):
     mock_config.outcomes = {"outcome1": {}, "outcome2": {}}
     mock_config.entity_id = "entity"
     mock_config.context_id = "context_id"
+    mock_config.cohort_hierarchies = None
 
     return mock_config
 
