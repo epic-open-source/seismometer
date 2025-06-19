@@ -158,7 +158,6 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
     """
 
     defined_types = config.prediction_types
-    logger.debug("defined_types: " + str(defined_types))
     unspecified_columns = []
     value_error_columns = []
 
