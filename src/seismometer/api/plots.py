@@ -1,7 +1,4 @@
-import functools
-import itertools
 import logging
-import operator
 from typing import Any, Optional
 
 import numpy as np
@@ -136,38 +133,29 @@ def _plot_cohort_hist(
     recorder = otel.OpenTelemetryRecorder(
         metric_names=[f"Bin {i+1} out of {bin_count - 1}" for i in range(bin_count - 1)], name="Cohort Histogram"
     )
-    base_attributes = {"target": target, "score": output}
+    ts_attributes = {"target": target, "score": output}
     # Get all possible combinations of other attributes
     df_other_attributes = cData.drop(columns=["pred", "cohort"])
-    if not df_other_attributes.empty:
-        # So if column "A" has attributes A_false and A_true, and B has 1, 2, 3, then
-        # we will exhaust through all combinations of these attributes.
-        selections = list(
-            itertools.product(*[df_other_attributes[col].unique() for col in df_other_attributes.columns])
-        )
-        # Now we put them into a dictionary for ease of processing
-        selections = [dict(zip(df_other_attributes.columns, s)) for s in selections]
-    else:
-        # If there are in fact no other attributes, get a list so we don't just skip logging entirely
-        selections = [{}]
     for subgroup in subgroups:
-        for selection in selections:
-            attributes = {cohort_col: subgroup} | selection
-            selection_condition = (
-                functools.reduce(operator.and_, (cData[k] == v for k, v in selection.items())) if selection else True
+        for i in range(bin_count - 1):
+            bin_series = cData[
+                (bins[i] <= cData["pred"]) & (cData["pred"] < bins[i + 1]) & (cData["cohort"] == subgroup)
+            ]
+
+            # This is the information we really want to log:
+            # How many rows of each frame are in the corresponding bucket.
+            def maker(frame):
+                return {f"Bin {i+1} out of {bin_count - 1}": len(frame)}
+
+            cohorts = {col: df_other_attributes[col] for col in df_other_attributes.columns}
+            base_attributes = ts_attributes | {cohort_col: subgroup}
+            recorder.log_by_cohort(
+                base_attributes=base_attributes,
+                dataframe=bin_series,
+                cohorts=cohorts,
+                intersecting=True,
+                metric_maker=maker,
             )
-            metrics = {
-                f"Bin {i+1} out of {bin_count - 1}": len(
-                    cData[
-                        (bins[i] <= cData["pred"])
-                        & (cData["pred"] < bins[i + 1])
-                        & (cData["cohort"] == subgroup)
-                        & selection_condition
-                    ]
-                )
-                for i in range(bin_count - 1)
-            }
-            recorder.populate_metrics(attributes=attributes | base_attributes, metrics=metrics)
     try:
         svg = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
         title = f"Predicted Probabilities by {cohort_col}"
