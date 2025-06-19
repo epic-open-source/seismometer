@@ -291,6 +291,7 @@ class OpenTelemetryRecorder:
         dataframe: pd.DataFrame,
         cohorts: Dict[str, List[str]],
         intersecting: bool,
+        metric_maker: Callable = None,
     ):
         """Take data from a dataframe and log it, selecting by all cohorts provided.
 
@@ -309,6 +310,10 @@ class OpenTelemetryRecorder:
             Given the example cohorts above:
                 - intersecting=False would log data for Age=[10-20), Age=70+, Race=AfricanAmerican, and Race=Caucasian.
                 - intersecting=True: Age=[10,20) and Race=AfricanAmerican, Age=[20, 50) and Race=Caucasian, etc.
+        metric_maker: Callable
+            Produce a metric to log from the Series we will create.
+            For example, in plot_cohort_hist, what we want is the length of each dataframe.
+            If not, we will log each row separately.
         """
         if not intersecting:
             # Simpler case: just go through each label provided.
@@ -336,8 +341,11 @@ class OpenTelemetryRecorder:
                 selection_condition = (
                     functools.reduce(operator.and_, (dataframe[k] == v for k, v in selection.items()))
                     if selection
-                    else True
+                    else pd.Series([True] * len(dataframe), index=dataframe.index)  # Condition which always succeeds
                 )
                 metrics = dataframe[selection_condition]
-                for row in metrics:
-                    self.populate_metrics(attributes=attributes, metrics=row)
+                if metric_maker is not None:
+                    self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
+                else:
+                    for row in metrics:
+                        self.populate_metrics(attributes=attributes, metrics=row)
