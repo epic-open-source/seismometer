@@ -5,16 +5,15 @@ import pandas as pd
 import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Event
-from seismometer.data.loader.utils import gather_prediction_types, get_loader_from_path
+
+from .pipeline import ConfigOnlyHook
 
 logger = logging.getLogger("seismometer")
 
 
-def loader(config: ConfigProvider):
+def get_data_loader(config: ConfigProvider) -> ConfigOnlyHook:
     """
-    Loads the events dataframe based on config.event_path.
-
-    Chooses the load function from the file extension.
+    Returns the proper data loader function from the event file extension.
 
     Parameters
     ----------
@@ -23,16 +22,15 @@ def loader(config: ConfigProvider):
 
     Returns
     -------
-    pd.DataFrame
-        The events dataframe.
+    ConfigOnlyHook
+        The predictions dataframe.
     """
     loaders = {
         ".csv": csv_loader,
         ".tsv": tsv_loader,
         ".parquet": parquet_loader,
     }
-    loader = get_loader_from_path(loaders, config.event_path, parquet_loader)
-    return loader(config)
+    return loaders.get(config.event_path.suffix.lower(), parquet_loader)
 
 
 def csv_loader(config: ConfigProvider) -> pd.DataFrame:
@@ -275,7 +273,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
 
         # since importing CSVs automatically cast numbers to ints, make sure the columns
         # shared with predictions become strings so we don't have a type mismatch
-        defined_types = gather_prediction_types(config)
+        defined_types = config.prediction_types
         usage = config.usage
         for col in [usage.entity_id, usage.context_id, usage.predict_time]:
             if col is not None and defined_types[col] == "object":

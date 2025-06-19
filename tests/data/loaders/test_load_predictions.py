@@ -60,6 +60,11 @@ def fake_config(prediction_file):
             )
             return sorted(col_set)
 
+        @property
+        def prediction_types(self):
+            # Same thing here
+            return {defn.name: defn.dtype for defn in self.prediction_defs.predictions if defn.dtype is not None}
+
     return FakeConfigProvider()
 
 
@@ -314,6 +319,7 @@ class TestDictionaryTypes:
 
         config.prediction_defs = Mock()
         config.prediction_defs.predictions = [DictionaryItem(**di) for di in defined_types]
+        config.prediction_types = {defn.name: defn.dtype for defn in config.prediction_defs.predictions if defn.dtype is not None}
 
         dataframe = pd.DataFrame(
             {
@@ -335,11 +341,10 @@ class TestDictionaryTypes:
     ):
         config = Mock(spec=ConfigProvider)
         config.output_list = []
-        config.prediction_defs = Mock()
-        config.prediction_defs.predictions = [
-            DictionaryItem(name="bad_col1", dtype="int64"),
-            DictionaryItem(name="bad_col2", dtype="datetime64[ns]"),
-        ]
+        config.prediction_types = {
+            "bad_col1": "int64",
+            "bad_col2": "datetime64[ns]",
+        }
 
         dataframe = pd.DataFrame(
             {

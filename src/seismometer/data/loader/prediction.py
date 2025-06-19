@@ -8,16 +8,15 @@ import pyarrow.parquet as pq
 
 import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider, ConfigurationError
-from seismometer.data.loader.utils import gather_prediction_types, get_loader_from_path
+
+from .pipeline import ConfigOnlyHook
 
 logger = logging.getLogger("seismometer")
 
 
-def loader(config: ConfigProvider):
+def get_data_loader(config: ConfigProvider) -> ConfigOnlyHook:
     """
-    Load the predictions dataframe based on config.prediction_path.
-
-    Chooses the load function from the file extension.
+    Returns the proper data loader function from the prediction file extension.
 
     Parameters
     ----------
@@ -26,7 +25,7 @@ def loader(config: ConfigProvider):
 
     Returns
     -------
-    pd.DataFrame
+    ConfigOnlyHook
         The predictions dataframe.
     """
     loaders = {
@@ -34,8 +33,7 @@ def loader(config: ConfigProvider):
         ".tsv": tsv_loader,
         ".parquet": parquet_loader,
     }
-    loader = get_loader_from_path(loaders, config.prediction_path, parquet_loader)
-    return loader(config)
+    return loaders.get(config.prediction_path.suffix.lower(), parquet_loader)
 
 
 def csv_loader(config: ConfigProvider) -> pd.DataFrame:
@@ -159,7 +157,7 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
         If any columns cannot be converted to the expected types.
     """
 
-    defined_types = gather_prediction_types(config)
+    defined_types = config.prediction_types
     logger.debug("defined_types: " + str(defined_types))
     unspecified_columns = []
     value_error_columns = []
@@ -259,7 +257,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
 
     # since importing CSVs automatically cast numbers to ints, make sure the columns
     # shared with events become strings so we don't have a type mismatch
-    defined_types = gather_prediction_types(config)
+    defined_types = config.prediction_types
     usage = config.usage
     for col in [usage.entity_id, usage.context_id, usage.predict_time]:
         if col is not None and defined_types[col] == "object":

@@ -229,6 +229,11 @@ class ConfigProvider:
         """The path to the metadata json."""
         return self.config.data_dir / self.config.metadata_path
 
+    @property
+    def prediction_types(self) -> dict[str, str]:
+        """Gathers the defined types from the configuration dictionary."""
+        return {defn.name: defn.dtype for defn in self.prediction_defs.predictions if defn.dtype is not None}
+    
     # endregion
     # region Usage
     @property
