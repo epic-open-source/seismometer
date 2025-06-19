@@ -319,7 +319,9 @@ class TestDictionaryTypes:
 
         config.prediction_defs = Mock()
         config.prediction_defs.predictions = [DictionaryItem(**di) for di in defined_types]
-        config.prediction_types = {defn.name: defn.dtype for defn in config.prediction_defs.predictions if defn.dtype is not None}
+        config.prediction_types = {
+            defn.name: defn.dtype for defn in config.prediction_defs.predictions if defn.dtype is not None
+        }
 
         dataframe = pd.DataFrame(
             {

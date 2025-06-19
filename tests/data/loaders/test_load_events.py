@@ -52,7 +52,7 @@ def fake_config(event_file):
         @property
         def events(self):
             return self._events
-        
+
         @property
         def prediction_types(self) -> dict[str, str]:
             return {defn.name: defn.dtype for defn in self.prediction_defs.predictions if defn.dtype is not None}
