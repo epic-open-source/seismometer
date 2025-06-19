@@ -530,6 +530,139 @@ With a cohort filter ``{"Age": "[0-10)"}``:
 In other words, ``seismometer`` keeps a context if at least one of its rows 
 satisfies the cohort filter.
 
+High-Level Data Filtering
+=========================
+
+In addition to interactive cohort filtering during analysis, ``seismometer`` supports
+load-time data filtering to restrict the dataset before any analysis or UI construction
+begins.
+
+This is useful for reducing memory usage, improving performance, and filtering out
+contextual fields (e.g., locations, departments) that are not typically
+used as model features but still affect the data size or complexity.
+
+These filters are defined in the ``load_time_filters`` section of your usage configuration
+file.
+
+Why use load-time filtering?
+----------------------------
+
+Cohort attributes (like ``age``, ``gender``, ``race``) are typically selected interactively
+within the notebook using cohort selector widgets. However, some columns — such as
+``location``, or ``department`` — may have dozens or hundreds of distinct values.
+
+If you do not plan to analyze performance by these fields directly, but they are still
+needed in the dataset (for operational context or hierarchy logic), it is useful to filter
+them early.
+
+This avoids:
+
+- Overloading the UI with dropdowns for fields you do not intend to evaluate
+- Excessively large memory use for rare or irrelevant values
+- Unexpected grouping or statistical noise from uncommon categories
+
+Supported filter types
+----------------------
+
+Each filter defines:
+
+- A column (``source``)
+- An action:
+  - ``include``: retain only the rows with values in a list or numeric range
+  - ``exclude``: remove rows with specific values or ranges
+  - ``keep_top``: keep only the most frequent 25 values for a column
+- Optional:
+  - ``values``: list of specific values
+  - ``range``: numeric filtering using ``min`` and/or ``max``
+
+Example:
+
+.. code-block:: yaml
+
+   load_time_filters:
+     - source: location
+       action: keep_top
+
+Filtering behavior
+------------------
+
+These filters are applied once, during data load, and affect what appears in all
+downstream analysis — including cohort definitions, summary tables, and plots.
+
+They are not the same as interactive cohort filters. Load-time filters happen before any
+UI is built and are best used for contextual fields that influence the size and shape of
+the data but are not used for modeling or evaluation.
+
+.. warning::
+
+   Avoid applying load-time filters to model input features. Filtering on features used
+   by the model can change the distribution of the data and may lead to misleading 
+   performance metrics, such as incorrect calibration or threshold-based comparisons.
+
+Cohort Hierarchies
+==================
+
+When working with cohort attributes that follow a natural hierarchy — such as
+``location → department → specialty`` — ``seismometer`` supports configuring those
+relationships explicitly. This enables a dynamic UI experience where each selection
+filters the next.
+
+Instead of treating all cohort attributes independently, this feature helps you
+explore structured dropdowns that reflect your data’s organizational structure.
+
+Defining cohort hierarchies
+----------------------------
+
+In your usage configuration file, use the ``cohort_hierarchies`` section to define one or
+more hierarchies. Each hierarchy must have a name and an ordered list of cohort
+attribute sources.
+
+Example:
+
+.. code-block:: yaml
+
+   cohort_hierarchies:
+     - name: location_hierarchy
+       hierarchy: [location, department, specialty]
+
+The ``hierarchy`` field lists the cohort attributes in top-down order. These names should
+match the ``source`` fields defined under ``cohorts``.
+
+How the UI changes
+------------------
+
+When a hierarchy is defined, the UI renders those cohort selectors in a single row,
+connected with arrows to indicate dependency.
+
+For example, the hierarchy:
+
+::
+
+   [Location] → [Department] → [Specialty]
+
+Will appear horizontally in the notebook with dynamic filtering:
+
+- Selecting a ``Location`` will limit the ``Department`` options to only those that appear
+  under that location.
+- Selecting a ``Department`` will then filter the ``Specialty`` options.
+
+All other cohort attributes not listed in any hierarchy will appear in the usual flat
+layout below.
+
+Use cases
+---------
+
+Cohort hierarchies are especially useful when:
+
+- Some cohort fields have many distinct values, and only a few are relevant in context
+(e.g., departments that exist only within a selected location)
+- Certain values only make sense in context (e.g., a specialty only exists in one
+  department)
+- You want to simplify filtering by following meaningful relationships between fields
+
+This structure avoids overwhelming dropdowns, improves selection relevance, and speeds
+up exploration.
+
 Customizing the Notebook
 ========================
 
@@ -642,6 +775,23 @@ information on this option.
            display_name: Race
          - source: gender
            display_name: Gender
+         - source: location
+            display_name: Location
+         - source: department
+            display_name: Department
+         - source: specialty
+            display_name: Specialty
+      # Limit the dataset early based on contextual fields (not model inputs)
+      load_time_filters:
+         - source: location
+            action: keep_top  # Keep most common locations for UI clarity
+      # Define structured cohort selection logic using known organizational hierarchy
+      cohort_hierarchies:
+         - name: location_hierarchy
+            hierarchy:
+            - location
+            - department
+            - specialty
       # The event_table allows mapping of event columns to those expected by the tool
       # The table must have the entity_id column and may have context_id column if being used
       event_table:
