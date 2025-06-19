@@ -131,7 +131,6 @@ class Seismogram(object, metaclass=Singleton):
         self.dataframe = self._apply_load_time_filters(self.dataframe)
 
         self.create_cohorts()
-        self._validate_and_resolve_cohort_hierarchies()
         self._build_cohort_hierarchy_combinations()
         self._set_df_counts()
 
@@ -453,6 +452,7 @@ class Seismogram(object, metaclass=Singleton):
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
+        self._validate_and_resolve_cohort_hierarchies()
 
     def _validate_and_resolve_cohort_hierarchies(self):
         if not self.config.cohort_hierarchies:

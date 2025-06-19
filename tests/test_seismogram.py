@@ -58,6 +58,7 @@ def get_test_config(tmp_path):
     mock_config.features = ["one"]
     mock_config.config_dir = tmp_path / "config"
     mock_config.censor_min_count = 0
+    mock_config.cohort_hierarchies = None
 
     return mock_config
 
