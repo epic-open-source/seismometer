@@ -345,26 +345,25 @@ def _plot_leadtime_enc(
     NUMBER_QUANTILES = otel.get_metric_config("Time Lead")["granularity"]
     metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
     if log_all:
-        metric_names += ["time-lead"]
+        metric_names += ["Time Lead"]
     recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, name="Time Lead")
     base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
-    for group in good_groups:
-        group_row = summary_data[summary_data[cohort_col] == group]
-        leads = group_row[target_zero] - group_row[ref_time]
+
+    def maker(frame):
+        leads = frame[target_zero] - frame[ref_time]
+        metrics = {
+            # Exporting in hours for now
+            f"Quantile {i} out of {NUMBER_QUANTILES}": (leads.quantile(i / NUMBER_QUANTILES)).total_seconds() / 3600
+            for i in range(1, NUMBER_QUANTILES)
+        }
         if log_all:
-            recorder.populate_metrics(
-                attributes={cohort_col: group} | base_attributes,
-                metrics={"time-lead": list(leads)},
-            )
-        recorder.populate_metrics(
-            attributes={cohort_col: group} | base_attributes,
-            metrics={
-                # Exporting in hours for now
-                f"Quantile {i} out of {NUMBER_QUANTILES}": (leads.quantile(i / NUMBER_QUANTILES)).total_seconds()
-                / 3600
-                for i in range(1, NUMBER_QUANTILES)
-            },
-        )
+            # If we're logging all, then log all data and not just the quantiles.
+            metrics |= {"Time Lead": [lead.total_seconds() / 3600 for lead in list(leads)]}
+        return metrics
+
+    recorder.log_by_cohort(
+        base_attributes=base_attributes, dataframe=summary_data, cohorts={cohort_col: good_groups}, metric_maker=maker
+    )
     if len(summary_data.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
 
