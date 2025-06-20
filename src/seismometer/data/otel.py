@@ -233,6 +233,19 @@ class OpenTelemetryRecorder:
             logger.warning(f"Instruments available: {self.metric_names}")
             logger.warning(f"Metrics provided for population: {metrics.keys()}")
 
+    def _set_one_datapoint(self, attributes, instrument, value):
+        # The SDK doesn't expose Gauge as a type, so we need to get creative here.
+        if type(instrument).__name__ == "_Gauge":
+            instrument.set(value, attributes=attributes)
+        elif isinstance(instrument, UpDownCounter):
+            instrument.add(value, attributes=attributes)
+        elif isinstance(instrument, Histogram):
+            instrument.record(value, attributes=attributes)
+        else:
+            raise Exception(
+                f"Internal error: one of the instruments is not a recognized type: {str(type(instrument))}"
+            )
+
     def _log_to_instrument(self, attributes, instrument: Any, data):
         """Write information to a single instrument. We need this
         wrapper function because the data we are logging may be a
@@ -251,27 +264,14 @@ class OpenTelemetryRecorder:
             a numeric value or a series.
         """
 
-        def set_one_datapoint(value):
-            # The SDK doesn't expose Gauge as a type, so we need to get creative here.
-            if type(instrument).__name__ == "_Gauge":
-                instrument.set(value, attributes=attributes)
-            elif isinstance(instrument, UpDownCounter):
-                instrument.add(value, attributes=attributes)
-            elif isinstance(instrument, Histogram):
-                instrument.record(value, attributes=attributes)
-            else:
-                raise Exception(
-                    f"Internal error: one of the instruments is not a recognized type: {str(type(instrument))}"
-                )
-
         # Some code seems to be logging numpy int64s so here we are.
         if isinstance(data, (int, float)):
-            set_one_datapoint(data)
+            self._set_one_datapoint(attributes, instrument, data)
         elif isinstance(data, (np.int64, np.float64)):
-            set_one_datapoint(data.item())
+            self._set_one_datapoint(attributes, instrument, data.item())
         elif isinstance(data, list):
             for datapoint in data:
-                set_one_datapoint(datapoint)
+                self._set_one_datapoint(attributes, instrument, datapoint)
         elif isinstance(data, (dict, pd.Series)):
             # Same logic for both dictionary and (labeled) series,
             # but we would need to get the dictionary representation of the series first.
@@ -330,7 +330,7 @@ class OpenTelemetryRecorder:
                 keys = cohorts.keys()
                 # So if column "A" has attributes A_false and A_true, and B has 1, 2, 3, then
                 # we will exhaust through all combinations of these attributes.
-                selections = list(itertools.product(*[cohorts[key].unique() for key in keys]))
+                selections = list(itertools.product(*[cohorts[key] for key in keys]))
                 # Now we put them into a dictionary for ease of processing
                 selections = [dict(zip(keys, s)) for s in selections]
             else:
