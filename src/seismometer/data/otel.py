@@ -349,5 +349,4 @@ class OpenTelemetryRecorder:
                 if metric_maker is not None:
                     self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
                 else:
-                    for row in metrics:
-                        self.populate_metrics(attributes=attributes, metrics=row)
+                    self.populate_metrics(attributes=attributes, metrics=metrics)
