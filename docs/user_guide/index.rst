@@ -604,6 +604,25 @@ targets, interventions, and outcomes associated with an entity.
            aggregation_method: max
       # Minimum group size to be included in the analysis
       censor_min_count: 10
+   # All information about logging data to OpenTelemetry. Defaults will be provided
+   # if some or all of this information is absent -- each default is the one provided in
+   # this example (except that metric_type has no default because it is a name).
+   otel_info:
+      # The kind of metric that this pertains to. For example, Accuracy.
+      metric_type: Accuracy
+         # Whether metrics are to be logged from this at all.
+         output_metrics: true
+         # For some widgets, a while plot is provided along with a few select points on that plot.
+         # If log_all, the entire plot is logged; if not, just the special points.
+         log_all: false
+         # For some plots, a box-and-whiskers plot is provided. This option allows us to generalize
+         # the graphic display to logged metrics with an arbitrary number of quantiles.
+         granularity: 4
+         # What kind of measurement this is. Counter (for measurements which should be summed up
+         # after the fact), Histogram (for measurements which should be presented as a histogram), and
+         # Gauge (for arbitrary numeric data) are provided as options.
+         measurement_type: Gauge
+
 
 .. seealso::
    A separate events dataset is not required, and can be avoided if you do not need

@@ -14,6 +14,7 @@ from seaborn.utils import relative_luminance
 
 import seismometer.report
 from seismometer.core.io import slugify
+from seismometer.data import otel
 
 from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
 
@@ -175,6 +176,12 @@ class SingleReportWrapper(ReportWrapper):
 
         super().__init__()
 
+        # Some tests mock out self._parse_alerts, which will give an error when
+        # self.parsed_alerts (a field, not a method!) is accessed below this if
+        # statement. So, even though it is theoretically always set, we will set
+        # it here anyway just in case.
+        self._parsed_alerts = ParsedAlertList(alerts=[])
+
         if not Path(self._html_path).is_file() or not Path(self._alert_path).is_file():
             logger.debug(f"Generating and saving report: {self._html_path}")
             self.generate_report()
@@ -188,6 +195,23 @@ class SingleReportWrapper(ReportWrapper):
 
             logger.debug(f"Existing alerts found on disk: {self._alert_path}")
             self._deserialize_alerts()
+
+        alert_types = ["imbalance", "missing", "zeros"]
+        # TODO: add units of percent for each of these
+        self.recorder = otel.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
+        for alert in self._parsed_alerts.alerts:
+            # alert.display_html is something like:
+            # <a href="#pp_var_4085253654425318375"><code>A1Cresult</code></a> is highly imbalanced (54.4%).
+            # So we're going to extract the relevant parts for logging: A1Cresult and 54.4%.
+            results = re.search(r"<code>(.+)</code>.+\((.*)%\)", alert.display_html)
+            if results is None:
+                # We didn't find anything.
+                variable = "unknown"
+                percentage = float("nan")
+            else:
+                variable = results.group(1)
+                percentage = float(results.group(2))
+            self.recorder.populate_metrics(attributes={"variable": variable}, metrics={alert.name.lower(): percentage})
 
     def generate_report(self) -> None:
         try:
@@ -237,7 +261,6 @@ class SingleReportWrapper(ReportWrapper):
                         ),
                     )
                 )
-
         self._parsed_alerts = ParsedAlertList(alerts=alerts)
         self._serialize_alerts()
 
