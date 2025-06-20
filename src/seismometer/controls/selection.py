@@ -254,7 +254,8 @@ class MultiSelectionListWidget(ValueWidget, VBox):
                 if parent_values:
                     filtered = combo_df[combo_df[parent_lvl].isin(parent_values)][child_lvl].dropna().unique()
                 else:
-                    filtered = combo_df[child_lvl].dropna().unique()
+                    parent_options = self.selection_widgets[parent_lvl].options
+                    filtered = combo_df[combo_df[parent_lvl].isin(parent_options)][child_lvl].dropna().unique()
 
                 new_options = sorted(set(filtered))
 
@@ -278,7 +279,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         self.value_update_in_progress = True
         updated_values = {key: self.value.get(key, ()) for key in self.selection_widgets}
         for key, value in updated_values.items():
-            self.selection_widgets[key].value = self.value.get(key, ())
+            self.selection_widgets[key].value = value
         self.value_update_in_progress = False
 
     def get_selection_text(self) -> str:
