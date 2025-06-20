@@ -998,12 +998,13 @@ def plot_model_score_comparison(
     for metric in plot_data.columns:
         log_all = otel.get_metric_config(metric)["log_all"]
         if log_all:
-            for score in scores:
-                p = plot_data[plot_data["cohort"] == score]
-                p = p[["Threshold", metric]]
-                recorder.populate_metrics(
-                    attributes={"Score Column": score}, metrics={metric: p.set_index("Threshold").to_dict()}
-                )
+
+            def maker(frame):
+                return frame[["Threshold", metric]].set_index("Threshold")
+
+            recorder.log_by_cohort(
+                base_attributes={}, dataframe=plot_data, cohorts={"Score Column": scores}, metric_maker=maker
+            )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
