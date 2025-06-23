@@ -9,12 +9,11 @@ from typing import Any, Callable, Dict, List
 import numpy as np
 import pandas as pd
 import yaml
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 from opentelemetry.metrics import Histogram, Meter, UpDownCounter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from prometheus_client import start_http_server
 
 from seismometer.core.io import slugify
 
@@ -120,7 +119,7 @@ def get_metric_creator(metric_name: str, meter: Meter) -> Callable:
 
 # Class which stores info about exporting metrics.
 class ExportManager:
-    def __init__(self, file_output_path=None, prom_port=None, dump_to_stdout=False):
+    def __init__(self, file_output_path=None, export_port=None, dump_to_stdout=False):
         """Create a place to export files.
 
         Parameters
@@ -140,7 +139,7 @@ class ExportManager:
             self.otlp_exhaust = None
             return
 
-        if file_output_path is None and prom_port is None:
+        if file_output_path is None and export_port is None:
             raise Exception("Metrics must go somewhere!")
         self.readers = []
         self.otlp_exhaust = None
@@ -156,10 +155,10 @@ class ExportManager:
                     ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
                 )
             )
-        if prom_port is not None:
+        if export_port is not None:
             try:
-                start_http_server(port=prom_port, addr="0.0.0.0")
-                self.readers.append(PrometheusMetricReader())
+                otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)
+                self.readers.append(PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000))
             except OSError:
                 logger.warning("Port is already in use. Ignoring ...")
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
@@ -171,7 +170,7 @@ class ExportManager:
 
 
 # For debug purposes: dump to stdout, and also to exporter path
-export_manager = ExportManager(file_output_path=sys.stdout, prom_port=9464)
+export_manager = ExportManager(file_output_path=sys.stdout, export_port=4317)
 
 
 class OpenTelemetryRecorder:
