@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
 
 from seismometer.data import otel
 
@@ -62,3 +64,12 @@ class TestMetricLogging:
             "attributes": {"foo": "bar", "Age": 10, "Birth Season": "Spring", "key": 0},
             "value": 1,
         } in RECEIVED_METRICS["A"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def otel_metrics_cleanup():
+    yield
+    # Cleanup ... close the meter provider so that we don't erroneously try to log late
+    provider = metrics.get_meter_provider()
+    if isinstance(provider, MeterProvider):
+        provider.shutdown()

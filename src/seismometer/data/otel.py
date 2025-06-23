@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.metrics import Histogram, Meter, UpDownCounter
+from opentelemetry.metrics import Histogram, Meter, UpDownCounter, set_meter_provider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -163,9 +163,10 @@ class ExportManager:
                 logger.warning("Port is already in use. Ignoring ...")
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
+        set_meter_provider(self.meter_provider)
 
     def __del__(self):
-        if self.otlp_exhaust is not None and self.otlp_exhaust != sys.stdout:
+        if self.otlp_exhaust is not None and (sys is None or self.otlp_exhaust != sys.stdout):
             self.otlp_exhaust.close()
 
 
