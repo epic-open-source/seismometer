@@ -109,3 +109,5 @@ jobs:
       - name: Run tests
         run: |
           pytest
+        env:
+          SEISMO_NO_OTEL: FALSE
