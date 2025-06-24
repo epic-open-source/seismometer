@@ -112,7 +112,7 @@ shared network which these three services interact on:
       external: true
 
 Before starting either Docker container, run the command
-``docker create network metricsnetwork``. This will actually make the
+``docker network create metricsnetwork``. This will actually make the
 network for passing metric information around.
 
 Now when in your Docker container, seismometer will output metrics to
