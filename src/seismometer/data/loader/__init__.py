@@ -5,7 +5,7 @@ import seismometer.data.loader.event as event
 import seismometer.data.loader.prediction as prediction
 from seismometer.configuration import ConfigProvider
 
-from .pipeline import ConfigFrameHook, SeismogramLoader
+from .pipeline import ConfigFrameHook, ConfigOnlyHook, SeismogramLoader
 
 
 def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None) -> SeismogramLoader:
@@ -27,8 +27,8 @@ def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None)
         Instance of the SeismogramLoader class, with load_data() method ready to be called
     """
 
-    prediction_loader = prediction.get_data_loader(config)
-    event_loader = event.get_data_loader(config)
+    prediction_loader: ConfigOnlyHook = prediction.get_data_loader(config)
+    event_loader: ConfigOnlyHook = event.get_data_loader(config)
 
     return SeismogramLoader(
         config,
