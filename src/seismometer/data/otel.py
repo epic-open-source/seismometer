@@ -155,7 +155,7 @@ class ExportManager:
                     ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
                 )
             )
-        if export_port is not None:
+        if export_port is not None and not STOP_ALL_OTEL:
             try:
                 otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)
                 self.readers.append(PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000))
