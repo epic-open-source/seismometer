@@ -30,7 +30,7 @@ def config_otel_stoppage() -> bool:
     """
     raw_stop = os.getenv("SEISMO_NO_OTEL", "FALSE")
     if raw_stop not in ["TRUE", "FALSE"]:
-        logger.warn("Unrecognized value for SISMO_NO_OTEL. Defaulting to false (metrics will be output ...)")
+        logger.warn("Unrecognized value for SEISMO_NO_OTEL. Defaulting to false (metrics will be output ...)")
         raw_stop = "FALSE"
     return raw_stop == "TRUE"
 
