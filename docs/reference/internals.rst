@@ -88,11 +88,11 @@ Seismogram Loaders
 .. autosummary::
    :toctree: api/
 
-   loader.ConfigOnlyHook
-   loader.ConfigFrameHook
-   loader.MergeFramesHook
-   loader.SeismogramLoader
-   loader.SeismogramLoader.load_data
+   loader.pipeline.ConfigOnlyHook
+   loader.pipeline.ConfigFrameHook
+   loader.pipeline.MergeFramesHook
+   loader.pipeline.SeismogramLoader
+   loader.pipeline.SeismogramLoader.load_data
    loader.loader_factory
    loader.event.parquet_loader
    loader.event.post_transform_fn
