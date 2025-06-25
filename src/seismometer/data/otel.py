@@ -9,15 +9,22 @@ from typing import Any, Callable, Dict, List
 import numpy as np
 import pandas as pd
 import yaml
-from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.metrics import Histogram, Meter, UpDownCounter, set_meter_provider
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from seismometer.core.io import slugify
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
+
+try:
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    from opentelemetry.metrics import Histogram, Meter, UpDownCounter, set_meter_provider
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+
+    TELEMETRY = True
+except ImportError as e:
+    logger.warning(f"Was not able to use metric exporting (message {str(e)}). Not using telemetry ...")
+    TELEMETRY = False
 
 
 def config_otel_stoppage() -> bool:
@@ -95,7 +102,7 @@ def get_metric_config(metric_name: str) -> dict:
     return METRIC_DEFAULTS | ret
 
 
-def get_metric_creator(metric_name: str, meter: Meter) -> Callable:
+def get_metric_creator(metric_name: str, meter) -> Callable:
     """Takes in the name of a metric and determines the OTel function which creates
     the corresponding instrument.
 
@@ -168,10 +175,6 @@ class ExportManager:
     def __del__(self):
         if self.otlp_exhaust is not None and (sys is None or self.otlp_exhaust != sys.stdout):
             self.otlp_exhaust.close()
-
-
-# For debug purposes: dump to stdout, and also to exporter path
-export_manager = ExportManager(file_output_path=sys.stdout, export_port=4317)
 
 
 class OpenTelemetryRecorder:
@@ -350,3 +353,31 @@ class OpenTelemetryRecorder:
                     self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
                 else:
                     self.populate_metrics(attributes=attributes, metrics=metrics)
+
+
+# If we don't have telemetry, we make everything into a no-op.
+if not TELEMETRY:
+
+    def noop(*args, **kwargs):
+        pass
+
+    class ExportManager:  # noqa: F811
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class OpenTelemetryRecorder:  # noqa: F811
+        def __init__(self, *args, **kwargs):
+            self.instruments = {}
+            self.metric_names = []
+
+        def populate_metrics(self, *args, **kwargs):  # noqa: F811
+            pass
+
+        def log_by_cohort(self, *args, **kwargs):  # noqa: F811
+            pass
+
+    get_metric_creator = noop  # noqa: F811
+
+
+# For debug purposes: dump to stdout, and also to exporter path
+export_manager = ExportManager(file_output_path=sys.stdout, export_port=4317)

@@ -3,8 +3,13 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-from opentelemetry import metrics
-from opentelemetry.sdk.metrics import MeterProvider
+
+try:
+    from opentelemetry import metrics
+    from opentelemetry.sdk.metrics import MeterProvider
+except ImportError:
+    # No OTel!
+    pytest.skip("No OpenTelemetry, nothing to test here", allow_module_level=True)
 
 from seismometer.data import otel
 
