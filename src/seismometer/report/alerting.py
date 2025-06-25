@@ -45,6 +45,8 @@ class ParsedAlert(BaseModel):
     name: str
     severity: str
     display_html: str
+    variable: str
+    percentage: float
 
 
 class ParsedAlertList(BaseModel):

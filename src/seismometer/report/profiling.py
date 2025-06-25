@@ -200,17 +200,8 @@ class SingleReportWrapper(ReportWrapper):
         # TODO: add units of percent for each of these
         self.recorder = otel.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
         for alert in self._parsed_alerts.alerts:
-            # alert.display_html is something like:
-            # <a href="#pp_var_4085253654425318375"><code>A1Cresult</code></a> is highly imbalanced (54.4%).
-            # So we're going to extract the relevant parts for logging: A1Cresult and 54.4%.
-            results = re.search(r"<code>(.+)</code>.+\((.*)%\)", alert.display_html)
-            if results is None:
-                # We didn't find anything.
-                variable = "unknown"
-                percentage = float("nan")
-            else:
-                variable = results.group(1)
-                percentage = float(results.group(2))
+            variable = alert.variable
+            percentage = alert.percentage
             self.recorder.populate_metrics(attributes={"variable": variable}, metrics={alert.name.lower(): percentage})
 
     def generate_report(self) -> None:
@@ -259,6 +250,8 @@ class SingleReportWrapper(ReportWrapper):
                                 alert=alert
                             )
                         ),
+                        variable=getattr(alert, "column_name", "unknown"),
+                        percentage=float(getattr(alert, "values", {}).get("percentage", float("nan"))),
                     )
                 )
         self._parsed_alerts = ParsedAlertList(alerts=alerts)
