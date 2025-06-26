@@ -141,6 +141,10 @@ class ComparisonReportWrapper(ReportWrapper):
         self._report = first_report.compare(second_report)
 
 
+# What features of an alert object correspond to which types of alerts.
+percentage_attributes = {"Imbalance": "imbalance", "Missing": "p_missing", "Zeros": "p_zeros"}
+
+
 class SingleReportWrapper(ReportWrapper):
     _parsed_alerts: ParsedAlertList
 
@@ -251,7 +255,9 @@ class SingleReportWrapper(ReportWrapper):
                             )
                         ),
                         variable=getattr(alert, "column_name", "unknown"),
-                        percentage=float(getattr(alert, "values", {}).get("percentage", float("nan"))),
+                        percentage=alert.values.get(
+                            percentage_attributes.get(alert.alert_type_name, "unknown"), float("nan")
+                        ),
                     )
                 )
         self._parsed_alerts = ParsedAlertList(alerts=alerts)
