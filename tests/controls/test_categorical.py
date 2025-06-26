@@ -165,6 +165,25 @@ class TestOrdinalCategoricalPlot:
         # Check equality of the two DataFrames
         pd.testing.assert_frame_equal(counts_df, expected_df)
 
+    def test_count_values_logs_missing_values(self, fake_seismo, caplog):
+        # Arrange
+        caplog.set_level("WARNING")
+
+        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
+        plot.dataframe = sample_data()
+
+        # Add a value not present in any metric definitions
+        plot.values = ["disagree", "neutral", "agree", "strongly_agree"]
+
+        # Act
+        _ = plot._count_values_in_columns()
+
+        # Assert
+        assert any(
+            "The following metric values are missing from all the metrics: ['strongly_agree']" in msg
+            for msg in caplog.messages
+        )
+
     def test_plot_likert(self, fake_seismo):
         plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
         plot.dataframe = sample_data()

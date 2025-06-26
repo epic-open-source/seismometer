@@ -354,6 +354,13 @@ class OrdinalCategoricalPlot:
 
         # Count occurrences of each unique value in each metric column
         col_counts = {col: self.dataframe[col].value_counts() for col in self.metrics}
+        missing = [
+            value
+            for value in self.values
+            if all(value not in sg.metrics[metric].metric_details.values for metric in self.metrics)
+        ]
+        if missing:
+            logger.warning(f"The following metric values are missing from all the metrics: {missing}")
         for value in self.values:
             data[value] = [col_counts[col].get(value, 0) for col in self.metrics]
 
