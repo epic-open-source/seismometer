@@ -24,22 +24,6 @@ from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 
-EVAL_METRICS = [
-    "Sensitivity",
-    "Specificity",
-    "PPV",
-    "Accuracy",
-    "Flag Rate",
-    "NPV",
-    "LR+",
-    "NetBenefitScore",
-    "NNE",
-    "TP",
-    "FP",
-    "TN",
-    "FN",
-]
-
 
 @export
 def plot_cohort_hist():
@@ -153,7 +137,7 @@ def _plot_cohort_hist(
                 base_attributes=base_attributes,
                 dataframe=bin_series,
                 cohorts=cohorts,
-                intersecting=True,
+                intersecting=False,
                 metric_maker=maker,
             )
     try:
@@ -422,7 +406,7 @@ def plot_cohort_evaluation(
         subgroups,
         sg.censor_threshold,
         per_context,
-        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS, name=f"Performance split by {cohort_col}"),
+        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}"),
     )
 
 
@@ -541,7 +525,7 @@ def model_evaluation(per_context_id=False):
         per_context_id,
         sg.event_aggregation_method(sg.target),
         sg.predict_time,
-        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS, name="Model Performance"),
+        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance"),
     )
 
 
@@ -596,7 +580,7 @@ def plot_model_evaluation(
         per_context,
         aggregation_method,
         ref_time,
-        recorder=otel.OpenTelemetryRecorder(metric_names=EVAL_METRICS, name="Model Performance"),
+        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance"),
         cohort=cohort_dict,
     )
 

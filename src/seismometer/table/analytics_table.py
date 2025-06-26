@@ -9,7 +9,6 @@ from great_tables import GT, loc, style
 from ipywidgets import HTML, Dropdown, GridBox, Layout, VBox
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
-from seismometer.api.plots import EVAL_METRICS
 from seismometer.controls.explore import ExplorationWidget, _combine_scores_checkbox
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
@@ -332,7 +331,7 @@ class AnalyticsTable:
 
         gt = self.generate_initial_table(data)
 
-        METRICS = EVAL_METRICS + OVERALL_PERFORMANCE
+        METRICS = STATNAMES + OVERALL_PERFORMANCE
         recorder = otel.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table")
         # The column names are
         for column in data.columns:
