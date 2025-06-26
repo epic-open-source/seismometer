@@ -3,6 +3,7 @@ import itertools
 import logging
 import operator
 import os
+import socket
 import sys
 from typing import Any, Callable, Dict, List
 
@@ -163,11 +164,18 @@ class ExportManager:
                 )
             )
         if export_port is not None and not STOP_ALL_OTEL:
+            otel_collector_reader = None
             try:
                 otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)
-                self.readers.append(PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000))
+                otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
+                with socket.create_connection(("otel-collector", export_port), timeout=1):
+                    pass
             except OSError:
-                logger.warning("Port is already in use. Ignoring ...")
+                logger.warning("Connecting to port failed. Ignoring ...")
+                if otel_collector_reader is not None:
+                    otel_collector_reader.shutdown()
+            else:
+                self.readers.append(otel_collector_reader)
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
         set_meter_provider(self.meter_provider)
@@ -266,10 +274,12 @@ class OpenTelemetryRecorder:
             The data we are recording. Could conceivably be either
             a numeric value or a series.
         """
-
-        # Some code seems to be logging numpy int64s so here we are.
+        if data is None:
+            logger.warning("otel: Tried to log 'None'.")
+            return
         if isinstance(data, (int, float)):
             self._set_one_datapoint(attributes, instrument, data)
+        # Some code seems to be logging numpy int64s so here we are.
         elif isinstance(data, (np.int64, np.float64)):
             self._set_one_datapoint(attributes, instrument, data.item())
         elif isinstance(data, list):
