@@ -93,9 +93,9 @@ This will configure a Docker container running three services.
 
 Before starting to run this (see below), make sure you have your own
 environment configured to export metrics correctly. Using Docker, make
-sure your ``docker-compose.yml`` file (like the one in the ``seismometer``
-repository on GitHub) has the following section to tap into the
-shared network which these three services interact on:
+sure your ``docker-compose.yml`` file (like the commented-out lines in
+the ``seismometer`` repository on GitHub) has the following section to
+tap into the shared network which these three services interact on:
 
 .. code-block:: yaml
 

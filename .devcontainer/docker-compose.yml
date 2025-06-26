@@ -23,9 +23,10 @@ services:
     command: sleep infinity
 
     # For communication with a backend
-    networks:
-      - metricsnetwork
+    # Uncomment THE REST OF THE FILE to use networking
+#     networks:
+#       - metricsnetwork
 
-networks:
-  metricsnetwork:
-    external: true
+# networks:
+#   metricsnetwork:
+#     external: true
