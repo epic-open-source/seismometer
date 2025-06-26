@@ -329,7 +329,7 @@ class OpenTelemetryRecorder:
         if not intersecting:
             # Simpler case: just go through each label provided.
             for cohort_category in cohorts.keys():
-                for cohort_value in cohorts[cohort_category]:
+                for cohort_value in set(cohorts[cohort_category]):
                     # We want to log all of the attributes passed in, but also what cohorts we are selecting on.
                     attributes = base_attributes | {cohort_category: cohort_value}
                     metrics = dataframe[dataframe[cohort_category] == cohort_value]
@@ -350,7 +350,9 @@ class OpenTelemetryRecorder:
                 # If there are in fact no other attributes, get a list so we don't just skip logging entirely
                 selections = [{}]
             if len(selections) > 100:
-                logger.warning("More than 100 cohort groups were provided. This might take a while.")
+                logger.warning(
+                    f"More than 100 cohort groups ({len(selections)}) were provided. This might take a while."
+                )
             for selection in selections:
                 attributes = base_attributes | selection
                 selection_condition = (
