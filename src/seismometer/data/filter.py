@@ -24,6 +24,8 @@ class FilterRule(object):
         "notna": lambda x, y, z: ~x[y].isna(),
         "isin": lambda x, y, z: x[y].isin(z),
         "notin": lambda x, y, z: ~x[y].isin(z),
+        "topk": lambda x, y, z: x[y].isin(x[y].value_counts().nlargest(z).index),
+        "nottopk": lambda x, y, z: ~x[y].isin(x[y].value_counts().nlargest(z).index),
         "==": lambda x, y, z: x[y] == z,
         "!=": lambda x, y, z: x[y] != z,
         "<=": lambda x, y, z: x[y] <= z,
@@ -41,6 +43,8 @@ class FilterRule(object):
         "notna": "isna",
         "isin": "notin",
         "notin": "isin",
+        "topk": "nottopk",
+        "nottopk": "topk",
         "==": "!=",
         "!=": "==",
         "<=": ">",
@@ -87,6 +91,17 @@ class FilterRule(object):
                 raise TypeError(
                     f"Relation {relation} only supported between FilterRules, right item of type {type(right)}"
                 )
+
+        if relation in {"topk", "nottopk"}:
+            if not isinstance(right, int):
+                raise TypeError(f"Relation '{relation}' requires an integer as the right item. Got {type(right)}.")
+            if right <= 0:
+                raise ValueError(f"Relation '{relation}' requires a positive integer. Got {right}.")
+            if not isinstance(left, str):
+                raise TypeError(
+                    f"Relation '{relation}' requires the left item to be a column name (str). Got {type(left)}."
+                )
+
         self.relation = relation
 
     def __repr__(self) -> str:
@@ -139,6 +154,10 @@ class FilterRule(object):
                 return f"{self.left} is in: {', '.join(self.right)}"
             case "notin":
                 return f"{self.left} not in: {', '.join(self.right)}"
+            case "topk":
+                return f"{self.left} in top {self.right} values"
+            case "nottopk":
+                return f"{self.left} not in top {self.right} values"
             case "==":
                 return f"{self.left} is {self.right}"
             case "!=":
