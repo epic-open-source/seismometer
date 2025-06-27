@@ -195,9 +195,14 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
             hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
         )
 
-        widget.selection_widgets["site"].value = ("Beta", "Gamma")
+        widget.selection_widgets["site"].value = ("Beta", "Alpha")
         widget.selection_widgets["region"].value = ("South",)
         assert widget.selection_widgets["site"].value == ("Beta",)
+
+        # "Gamma" should be dropped from available options
+        # Attempting to access its button should raise KeyError
+        with pytest.raises(KeyError):
+            _ = widget.selection_widgets["site"].buttons["Gamma"]
 
     @patch("seismometer.seismogram.Seismogram")
     def test_first_level_update_cascades_to_second_level(self, mock_seismo):
@@ -259,17 +264,21 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
                 "level2": ["B"],
                 "level3": ["C"],
             },
-            values={"level1": ["A"], "level2": ["B"], "level3": ["C"]},
+            values={"level1": ("A",), "level2": ("B",), "level3": ("C",)},
             hierarchies=[hierarchy],
             hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
             show_all=True,
         )
 
-        hierarchy_vbox = widget.children[1]  # VBox of hierarchy + non-hierarchy
+        # Get the VBox that wraps hierarchy + non-hierarchy
+        hierarchy_vbox = widget.children[1]
         hierarchy_boxes = hierarchy_vbox.children[0:-1]  # exclude non-hierarchical box
 
         for box in hierarchy_boxes:
-            arrow_widgets = [child for child in box.children if isinstance(child, HTML) and child.value == "→"]
+            assert isinstance(box, undertest.HierarchicalSelectionWidget)
+            # The first child of the widget is the layout Box that holds widgets and arrows
+            layout_box = box.children[0]
+            arrow_widgets = [child for child in layout_box.children if isinstance(child, HTML) and child.value == "→"]
             assert (
                 len(arrow_widgets) == len(hierarchy.column_order) - 1
             ), f"Expected {len(hierarchy.column_order) - 1} arrows, found {len(arrow_widgets)}"

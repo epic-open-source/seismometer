@@ -11,6 +11,7 @@ from seismometer.configuration.model import CohortHierarchy, Metric
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
+from seismometer.data.filter import FilterRule
 from seismometer.data.loader import SeismogramLoader
 from seismometer.report.alerting import AlertConfigProvider
 
@@ -380,26 +381,34 @@ class Seismogram(object, metaclass=Singleton):
         """
         if not self.config.usage.load_time_filters:
             return df
+
         mask = np.ones(len(df), dtype=bool)
+
         for rule in self.config.usage.load_time_filters:
             column = rule.source
             if column not in df.columns:
                 raise ValueError(f"Filter source column '{column}' not found in data.")
-            # Default: full True array (neutral for include/keep_top)
+
             column_mask = np.ones(len(df), dtype=bool)
             if rule.action == "keep_top":
-                top_values = df[column].value_counts().nlargest(MAXIMUM_NUM_COHORTS).index
-                column_mask = df[column].isin(top_values).values
+                column_mask = FilterRule(column, "topk", MAXIMUM_NUM_COHORTS).mask(df)
+
             elif rule.action in {"include", "exclude"}:
-                submask = np.ones(len(df), dtype=bool)
+                submask = pd.Series(True, index=df.index)
+
                 if rule.values:
-                    submask &= df[column].isin(rule.values).values
+                    submask = FilterRule.isin(column, rule.values).mask(df)
+
                 elif rule.range:
                     try:
-                        if rule.range.min is not None:
-                            submask &= df[column].values >= rule.range.min
-                        if rule.range.max is not None:
-                            submask &= df[column].values <= rule.range.max
+                        if rule.range.min is not None or rule.range.max is not None:
+                            if rule.range.min is not None:
+                                range_rule = FilterRule.geq(column, rule.range.min)
+                                if rule.range.max is not None:
+                                    range_rule &= FilterRule.leq(column, rule.range.max)
+                            else:
+                                range_rule = FilterRule.leq(column, rule.range.max)
+                            submask = range_rule.mask(df)
                     except (TypeError, ValueError) as e:
                         bounds_str = ", ".join(
                             f"{label}={val}"
@@ -410,9 +419,9 @@ class Seismogram(object, metaclass=Singleton):
                             f"Range filter on column '{column}' failed. Ensure values are comparable to {bounds_str}."
                         ) from e
                 column_mask = submask if rule.action == "include" else ~submask
+
             else:
                 raise ValueError(f"Unsupported filter action: {rule.action}")
-            # Combine with global mask
             mask &= column_mask
         return df[mask]
 

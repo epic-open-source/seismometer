@@ -99,6 +99,34 @@ class TestFilterRulesFiltering:
         assert FilterRule("T/F", "notna").mask(test_dataframe).equals(~test_dataframe["T/F"].isna())
         assert FilterRule("T/F", "notna").filter(test_dataframe).equals(test_dataframe[~test_dataframe["T/F"].isna()])
 
+    @pytest.mark.parametrize(
+        "k, expected_values",
+        [
+            (1, {"A"}),  # "A" appears 3 times
+            (2, {"A", "B"}),  # "B" appears 2 times
+        ],
+    )
+    def test_filter_base_rule_topk(self, k, expected_values):
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "C", "A", "B", "D"]})
+        FilterRule.MIN_ROWS = None
+        rule = FilterRule("Cat", "topk", k)
+        result = rule.filter(df)
+        assert set(result["Cat"].unique()) == expected_values
+
+    @pytest.mark.parametrize(
+        "k, excluded_values",
+        [
+            (1, {"A"}),
+            (2, {"A", "B"}),
+        ],
+    )
+    def test_filter_base_rule_nottopk(self, k, excluded_values):
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "C", "A", "B", "D"]})
+        FilterRule.MIN_ROWS = None
+        rule = FilterRule("Cat", "nottopk", k)
+        result = rule.filter(df)
+        assert not any(val in result["Cat"].unique() for val in excluded_values)
+
 
 class TestFilterRuleConstructors:
     @pytest.mark.parametrize(
@@ -113,6 +141,14 @@ class TestFilterRuleConstructors:
             (("NeedsNone", "isna", "a_string"), TypeError),
             ((None, "none", "a_string"), TypeError),
             (("ShouldBeNone", "all", None), TypeError),
+            (("Col", "topk", "not_an_int"), TypeError),
+            (("Col", "topk", 0), ValueError),
+            (("Col", "topk", -1), ValueError),
+            ((123, "topk", 3), TypeError),
+            (("Col", "nottopk", "bad"), TypeError),
+            (("Col", "nottopk", 0), ValueError),
+            (("Col", "nottopk", -5), ValueError),
+            ((123, "nottopk", 3), TypeError),
         ],
     )
     def test_filter_base_bad_relation(self, rule, exception):
@@ -216,6 +252,8 @@ class TestFilterRuleCombinationLogic:
             (FilterRule("Val", "isin", [1, 2, 3]), ~FilterRule("Val", "notin", [1, 2, 3])),
             (FilterRule("Val", "notin", [1, 2, 3]), ~FilterRule("Val", "isin", [1, 2, 3])),
             (FilterRule("Val", "isna"), ~FilterRule("Val", "notna")),
+            (FilterRule("Cat", "topk", 2), ~FilterRule("Cat", "nottopk", 2)),
+            (FilterRule("Cat", "nottopk", 2), ~FilterRule("Cat", "topk", 2)),
             (FilterRule.all(), ~FilterRule.none()),
             (FilterRule.none(), ~FilterRule.all()),
         ],
@@ -286,6 +324,8 @@ class TestFilterRulesAsText:
             (FilterRule("Cat", "==", "A"), "FilterRule('Cat', '==', 'A')"),
             (FilterRule("Cat", "isin", ["A", "B"]), "FilterRule('Cat', 'isin', ['A', 'B'])"),
             (FilterRule("Cat", "notin", ["A", "B"]), "FilterRule('Cat', 'notin', ['A', 'B'])"),
+            (FilterRule("Cat", "topk", 3), "FilterRule('Cat', 'topk', 3)"),
+            (FilterRule("Cat", "nottopk", 2), "FilterRule('Cat', 'nottopk', 2)"),
         ],
     )
     def test_repr_binary(self, rule, expected):
@@ -299,6 +339,8 @@ class TestFilterRulesAsText:
             (FilterRule("Cat", "==", "A"), "Cat is A"),
             (FilterRule("Cat", "isin", ["A", "B"]), "Cat is in: A, B"),
             (FilterRule("Cat", "notin", ["A", "B"]), "Cat not in: A, B"),
+            (FilterRule("Cat", "topk", 3), "Cat in top 3 values"),
+            (FilterRule("Cat", "nottopk", 2), "Cat not in top 2 values"),
         ],
     )
     def test_str_binary(self, rule, expected):
