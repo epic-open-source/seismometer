@@ -476,7 +476,7 @@ def _plot_cohort_evaluation(
     if recorder is not None:
         base_attributes = {"target": target, "score": output}
         # Go through all cohort values, by means of:
-        cohort_categories = list(set(list(plot_data["cohort"])))
+        cohort_categories = list(set(plot_data["cohort"]))
         for t in thresholds:
             p = plot_data[plot_data["Threshold"] == t * 100].set_index("Threshold")
             recorder.log_by_cohort(
