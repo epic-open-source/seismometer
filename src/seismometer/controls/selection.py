@@ -84,6 +84,35 @@ class SelectionListWidget(ValueWidget, VBox):
         for option, value in updated_values.items():
             self.button_from_option[option].value = value
 
+    def _update_options(self, new_options: list[str]):
+        """
+        Update the available options and rebuild the button list while preserving valid selections.
+        """
+        self.options = tuple(new_options)
+        selected_values = tuple(val for val in self.value if val in self.options)
+        self.value = selected_values
+
+        # Clear and rebuild button mappings
+        self.button_from_option.clear()
+        self.option_from_button.clear()
+
+        for option in self.options:
+            sub_toggle = ToggleButton(
+                value=option in selected_values,
+                icon="check" if option in selected_values else "",
+                description=str(option),
+                tooltip=str(option),
+                disabled=self._disabled,
+                button_style="",
+                layout=Layout(flex="1 0 auto"),
+            )
+            sub_toggle.observe(self._on_button_change, "value")
+            self.button_from_option[option] = sub_toggle
+            self.option_from_button[sub_toggle] = option
+
+        # Replace children in the button box
+        self.button_box.children = list(self.button_from_option.values())
+
     def get_selection_text(self) -> str:
         """Description of the currently selected values."""
         text = f"{self.title_label.value}: " if self.title_label else ""
@@ -102,40 +131,52 @@ class HierarchicalSelectionWidget(VBox):
 
     def __init__(
         self,
+        options: dict[str, tuple],
         hierarchy: CohortHierarchy,
-        widgets: dict[str, ValueWidget],
+        values: Optional[dict[str, tuple]] = None,
         combinations: Optional["pd.DataFrame"] = None,
         border: bool = False,
+        show_all: bool = False,
     ):
         """
         Parameters
         ----------
+        options : dict[str,tuple]
+            Map of column headers to column buttons.
         hierarchy : CohortHierarchy
             Hierarchical structure (e.g. column order).
-        widgets : dict[str, ValueWidget]
-            Mapping of column name to widget.
+        values : Optional[dict[str,tuple]], optional
+           Values that should be pre-selected, by default None.
         combinations : Optional[pd.DataFrame]
-            DataFrame of valid value combinations across the hierarchy.
+            DataFrame of valid value combinations across the hierarchy, by default None.
         border : bool
             Whether to draw a border around the layout.
+        show_all : bool, optional
+            If True, show all optoins, else show only selected, by default False.
         """
         self.hierarchy = hierarchy
-        self.widgets = widgets
+        self.values = values or {}
+        self.options = options
+        selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
+        self.widgets = {}
+
+        for key in hierarchy.column_order:
+            selection_widget = selection_widget_class(
+                title=key, options=options.get(key, {}), value=values.get(key, None)
+            )
+            self.widgets[key] = selection_widget
+            self.widgets[key].observe(self._on_value_change, "value")
         self.combinations = combinations
 
         self.value = {}
-
-        # observe each widget’s value
-        for w in widgets.values():
-            w.observe(self._on_value_change, "value")
 
         # construct the layout with arrows
         label = HTML(f"<b>{hierarchy.name}:</b>", layout=Layout(min_width="120px"))
         layout_items = [label]
         for i, key in enumerate(hierarchy.column_order):
-            if key not in widgets:
+            if key not in self.widgets:
                 continue
-            layout_items.append(widgets[key])
+            layout_items.append(self.widgets[key])
             if i < len(hierarchy.column_order) - 1:
                 layout_items.append(HTML("→", layout=Layout(width="10px", align_self="flex-start")))
 
@@ -253,10 +294,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
         self.hierarchy_combinations = hierarchy_combinations or {}
 
         selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
-        for key in options:
-            selection_widget = selection_widget_class(title=key, options=options[key], value=values.get(key, None))
-            self.selection_widgets[key] = selection_widget
-            self.selection_widgets[key].observe(self._on_subselection_change, "value")
+
         self.value_update_in_progress = False
         self.title_box = HTML()
 
@@ -268,14 +306,23 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             visible_keys = [key for key in hierarchy.column_order if key in options]
             hierarchy_keys.update(visible_keys)
             widget_group = HierarchicalSelectionWidget(
+                options=options,
                 hierarchy=hierarchy,
-                widgets={k: self.selection_widgets[k] for k in visible_keys},
+                values=values,
                 combinations=self.hierarchy_combinations.get(tuple(hierarchy.column_order)),
                 border=border,
+                show_all=show_all,
             )
             hierarchy_widgets_list.append(widget_group)
+            self.selection_widgets.update(widget_group.widgets)
 
         # Step 2: add non-hierarchical widgets
+        for key in options:
+            if key not in hierarchy_keys:
+                selection_widget = selection_widget_class(title=key, options=options[key], value=values.get(key, None))
+                self.selection_widgets[key] = selection_widget
+            self.selection_widgets[key].observe(self._on_subselection_change, "value")
+
         non_hierarchical_keys = [key for key in options if key not in hierarchy_keys]
         non_hierarchical_widgets = [self.selection_widgets[key] for key in non_hierarchical_keys]
         non_hierarchical_widget_box = Box(
