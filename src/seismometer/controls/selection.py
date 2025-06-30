@@ -133,8 +133,8 @@ class HierarchicalSelectionWidget(VBox):
         self,
         options: dict[str, tuple],
         hierarchy: CohortHierarchy,
+        combinations: "pd.DataFrame",
         values: Optional[dict[str, tuple]] = None,
-        combinations: Optional["pd.DataFrame"] = None,
         border: bool = False,
         show_all: bool = False,
     ):
@@ -145,10 +145,10 @@ class HierarchicalSelectionWidget(VBox):
             Map of column headers to column buttons.
         hierarchy : CohortHierarchy
             Hierarchical structure (e.g. column order).
+        combinations : pd.DataFrame
+            DataFrame of valid value combinations across the hierarchy.
         values : Optional[dict[str,tuple]], optional
            Values that should be pre-selected, by default None.
-        combinations : Optional[pd.DataFrame]
-            DataFrame of valid value combinations across the hierarchy, by default None.
         border : bool
             Whether to draw a border around the layout.
         show_all : bool, optional
@@ -219,7 +219,7 @@ class HierarchicalSelectionWidget(VBox):
             parent_values = selected.get(parent_lvl, ())
 
             combo_df = self.combinations
-            if combo_df is None or parent_lvl not in combo_df.columns or child_lvl not in combo_df.columns:
+            if parent_lvl not in combo_df.columns or child_lvl not in combo_df.columns:
                 continue
 
             if parent_values:
@@ -291,7 +291,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             values = {k: tuple(v) for k, v in values.items()}
         self.value = values
         self.hierarchies = hierarchies or []
-        self.hierarchy_combinations = hierarchy_combinations or {}
+        self.hierarchy_combinations = hierarchy_combinations
 
         selection_widget_class = SelectionListWidget if show_all else MultiselectDropdownWidget
 
@@ -309,7 +309,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
                 options=options,
                 hierarchy=hierarchy,
                 values=values,
-                combinations=self.hierarchy_combinations.get(tuple(hierarchy.column_order)),
+                combinations=self.hierarchy_combinations[tuple(hierarchy.column_order)],
                 border=border,
                 show_all=show_all,
             )
