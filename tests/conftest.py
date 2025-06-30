@@ -2,6 +2,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
+from unittest.mock import patch
 
 from pytest import fixture
 
@@ -37,3 +38,9 @@ def working_dir_as(path: Path) -> Generator:
         yield
     finally:
         os.chdir(oldpath)
+
+
+@fixture(scope="module", autouse=True)
+def sg_decorator_mock():
+    with patch("seismometer.seismogram._store_call_parameters"):
+        yield

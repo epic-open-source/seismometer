@@ -20,11 +20,23 @@ from seismometer.data.performance import (
 )
 from seismometer.data.timeseries import create_metric_timeseries
 from seismometer.html import template
-from seismometer.seismogram import Seismogram
+from seismometer.seismogram import Seismogram, store_call_parameters
 
 logger = logging.getLogger("seismometer")
 
 
+def generate_cohort_info():
+    sg = Seismogram()
+    return {
+        "target": sg.target,
+        "output": sg.output,
+        "cohort_col": sg.selected_cohort[0],
+        "subgroups": sg.selected_cohort[1],
+        "censor_threshold": sg.censor_threshold,
+    }
+
+
+@store_call_parameters(extra_params=generate_cohort_info)
 @export
 def plot_cohort_hist():
     """Display a histogram plot of predicted probabilities for all cohorts in the selected attribute."""
@@ -148,6 +160,7 @@ def _plot_cohort_hist(
         return template.render_title_message("Error", f"Error: {error}")
 
 
+@store_call_parameters
 @export
 def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
     """Displays the amount of time that a high prediction gives before an event of interest.
@@ -360,6 +373,7 @@ def _plot_leadtime_enc(
     return template.render_title_with_image(title, svg)
 
 
+@store_call_parameters
 @disk_cached_html_segment
 @export
 def plot_cohort_evaluation(
@@ -504,6 +518,7 @@ def _plot_cohort_evaluation(
     return template.render_title_with_image(title, svg)
 
 
+@store_call_parameters
 @export
 def model_evaluation(per_context_id=False):
     """Displays overall performance of the model.

@@ -6,7 +6,7 @@ from seismometer.controls.categorical_single_column import ExploreSingleCategori
 from seismometer.core.decorators import export
 from seismometer.data.filter import FilterRule
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
-from seismometer.seismogram import Seismogram
+from seismometer.seismogram import Seismogram, store_call_parameters
 from seismometer.table.analytics_table import ExploreBinaryModelAnalytics
 from seismometer.table.fairness import ExploreBinaryModelFairness
 
@@ -69,6 +69,7 @@ class ExploreCohortOrdinalMetrics(ExploreSingleCategoricalPlots):
 
 
 # region Reports
+@store_call_parameters
 @export
 def feature_alerts(exclude_cols: Optional[list[str]] = None):
     """
@@ -94,6 +95,7 @@ def feature_alerts(exclude_cols: Optional[list[str]] = None):
     ).display_alerts()
 
 
+@store_call_parameters
 @export
 def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = False):
     """

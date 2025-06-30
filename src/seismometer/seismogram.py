@@ -1,7 +1,8 @@
+import functools
 import json
 import logging
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -33,6 +34,7 @@ class Seismogram(object, metaclass=Singleton):
             a. Merge Event data with Prediction data for Label generation
             b. Cohort based data selection
             c. Model configuration help texts
+        4. Storing call history for automation purposes.
 
     As a single instance, the first time it is loaded, it will load the data from the configuration.
     In order to refresh the single instance, the kernel must be restarted, or Seismogram.kill() must be called.
@@ -45,6 +47,8 @@ class Seismogram(object, metaclass=Singleton):
     """ The column name for evaluation timestamp. """
     output_list: list[str]
     """ The list of columns representing model outputs. """
+    _call_history: dict[str, dict]
+    """ plot function name -> {"args": args, "kwargs": kwargs } """
 
     def __init__(
         self,
@@ -77,6 +81,7 @@ class Seismogram(object, metaclass=Singleton):
         self.metrics: dict[str, Metric] = {}
         self.metric_types: dict[str, list[str]] = {}
         self.metric_groups: dict[str, list[str]] = {}
+        self._call_history = {}
 
         self.copy_config_metadata()
 
@@ -96,6 +101,20 @@ class Seismogram(object, metaclass=Singleton):
         # load data
         self.available_cohort_groups = dict()
         self.selected_cohort = (None, None)  # column, values
+
+    def store_call_params(self, fn_name, args, kwargs, extra_info):
+        """_summary_
+
+        Parameters
+        ----------
+        fn_name : _type_
+            _description_
+        args : _type_
+            _description_
+        kwargs : _type_
+            _description_
+        """
+        self._call_history[fn_name] = {"args": args, "kwargs": kwargs, "extra_info": extra_info}
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -440,3 +459,47 @@ class Seismogram(object, metaclass=Singleton):
         ]
 
     # endregion
+
+
+# The decorator logic is stored here for circular import reasons.
+
+
+# Internal implementation -- stored separately here for mocking purposes.
+def _store_call_parameters(name: str, args: list, kwargs: dict, extra_info: dict) -> None:
+    Seismogram().store_call_params(name, args, kwargs, extra_info)
+
+
+def store_call_parameters(
+    func: Callable[..., Any] = None, name: str = None, extra_params: Callable[[tuple, dict], dict] = lambda x, y: {}
+) -> Callable[..., Any]:
+    """_summary_
+
+    Parameters
+    ----------
+    func : Callable[..., Any], optional
+        The function we are wrapping.
+    name : str, optional
+        What name to store in the call.
+        (Maybe we want to represent _internal_generate_widget_actually as just generate_widget, for example).
+    extra_params : Callable[tuple, dict, dict], optional
+        Extra arguments we need to reconstruct the call.
+
+    Returns
+    -------
+    Callable[..., Any]
+        _description_
+    """
+
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(fn)
+        def new_fn(*args, **kwargs):
+            call_name = name if name is not None else fn.__name__
+            _store_call_parameters(call_name, args, kwargs, extra_params)
+            return fn(*args, **kwargs)
+
+        return new_fn
+
+    if func is not None and callable(func):
+        return decorator(func)
+    else:
+        return decorator
