@@ -256,7 +256,13 @@ class TestMultiSelectionListWidgetHierarchyFiltering:
         fake_seismo = mock_seismo.return_value
         hierarchy = CohortHierarchy(name="demo", column_order=["level1", "level2", "level3"])
         fake_seismo.cohort_hierarchies = [hierarchy]
-        fake_seismo.cohort_hierarchy_combinations = {}
+        fake_seismo.cohort_hierarchy_combinations = {
+            (
+                "level1",
+                "level2",
+                "level3",
+            ): pd.DataFrame([["A", "B", "C"]], columns=hierarchy.column_order)
+        }
 
         widget = undertest.MultiSelectionListWidget(
             options={
