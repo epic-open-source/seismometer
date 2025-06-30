@@ -642,7 +642,7 @@ class TestSeismogramLoadTimeFilters:
             LoadTimeFilter(source="col", action="include", range=FilterRange(min=1, max=10))
         ]
 
-        with pytest.raises(ValueError, match="Range filter on column 'col' failed. Ensure values are comparable."):
+        with pytest.raises(ValueError, match="Values in 'col' must be comparable to '1.0'."):
             sg._apply_load_time_filters(df)
 
 
