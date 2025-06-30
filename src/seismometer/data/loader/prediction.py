@@ -240,11 +240,9 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
     else:
         desired_columns = set(config.prediction_columns)
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=FutureWarning)
-            with open(config.prediction_path, "r") as f:
-                dict_reader = csv.DictReader(f, delimiter=sep)
-                present_columns = set(dict_reader.fieldnames)
+        with open(config.prediction_path, "r") as f:
+            dict_reader = csv.DictReader(f, delimiter=sep)
+            present_columns = set(dict_reader.fieldnames)
 
         if config.target in present_columns:
             desired_columns.add(config.target)
