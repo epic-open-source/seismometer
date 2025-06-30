@@ -215,6 +215,11 @@ class FilterRule(object):
             Index masked to only the rows that match the FilterRule.
         """
         relation = FilterRule.method_router[self.relation]
+        if self.relation in ["<=", ">=", "<", ">"]:
+            try:
+                return relation(data, self.left, self.right)
+            except (TypeError, ValueError) as e:
+                raise ValueError(f"Values in '{self.left}' must be comparable to '{self.right}'.") from e
         return relation(data, self.left, self.right)
 
     def __or__(left, right) -> "FilterRule":

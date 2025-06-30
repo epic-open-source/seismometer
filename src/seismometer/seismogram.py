@@ -382,33 +382,31 @@ class Seismogram(object, metaclass=Singleton):
         if not self.config.usage.load_time_filters:
             return df
 
-        mask = np.ones(len(df), dtype=bool)
+        combined_rule = FilterRule.all()
 
         for rule in self.config.usage.load_time_filters:
             column = rule.source
             if column not in df.columns:
                 raise ValueError(f"Filter source column '{column}' not found in data.")
 
-            column_mask = np.ones(len(df), dtype=bool)
             if rule.action == "keep_top":
-                column_mask = FilterRule(column, "topk", MAXIMUM_NUM_COHORTS).mask(df)
+                column_rule = FilterRule(column, "topk", MAXIMUM_NUM_COHORTS)
 
             elif rule.action in {"include", "exclude"}:
-                submask = pd.Series(True, index=df.index)
+                subrule = FilterRule.all()
 
                 if rule.values:
-                    submask = FilterRule.isin(column, rule.values).mask(df)
+                    subrule = FilterRule.isin(column, rule.values)
 
                 elif rule.range:
                     try:
                         if rule.range.min is not None or rule.range.max is not None:
                             if rule.range.min is not None:
-                                range_rule = FilterRule.geq(column, rule.range.min)
+                                subrule = FilterRule.geq(column, rule.range.min)
                                 if rule.range.max is not None:
-                                    range_rule &= FilterRule.leq(column, rule.range.max)
+                                    subrule &= FilterRule.leq(column, rule.range.max)
                             else:
-                                range_rule = FilterRule.leq(column, rule.range.max)
-                            submask = range_rule.mask(df)
+                                subrule = FilterRule.leq(column, rule.range.max)
                     except (TypeError, ValueError) as e:
                         bounds_str = ", ".join(
                             f"{label}={val}"
@@ -418,12 +416,15 @@ class Seismogram(object, metaclass=Singleton):
                         raise ValueError(
                             f"Range filter on column '{column}' failed. Ensure values are comparable to {bounds_str}."
                         ) from e
-                column_mask = submask if rule.action == "include" else ~submask
+
+                column_rule = subrule if rule.action == "include" else ~subrule
 
             else:
                 raise ValueError(f"Unsupported filter action: {rule.action}")
-            mask &= column_mask
-        return df[mask]
+
+            combined_rule &= column_rule
+
+        return df[combined_rule.mask(df)]
 
     def create_cohorts(self) -> None:
         """Creates data columns for each cohort defined in configuration."""
