@@ -458,6 +458,25 @@ class Seismogram(object, metaclass=Singleton):
             if any(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
         ]
 
+    @staticmethod
+    def get_sg_settings(*_, **__) -> dict:
+        sg = Seismogram()
+        return {
+            "target": sg.target,
+            "output": sg.output,
+            "selected_cohort": sg.selected_cohort,
+            "censor_threshold": sg.censor_threshold,
+            "predict_time": sg.predict_time,
+            "time_zero": sg.time_zero,
+            "thresholds": sg.thresholds,
+            "entity_keys": sg.entity_keys,
+            "outcome": sg.outcome,
+            "intervention": sg.intervention,
+            "comparison_time": sg.comparison_time,
+            "available_cohort_groups": sg.available_cohort_groups,
+            "config.entity_id": sg.config.entity_id,
+        }
+
     # endregion
 
 

@@ -8,7 +8,7 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.core.decorators import export
 from seismometer.data import default_cohort_summaries, score_target_cohort_summaries
 from seismometer.html import template
-from seismometer.seismogram import Seismogram
+from seismometer.seismogram import Seismogram, store_call_parameters
 
 logger = logging.getLogger("seismometer")
 
@@ -194,6 +194,7 @@ def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str,
     return dfs
 
 
+@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @disk_cached_html_segment
 @export
 def show_cohort_summaries(by_target: bool = False, by_score: bool = False) -> HTML:

@@ -25,18 +25,7 @@ from seismometer.seismogram import Seismogram, store_call_parameters
 logger = logging.getLogger("seismometer")
 
 
-def generate_cohort_info():
-    sg = Seismogram()
-    return {
-        "target": sg.target,
-        "output": sg.output,
-        "cohort_col": sg.selected_cohort[0],
-        "subgroups": sg.selected_cohort[1],
-        "censor_threshold": sg.censor_threshold,
-    }
-
-
-@store_call_parameters(extra_params=generate_cohort_info)
+@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @export
 def plot_cohort_hist():
     """Display a histogram plot of predicted probabilities for all cohorts in the selected attribute."""
@@ -160,7 +149,7 @@ def _plot_cohort_hist(
         return template.render_title_message("Error", f"Error: {error}")
 
 
-@store_call_parameters
+@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @export
 def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
     """Displays the amount of time that a high prediction gives before an event of interest.
@@ -518,7 +507,7 @@ def _plot_cohort_evaluation(
     return template.render_title_with_image(title, svg)
 
 
-@store_call_parameters
+@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @export
 def model_evaluation(per_context_id=False):
     """Displays overall performance of the model.
@@ -697,6 +686,7 @@ def _model_evaluation(
     return template.render_title_with_image(title, svg)
 
 
+@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @export
 def plot_trend_intervention_outcome() -> HTML:
     """
@@ -1094,6 +1084,7 @@ def plot_model_target_comparison(
 
 
 # region Explore Any Metric (NNT, etc)
+@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @disk_cached_html_segment
 @export
 def plot_binary_classifier_metrics(

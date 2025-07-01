@@ -143,6 +143,7 @@ def cohort_comparison_report(exclude_cols: list[str] = None):
     comparison_selections.show()
 
 
+@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @export
 def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     """
