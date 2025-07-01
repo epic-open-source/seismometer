@@ -411,6 +411,48 @@ class FilterRule(object):
                 rule = rule & cls.isin(key, cohort_dict[key])
         return rule
 
+    @classmethod
+    def from_config(cls, rule: "FilterConfig") -> "FilterRule":
+        """Creates a FilterRule from a high-level FilterConfig specification."""
+        from seismometer.seismogram import MAXIMUM_NUM_COHORTS
+
+        column = rule.source
+        if rule.action == "keep_top":
+            return cls(column, "topk", MAXIMUM_NUM_COHORTS)
+
+        elif rule.action in {"include", "exclude"}:
+            subrule = cls.all()
+
+            if rule.values:
+                subrule = cls.isin(column, rule.values)
+
+            elif rule.range:
+                if rule.range.min is not None or rule.range.max is not None:
+                    if rule.range.min is not None:
+                        subrule = cls.geq(column, rule.range.min)
+                        if rule.range.max is not None:
+                            subrule &= cls.leq(column, rule.range.max)
+                    else:
+                        subrule = cls.leq(column, rule.range.max)
+
+            return subrule if rule.action == "include" else ~subrule
+        else:
+            raise ValueError(f"Unsupported filter action: {rule.action}")
+
+    @classmethod
+    def from_config_list(cls, config_list: list["FilterConfig"] | None) -> "FilterRule":
+        """
+        Combine a list of named FilterConfig rules into a single FilterRule using AND logic.
+        """
+        rule = cls.all()
+        if not config_list:
+            return rule
+
+        for config in config_list:
+            rule &= cls.from_config(config)
+
+        return rule
+
 
 def filter_rule_from_cohort_dictionary(cohort: dict[str, tuple[any]] | None = None) -> FilterRule:
     """
