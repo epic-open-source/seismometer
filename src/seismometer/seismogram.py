@@ -382,49 +382,10 @@ class Seismogram(object, metaclass=Singleton):
         if not self.config.usage.load_time_filters:
             return df
 
-        combined_rule = FilterRule.all()
-
         for rule in self.config.usage.load_time_filters:
-            column = rule.source
-            if column not in df.columns:
-                raise ValueError(f"Filter source column '{column}' not found in data.")
-
-            if rule.action == "keep_top":
-                column_rule = FilterRule(column, "topk", MAXIMUM_NUM_COHORTS)
-
-            elif rule.action in {"include", "exclude"}:
-                subrule = FilterRule.all()
-
-                if rule.values:
-                    subrule = FilterRule.isin(column, rule.values)
-
-                elif rule.range:
-                    try:
-                        if rule.range.min is not None or rule.range.max is not None:
-                            if rule.range.min is not None:
-                                subrule = FilterRule.geq(column, rule.range.min)
-                                if rule.range.max is not None:
-                                    subrule &= FilterRule.leq(column, rule.range.max)
-                            else:
-                                subrule = FilterRule.leq(column, rule.range.max)
-                    except (TypeError, ValueError) as e:
-                        bounds_str = ", ".join(
-                            f"{label}={val}"
-                            for label, val in [("min", rule.range.min), ("max", rule.range.max)]
-                            if val is not None
-                        )
-                        raise ValueError(
-                            f"Range filter on column '{column}' failed. Ensure values are comparable to {bounds_str}."
-                        ) from e
-
-                column_rule = subrule if rule.action == "include" else ~subrule
-
-            else:
-                raise ValueError(f"Unsupported filter action: {rule.action}")
-
-            combined_rule &= column_rule
-
-        return df[combined_rule.mask(df)]
+            if rule.source not in df.columns:
+                raise ValueError(f"Filter source column '{rule.source}' not found in data.")
+        return FilterRule.from_config_list(self.config.usage.load_time_filters).filter(df)
 
     def create_cohorts(self) -> None:
         """Creates data columns for each cohort defined in configuration."""

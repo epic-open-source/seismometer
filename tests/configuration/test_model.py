@@ -367,7 +367,7 @@ class TestDataUsage:
         assert filter_range.max == 100
 
 
-class TestLoadTimeFilter:
+class TestFilterConfig:
     @pytest.mark.parametrize(
         "action, values, range_, should_raise, expected_warning",
         [
@@ -396,10 +396,10 @@ class TestLoadTimeFilter:
         kwargs = dict(source="some_col", action=action, values=values, range=range_)
         if should_raise:
             with pytest.raises(ValueError):
-                undertest.LoadTimeFilter(**kwargs)
+                undertest.FilterConfig(**kwargs)
         else:
             with caplog.at_level("WARNING", logger="seismometer"):
-                f = undertest.LoadTimeFilter(**kwargs)
+                f = undertest.FilterConfig(**kwargs)
                 assert f.action == action
                 assert f.source == "some_col"
             if expected_warning:

@@ -220,8 +220,8 @@ class FilterRange(BaseModel):
     """The maximum allowed value (inclusive)."""
 
 
-class LoadTimeFilter(BaseModel):
-    """A filter rule applied at data ingestion time to restrict the Seismogram data."""
+class FilterConfig(BaseModel):
+    """A configurable rule for filtering data based on values in a specific column."""
 
     source: str
     """The name of the column to filter."""
@@ -244,7 +244,7 @@ class LoadTimeFilter(BaseModel):
     """
 
     @model_validator(mode="after")
-    def validate_filter_config(self) -> "LoadTimeFilter":
+    def validate_filter_config(self) -> "FilterConfig":
         """
         Validates the consistency of filter fields after model is initialized.
         Ensures appropriate combinations of action, values, and range.
@@ -459,7 +459,7 @@ class DataUsage(BaseModel):
     """A list of ordered cohort source groups defining hierarchical dependencies."""
     metrics: list[Metric] = []
     """A list of all metrics to load."""
-    load_time_filters: list[LoadTimeFilter] = []
+    load_time_filters: list[FilterConfig] = []
     """A list of filters to apply at load time to reduce the working dataset."""
     censor_min_count: int = Field(10, ge=10)
     """ The minimum size of a cohort to be considered displayable. """

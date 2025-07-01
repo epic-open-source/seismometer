@@ -29,6 +29,6 @@ Configuration DataModel
    EventDictionary
    EventTableMap
    FilterRange
-   LoadTimeFilter
+   FilterConfig
    OtherInfo
    PredictionDictionary

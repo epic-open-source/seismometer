@@ -10,13 +10,22 @@ from seismometer.configuration.model import (
     Cohort,
     CohortHierarchy,
     Event,
+    FilterConfig,
     FilterRange,
-    LoadTimeFilter,
     Metric,
     MetricDetails,
 )
+from seismometer.data.filter import FilterRule
 from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import MAXIMUM_NUM_COHORTS, Seismogram
+
+
+@pytest.fixture(autouse=True, scope="class")
+def disable_min_rows_for_filterrule():
+    original = FilterRule.MIN_ROWS
+    FilterRule.MIN_ROWS = 0
+    yield
+    FilterRule.MIN_ROWS = original
 
 
 def get_test_config(tmp_path):
@@ -558,7 +567,8 @@ class TestSeismogramLoadData:
         assert "No thresholds set in metadata.json" in caplog.text
 
 
-class TestSeismogramLoadTimeFilters:
+@pytest.mark.usefixtures("disable_min_rows_for_filterrule")
+class TestSeismogramFilterConfigs:
     def test_keep_top_filters_excessive_categories(self, fake_seismo):
         sg = Seismogram()
         # Create MAX + 1 categories with descending frequencies
@@ -567,7 +577,7 @@ class TestSeismogramLoadTimeFilters:
             values += [f"cat_{i}"] * (MAXIMUM_NUM_COHORTS + 1 - i)
         df = pd.DataFrame({"col": values})
 
-        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action="keep_top")]
+        sg.config.usage.load_time_filters = [FilterConfig(source="col", action="keep_top")]
         result = sg._apply_load_time_filters(df)
 
         top_values = df["col"].value_counts().nlargest(MAXIMUM_NUM_COHORTS).index
@@ -579,7 +589,7 @@ class TestSeismogramLoadTimeFilters:
         assert len(set(values)) < MAXIMUM_NUM_COHORTS
         df = pd.DataFrame({"col": values})
 
-        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action="keep_top")]
+        sg.config.usage.load_time_filters = [FilterConfig(source="col", action="keep_top")]
         result = sg._apply_load_time_filters(df)
 
         # Expect all original rows to remain
@@ -599,7 +609,7 @@ class TestSeismogramLoadTimeFilters:
         sg = Seismogram()
         col_data = ["A", "B", "C", "D"] if values else [1, 5, 10, 20]
         df = pd.DataFrame({"col": col_data})
-        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action=action, values=values, range=range_)]
+        sg.config.usage.load_time_filters = [FilterConfig(source="col", action=action, values=values, range=range_)]
 
         result = sg._apply_load_time_filters(df)
         assert sorted(result["col"].tolist()) == sorted(expected)
@@ -617,7 +627,7 @@ class TestSeismogramLoadTimeFilters:
     ):
         sg = Seismogram()
         df = pd.DataFrame({"col": [1, 2, 3]})
-        sg.config.usage.load_time_filters = [LoadTimeFilter(source="col", action=action, values=values, range=range_)]
+        sg.config.usage.load_time_filters = [FilterConfig(source="col", action=action, values=values, range=range_)]
 
         with caplog.at_level("WARNING", logger="seismometer"):
             result = sg._apply_load_time_filters(df)
@@ -629,7 +639,7 @@ class TestSeismogramLoadTimeFilters:
         sg = Seismogram()
         df = pd.DataFrame({"col": [1, 2, 3]})
 
-        sg.config.usage.load_time_filters = [LoadTimeFilter(source="missing_col", action="include", values=[1])]
+        sg.config.usage.load_time_filters = [FilterConfig(source="missing_col", action="include", values=[1])]
 
         with pytest.raises(ValueError, match="missing_col"):
             sg._apply_load_time_filters(df)
@@ -639,7 +649,7 @@ class TestSeismogramLoadTimeFilters:
         df = pd.DataFrame({"col": ["a", "b", "c"]})  # strings
 
         sg.config.usage.load_time_filters = [
-            LoadTimeFilter(source="col", action="include", range=FilterRange(min=1, max=10))
+            FilterConfig(source="col", action="include", range=FilterRange(min=1, max=10))
         ]
 
         with pytest.raises(ValueError, match="Values in 'col' must be comparable to '1.0'."):
