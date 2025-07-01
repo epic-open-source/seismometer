@@ -114,7 +114,7 @@ class Seismogram(object, metaclass=Singleton):
         kwargs : _type_
             _description_
         """
-        self._call_history[fn_name] = {"args": args, "kwargs": kwargs, "extra_info": extra_info}
+        self._call_history[fn_name] = {"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)}
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -513,7 +513,7 @@ def store_call_parameters(
         @functools.wraps(fn)
         def new_fn(*args, **kwargs):
             call_name = name if name is not None else fn.__name__
-            _store_call_parameters(call_name, args, kwargs, extra_params)
+            _store_call_parameters(call_name, list(args), kwargs, extra_params)
             return fn(*args, **kwargs)
 
         return new_fn

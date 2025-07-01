@@ -11,7 +11,9 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from seismometer.core.decorators import export
 from seismometer.core.io import slugify
+from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
 
@@ -393,3 +395,35 @@ if not TELEMETRY:
 
 # For debug purposes: dump to stdout, and also to exporter path
 export_manager = ExportManager(file_output_path=sys.stdout, export_port=4317)
+
+
+def ready_for_serialization(obj):
+    """
+    Recursively convert:
+      - Python objects (with __dict__) to dicts,
+      - tuples to lists,
+      - all contents deeply.
+
+    This helps us because some of the plot functions take internal seismometer
+    objects as arguments, and what we really care about are the attributes
+    within said objects.
+    """
+    if isinstance(obj, (str, int, float, type(None), bool)):
+        return obj
+    elif isinstance(obj, dict):
+        return {k: ready_for_serialization(v) for k, v in obj.items()}
+    # Also turn tuples into lists because YAML doesn't love the latter.
+    elif isinstance(obj, (list, tuple)):
+        return [ready_for_serialization(v) for v in obj]
+    elif hasattr(obj, "__dict__"):
+        return ready_for_serialization(vars(obj))
+    else:
+        return str(obj)
+
+
+@export
+def export_config():
+    with open("automation.yml", "w") as automation_file:
+        sg = Seismogram()
+        call_history = ready_for_serialization(sg._call_history)
+        yaml.dump(call_history, automation_file)
