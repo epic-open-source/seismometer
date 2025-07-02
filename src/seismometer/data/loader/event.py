@@ -96,7 +96,7 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
             copy=False,
         )
     except BaseException:
-        logger.debug(f"No events found at {config.event_path}")
+        logger.warning(f"No events found at {config.event_path}")
         events = pd.DataFrame(columns=config.entity_keys + ["Type", "Time", "Value"])
 
     return events
@@ -279,7 +279,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
             if col is not None and defined_types[col] == "object":
                 events[col] = events[col].astype(str)
     except BaseException:
-        logger.debug(f"No events found at {config.event_path}")
+        logger.warning(f"No events found at {config.event_path}")
         events = pd.DataFrame(columns=config.entity_keys + ["Type", "Time", "Value"])
 
     return events
