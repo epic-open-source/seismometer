@@ -417,8 +417,8 @@ class TestCohortHierarchy:
     @pytest.mark.parametrize(
         "column_order,expected_error",
         [
-            (["only_one"], "must have at least 2 fields"),
-            (["a", "b", "a"], "duplicate fields"),
+            (["only_one"], "'Invalid' is invalid: 'column_order' must contain at least two distinct column names."),
+            (["a", "b", "a"], "'Invalid' is invalid: 'column_order' contains duplicate columns."),
         ],
     )
     def test_invalid_hierarchy_raises(self, column_order, expected_error):
