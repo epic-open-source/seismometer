@@ -599,11 +599,32 @@ class TestSeismogramFilterConfigs:
         "action, values, range_, expected",
         [
             ("include", ["A", "C"], None, ["A", "C"]),
-            ("include", None, FilterRange(min=5, max=10), [5, 10]),
+            ("include", None, FilterRange(min=5, max=15), [5, 10]),  # 5 included, 15 excluded
+            ("include", None, FilterRange(min=5, max=10), [5]),  # 10 excluded
+            ("include", None, FilterRange(min=10, max=20), [10]),  # only 10 is in range
+            ("include", None, FilterRange(min=5, max=None), [5, 10, 20]),  # unbounded max
+            ("include", None, FilterRange(min=None, max=10), [1, 5]),  # 10 excluded
             ("exclude", ["B", "D"], None, ["A", "C"]),
-            ("exclude", None, FilterRange(min=5, max=10), [1, 20]),
+            ("exclude", None, FilterRange(min=5, max=15), [1, 20]),  # exclude 5, 10
+            ("exclude", None, FilterRange(min=5, max=10), [1, 10, 20]),  # only 5 excluded
+            ("exclude", None, FilterRange(min=10, max=20), [1, 5, 20]),  # exclude 10
+            ("exclude", None, FilterRange(min=5, max=None), [1]),  # exclude 5, 10, 20
+            ("exclude", None, FilterRange(min=None, max=10), [10, 20]),  # exclude 1, 5
         ],
-        ids=["include-values", "include-range", "exclude-values", "exclude-range"],
+        ids=[
+            "include-values",
+            "include-range-5-15",
+            "include-range-5-10",
+            "include-range-10-20",
+            "include-min-only",
+            "include-max-only",
+            "exclude-values",
+            "exclude-range-5-15",
+            "exclude-range-5-10",
+            "exclude-range-10-20",
+            "exclude-min-only",
+            "exclude-max-only",
+        ],
     )
     def test_include_exclude_with_values_or_range(self, action, values, range_, expected, fake_seismo):
         sg = Seismogram()

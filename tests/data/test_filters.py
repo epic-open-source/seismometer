@@ -127,6 +127,27 @@ class TestFilterRulesFiltering:
         result = rule.filter(df)
         assert not any(val in result["Cat"].unique() for val in excluded_values)
 
+    @pytest.mark.parametrize(
+        "data, k, expected_topk, expected_nottopk",
+        [
+            (["A", "A", "B", "B", "C", "D"], 1, {"A"}, {"B", "C", "D"}),
+            (["A", "A", "B", "B", "C", "D"], 2, {"A", "B"}, {"C", "D"}),
+            (["B", "B", "A", "A", "C", "D"], 2, {"A", "B"}, {"C", "D"}),  # ties, test alphabetical tie-breaking
+            (["C", "B", "A", "A", "B", "C"], 2, {"A", "B"}, {"C"}),  # same freq, resolve by label
+            (["X"] * 3 + ["Y"] * 3 + ["Z"] * 3 + ["W"], 2, {"X", "Y"}, {"Z", "W"}),
+            (["X"] * 3 + ["Y"] * 3 + ["Z"] * 3 + ["W"], 3, {"X", "Y", "Z"}, {"W"}),
+        ],
+    )
+    def test_filter_topk_and_nottopk_tie_handling(self, data, k, expected_topk, expected_nottopk):
+        df = pd.DataFrame({"cat": data})
+        FilterRule.MIN_ROWS = None
+
+        topk_result = FilterRule("cat", "topk", k).filter(df)
+        nottopk_result = FilterRule("cat", "nottopk", k).filter(df)
+
+        assert set(topk_result["cat"].unique()) == expected_topk
+        assert set(nottopk_result["cat"].unique()) == expected_nottopk
+
 
 class TestFilterRuleConstructors:
     @pytest.mark.parametrize(
