@@ -24,8 +24,8 @@ class FilterRule(object):
         "notna": lambda x, y, z: ~x[y].isna(),
         "isin": lambda x, y, z: x[y].isin(z),
         "notin": lambda x, y, z: ~x[y].isin(z),
-        "topk": lambda x, y, z: x[y].isin(x[y].value_counts().nlargest(z).index),
-        "nottopk": lambda x, y, z: ~x[y].isin(x[y].value_counts().nlargest(z).index),
+        "topk": lambda x, y, z: x[y].isin(x[y].value_counts(ascending=False).sort_index().nlargest(z).index),
+        "nottopk": lambda x, y, z: ~x[y].isin(x[y].value_counts(ascending=False).sort_index().nlargest(z).index),
         "==": lambda x, y, z: x[y] == z,
         "!=": lambda x, y, z: x[y] != z,
         "<=": lambda x, y, z: x[y] <= z,
@@ -431,9 +431,9 @@ class FilterRule(object):
                     if rule.range.min is not None:
                         subrule = cls.geq(column, rule.range.min)
                         if rule.range.max is not None:
-                            subrule &= cls.leq(column, rule.range.max)
+                            subrule &= cls.lt(column, rule.range.max)
                     else:
-                        subrule = cls.leq(column, rule.range.max)
+                        subrule = cls.lt(column, rule.range.max)
 
             return subrule if rule.action == "include" else ~subrule
         else:

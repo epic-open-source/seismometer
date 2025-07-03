@@ -214,10 +214,10 @@ class FilterRange(BaseModel):
     """A numeric range filter specifying minimum and/or maximum values."""
 
     min: Optional[float] = None
-    """The minimum allowed value (inclusive)."""
+    """Inclusive lower bound for allowed values."""
 
     max: Optional[float] = None
-    """The maximum allowed value (inclusive)."""
+    """Exclusive upper bound for allowed values."""
 
 
 class FilterConfig(BaseModel):
