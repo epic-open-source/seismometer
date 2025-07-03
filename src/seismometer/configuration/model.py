@@ -276,9 +276,15 @@ class CohortHierarchy(BaseModel):
     @model_validator(mode="after")
     def validate_hierarchy_structure(self) -> "CohortHierarchy":
         if len(self.column_order) < 2:
-            raise ValueError(f"Cohort hierarchy '{self.name}' must have at least 2 fields.")
+            raise ValueError(
+                f"Cohort hierarchy '{self.name}' is invalid: 'column_order' must contain at least two distinct "
+                f"column names. Example: column_order: ['location', 'department']"
+            )
         if len(set(self.column_order)) < len(self.column_order):
-            raise ValueError(f"Cohort hierarchy '{self.name}' has duplicate fields.")
+            raise ValueError(
+                f"Cohort hierarchy '{self.name}' is invalid: 'column_order' contains duplicate columns. "
+                f"Ensure all listed columns are unique."
+            )
         return self
 
 
