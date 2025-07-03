@@ -432,3 +432,144 @@ class TestMultiselectDropdownWidget:
         widget.disabled = False
         assert not widget.disabled
         assert not widget.dropdown.disabled
+
+
+@pytest.mark.parametrize("show_all", [True, False])
+class TestFlatSelectionWidget:
+    def test_init(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            values={"a": ["x"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.value == {"a": ("x",), "b": ("z",)}
+        assert isinstance(
+            widget.widgets["a"], undertest.SelectionListWidget if show_all else undertest.MultiselectDropdownWidget
+        )
+
+    def test_init_no_value(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.value == {}
+        assert widget.widgets["a"].value == ()
+        assert widget.widgets["b"].value == ()
+
+    def test_value_propagation(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        widget.value = {"a": ("x",), "b": ("z",)}
+        assert widget.widgets["a"].value == ("x",)
+        assert widget.widgets["b"].value == ("z",)
+
+    def test_get_selection_text_empty(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == ""
+
+    def test_get_selection_text_populated(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            values={"a": ["x"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == "a: x\nb: z"
+
+    def test_disabled(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert not widget.disabled
+        widget.disabled = True
+        assert widget.widgets["a"].disabled
+        assert widget.widgets["b"].disabled
+        widget.disabled = False
+        assert not widget.widgets["a"].disabled
+        assert not widget.widgets["b"].disabled
+
+
+@pytest.mark.parametrize("show_all", [True, False])
+class TestHierarchicalSelectionWidget:
+    def test_init(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y"), ("x", "z")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y", "z"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            values={"a": ["x"], "b": ["y"]},
+            show_all=show_all,
+        )
+        assert widget.value == {"a": ("x",), "b": ("y",)}
+
+    def test_init_no_value(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            show_all=show_all,
+        )
+        assert widget.value == {}
+
+    def test_value_propagation(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            show_all=show_all,
+        )
+        widget.widgets["a"].value = ("x",)
+        widget.widgets["b"].value = ("y",)
+        assert widget.value["a"] == ("x",)
+        assert widget.value["b"] == ("y",)
+
+    def test_get_selection_text_empty(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == ""
+
+    def test_get_selection_text_populated(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            values={"a": ["x"], "b": ["y"]},
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == "a: x\nb: y"
+
+    def test_disabled(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            values={"a": ["x"]},
+            show_all=show_all,
+        )
+        assert not widget.disabled
+        widget.disabled = True
+        assert widget.widgets["a"].disabled
+        assert widget.widgets["b"].disabled
+        widget.disabled = False
+        assert not widget.widgets["a"].disabled
+        assert not widget.widgets["b"].disabled
