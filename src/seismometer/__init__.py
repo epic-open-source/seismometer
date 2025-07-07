@@ -69,3 +69,5 @@ def run_startup(
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
     otel.OTEL_INFO = otel.read_otel_info(config.config.usage_config)
+
+    sg.load_automation_config("metric-automation.yml")

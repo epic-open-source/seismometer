@@ -13,6 +13,7 @@ import yaml
 
 from seismometer.core.decorators import export
 from seismometer.core.io import slugify
+from seismometer.data.performance import BinaryClassifierMetricGenerator
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
@@ -423,7 +424,144 @@ def ready_for_serialization(obj):
 
 @export
 def export_config():
-    with open("automation.yml", "w") as automation_file:
+    with open("metric-automation.yml", "w") as automation_file:
         sg = Seismogram()
         call_history = ready_for_serialization(sg._call_history)
         yaml.dump(call_history, automation_file)
+
+
+# Writing a full list here for security reasons.
+allowed_export_names = {
+    "feature_alerts",
+    "feature_summary",
+    "model_evaluation",
+    "plot_cohort_evaluation",
+    "plot_cohort_hist",
+    "plot_leadtime_enc",
+    "plot_binary_classifier_metrics",
+    "plot_trend_intervention_outcome",
+    "show_cohort_summaries",
+    "target_feature_summary",
+}
+
+
+def do_auto_export(function_name, fn_settings):
+    sg = Seismogram()
+    if "extra_params" in fn_settings:
+        sg.set_sg_settings(fn_settings["extra_params"])
+    args = fn_settings["args"]
+    kwargs = fn_settings["kwargs"]
+    fn = allowed_export_names[function_name]
+    fn(*args, **kwargs)
+
+
+def extract_arguments(argument_names, run_settings):
+    return (
+        {arg: run_settings["options"][arg] for arg in argument_names if arg in run_settings["options"]}
+        if "options" in run_settings
+        else {}
+    )
+
+
+def do_one_manual_export(function_name, run_settings):
+    from seismometer.api.plots import (  # plot_trend_intervention_outcome,
+        model_evaluation,
+        plot_binary_classifier_metrics,
+        plot_cohort_evaluation,
+        plot_cohort_hist,
+        plot_leadtime_enc,
+    )
+    from seismometer.api.reports import feature_alerts, feature_summary  # target_feature_summary
+
+    # from seismometer.api.templates import show_cohort_summaries
+
+    match function_name:
+        # These first three are super repetitive, fix them
+        case "feature_alerts":
+            # The only possibility here is the exclude_cols option so let's look for that.
+            kwargs = extract_arguments(["exclude_cols"], run_settings)
+            feature_alerts(**kwargs)
+        case "feature_summary":
+            kwargs = extract_arguments(["exclude_cols", "inline"], run_settings)
+            feature_summary(**kwargs)
+        case "model_evaluation":
+            kwargs = extract_arguments(["per_context_id"], run_settings)
+            model_evaluation(**kwargs)
+        case "plot_cohort_evaluation":
+            kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
+            # Now we loop over cohort columns and subgroups specified.
+            for cohort in run_settings["cohorts"]:
+                subgroups = run_settings["cohorts"][cohort]
+                plot_cohort_evaluation(cohort_col=cohort, subgroups=subgroups, **kwargs)
+        case "plot_cohort_hist":
+            sg = Seismogram()
+            sg_setting_names = ["target", "output", "censor_threshold"]
+            kwargs = extract_arguments(sg_setting_names, run_settings)
+            # The settings relevant are, in a normal run, stored in Seismogram.
+            # So we need to extract them specially.
+            sg.set_sg_settings(kwargs)
+            for cohort in run_settings["cohorts"]:
+                sg.selected_cohort = [cohort, run_settings["cohorts"][cohort]]
+                plot_cohort_hist()
+        case "plot_leadtime_enc":
+            sg_setting_names = [
+                "censor_threshold",
+                "output",
+                "predict_time",
+                "target",
+                "time_zero",
+                "target_event",
+                "thresholds",
+            ]
+            kwargs = extract_arguments(sg_setting_names, run_settings)
+            sg.set_sg_settings(kwargs)
+            for cohort in run_settings["cohorts"]:
+                sg.selected_cohort = [cohort, run_settings["cohorts"][cohort]]
+                plot_leadtime_enc(**extract_arguments(["score", "ref_time", "target_event"], run_settings))
+        case "plot_binary_classifier_metrics":
+            kwargs = extract_arguments(
+                ["metrics", "target", "score_column", "per_context", "table_only", run_settings]
+            )
+            # We treat cohorts differently in automation, so we'll have to build it up specially here.
+            kwargs["cohort_dict"] = run_settings["cohorts"]
+            # This also takes a binary classifier metric generator as input, so we'll need to create one too.
+            try:
+                rho = run_settings["options"]["rho"]
+            except KeyError:
+                rho = None
+            metric_generator = BinaryClassifierMetricGenerator(rho)
+            plot_binary_classifier_metrics(metric_generator=metric_generator, **kwargs)
+        case "plot_trend_intervention_outcome":
+            pass  # Possibly add metric logging for this in the first place
+        case "show_cohort_summaries":
+            pass
+
+
+def do_manual_export(function_name, fn_settings):
+    if isinstance(fn_settings, dict):
+        do_one_manual_export(function_name, fn_settings)
+    elif isinstance(fn_settings, list):
+        for setting in fn_settings:
+            do_one_manual_export(function_name, setting)
+
+
+@export
+def do_metric_exports() -> None:
+    """This function does automated metric exporting for
+    everything specified in Seismogram.
+    """
+    sg = Seismogram()
+    current_settings = sg.get_sg_settings()
+    for function_name in sg._automation_info.keys():
+        fn_settings = sg._automation_info[function_name]
+        if function_name not in allowed_export_names:
+            logger.warning(f"Unrecognized auto-export function name {function_name}. Continuing ...")
+            continue
+        # See if this is auto-generated or if it was hand-written.
+        # Different processing will be needed in each case.
+        if fn_settings is not None and "args" in fn_settings:
+            do_auto_export(function_name, fn_settings)
+        else:
+            do_manual_export(function_name, fn_settings)
+    # Restore state afterwards.
+    sg.set_sg_settings(current_settings)

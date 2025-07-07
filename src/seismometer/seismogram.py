@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 import pandas as pd
+import yaml
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
 from seismometer.configuration.model import Metric
@@ -476,6 +477,20 @@ class Seismogram(object, metaclass=Singleton):
             "available_cohort_groups": sg.available_cohort_groups,
             "config.entity_id": sg.config.entity_id,
         }
+
+    def set_sg_settings(self, settings: dict[str, Any]) -> None:
+        for key in settings.keys():
+            try:
+                self.__setattr__(key, settings[key])
+            except AttributeError:
+                continue
+
+    def load_automation_config(self, automation_file_path: str) -> None:
+        try:
+            with open(automation_file_path, "r") as automation_file:
+                self._automation_info = yaml.safe_load(automation_file)
+        except FileNotFoundError:
+            self._automation_info = {}
 
     # endregion
 
