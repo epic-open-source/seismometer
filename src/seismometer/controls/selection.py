@@ -6,7 +6,20 @@ from ipywidgets import HTML, Box, Button, Dropdown, Label, Layout, Stack, Toggle
 
 from seismometer.configuration.model import CohortHierarchy
 
-from .styles import DROPDOWN_LAYOUT, WIDE_BUTTON_LAYOUT, WIDE_LABEL_STYLE, grid_box_layout, html_title
+from .styles import (
+    DROPDOWN_LAYOUT,
+    INLINE_LABEL_LAYOUT,
+    INLINE_SYMBOL_LAYOUT,
+    TOGGLE_BUTTON_LAYOUT,
+    WIDE_BUTTON_LAYOUT,
+    WIDE_LABEL_STYLE,
+    WIDE_WIDGET_LAYOUT,
+    grid_box_layout,
+    html_title,
+    row_wrap_compact_layout,
+    vbox_section_layout,
+    vbox_tight_layout,
+)
 
 
 class SelectionListWidget(ValueWidget, VBox):
@@ -42,13 +55,13 @@ class SelectionListWidget(ValueWidget, VBox):
                 tooltip=str(option),
                 disabled=False,
                 button_style="",
-                layout=Layout(flex="1 0 auto"),
+                layout=TOGGLE_BUTTON_LAYOUT,
             )
             sub_toggle.observe(self._on_button_change, "value")
             self.button_from_option[option] = sub_toggle
             self.option_from_button[sub_toggle] = option
 
-        self.layout = Layout(width="max-content", min_width="var(--jp-widgets-inline-label-width)")
+        self.layout = WIDE_WIDGET_LAYOUT
         self.button_box = VBox(
             children=[button for button in self.button_from_option.values()],
             layout=Layout(max_height="calc(7* var(--jp-widgets-inline-height))", align_items="flex-start"),
@@ -104,7 +117,7 @@ class SelectionListWidget(ValueWidget, VBox):
                 tooltip=str(option),
                 disabled=self._disabled,
                 button_style="",
-                layout=Layout(flex="1 0 auto"),
+                layout=TOGGLE_BUTTON_LAYOUT,
             )
             sub_toggle.observe(self._on_button_change, "value")
             self.button_from_option[option] = sub_toggle
@@ -173,33 +186,23 @@ class HierarchicalSelectionWidget(VBox):
         self.value = {}
 
         # construct the layout with arrows
-        label = HTML(f"<b>{hierarchy.name}:</b>", layout=Layout(min_width="120px"))
+        label = HTML(f"<b>{hierarchy.name}:</b>", layout=INLINE_LABEL_LAYOUT)
         layout_items = []
         for i, key in enumerate(hierarchy.column_order):
             if key not in self.widgets:
                 continue
             layout_items.append(self.widgets[key])
             if i < len(hierarchy.column_order) - 1:
-                layout_items.append(HTML("→", layout=Layout(width="10px", align_self="flex-start")))
+                layout_items.append(HTML("→", layout=INLINE_SYMBOL_LAYOUT))
 
         hierarchy_row = Box(
             layout_items,
-            layout=Layout(
-                display="flex",
-                flex_flow="row wrap",
-                align_items="flex-start",
-                grid_gap="3px",
-            ),
+            layout=row_wrap_compact_layout(border),
         )
 
         layout_box = VBox(
             children=[label, hierarchy_row],
-            layout=Layout(
-                align_items="flex-start",
-                grid_gap="4px",
-                border="solid 1px var(--jp-border-color1)" if border else None,
-                padding="var(--jp-cell-padding)" if border else None,
-            ),
+            layout=vbox_tight_layout(border=border),
         )
 
         super().__init__([layout_box])
@@ -335,20 +338,13 @@ class FlatSelectionWidget(VBox):
         )
 
         # Optional label
-        self.label = HTML(f"<b>{title}:</b>", layout=Layout(min_width="120px")) if title else None
+        self.label = HTML(f"<b>{title}:</b>", layout=INLINE_LABEL_LAYOUT) if title else None
 
         # Compose final layout
         layout_items = [self.label, self.widgets_box] if self.label else [self.widgets_box]
         layout = VBox(
             layout_items,
-            layout=Layout(
-                display="flex",
-                flex_flow="row wrap",
-                align_items="flex-start",
-                grid_gap="3px",
-                border="solid 1px var(--jp-border-color1)" if border else None,
-                padding="var(--jp-cell-padding)" if border else None,
-            ),
+            layout=row_wrap_compact_layout(border),
         )
 
         self.children = [layout]
@@ -482,14 +478,7 @@ class MultiSelectionListWidget(ValueWidget, VBox):
             self.title_box,
             VBox(
                 children=widgets_list,
-                layout=Layout(
-                    display="flex",
-                    flex_flow="column",
-                    align_items="flex-start",
-                    grid_gap="12px",
-                    border="solid 1px var(--jp-border-color1)" if border else None,
-                    padding="var(--jp-cell-padding)" if border else None,
-                ),
+                layout=vbox_section_layout(border=border),
             ),
         ]
         self.update_title_section(self.title)
