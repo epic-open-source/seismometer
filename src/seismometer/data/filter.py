@@ -1,6 +1,71 @@
+from functools import partial
 from typing import Any, Optional, Union
 
 import pandas as pd
+
+
+def apply_column_comparison(data: pd.DataFrame, column: str, value: Any, op: str) -> pd.Series:
+    """
+    Applies a comparison operation on a DataFrame column with proper error handling.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The DataFrame to operate on.
+    column : str
+        Column name to compare.
+    value : Any
+        Value to compare the column against.
+    op : str
+        One of '<=', '>=', '<', '>'.
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask of comparison results.
+    """
+    try:
+        match op:
+            case "<=":
+                return data[column] <= value
+            case ">=":
+                return data[column] >= value
+            case "<":
+                return data[column] < value
+            case ">":
+                return data[column] > value
+            case _:
+                raise ValueError(f"Unsupported comparison operator: {op}")
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"Values in '{column}' must be comparable to '{value}'.") from e
+
+
+def apply_topk_filter(data: pd.DataFrame, column: str, k: int, op: str) -> pd.Series:
+    """
+    Applies a top-k or not-top-k filter on a column using value counts.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The DataFrame to filter.
+    column : str
+        Column name.
+    k : int
+        Number of top values to keep.
+    op : str
+        Either "topk" or "nottopk".
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask indicating which rows to keep.
+    """
+    top_values = data[column].value_counts(ascending=False).sort_index().nlargest(k).index
+    match op:
+        case "topk":
+            return data[column].isin(top_values)
+        case "nottopk":
+            return ~data[column].isin(top_values)
 
 
 class FilterRule(object):
@@ -24,14 +89,14 @@ class FilterRule(object):
         "notna": lambda x, y, z: ~x[y].isna(),
         "isin": lambda x, y, z: x[y].isin(z),
         "notin": lambda x, y, z: ~x[y].isin(z),
-        "topk": lambda x, y, z: x[y].isin(x[y].value_counts(ascending=False).sort_index().nlargest(z).index),
-        "nottopk": lambda x, y, z: ~x[y].isin(x[y].value_counts(ascending=False).sort_index().nlargest(z).index),
+        "topk": partial(apply_topk_filter, op="topk"),
+        "nottopk": partial(apply_topk_filter, op="nottopk"),
         "==": lambda x, y, z: x[y] == z,
         "!=": lambda x, y, z: x[y] != z,
-        "<=": lambda x, y, z: x[y] <= z,
-        ">=": lambda x, y, z: x[y] >= z,
-        "<": lambda x, y, z: x[y] < z,
-        ">": lambda x, y, z: x[y] > z,
+        "<=": partial(apply_column_comparison, op="<="),
+        ">=": partial(apply_column_comparison, op=">="),
+        "<": partial(apply_column_comparison, op="<"),
+        ">": partial(apply_column_comparison, op=">"),
         "or": lambda x, y, z: (y.mask(x)) | (z.mask(x)),
         "and": lambda x, y, z: (y.mask(x)) & (z.mask(x)),
     }
@@ -215,11 +280,6 @@ class FilterRule(object):
             Index masked to only the rows that match the FilterRule.
         """
         relation = FilterRule.method_router[self.relation]
-        if self.relation in ["<=", ">=", "<", ">"]:
-            try:
-                return relation(data, self.left, self.right)
-            except (TypeError, ValueError) as e:
-                raise ValueError(f"Values in '{self.left}' must be comparable to '{self.right}'.") from e
         return relation(data, self.left, self.right)
 
     def __or__(left, right) -> "FilterRule":
