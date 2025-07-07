@@ -424,6 +424,17 @@ def ready_for_serialization(obj):
 
 @export
 def export_config():
+    """Produce a configuration file specifying which metrics to export,
+    based on which functions have been run in the notebook.
+
+    To note: this only counts the most recent run of each function,
+    because this is what we might expect output to look like for a
+    given run (each type of cell is only run once, and we don't want to
+    store the old runs that have been overwritten as users figure out which
+    plots and metrics they want to see). It also does not accommodate
+    cells being deleted, because this would require some more in-depth
+    access to the Jupyter frontend.
+    """
     with open("metric-automation.yml", "w") as automation_file:
         sg = Seismogram()
         call_history = ready_for_serialization(sg._call_history)
@@ -445,7 +456,23 @@ allowed_export_names = {
 }
 
 
-def do_auto_export(function_name, fn_settings):
+def do_auto_export(function_name: str, fn_settings: dict):
+    """Run a (metric-generating) function with
+    predetermined settings. To be used when reading in
+    an auto-generated config file, as opposed to a
+    manually-written one which takes a bit more
+    preprocessing.
+
+    Parameters
+    ----------
+    function_name : str
+        The name of the function to export.
+    fn_settings : dict
+        What settings (see output config) to apply:
+        args, kwargs: function parameters
+        extra_params: the current settings of Seismogram,
+        saved at the time of export.
+    """
     sg = Seismogram()
     if "extra_params" in fn_settings:
         sg.set_sg_settings(fn_settings["extra_params"])
@@ -455,7 +482,26 @@ def do_auto_export(function_name, fn_settings):
     fn(*args, **kwargs)
 
 
-def extract_arguments(argument_names, run_settings):
+def extract_arguments(argument_names: list[str], run_settings: dict) -> dict:
+    """The YAML of a handwritten config file looks like this:
+    function_name:
+        cohorts: # ...
+        options:
+            # here's where we store the "extra information" per function call
+    So we get, out of options, the call parameters.
+
+    Parameters
+    ----------
+    argument_names : list[str]
+        Which arguments / other info (like Seismogram settings) we want to find.
+    run_settings : dict
+        The segment of the YAML we want to read.
+
+    Returns
+    -------
+    dict
+        The options and values we found in options.
+    """
     return (
         {arg: run_settings["options"][arg] for arg in argument_names if arg in run_settings["options"]}
         if "options" in run_settings
@@ -463,7 +509,22 @@ def extract_arguments(argument_names, run_settings):
     )
 
 
-def do_one_manual_export(function_name, run_settings):
+def do_one_manual_export(function_name: str, run_settings):
+    """Perform an export from handwritten config.
+
+    The process is roughly:
+    - extract function call parameters
+    - extract Seismogram info (which is set prior to function call)
+    - extra cohort info (for looping purposes)
+
+    Parameters
+    ----------
+    function_name : str
+        The name of the plot function we will be calling.
+    run_settings : dict
+        The appropriate section of YAML.
+    """
+
     from seismometer.api.plots import (  # plot_trend_intervention_outcome,
         model_evaluation,
         plot_binary_classifier_metrics,
@@ -537,7 +598,18 @@ def do_one_manual_export(function_name, run_settings):
             pass
 
 
-def do_manual_export(function_name, fn_settings):
+def do_manual_export(function_name: str, fn_settings: list | dict):
+    """Because a handwritten config can have multiple
+    sets of parameters for one function, here we differentiate
+    them and provide a uniform interface.
+
+    Parameters
+    ----------
+    function_name : str
+        The name of the function
+    fn_settings : list | dict
+        Either the set of parameters, or a list of such sets.
+    """
     if isinstance(fn_settings, dict):
         do_one_manual_export(function_name, fn_settings)
     elif isinstance(fn_settings, list):

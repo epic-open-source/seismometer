@@ -461,6 +461,19 @@ class Seismogram(object, metaclass=Singleton):
 
     @staticmethod
     def get_sg_settings(*_, **__) -> dict:
+        """A lot of plot functions use information from Seismogram, as opposed to function
+        parameters, to do plotting. So, if we are to automate metric exporting from a running
+        notebook, we need to store both the parameters and information about Seismogram.
+
+        We should not serialize the entire thing, because while some column selections and
+        whatnot are lightweight and change frequently, an immense dataframe of all predictions
+        is both too large for memory and also static, so it will be reloaded in just the same.
+
+        Returns
+        -------
+        dict
+            The relevant Seismogram parameters.
+        """
         sg = Seismogram()
         return {
             "target": sg.target,
@@ -479,6 +492,15 @@ class Seismogram(object, metaclass=Singleton):
         }
 
     def set_sg_settings(self, settings: dict[str, Any]) -> None:
+        """Set Seismogram settings based on a dictionary of parameters.
+        Ignore parameters which can't be set with AttributeError
+        (such as @property fields).
+
+        Parameters
+        ----------
+        settings : dict[str, Any]
+            The stored Seismogram settings.
+        """
         for key in settings.keys():
             try:
                 self.__setattr__(key, settings[key])
@@ -486,6 +508,13 @@ class Seismogram(object, metaclass=Singleton):
                 continue
 
     def load_automation_config(self, automation_file_path: str) -> None:
+        """Load in a config from YAML.
+
+        Parameters
+        ----------
+        automation_file_path : str
+            Where the automation file lives (metric-automation.yml)
+        """
         try:
             with open(automation_file_path, "r") as automation_file:
                 self._automation_info = yaml.safe_load(automation_file)
