@@ -44,9 +44,9 @@ docstring_signature = False
 autodoc_pydantic_model_erdantic_figure = True
 autodoc_typehints = "description"
 autodoc_type_aliases = {
-    "ConfigFrameHook": "seismometer.data.loader.ConfigFrameHook",
-    "ConfigOnlyHook": "seismometer.data.loader.ConfigFrameHook",
-    "MergeFramesHook": "seismometer.data.loader.MergeFramesHook",
+    "ConfigFrameHook": "seismometer.data.loader.pipeline.ConfigFrameHook",
+    "ConfigOnlyHook": "seismometer.data.loader.pipeline.ConfigFrameHook",
+    "MergeFramesHook": "seismometer.data.loader.pipeline.MergeFramesHook",
 }
 
 # -- Options for HTML output -------------------------------------------------
