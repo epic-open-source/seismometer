@@ -73,7 +73,7 @@ def read_otel_info(file_path: str) -> dict:
     except FileNotFoundError:
         raise Exception("Could not find usage config file for metric setup!")
     except (KeyError, TypeError):
-        logger.warning("No OTel config found. Will be defaulting ...")
+        logger.warning(f"No OTel config found in {file_path}. Will be defaulting ...")
         return {}
 
 
@@ -368,6 +368,29 @@ class OpenTelemetryRecorder:
                     self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
                 else:
                     self.populate_metrics(attributes=attributes, metrics=metrics)
+
+    def log_by_column(self, df: pd.DataFrame, col_name: str, cohorts: dict, base_attributes: dict):
+        """Log with a particular column as the index, only if each metric is set to log_all.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe the data resides in.
+        col_name : str
+            Which column we want the index to be.
+        cohorts : dict
+            Which cohorts we want to extract data from when it's time.
+        base_attributes : dict
+            The attributes we want to associate to all of the logs from this.
+        """
+        for metric in df.columns:
+
+            def maker(frame):
+                return frame.set_index(col_name)[[metric]].to_dict()
+
+            log_all = get_metric_config(metric)["log_all"]
+            if log_all:
+                self.log_by_cohort(base_attributes=base_attributes, dataframe=df, cohorts=cohorts, metric_maker=maker)
 
 
 # If we don't have telemetry, we make everything into a no-op.
