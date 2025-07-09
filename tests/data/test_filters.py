@@ -203,6 +203,28 @@ class TestFilterRuleConstructors:
         with pytest.raises(ValueError):
             FilterRule.between("Col")
 
+    @pytest.mark.parametrize(
+        "count, class_default, expected_right, expected_empty",
+        [
+            (3, None, 3, False),  # Explicit count
+            (None, 2, 2, False),  # No count → fallback to class default
+        ],
+    )
+    def test_from_filter_config_topk_behavior(self, monkeypatch, count, class_default, expected_right, expected_empty):
+        from seismometer.configuration.model import FilterConfig
+
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "B", "C", "D", "E", "C", "D", "E"]})
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        monkeypatch.setattr(FilterRule, "MAXIMUM_NUM_COHORTS", class_default)
+        config = FilterConfig(source="Cat", action="keep_top", count=count)
+        rule = FilterRule.from_filter_config(config)
+
+        assert rule.relation == "topk"
+        assert rule.right == expected_right
+
+        result = rule.filter(df)
+        assert result.empty is expected_empty
+
 
 class TestFilterRuleCombinationLogic:
     @pytest.mark.parametrize(

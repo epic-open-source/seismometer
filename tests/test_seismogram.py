@@ -185,7 +185,7 @@ class TestSeismogramConfigRetrievalMethods:
             ("event_aggregation_window_hours", ["event2"], 2),
         ],
     )
-    def test_methods_get_value_from_config(self, method_name, method_args, expected, fake_seismo, tmp_path):
+    def test_methods_get_value_from_filter_config(self, method_name, method_args, expected, fake_seismo, tmp_path):
         # Arrange
         sg = Seismogram()
         sg.dataframe = get_test_data()
@@ -203,7 +203,7 @@ class TestSeismogramConfigRetrievalMethods:
             ("event_aggregation_window_hours", ["not_an_event"], ValueError),
         ],
     )
-    def test_raises_exception_when_missing_from_config(
+    def test_raises_exception_when_missing_from_filter_config(
         self, method_name, method_args, exception_type, fake_seismo, tmp_path
     ):
         # Arrange

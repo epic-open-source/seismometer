@@ -369,31 +369,39 @@ class TestDataUsage:
 
 class TestFilterConfig:
     @pytest.mark.parametrize(
-        "action, values, range_, should_raise, expected_warning",
+        "action, values, range_, count, should_raise, expected_warning",
         [
             # Valid: keep_top with nothing
-            ("keep_top", None, None, False, None),
+            ("keep_top", None, None, None, False, None),
             # Valid: include with values
-            ("include", ["A", "B"], None, False, None),
+            ("include", ["A", "B"], None, None, False, None),
             # Valid: exclude with range
-            ("exclude", None, undertest.FilterRange(min=0, max=10), False, None),
+            ("exclude", None, undertest.FilterRange(min=0, max=10), None, False, None),
             # Invalid: include with neither values nor range
-            ("include", None, None, True, None),
+            ("include", None, None, None, True, None),
             # Invalid: exclude with neither values nor range
-            ("exclude", None, None, True, None),
+            ("exclude", None, None, None, True, None),
             # Warning: include with both values and range
-            ("include", ["A"], undertest.FilterRange(min=0), False, "both 'values' and 'range'"),
+            ("include", ["A"], undertest.FilterRange(min=0), None, False, "both 'values' and 'range'"),
             # Warning: keep_top with values and range
-            ("keep_top", ["A"], undertest.FilterRange(min=0), False, "ignores 'values' and 'range'"),
+            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'"),
             # One of values or range
-            ("keep_top", ["A"], None, False, "ignores 'values' and 'range'"),
-            ("keep_top", None, undertest.FilterRange(min=0), False, "ignores 'values' and 'range'"),
+            ("keep_top", ["A"], None, None, False, "ignores 'values' and 'range'"),
+            ("keep_top", None, undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'"),
             # Both values and range
-            ("keep_top", ["A"], undertest.FilterRange(min=0), False, "ignores 'values' and 'range'"),
+            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'"),
+            # Valid: keep_top with explicit count
+            ("keep_top", None, None, 5, False, None),
+            # Edge case: count=0 is invalid
+            ("keep_top", None, None, 0, True, None),
+            # Invalid: count < 0
+            ("keep_top", None, None, -1, True, None),
+            # Irrelevant count should be ignored
+            ("include", ["A"], None, 10, False, None),
         ],
     )
-    def test_filter_validation_behavior(self, caplog, action, values, range_, should_raise, expected_warning):
-        kwargs = dict(source="some_col", action=action, values=values, range=range_)
+    def test_filter_validation_behavior(self, caplog, action, values, range_, count, should_raise, expected_warning):
+        kwargs = dict(source="some_col", action=action, values=values, range=range_, count=count)
         if should_raise:
             with pytest.raises(ValueError):
                 undertest.FilterConfig(**kwargs)
@@ -406,6 +414,25 @@ class TestFilterConfig:
                 assert expected_warning in caplog.text
             else:
                 assert "WARNING" not in caplog.text
+
+    def test_from_filter_config_uses_count_when_provided(self):
+        from seismometer.data.filter import FilterRule
+
+        config = undertest.FilterConfig(source="col", action="keep_top", count=7)
+        rule = FilterRule.from_filter_config(config)
+        assert rule.relation == "topk"
+        assert rule.right == 7
+
+    def test_from_filter_config_uses_class_default(self, monkeypatch):
+        from seismometer.data import filter as filter_module
+        from seismometer.data.filter import FilterRule
+
+        monkeypatch.setattr(filter_module.FilterRule, "MAXIMUM_NUM_COHORTS", 42)
+
+        config = undertest.FilterConfig(source="col", action="keep_top")
+        rule = FilterRule.from_filter_config(config)
+
+        assert rule.right == 42
 
 
 class TestCohortHierarchy:
