@@ -204,13 +204,14 @@ class TestFilterRuleConstructors:
             FilterRule.between("Col")
 
     @pytest.mark.parametrize(
-        "count, class_default, expected_right, expected_empty",
+        "count, class_default, expected_right, expected_cats",
         [
-            (3, None, 3, False),  # Explicit count
-            (None, 2, 2, False),  # No count → fallback to class default
+            (3, None, 3, ["A", "B", "C"]),  # Explicit count
+            (3, 5, 3, ["A", "B", "C"]),  # Explicit count with class default not None
+            (None, 2, 2, ["A", "B"]),  # No count → fallback to class default
         ],
     )
-    def test_from_filter_config_topk_behavior(self, monkeypatch, count, class_default, expected_right, expected_empty):
+    def test_from_filter_config_topk_behavior(self, monkeypatch, count, class_default, expected_right, expected_cats):
         from seismometer.configuration.model import FilterConfig
 
         df = pd.DataFrame({"Cat": ["A", "A", "B", "B", "C", "D", "E", "C", "D", "E"]})
@@ -223,7 +224,7 @@ class TestFilterRuleConstructors:
         assert rule.right == expected_right
 
         result = rule.filter(df)
-        assert result.empty is expected_empty
+        assert sorted(result["Cat"].unique()) == expected_cats
 
 
 class TestFilterRuleCombinationLogic:
