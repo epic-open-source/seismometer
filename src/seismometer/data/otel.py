@@ -414,6 +414,9 @@ if not TELEMETRY:
         def log_by_cohort(self, *args, **kwargs):  # noqa: F811
             pass
 
+        def log_by_column(self, *args, **kwargs):  # noqa: F811
+            pass
+
     get_metric_creator = noop  # noqa: F811
 
 
