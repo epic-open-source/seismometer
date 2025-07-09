@@ -1,6 +1,11 @@
+from unittest.mock import patch
+
+import pandas as pd
 import pytest
+from ipywidgets import HTML
 
 import seismometer.controls.selection as undertest
+from seismometer.configuration.model import CohortHierarchy
 
 
 class TestSelectionListWidget:
@@ -52,7 +57,10 @@ class TestSelectionListWidget:
 
 @pytest.mark.parametrize("show_all", [True, False])
 class TestMultiSelectionListWidget:
-    def test_init(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"]},
             values={"a": ["a", "b"], "b": ["c"]},
@@ -63,14 +71,20 @@ class TestMultiSelectionListWidget:
         assert widget.title == "title"
         assert widget.value == {"a": ("a", "b"), "b": ("c",)}
 
-    def test_init_no_value(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_init_no_value(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"]},
             show_all=show_all,
         )
         assert widget.value == {}
 
-    def test_value_propagation(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_value_propagation(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,
@@ -81,7 +95,10 @@ class TestMultiSelectionListWidget:
         assert widget.selection_widgets["b"].value == ("c",)
         assert widget.selection_widgets["d"].value == ()
 
-    def test_on_subselection_changed(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_on_subselection_changed(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,
@@ -92,7 +109,10 @@ class TestMultiSelectionListWidget:
         assert widget.selection_widgets["b"].value == ()
         assert widget.selection_widgets["d"].value == ()
 
-    def test_display_text(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_display_text(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,
@@ -102,7 +122,10 @@ class TestMultiSelectionListWidget:
         widget.value = {"a": ("a", "b"), "b": ("c",)}
         assert widget.get_selection_text() == "a: a, b\nb: c"
 
-    def test_disabled(self, show_all):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_disabled(self, mock_seismo, show_all):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         widget = undertest.MultiSelectionListWidget(
             options={"a": ["a", "b", "c"], "b": ["a", "c"], "d": ["a", "b", "c"]},
             show_all=show_all,
@@ -118,6 +141,153 @@ class TestMultiSelectionListWidget:
         assert not widget.selection_widgets["a"].disabled
         assert not widget.selection_widgets["b"].disabled
         assert not widget.selection_widgets["d"].disabled
+
+
+class TestMultiSelectionListWidgetHierarchyFiltering:
+    @patch("seismometer.seismogram.Seismogram")
+    def test_parent_filters_child_options(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        column_order = ["level1", "level2"]
+        df = pd.DataFrame([("A", "X"), ("A", "Y"), ("B", "Z")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"level1": ["A", "B", "C"], "level2": ["X", "Y", "Z"]},
+            values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
+        )
+
+        widget.selection_widgets["level1"].value = ("A",)
+        assert sorted(widget.selection_widgets["level2"].options) == ["X", "Y"]
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_child_shows_all_if_no_parent_selected(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        column_order = ["p", "c"]
+        df = pd.DataFrame([("X", "1"), ("Y", "2"), ("Z", "3")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"p": ["X", "Y", "Z"], "c": ["1", "2", "3"]},
+            values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
+        )
+
+        widget.selection_widgets["p"].value = ()  # No parent selected
+        assert sorted(widget.selection_widgets["c"].options) == ["1", "2", "3"]
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_child_value_dropped_if_invalid(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        column_order = ["region", "site"]
+        df = pd.DataFrame([("North", "Alpha"), ("South", "Beta")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"region": ["North", "South"], "site": ["Alpha", "Beta", "Gamma"]},
+            values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
+        )
+
+        widget.selection_widgets["site"].value = ("Beta", "Alpha")
+        widget.selection_widgets["region"].value = ("South",)
+        assert widget.selection_widgets["site"].value == ("Beta",)
+
+        # "Gamma" should be dropped from available options
+        # Attempting to access its button should raise KeyError
+        with pytest.raises(KeyError):
+            _ = widget.selection_widgets["site"].buttons["Gamma"]
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_first_level_update_cascades_to_second_level(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        column_order = ["lvl1", "lvl2"]
+        df = pd.DataFrame([("A", "x1"), ("A", "x2"), ("B", "y1")], columns=column_order)
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="test", column_order=column_order)]
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"lvl1": ["A", "B"], "lvl2": ["x1", "x2", "y1", "z1"]},
+            values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
+        )
+
+        widget.selection_widgets["lvl2"].value = ("x1", "y1")
+        widget.selection_widgets["lvl1"].value = ("B",)
+        assert sorted(widget.selection_widgets["lvl2"].options) == ["y1"]
+        assert widget.selection_widgets["lvl2"].value == ("y1",)
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_three_level_hierarchy_filters_correctly(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        column_order = ["lvl1", "lvl2", "lvl3"]
+        df = pd.DataFrame(
+            [
+                ("A", "X", "i"),
+                ("A", "X", "j"),
+                ("A", "Y", "k"),
+                ("B", "Z", "l"),
+            ],
+            columns=column_order,
+        )
+        fake_seismo.cohort_hierarchies = [CohortHierarchy(name="3lvl", column_order=column_order)]
+        fake_seismo.cohort_hierarchy_combinations = {tuple(column_order): df}
+
+        widget = undertest.MultiSelectionListWidget(
+            options={"lvl1": ["A", "B"], "lvl2": ["X", "Y", "Z"], "lvl3": ["i", "j", "k", "l"]},
+            values={},
+            hierarchies=fake_seismo.cohort_hierarchies,
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
+        )
+
+        widget.selection_widgets["lvl2"].value = ("X",)
+        widget.selection_widgets["lvl1"].value = ("A",)
+        assert sorted(widget.selection_widgets["lvl3"].options) == ["i", "j"]
+
+    @patch("seismometer.seismogram.Seismogram")
+    def test_hierarchy_with_multiple_visible_keys_renders_correct_arrow_count(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        hierarchy = CohortHierarchy(name="demo", column_order=["level1", "level2", "level3"])
+        fake_seismo.cohort_hierarchies = [hierarchy]
+        fake_seismo.cohort_hierarchy_combinations = {
+            (
+                "level1",
+                "level2",
+                "level3",
+            ): pd.DataFrame([["A", "B", "C"]], columns=hierarchy.column_order)
+        }
+
+        widget = undertest.MultiSelectionListWidget(
+            options={
+                "level1": ["A"],
+                "level2": ["B"],
+                "level3": ["C"],
+            },
+            values={"level1": ("A",), "level2": ("B",), "level3": ("C",)},
+            hierarchies=[hierarchy],
+            hierarchy_combinations=fake_seismo.cohort_hierarchy_combinations,
+            show_all=True,
+        )
+
+        # Get the VBox that wraps hierarchy + non-hierarchy
+        hierarchy_vbox = widget.children[1]
+        hierarchy_boxes = hierarchy_vbox.children[0:-1]  # exclude non-hierarchical box
+
+        for box in hierarchy_boxes:
+            assert isinstance(box, undertest.HierarchicalSelectionWidget)
+            # The first child of the widget is the layout Box that holds widgets and arrows
+            layout_box = box.children[0]
+            arrow_widgets = [child for child in layout_box.children if isinstance(child, HTML) and child.value == "→"]
+            assert (
+                len(arrow_widgets) == len(hierarchy.column_order) - 1
+            ), f"Expected {len(hierarchy.column_order) - 1} arrows, found {len(arrow_widgets)}"
 
 
 class TestDisjointSelectionListsWidget:
@@ -262,3 +432,144 @@ class TestMultiselectDropdownWidget:
         widget.disabled = False
         assert not widget.disabled
         assert not widget.dropdown.disabled
+
+
+@pytest.mark.parametrize("show_all", [True, False])
+class TestFlatSelectionWidget:
+    def test_init(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            values={"a": ["x"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.value == {"a": ("x",), "b": ("z",)}
+        assert isinstance(
+            widget.widgets["a"], undertest.SelectionListWidget if show_all else undertest.MultiselectDropdownWidget
+        )
+
+    def test_init_no_value(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.value == {}
+        assert widget.widgets["a"].value == ()
+        assert widget.widgets["b"].value == ()
+
+    def test_value_propagation(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        widget.value = {"a": ("x",), "b": ("z",)}
+        assert widget.widgets["a"].value == ("x",)
+        assert widget.widgets["b"].value == ("z",)
+
+    def test_get_selection_text_empty(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == ""
+
+    def test_get_selection_text_populated(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            values={"a": ["x"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == "a: x\nb: z"
+
+    def test_disabled(self, show_all):
+        widget = undertest.FlatSelectionWidget(
+            options={"a": ["x", "y"], "b": ["z"]},
+            show_all=show_all,
+        )
+        assert not widget.disabled
+        widget.disabled = True
+        assert widget.widgets["a"].disabled
+        assert widget.widgets["b"].disabled
+        widget.disabled = False
+        assert not widget.widgets["a"].disabled
+        assert not widget.widgets["b"].disabled
+
+
+@pytest.mark.parametrize("show_all", [True, False])
+class TestHierarchicalSelectionWidget:
+    def test_init(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y"), ("x", "z")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y", "z"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            values={"a": ["x"], "b": ["y"]},
+            show_all=show_all,
+        )
+        assert widget.value == {"a": ("x",), "b": ("y",)}
+
+    def test_init_no_value(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            show_all=show_all,
+        )
+        assert widget.value == {}
+
+    def test_value_propagation(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            show_all=show_all,
+        )
+        widget.widgets["a"].value = ("x",)
+        widget.widgets["b"].value = ("y",)
+        assert widget.value["a"] == ("x",)
+        assert widget.value["b"] == ("y",)
+
+    def test_get_selection_text_empty(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == ""
+
+    def test_get_selection_text_populated(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            values={"a": ["x"], "b": ["y"]},
+            show_all=show_all,
+        )
+        assert widget.get_selection_text() == "a: x\nb: y"
+
+    def test_disabled(self, show_all):
+        hierarchy = CohortHierarchy(name="H", column_order=["a", "b"])
+        df = pd.DataFrame([("x", "y")], columns=["a", "b"])
+        widget = undertest.HierarchicalSelectionWidget(
+            options={"a": ["x"], "b": ["y"]},
+            hierarchy=hierarchy,
+            combinations=df,
+            values={"a": ["x"]},
+            show_all=show_all,
+        )
+        assert not widget.disabled
+        widget.disabled = True
+        assert widget.widgets["a"].disabled
+        assert widget.widgets["b"].disabled
+        widget.disabled = False
+        assert not widget.widgets["a"].disabled
+        assert not widget.widgets["b"].disabled

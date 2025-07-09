@@ -17,13 +17,25 @@ GENERATING_REPORT = "Generating Report..."
 
 
 class ComparisonReportGenerator:
-    def __init__(self, selections: dict[str, tuple[any]], exclude_cols: Optional[list[str]] = None):
+    def __init__(
+        self,
+        selections: dict[str, tuple[any]],
+        exclude_cols: Optional[list[str]] = None,
+        hierarchies: Optional[list["CohortHierarchy"]] = None,
+        hierarchy_combinations: Optional[dict[tuple[str], "pd.DataFrame"]] = None,
+    ):
         self.selectors: list[MultiSelectionListWidget] = []
         self.exclude_cols = exclude_cols or []
 
         for side in ["Left", "Right"]:
             options = selections
-            widget = MultiSelectionListWidget(options=options, title=f"Select {side} Cohort", border=True)
+            widget = MultiSelectionListWidget(
+                options=options,
+                title=f"Select {side} Cohort",
+                border=True,
+                hierarchies=hierarchies,
+                hierarchy_combinations=hierarchy_combinations,
+            )
             self.selectors.append(widget)
 
         self.output = Output()

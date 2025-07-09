@@ -1,6 +1,65 @@
+from functools import partial
 from typing import Any, Optional, Union
 
 import pandas as pd
+
+
+def apply_column_comparison(data: pd.DataFrame, column: str, value: Any, op: str) -> pd.Series:
+    """
+    Applies a comparison operation on a DataFrame column with proper error handling.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The DataFrame to operate on.
+    column : str
+        Column name to compare.
+    value : Any
+        Value to compare the column against.
+    op : str
+        One of '<=', '>=', '<', '>'.
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask of comparison results.
+    """
+    try:
+        match op:
+            case "<=":
+                return data[column] <= value
+            case ">=":
+                return data[column] >= value
+            case "<":
+                return data[column] < value
+            case ">":
+                return data[column] > value
+            case _:
+                raise ValueError(f"Unsupported comparison operator: {op}")
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"Values in '{column}' must be comparable to '{value}'.") from e
+
+
+def apply_topk_filter(data: pd.DataFrame, column: str, k: int) -> pd.Series:
+    """
+    Applies a top-k or not-top-k filter on a column using value counts.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The DataFrame to filter.
+    column : str
+        Column name.
+    k : int
+        Number of top values to keep.
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask indicating which rows to keep.
+    """
+    top_values = data[column].value_counts(ascending=False).sort_index().nlargest(k).index
+    return data[column].isin(top_values)
 
 
 class FilterRule(object):
@@ -12,6 +71,7 @@ class FilterRule(object):
     """
 
     MIN_ROWS: Optional[int] = 10
+    MAXIMUM_NUM_COHORTS: Optional[int] = 25
     left: Union["FilterRule", str, None]
     relation: str
     right: Any
@@ -24,12 +84,14 @@ class FilterRule(object):
         "notna": lambda x, y, z: ~x[y].isna(),
         "isin": lambda x, y, z: x[y].isin(z),
         "notin": lambda x, y, z: ~x[y].isin(z),
+        "topk": lambda df, col, count: apply_topk_filter(df, col, count),
+        "nottopk": lambda df, col, count: ~apply_topk_filter(df, col, count),
         "==": lambda x, y, z: x[y] == z,
         "!=": lambda x, y, z: x[y] != z,
-        "<=": lambda x, y, z: x[y] <= z,
-        ">=": lambda x, y, z: x[y] >= z,
-        "<": lambda x, y, z: x[y] < z,
-        ">": lambda x, y, z: x[y] > z,
+        "<=": partial(apply_column_comparison, op="<="),
+        ">=": partial(apply_column_comparison, op=">="),
+        "<": partial(apply_column_comparison, op="<"),
+        ">": partial(apply_column_comparison, op=">"),
         "or": lambda x, y, z: (y.mask(x)) | (z.mask(x)),
         "and": lambda x, y, z: (y.mask(x)) & (z.mask(x)),
     }
@@ -41,6 +103,8 @@ class FilterRule(object):
         "notna": "isna",
         "isin": "notin",
         "notin": "isin",
+        "topk": "nottopk",
+        "nottopk": "topk",
         "==": "!=",
         "!=": "==",
         "<=": ">",
@@ -87,6 +151,17 @@ class FilterRule(object):
                 raise TypeError(
                     f"Relation {relation} only supported between FilterRules, right item of type {type(right)}"
                 )
+
+        if relation in {"topk", "nottopk"}:
+            if not isinstance(right, int):
+                raise TypeError(f"Relation '{relation}' requires an integer as the right item. Got {type(right)}.")
+            if right <= 0:
+                raise ValueError(f"Relation '{relation}' requires a positive integer. Got {right}.")
+            if not isinstance(left, str):
+                raise TypeError(
+                    f"Relation '{relation}' requires the left item to be a column name (str). Got {type(left)}."
+                )
+
         self.relation = relation
 
     def __repr__(self) -> str:
@@ -139,6 +214,10 @@ class FilterRule(object):
                 return f"{self.left} is in: {', '.join(self.right)}"
             case "notin":
                 return f"{self.left} not in: {', '.join(self.right)}"
+            case "topk":
+                return f"{self.left} in top {self.right} values"
+            case "nottopk":
+                return f"{self.left} not in top {self.right} values"
             case "==":
                 return f"{self.left} is {self.right}"
             case "!=":
@@ -385,6 +464,49 @@ class FilterRule(object):
         for key, value in cohort_dict.items():
             if value:
                 rule = rule & cls.isin(key, cohort_dict[key])
+        return rule
+
+    @classmethod
+    def from_filter_config(cls, rule: "FilterConfig") -> "FilterRule":
+        """Creates a FilterRule from a high-level FilterConfig specification."""
+        column = rule.source
+        if rule.action == "keep_top":
+            topk_count = rule.count if rule.count is not None else cls.MAXIMUM_NUM_COHORTS
+            if topk_count is None:
+                return cls.all()
+            return cls(column, "topk", topk_count)
+
+        elif rule.action in {"include", "exclude"}:
+            subrule = cls.all()
+
+            if rule.values:
+                subrule = cls.isin(column, rule.values)
+
+            elif rule.range:
+                if rule.range.min is not None or rule.range.max is not None:
+                    if rule.range.min is not None:
+                        subrule = cls.geq(column, rule.range.min)
+                        if rule.range.max is not None:
+                            subrule &= cls.lt(column, rule.range.max)
+                    else:
+                        subrule = cls.lt(column, rule.range.max)
+
+            return subrule if rule.action == "include" else ~subrule
+        else:
+            raise ValueError(f"Unsupported filter action: {rule.action}")
+
+    @classmethod
+    def from_filter_config_list(cls, config_list: list["FilterConfig"] | None) -> "FilterRule":
+        """
+        Combine a list of named FilterConfig rules into a single FilterRule using AND logic.
+        """
+        rule = cls.all()
+        if not config_list:
+            return rule
+
+        for config in config_list:
+            rule &= cls.from_filter_config(config)
+
         return rule
 
 
