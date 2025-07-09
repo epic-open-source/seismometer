@@ -232,8 +232,11 @@ class FilterConfig(BaseModel):
 
     - "include": keep only rows matching the specified values or range
     - "exclude": remove rows matching the specified values or range
-    - "keep_top": retain only the top MAXIMUM_NUM_COHORTS most frequent values
+    - "keep_top": retain only the top count (by default FilterRule.MAXIMUM_NUM_COHORTS) most frequent values
     """
+
+    count: Optional[int] = None
+    """Number of top values to retain if action is 'keep_top'. Defaults to FilterRule.MAXIMUM_NUM_COHORTS."""
 
     values: Optional[List[Union[str, int, List[str], List[int]]]] = None
     """A list of allowed or disallowed values, by default None."""
@@ -261,6 +264,10 @@ class FilterConfig(BaseModel):
                 )
 
         elif self.action == "keep_top":
+            if self.count is not None and self.count <= 0:
+                raise ValueError(
+                    f"Filter with action '{self.action}' requires '{self.count}' to be a positive integer if provided."
+                )
             if self.values is not None or self.range is not None:
                 logger.warning(f"Filter on '{self.source}' with action 'keep_top' ignores 'values' and 'range'.")
 

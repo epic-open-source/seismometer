@@ -385,7 +385,8 @@ class Seismogram(object, metaclass=Singleton):
         for rule in self.config.usage.load_time_filters:
             if rule.source not in df.columns:
                 raise ValueError(f"Filter source column '{rule.source}' not found in data.")
-        return FilterRule.from_config_list(self.config.usage.load_time_filters).filter(df)
+        FilterRule.MAXIMUM_NUM_COHORTS = MAXIMUM_NUM_COHORTS
+        return FilterRule.from_filter_config_list(self.config.usage.load_time_filters).filter(df)
 
     def create_cohorts(self) -> None:
         """Creates data columns for each cohort defined in configuration."""

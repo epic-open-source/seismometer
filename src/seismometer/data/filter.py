@@ -40,7 +40,7 @@ def apply_column_comparison(data: pd.DataFrame, column: str, value: Any, op: str
         raise ValueError(f"Values in '{column}' must be comparable to '{value}'.") from e
 
 
-def apply_topk_filter(data: pd.DataFrame, column: str, k: int, op: str) -> pd.Series:
+def apply_topk_filter(data: pd.DataFrame, column: str, k: int) -> pd.Series:
     """
     Applies a top-k or not-top-k filter on a column using value counts.
 
@@ -52,8 +52,6 @@ def apply_topk_filter(data: pd.DataFrame, column: str, k: int, op: str) -> pd.Se
         Column name.
     k : int
         Number of top values to keep.
-    op : str
-        Either "topk" or "nottopk".
 
     Returns
     -------
@@ -61,11 +59,7 @@ def apply_topk_filter(data: pd.DataFrame, column: str, k: int, op: str) -> pd.Se
         Boolean mask indicating which rows to keep.
     """
     top_values = data[column].value_counts(ascending=False).sort_index().nlargest(k).index
-    match op:
-        case "topk":
-            return data[column].isin(top_values)
-        case "nottopk":
-            return ~data[column].isin(top_values)
+    return data[column].isin(top_values)
 
 
 class FilterRule(object):
@@ -77,6 +71,7 @@ class FilterRule(object):
     """
 
     MIN_ROWS: Optional[int] = 10
+    MAXIMUM_NUM_COHORTS: Optional[int] = 25
     left: Union["FilterRule", str, None]
     relation: str
     right: Any
@@ -89,8 +84,8 @@ class FilterRule(object):
         "notna": lambda x, y, z: ~x[y].isna(),
         "isin": lambda x, y, z: x[y].isin(z),
         "notin": lambda x, y, z: ~x[y].isin(z),
-        "topk": partial(apply_topk_filter, op="topk"),
-        "nottopk": partial(apply_topk_filter, op="nottopk"),
+        "topk": lambda df, col, count: apply_topk_filter(df, col, count),
+        "nottopk": lambda df, col, count: ~apply_topk_filter(df, col, count),
         "==": lambda x, y, z: x[y] == z,
         "!=": lambda x, y, z: x[y] != z,
         "<=": partial(apply_column_comparison, op="<="),
@@ -472,13 +467,14 @@ class FilterRule(object):
         return rule
 
     @classmethod
-    def from_config(cls, rule: "FilterConfig") -> "FilterRule":
+    def from_filter_config(cls, rule: "FilterConfig") -> "FilterRule":
         """Creates a FilterRule from a high-level FilterConfig specification."""
-        from seismometer.seismogram import MAXIMUM_NUM_COHORTS
-
         column = rule.source
         if rule.action == "keep_top":
-            return cls(column, "topk", MAXIMUM_NUM_COHORTS)
+            topk_count = rule.count if rule.count is not None else cls.MAXIMUM_NUM_COHORTS
+            if topk_count is None:
+                return cls.all()
+            return cls(column, "topk", topk_count)
 
         elif rule.action in {"include", "exclude"}:
             subrule = cls.all()
@@ -500,7 +496,7 @@ class FilterRule(object):
             raise ValueError(f"Unsupported filter action: {rule.action}")
 
     @classmethod
-    def from_config_list(cls, config_list: list["FilterConfig"] | None) -> "FilterRule":
+    def from_filter_config_list(cls, config_list: list["FilterConfig"] | None) -> "FilterRule":
         """
         Combine a list of named FilterConfig rules into a single FilterRule using AND logic.
         """
@@ -509,7 +505,7 @@ class FilterRule(object):
             return rule
 
         for config in config_list:
-            rule &= cls.from_config(config)
+            rule &= cls.from_filter_config(config)
 
         return rule
 
