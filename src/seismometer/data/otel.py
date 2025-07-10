@@ -499,11 +499,43 @@ def do_auto_export(function_name: str, fn_settings: dict):
         extra_params: the current settings of Seismogram,
         saved at the time of export.
     """
-    sg = Seismogram()
-    if "extra_params" in fn_settings:
-        sg.set_sg_settings(fn_settings["extra_params"])
+    from seismometer.api.plots import (
+        _plot_cohort_hist,
+        _plot_leadtime_enc,
+        model_evaluation,
+        plot_binary_classifier_metrics,
+        plot_cohort_evaluation,
+        plot_trend_intervention_outcome,
+    )
+    from seismometer.api.reports import feature_alerts, feature_summary, target_feature_summary
+    from seismometer.api.templates import show_cohort_summaries
+
     args = fn_settings["args"]
     kwargs = fn_settings["kwargs"]
+    # We need to have these here for circular import reasons.
+    match function_name:
+        case "feature_alerts":
+            fn = feature_alerts
+        case "feature_summary":
+            fn = feature_summary
+        case "model_evaluation":
+            fn = model_evaluation
+        case "plot_cohort_evaluation":
+            fn = plot_cohort_evaluation
+        case "plot_cohort_hist":
+            fn = _plot_cohort_hist
+        case "plot_leadtime_enc":
+            fn = _plot_leadtime_enc
+        case "plot_binary_classifier_metrics":
+            fn = plot_binary_classifier_metrics
+        case "plot_trend_intervention_outcome":
+            fn = plot_trend_intervention_outcome
+        case "show_cohort_summaries":
+            fn = show_cohort_summaries
+        case "target_feature_summary":
+            fn = target_feature_summary
+        case _:
+            raise ValueError(f"Unknown function name: {function_name}")
     fn = allowed_export_names[function_name]
     fn(*args, **kwargs)
 
@@ -552,11 +584,11 @@ def do_one_manual_export(function_name: str, run_settings):
     """
 
     from seismometer.api.plots import (  # plot_trend_intervention_outcome,
+        _plot_cohort_hist,
+        _plot_leadtime_enc,
         model_evaluation,
         plot_binary_classifier_metrics,
         plot_cohort_evaluation,
-        plot_cohort_hist,
-        plot_leadtime_enc,
     )
     from seismometer.api.reports import feature_alerts, feature_summary  # target_feature_summary
 
@@ -582,29 +614,29 @@ def do_one_manual_export(function_name: str, run_settings):
                 plot_cohort_evaluation(cohort_col=cohort, subgroups=subgroups, **kwargs)
         case "plot_cohort_hist":
             sg = Seismogram()
-            sg_setting_names = ["target", "output", "censor_threshold"]
-            kwargs = extract_arguments(sg_setting_names, run_settings)
-            # The settings relevant are, in a normal run, stored in Seismogram.
-            # So we need to extract them specially.
-            sg.set_sg_settings(kwargs)
-            for cohort in run_settings["cohorts"]:
-                sg.selected_cohort = [cohort, run_settings["cohorts"][cohort]]
-                plot_cohort_hist()
+            kwargs = extract_arguments(["target", "output", "censor_threshold", "filter_zero_one"], run_settings)
+            for cohort_col in run_settings["cohorts"]:
+                subgroups = run_settings["cohorts"][cohort_col]
+                _plot_cohort_hist(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
         case "plot_leadtime_enc":
-            sg_setting_names = [
-                "censor_threshold",
-                "output",
-                "predict_time",
-                "target",
-                "time_zero",
-                "target_event",
-                "thresholds",
-            ]
-            kwargs = extract_arguments(sg_setting_names, run_settings)
-            sg.set_sg_settings(kwargs)
-            for cohort in run_settings["cohorts"]:
-                sg.selected_cohort = [cohort, run_settings["cohorts"][cohort]]
-                plot_leadtime_enc(**extract_arguments(["score", "ref_time", "target_event"], run_settings))
+            sg = Seismogram()
+            kwargs = extract_arguments(
+                [
+                    "entity_keys",
+                    "target_event",
+                    "target_zero",
+                    "score",
+                    "threshold",
+                    "ref_time",
+                    "max_hours",
+                    "x_label",
+                    "censor_threshold",
+                ],
+                run_settings,
+            )
+            for cohort_col in run_settings["cohorts"]:
+                subgroups = run_settings["cohorts"][cohort_col]
+                _plot_leadtime_enc(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
         case "plot_binary_classifier_metrics":
             kwargs = extract_arguments(
                 ["metrics", "target", "score_column", "per_context", "table_only", run_settings]
@@ -649,7 +681,6 @@ def do_metric_exports() -> None:
     everything specified in Seismogram.
     """
     sg = Seismogram()
-    current_settings = sg.get_sg_settings()
     for function_name in sg._automation_info.keys():
         fn_settings = sg._automation_info[function_name]
         if function_name not in allowed_export_names:
@@ -661,5 +692,3 @@ def do_metric_exports() -> None:
             do_auto_export(function_name, fn_settings)
         else:
             do_manual_export(function_name, fn_settings)
-    # Restore state afterwards.
-    sg.set_sg_settings(current_settings)

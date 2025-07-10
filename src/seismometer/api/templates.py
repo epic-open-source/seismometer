@@ -194,7 +194,7 @@ def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str,
     return dfs
 
 
-@store_call_parameters(extra_params=Seismogram.get_sg_settings)
+@store_call_parameters
 @disk_cached_html_segment
 @export
 def show_cohort_summaries(by_target: bool = False, by_score: bool = False) -> HTML:

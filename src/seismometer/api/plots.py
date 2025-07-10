@@ -25,7 +25,6 @@ from seismometer.seismogram import Seismogram, store_call_parameters
 logger = logging.getLogger("seismometer")
 
 
-@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @export
 def plot_cohort_hist():
     """Display a histogram plot of predicted probabilities for all cohorts in the selected attribute."""
@@ -60,17 +59,12 @@ def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_c
     """
     sg = Seismogram()
     target_column = pdh.event_value(target_column)
-    target_data = FilterRule.isin(target_column, (0, 1)).filter(sg.dataframe)
     return _plot_cohort_hist(
-        target_data,
-        target_column,
-        score_column,
-        cohort_col,
-        subgroups,
-        sg.censor_threshold,
+        sg.dataframe, target_column, score_column, cohort_col, subgroups, sg.censor_threshold, filter_zero_one=True
     )
 
 
+@store_call_parameters(name="plot_cohort_hist")
 @disk_cached_html_segment
 def _plot_cohort_hist(
     dataframe: pd.DataFrame,
@@ -79,6 +73,7 @@ def _plot_cohort_hist(
     cohort_col: str,
     subgroups: list[str],
     censor_threshold: int = 10,
+    filter_zero_one: bool = False,
 ) -> HTML:
     """
     Creates an HTML segment displaying a histogram of predicted probabilities for each cohort.
@@ -97,12 +92,17 @@ def _plot_cohort_hist(
         column values to split by
     censor_threshold : int
         minimum rows to allow in a plot, by default 10.
+    filter_zero_one : FilterRule
+        Whether to select only values between zero and one.
 
     Returns
     -------
     HTML
         A stacked set of histograms for each selected subgroup in the cohort.
     """
+    if filter_zero_one:
+        dataframe = FilterRule.isin(target, (0, 1)).filter(dataframe)
+
     cData = get_cohort_data(dataframe, cohort_col, proba=output, true=target, splits=subgroups)
 
     # filter by groups by size
@@ -149,7 +149,6 @@ def _plot_cohort_hist(
         return template.render_title_message("Error", f"Error: {error}")
 
 
-@store_call_parameters(extra_params=Seismogram.get_sg_settings)
 @export
 def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
     """Displays the amount of time that a high prediction gives before an event of interest.
@@ -243,6 +242,7 @@ def plot_cohort_lead_time(
     )
 
 
+@store_call_parameters(name="plot_leadtime_enc")
 @disk_cached_html_segment
 def _plot_leadtime_enc(
     dataframe: pd.DataFrame,
@@ -497,7 +497,7 @@ def _plot_cohort_evaluation(
     return template.render_title_with_image(title, svg)
 
 
-@store_call_parameters(extra_params=Seismogram.get_sg_settings)
+@store_call_parameters
 @export
 def model_evaluation(per_context_id=False):
     """Displays overall performance of the model.
@@ -676,7 +676,7 @@ def _model_evaluation(
     return template.render_title_with_image(title, svg)
 
 
-@store_call_parameters(extra_params=Seismogram.get_sg_settings)
+@store_call_parameters
 @export
 def plot_trend_intervention_outcome() -> HTML:
     """
@@ -1054,7 +1054,7 @@ def plot_model_target_comparison(
 
 
 # region Explore Any Metric (NNT, etc)
-@store_call_parameters(extra_params=Seismogram.get_sg_settings)
+@store_call_parameters
 @disk_cached_html_segment
 @export
 def plot_binary_classifier_metrics(

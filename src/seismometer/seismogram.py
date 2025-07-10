@@ -108,14 +108,25 @@ class Seismogram(object, metaclass=Singleton):
 
         Parameters
         ----------
-        fn_name : _type_
-            _description_
+        fn_name : str
+            The name of the function that has been called. By default it is
+            the actual name of the function in the code, but if needed it can be
+            set to a more readable or expected name (e.g. _plot_cohort_hist is set
+            to plot_cohort_hist without an underscore).
         args : _type_
             _description_
         kwargs : _type_
             _description_
         """
-        self._call_history[fn_name] = {"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)}
+
+        # Some of the plot functions take data frames as arguments, and we do not want to cache those.
+        # So, we will look through args and kwargs and replaec any arguments of DataFrame type.
+        def replace_df_map(val):
+            return "[Data Frame]" if isinstance(val, pd.DataFrame) else val
+
+        args = map(replace_df_map, args)
+        kwargs = {k: replace_df_map(kwargs[k]) for k in kwargs}
+        self._call_history[fn_name] = {"args": args, "kwargs": kwargs}
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -458,54 +469,6 @@ class Seismogram(object, metaclass=Singleton):
             for group in self.metric_groups
             if any(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
         ]
-
-    @staticmethod
-    def get_sg_settings(*_, **__) -> dict:
-        """A lot of plot functions use information from Seismogram, as opposed to function
-        parameters, to do plotting. So, if we are to automate metric exporting from a running
-        notebook, we need to store both the parameters and information about Seismogram.
-
-        We should not serialize the entire thing, because while some column selections and
-        whatnot are lightweight and change frequently, an immense dataframe of all predictions
-        is both too large for memory and also static, so it will be reloaded in just the same.
-
-        Returns
-        -------
-        dict
-            The relevant Seismogram parameters.
-        """
-        sg = Seismogram()
-        return {
-            "target": sg.target,
-            "output": sg.output,
-            "selected_cohort": sg.selected_cohort,
-            "censor_threshold": sg.censor_threshold,
-            "predict_time": sg.predict_time,
-            "time_zero": sg.time_zero,
-            "thresholds": sg.thresholds,
-            "entity_keys": sg.entity_keys,
-            "outcome": sg.outcome,
-            "intervention": sg.intervention,
-            "comparison_time": sg.comparison_time,
-            "available_cohort_groups": sg.available_cohort_groups,
-            "config.entity_id": sg.config.entity_id,
-        }
-
-    def set_sg_settings(self, settings: dict[str, Any]) -> None:
-        """Set Seismogram settings based on a dictionary of parameters.
-        Ignore parameters which can't be set with AttributeError
-        (such as @property fields).
-
-        Parameters
-        ----------
-        settings : dict[str, Any]
-            The stored Seismogram settings.
-        """
-        for key in settings.keys():
-            try:
-                self.__setattr__(key, settings[key])
-            except AttributeError:
-                continue
 
     def load_automation_config(self, automation_file_path: str) -> None:
         """Load in a config from YAML.
