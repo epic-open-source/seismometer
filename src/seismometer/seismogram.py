@@ -1,6 +1,7 @@
 import functools
 import json
 import logging
+from collections import defaultdict
 from functools import lru_cache
 from typing import Any, Callable, Optional
 
@@ -82,7 +83,7 @@ class Seismogram(object, metaclass=Singleton):
         self.metrics: dict[str, Metric] = {}
         self.metric_types: dict[str, list[str]] = {}
         self.metric_groups: dict[str, list[str]] = {}
-        self._call_history = {}
+        self._call_history = defaultdict(list)
 
         self.copy_config_metadata()
 
@@ -113,10 +114,10 @@ class Seismogram(object, metaclass=Singleton):
             the actual name of the function in the code, but if needed it can be
             set to a more readable or expected name (e.g. _plot_cohort_hist is set
             to plot_cohort_hist without an underscore).
-        args : _type_
-            _description_
-        kwargs : _type_
-            _description_
+        args : list
+            The arguments the function was called with.
+        kwargs : dict
+            The keyword arguments the function was called with.
         """
 
         # Some of the plot functions take data frames as arguments, and we do not want to cache those.
@@ -126,7 +127,7 @@ class Seismogram(object, metaclass=Singleton):
 
         args = map(replace_df_map, args)
         kwargs = {k: replace_df_map(kwargs[k]) for k in kwargs}
-        self._call_history[fn_name] = {"args": args, "kwargs": kwargs}
+        self._call_history[fn_name].append({"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)})
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
