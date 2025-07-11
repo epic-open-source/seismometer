@@ -226,7 +226,7 @@ class FilterConfig(BaseModel):
     source: str
     """The name of the column to filter."""
 
-    action: Literal["include", "exclude", "keep_top"] = "keep_top"
+    action: Optional[Literal["include", "exclude", "keep_top"]] = None
     """
     The type of filtering to apply.
 
@@ -252,6 +252,19 @@ class FilterConfig(BaseModel):
         Validates the consistency of filter fields after model is initialized.
         Ensures appropriate combinations of action, values, and range.
         """
+        if self.action is None:
+            if self.count is not None:
+                self.action = "keep_top"
+                logger.info(f"Inferred action 'keep_top' for filter on '{self.source}'")
+            elif self.values is not None or self.range is not None:
+                self.action = "include"
+                logger.info(f"Inferred action 'include' for filter on '{self.source}'")
+            else:
+                raise ValueError(
+                    f"Filter on '{self.source}' must specify one of 'values', 'range', or 'count', "
+                    "or explicitly set an action."
+                )
+
         if self.action in ("include", "exclude"):
             if self.values is None and self.range is None:
                 raise ValueError(

@@ -373,6 +373,12 @@ class TestFilterConfig:
         [
             # Valid: keep_top with nothing
             ("keep_top", None, None, None, False, None),
+            # Valid: keep_top with explicit count
+            ("keep_top", None, None, 5, False, None),
+            # Invalid count <= 0 → raises
+            ("keep_top", None, None, 0, True, None),
+            # Valid, hit warning: keep_top with values
+            ("keep_top", ["A"], undertest.FilterRange(min=1), None, False, "ignores 'values' and 'range'"),
             # Valid: include with values
             ("include", ["A", "B"], None, None, False, None),
             # Valid: exclude with range
@@ -433,6 +439,22 @@ class TestFilterConfig:
         rule = FilterRule.from_filter_config(config)
 
         assert rule.right == 42
+
+    @pytest.mark.parametrize(
+        "values, range_, count, expected_action",
+        [
+            (["a", "b"], None, None, "include"),  # inferred include from values
+            (None, undertest.FilterRange(min=0), None, "include"),  # inferred include from range
+            (None, None, 2, "keep_top"),  # inferred keep_top from count
+        ],
+    )
+    def test_action_is_inferred_when_none(self, values, range_, count, expected_action):
+        config = undertest.FilterConfig(source="demo", values=values, range=range_, count=count)
+        assert config.action == expected_action
+
+    def test_action_is_required_if_all_other_fields_missing(self):
+        with pytest.raises(ValueError, match="must specify one of 'values', 'range', or 'count'"):
+            undertest.FilterConfig(source="demo")
 
 
 class TestCohortHierarchy:
