@@ -480,11 +480,12 @@ def _plot_cohort_evaluation(
         base_attributes = {"target": target, "score": output}
         # Go through all cohort values, by means of:
         cohort_categories = list(set(plot_data["cohort"]))
-        for t in thresholds:
-            p = plot_data[plot_data["Threshold"] == t * 100].set_index("Threshold")
-            recorder.log_by_cohort(
-                base_attributes=base_attributes | {"threshold": t}, dataframe=p, cohorts={"cohort": cohort_categories}
-            )
+        recorder.log_by_cohort(
+            base_attributes=base_attributes,
+            dataframe=plot_data,
+            cohorts={"cohort": cohort_categories, "Threshold": [t * 100 for t in thresholds]},
+            intersecting=True,
+        )
         recorder.log_by_column(
             df=plot_data, col_name="Threshold", cohorts={"cohort": cohort_categories}, base_attributes=base_attributes
         )
