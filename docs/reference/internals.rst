@@ -109,6 +109,18 @@ Summaries
    summaries.default_cohort_summaries
    summaries.score_target_cohort_summaries
 
+OpenTelemetry output
+~~~~~~~~~~~~~~~~~~~~
+.. currentmodule:: seismometer.data.otel
+.. autosummary::
+   :toctree: api/
+
+   config_otel_stoppage
+   read_otel_info
+   get_metric_config
+   get_metric_creator
+   ExportManager
+   OpenTelemetryRecorder
 
 Low-level patterns
 ------------------

@@ -1,10 +1,13 @@
+import functools
 import json
 import logging
+from collections import defaultdict
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pandas as pd
+import yaml
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
 from seismometer.configuration.model import Metric
@@ -33,6 +36,7 @@ class Seismogram(object, metaclass=Singleton):
             a. Merge Event data with Prediction data for Label generation
             b. Cohort based data selection
             c. Model configuration help texts
+        4. Storing call history for automation purposes.
 
     As a single instance, the first time it is loaded, it will load the data from the configuration.
     In order to refresh the single instance, the kernel must be restarted, or Seismogram.kill() must be called.
@@ -45,6 +49,8 @@ class Seismogram(object, metaclass=Singleton):
     """ The column name for evaluation timestamp. """
     output_list: list[str]
     """ The list of columns representing model outputs. """
+    _call_history: dict[str, dict]
+    """ plot function name -> {"args": args, "kwargs": kwargs } """
 
     def __init__(
         self,
@@ -77,6 +83,7 @@ class Seismogram(object, metaclass=Singleton):
         self.metrics: dict[str, Metric] = {}
         self.metric_types: dict[str, list[str]] = {}
         self.metric_groups: dict[str, list[str]] = {}
+        self._call_history = defaultdict(list)
 
         self.copy_config_metadata()
 
@@ -96,6 +103,31 @@ class Seismogram(object, metaclass=Singleton):
         # load data
         self.available_cohort_groups = dict()
         self.selected_cohort = (None, None)  # column, values
+
+    def store_call_params(self, fn_name, args, kwargs, extra_info):
+        """_summary_
+
+        Parameters
+        ----------
+        fn_name : str
+            The name of the function that has been called. By default it is
+            the actual name of the function in the code, but if needed it can be
+            set to a more readable or expected name (e.g. _plot_cohort_hist is set
+            to plot_cohort_hist without an underscore).
+        args : list
+            The arguments the function was called with.
+        kwargs : dict
+            The keyword arguments the function was called with.
+        """
+
+        # Some of the plot functions take data frames as arguments, and we do not want to cache those.
+        # So, we will look through args and kwargs and replaec any arguments of DataFrame type.
+        def replace_df_map(val):
+            return "[Data Frame]" if isinstance(val, pd.DataFrame) else val
+
+        args = map(replace_df_map, args)
+        kwargs = {k: replace_df_map(kwargs[k]) for k in kwargs}
+        self._call_history[fn_name].append({"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)})
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -439,4 +471,62 @@ class Seismogram(object, metaclass=Singleton):
             if any(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
         ]
 
+    def load_automation_config(self, automation_file_path: str) -> None:
+        """Load in a config from YAML.
+
+        Parameters
+        ----------
+        automation_file_path : str
+            Where the automation file lives (metric-automation.yml)
+        """
+        try:
+            with open(automation_file_path, "r") as automation_file:
+                self._automation_info = yaml.safe_load(automation_file)
+        except (FileNotFoundError, TypeError):  # TypeError is for when the path is None
+            self._automation_info = {}
+
     # endregion
+
+
+# The decorator logic is stored here for circular import reasons.
+
+
+# Internal implementation -- stored separately here for mocking purposes.
+def _store_call_parameters(name: str, args: list, kwargs: dict, extra_info: dict) -> None:
+    Seismogram().store_call_params(name, args, kwargs, extra_info)
+
+
+def store_call_parameters(
+    func: Callable[..., Any] = None, name: str = None, extra_params: Callable[[tuple, dict], dict] = lambda x, y: {}
+) -> Callable[..., Any]:
+    """_summary_
+
+    Parameters
+    ----------
+    func : Callable[..., Any], optional
+        The function we are wrapping.
+    name : str, optional
+        What name to store in the call.
+        (Maybe we want to represent _internal_generate_widget_actually as just generate_widget, for example).
+    extra_params : Callable[tuple, dict, dict], optional
+        Extra arguments we need to reconstruct the call.
+
+    Returns
+    -------
+    Callable[..., Any]
+        _description_
+    """
+
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(fn)
+        def new_fn(*args, **kwargs):
+            call_name = name if name is not None else fn.__name__
+            _store_call_parameters(call_name, list(args), kwargs, extra_params)
+            return fn(*args, **kwargs)
+
+        return new_fn
+
+    if func is not None and callable(func):
+        return decorator(func)
+    else:
+        return decorator

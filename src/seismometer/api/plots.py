@@ -8,10 +8,11 @@ from IPython.display import HTML, SVG
 import seismometer.plot as plot
 from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.core.decorators import export
-from seismometer.data import get_cohort_data, get_cohort_performance_data
+from seismometer.data import get_cohort_data, get_cohort_performance_data, otel
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import (
+    STATNAMES,
     BinaryClassifierMetricGenerator,
     assert_valid_performance_metrics_df,
     calculate_bin_stats,
@@ -19,7 +20,7 @@ from seismometer.data.performance import (
 )
 from seismometer.data.timeseries import create_metric_timeseries
 from seismometer.html import template
-from seismometer.seismogram import Seismogram
+from seismometer.seismogram import Seismogram, store_call_parameters
 
 logger = logging.getLogger("seismometer")
 
@@ -58,17 +59,12 @@ def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_c
     """
     sg = Seismogram()
     target_column = pdh.event_value(target_column)
-    target_data = FilterRule.isin(target_column, (0, 1)).filter(sg.dataframe)
     return _plot_cohort_hist(
-        target_data,
-        target_column,
-        score_column,
-        cohort_col,
-        subgroups,
-        sg.censor_threshold,
+        sg.dataframe, target_column, score_column, cohort_col, subgroups, sg.censor_threshold, filter_zero_one=True
     )
 
 
+@store_call_parameters(name="plot_cohort_hist")
 @disk_cached_html_segment
 def _plot_cohort_hist(
     dataframe: pd.DataFrame,
@@ -77,6 +73,7 @@ def _plot_cohort_hist(
     cohort_col: str,
     subgroups: list[str],
     censor_threshold: int = 10,
+    filter_zero_one: bool = False,
 ) -> HTML:
     """
     Creates an HTML segment displaying a histogram of predicted probabilities for each cohort.
@@ -95,12 +92,17 @@ def _plot_cohort_hist(
         column values to split by
     censor_threshold : int
         minimum rows to allow in a plot, by default 10.
+    filter_zero_one : FilterRule
+        Whether to select only values between zero and one.
 
     Returns
     -------
     HTML
         A stacked set of histograms for each selected subgroup in the cohort.
     """
+    if filter_zero_one:
+        dataframe = FilterRule.isin(target, (0, 1)).filter(dataframe)
+
     cData = get_cohort_data(dataframe, cohort_col, proba=output, true=target, splits=subgroups)
 
     # filter by groups by size
@@ -111,7 +113,34 @@ def _plot_cohort_hist(
     if len(cData.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
 
-    bins = np.histogram_bin_edges(cData["pred"], bins=20)
+    bin_count = 20
+    bins = np.histogram_bin_edges(cData["pred"], bins=bin_count)
+    recorder = otel.OpenTelemetryRecorder(
+        metric_names=[f"Bin {i+1} out of {bin_count - 1}" for i in range(bin_count - 1)], name="Cohort Histogram"
+    )
+    ts_attributes = {"target": target, "score": output}
+    # Get all possible combinations of other attributes
+    df_other_attributes = cData.drop(columns=["pred", "cohort"])
+    for subgroup in subgroups:
+        for i in range(bin_count - 1):
+            bin_series = cData[
+                (bins[i] <= cData["pred"]) & (cData["pred"] < bins[i + 1]) & (cData["cohort"] == subgroup)
+            ]
+
+            # This is the information we really want to log:
+            # How many rows of each frame are in the corresponding bucket.
+            def maker(frame):
+                return {f"Bin {i+1} out of {bin_count - 1}": len(frame)}
+
+            cohorts = {col: df_other_attributes[col] for col in df_other_attributes.columns}
+            base_attributes = ts_attributes | {cohort_col: subgroup}
+            recorder.log_by_cohort(
+                base_attributes=base_attributes,
+                dataframe=bin_series,
+                cohorts=cohorts,
+                intersecting=False,
+                metric_maker=maker,
+            )
     try:
         svg = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
         title = f"Predicted Probabilities by {cohort_col}"
@@ -213,6 +242,7 @@ def plot_cohort_lead_time(
     )
 
 
+@store_call_parameters(name="plot_leadtime_enc")
 @disk_cached_html_segment
 def _plot_leadtime_enc(
     dataframe: pd.DataFrame,
@@ -297,6 +327,29 @@ def _plot_leadtime_enc(
     good_groups = counts.loc[counts > censor_threshold].index
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
 
+    log_all = otel.get_metric_config("Time Lead")["log_all"]
+    NUMBER_QUANTILES = otel.get_metric_config("Time Lead")["granularity"]
+    metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
+    if log_all:
+        metric_names += ["Time Lead"]
+    recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, name="Time Lead")
+    base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
+
+    def maker(frame):
+        leads = frame[target_zero] - frame[ref_time]
+        metrics = {
+            # Exporting in hours for now
+            f"Quantile {i} out of {NUMBER_QUANTILES}": (leads.quantile(i / NUMBER_QUANTILES)).total_seconds() / 3600
+            for i in range(1, NUMBER_QUANTILES)
+        }
+        if log_all:
+            # If we're logging all, then log all data and not just the quantiles.
+            metrics |= {"Time Lead": [lead.total_seconds() / 3600 for lead in list(leads)]}
+        return metrics
+
+    recorder.log_by_cohort(
+        base_attributes=base_attributes, dataframe=summary_data, cohorts={cohort_col: good_groups}, metric_maker=maker
+    )
     if len(summary_data.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
 
@@ -309,6 +362,7 @@ def _plot_leadtime_enc(
     return template.render_title_with_image(title, svg)
 
 
+@store_call_parameters
 @disk_cached_html_segment
 @export
 def plot_cohort_evaluation(
@@ -355,6 +409,7 @@ def plot_cohort_evaluation(
         subgroups,
         sg.censor_threshold,
         per_context,
+        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}"),
     )
 
 
@@ -371,6 +426,7 @@ def _plot_cohort_evaluation(
     per_context_id: bool = False,
     aggregation_method: str = "max",
     ref_time: str = None,
+    recorder: otel.OpenTelemetryRecorder = None,
 ) -> HTML:
     """
     Plots model performance metrics split by on a cohort attribute.
@@ -400,7 +456,8 @@ def _plot_cohort_evaluation(
         ignored if per_context_id is False
     ref_time : str, optional
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
-
+    recorder: OpenTelemetryRecorder
+        The object that metrics can be logged to.
     Returns
     -------
     HTML
@@ -419,6 +476,19 @@ def _plot_cohort_evaluation(
     plot_data = get_cohort_performance_data(
         data, cohort_col, proba=output, true=target, splits=subgroups, censor_threshold=censor_threshold
     )
+    if recorder is not None:
+        base_attributes = {"target": target, "score": output}
+        # Go through all cohort values, by means of:
+        cohort_categories = list(set(plot_data["cohort"]))
+        recorder.log_by_cohort(
+            base_attributes=base_attributes,
+            dataframe=plot_data,
+            cohorts={"cohort": cohort_categories, "Threshold": [t * 100 for t in thresholds]},
+            intersecting=True,
+        )
+        recorder.log_by_column(
+            df=plot_data, col_name="Threshold", cohorts={"cohort": cohort_categories}, base_attributes=base_attributes
+        )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
@@ -428,6 +498,7 @@ def _plot_cohort_evaluation(
     return template.render_title_with_image(title, svg)
 
 
+@store_call_parameters
 @export
 def model_evaluation(per_context_id=False):
     """Displays overall performance of the model.
@@ -449,6 +520,7 @@ def model_evaluation(per_context_id=False):
         per_context_id,
         sg.event_aggregation_method(sg.target),
         sg.predict_time,
+        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance"),
     )
 
 
@@ -503,6 +575,8 @@ def plot_model_evaluation(
         per_context,
         aggregation_method,
         ref_time,
+        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance"),
+        cohort=cohort_dict,
     )
 
 
@@ -518,6 +592,8 @@ def _model_evaluation(
     per_context_id: bool = False,
     aggregation_method: str = "max",
     ref_time: Optional[str] = None,
+    recorder: otel.OpenTelemetryRecorder = None,
+    cohort: dict = {},
 ) -> HTML:
     """
     plots common model evaluation metrics
@@ -545,6 +621,8 @@ def _model_evaluation(
         ignored if per_context_id is False
     ref_time : Optional[str], optional
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
+    recorder: otel.OpenTelemetryRecorder = None
+        Where to dump metrics from this call. If none, will not dump metrics.
 
     Returns
     -------
@@ -574,6 +652,19 @@ def _model_evaluation(
     # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
     stats = calculate_bin_stats(data[target], data[score_col])
     ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95, force_percentages=True)
+    if recorder is not None:
+        params = {"target_column": target, "score_column": score_col}
+        for t in thresholds:
+            recorder.populate_metrics(
+                attributes=params | cohort | {"threshold": t}, metrics=stats[stats["Threshold"] == t * 100]
+            )
+        for metric in stats.columns:
+            log_all = otel.get_metric_config(metric)["log_all"]
+            if log_all:
+                recorder.populate_metrics(
+                    attributes=params | cohort,
+                    metrics={metric: stats[[metric, "Threshold"]].set_index("Threshold").to_dict()},
+                )
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
@@ -586,6 +677,7 @@ def _model_evaluation(
     return template.render_title_with_image(title, svg)
 
 
+@store_call_parameters
 @export
 def plot_trend_intervention_outcome() -> HTML:
     """
@@ -882,6 +974,10 @@ def plot_model_score_comparison(
         splits=list(scores),
         censor_threshold=sg.censor_threshold,
     )
+    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
+    recorder.log_by_column(
+        df=plot_data, col_name="Threshold", cohorts={"cohort": scores}, base_attributes={"Target Column": target}
+    )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
@@ -945,6 +1041,10 @@ def plot_model_target_comparison(
         splits=list(targets),
         censor_threshold=sg.censor_threshold,
     )
+    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
+    recorder.log_by_column(
+        df=plot_data, col_name="Threshold", cohorts={"cohort": targets}, base_attributes={"Score Column": score}
+    )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
@@ -955,6 +1055,7 @@ def plot_model_target_comparison(
 
 
 # region Explore Any Metric (NNT, etc)
+@store_call_parameters
 @disk_cached_html_segment
 @export
 def plot_binary_classifier_metrics(
@@ -1076,6 +1177,12 @@ def binary_classifier_metric_evaluation(
     if isinstance(metrics, str):
         metrics = [metrics]
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
+    recorder = otel.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
+    attributes = {"score_col": score_col, "target": target}
+    for metric in metrics:
+        log_all = otel.get_metric_config(metric)["log_all"]
+        if log_all:
+            recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric].to_dict()})
     if table_only:
         return HTML(stats[metrics].T.to_html())
     return plot.binary_classifier.plot_metric_list(stats, metrics)
