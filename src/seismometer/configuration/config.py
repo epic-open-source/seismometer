@@ -46,6 +46,7 @@ class ConfigProvider:
         config_config: str | Path,
         *,
         usage_config: str | Path = None,
+        automation_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
         template_notebook: object = None,
@@ -67,7 +68,7 @@ class ConfigProvider:
             self._event_defs = EventDictionary(events=definitions.pop("events", None))
 
         self._load_config_config(config_config)
-        self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
+        self._resolve_other_paths(usage_config, automation_config, info_dir, data_dir, output_path)
         self._load_output_as_metric()
         self._load_metrics()
 
@@ -91,6 +92,7 @@ class ConfigProvider:
     def _resolve_other_paths(
         self,
         usage_config: str | Path = None,
+        automation_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
         output_path: str | Path = None,
@@ -100,6 +102,13 @@ class ConfigProvider:
         """
         # Coerce to Path or override with Path
         self.config.usage_config = Path(usage_config) if usage_config is not None else Path(self.config.usage_config)
+        self.config.automation_config = (
+            Path(automation_config)
+            if automation_config is not None
+            else Path(self.config.automation_config)
+            if self.config.automation_config is not None
+            else None
+        )
         self.config.info_dir = Path(info_dir) if info_dir is not None else Path(self.config.info_dir)
         self.config.data_dir = Path(data_dir) if data_dir is not None else Path(self.config.data_dir)
         self.set_output(output_path)

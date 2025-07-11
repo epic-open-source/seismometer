@@ -482,7 +482,7 @@ class Seismogram(object, metaclass=Singleton):
         try:
             with open(automation_file_path, "r") as automation_file:
                 self._automation_info = yaml.safe_load(automation_file)
-        except FileNotFoundError:
+        except (FileNotFoundError, TypeError):  # TypeError is for when the path is None
             self._automation_info = {}
 
     # endregion
