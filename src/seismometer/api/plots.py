@@ -59,9 +59,7 @@ def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_c
     """
     sg = Seismogram()
     target_column = pdh.event_value(target_column)
-    return _plot_cohort_hist(
-        sg.dataframe, target_column, score_column, cohort_col, subgroups, sg.censor_threshold, filter_zero_one=True
-    )
+    return _plot_cohort_hist(sg.dataframe, target_column, score_column, cohort_col, subgroups, sg.censor_threshold)
 
 
 @store_call_parameters(name="plot_cohort_hist")
@@ -73,7 +71,6 @@ def _plot_cohort_hist(
     cohort_col: str,
     subgroups: list[str],
     censor_threshold: int = 10,
-    filter_zero_one: bool = False,
 ) -> HTML:
     """
     Creates an HTML segment displaying a histogram of predicted probabilities for each cohort.
@@ -92,16 +89,15 @@ def _plot_cohort_hist(
         column values to split by
     censor_threshold : int
         minimum rows to allow in a plot, by default 10.
-    filter_zero_one : FilterRule
-        Whether to select only values between zero and one.
 
     Returns
     -------
     HTML
         A stacked set of histograms for each selected subgroup in the cohort.
     """
-    if filter_zero_one:
-        dataframe = FilterRule.isin(target, (0, 1)).filter(dataframe)
+
+    # We use this to display probabilities.
+    dataframe = FilterRule.isin(target, (0, 1)).filter(dataframe)
 
     cData = get_cohort_data(dataframe, cohort_col, proba=output, true=target, splits=subgroups)
 
