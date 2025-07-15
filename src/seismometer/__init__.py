@@ -10,7 +10,6 @@ import pandas as pd
 
 # API
 from seismometer.api import *
-from seismometer.data import otel
 from seismometer.data.otel import *
 
 __version__ = importlib.metadata.version("seismometer")
@@ -68,4 +67,4 @@ def run_startup(
 
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
-    otel.initialize_otel_config(config.config)
+    initialize_otel_config(config.config)
