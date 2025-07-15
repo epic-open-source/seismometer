@@ -200,7 +200,7 @@ class SingleReportWrapper(ReportWrapper):
             logger.debug(f"Existing alerts found on disk: {self._alert_path}")
             self._deserialize_alerts()
 
-        alert_types = ["imbalance", "missing", "zeros"]
+        alert_types = list(set([alert.name.lower() for alert in self._parsed_alerts.alerts]))
         # TODO: add units of percent for each of these
         self.recorder = otel.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
         for alert in self._parsed_alerts.alerts:
