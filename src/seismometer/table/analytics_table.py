@@ -350,7 +350,6 @@ class AnalyticsTable:
             # The table in the graphic is definitely indexed by score + target, so
             # we will be storing those as attributes and the rest of the row as a
             # bunch of key-value pairs.
-            metric_name = metric_name.replace("\xa0", " ")
             for i in range(len(data["Score"])):
                 row = data.to_dict("records")[i]
                 attributes = base_attributes | {"Score": row["Score"], "Target": row["Target"]}

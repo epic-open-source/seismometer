@@ -238,6 +238,8 @@ class OpenTelemetryRecorder:
         if metrics is None:
             # metrics = self()
             raise Exception()
+        # OTel doesn't like fancy Unicode characters.
+        metrics = {metric_name.replace("\xa0", " "): metrics[metric_name] for metric_name in metrics}
         for name in self.instruments.keys():
             # I think metrics.keys() is a subset of self.instruments.keys()
             # but I am not 100% on it. So this stays for now.
