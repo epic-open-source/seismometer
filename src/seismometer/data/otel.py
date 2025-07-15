@@ -578,11 +578,10 @@ def extract_arguments(argument_names: list[str], run_settings: dict) -> dict:
     dict
         The options and values we found in options.
     """
-    return (
-        {arg: run_settings["options"][arg] for arg in argument_names if arg in run_settings["options"]}
-        if "options" in run_settings
-        else {}
-    )
+    if "options" in run_settings:
+        return {arg: run_settings["options"][arg] for arg in argument_names if arg in run_settings["options"]}
+    else:
+        return {}
 
 
 def do_one_manual_export(function_name: str, run_settings):
