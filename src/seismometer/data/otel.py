@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from seismometer.configuration.model import OtherInfo
 from seismometer.core.decorators import export
 from seismometer.core.io import slugify
 from seismometer.data.performance import BinaryClassifierMetricGenerator
@@ -46,7 +47,7 @@ def config_otel_stoppage() -> bool:
     return raw_stop == "TRUE"
 
 
-STOP_ALL_OTEL = config_otel_stoppage()
+STOP_ALL_OTEL = False
 
 
 def read_otel_info(file_path: str) -> dict:
@@ -446,6 +447,21 @@ def ready_for_serialization(obj):
         return ready_for_serialization(vars(obj))
     else:
         return str(obj)
+
+
+@export
+def initialize_otel_config(config: OtherInfo):
+    """Read all metric exporting and automation info.
+
+    Parameters
+    ----------
+    config : OtherInfo
+        The configuration object handed in during Seismogram initialization.
+    """
+    global OTEL_INFO, STOP_ALL_OTEL
+    OTEL_INFO = read_otel_info(config.usage_config)
+    Seismogram().load_automation_config(config.automation_config)
+    STOP_ALL_OTEL = config_otel_stoppage()
 
 
 @export
