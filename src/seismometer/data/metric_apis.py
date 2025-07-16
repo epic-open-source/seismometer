@@ -64,7 +64,7 @@ class OpenTelemetryRecorder:
             The actual data we are populating.
         """
 
-        if STOP_ALL_OTEL:
+        if STOP_ALL_OTEL or not export_manager.active:
             return
 
         if metrics is None:

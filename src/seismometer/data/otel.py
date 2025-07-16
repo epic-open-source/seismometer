@@ -172,6 +172,15 @@ class ExportManager:
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
         set_meter_provider(self.meter_provider)
+        self.active = True
+
+    def pause_exports(self):
+        """Make it so that all metric emission calls are no-ops."""
+        self.active = False
+
+    def resume_exports(self):
+        """Revert to the default state of allowing metric emission."""
+        self.active = True
 
     def __del__(self):
         if self.otlp_exhaust is not None and (sys is None or self.otlp_exhaust != sys.stdout):
