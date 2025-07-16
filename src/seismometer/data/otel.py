@@ -485,20 +485,6 @@ def export_config():
         yaml.dump(call_history, automation_file)
 
 
-# Writing a full list here for security reasons.
-allowed_export_names = {
-    "feature_alerts",
-    "feature_summary",
-    "plot_model_evaluation",
-    "plot_cohort_evaluation",
-    "plot_cohort_hist",
-    "plot_leadtime_enc",
-    "plot_binary_classifier_metrics",
-    "plot_trend_intervention_outcome",
-    "target_feature_summary",
-}
-
-
 def do_auto_export(function_name: str, fn_settings: dict):
     """Run a (metric-generating) function with
     predetermined settings. To be used when reading in
@@ -701,7 +687,7 @@ def do_metric_exports() -> None:
     sg = Seismogram()
     for function_name in sg._automation_info.keys():
         fn_settings = sg._automation_info[function_name]
-        if function_name not in allowed_export_names:
+        if not sg.is_allowed_export_function(function_name):
             logger.warning(f"Unrecognized auto-export function name {function_name}. Continuing ...")
             continue
         # See if this is auto-generated or if it was hand-written.

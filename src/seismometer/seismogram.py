@@ -51,6 +51,8 @@ class Seismogram(object, metaclass=Singleton):
     """ The list of columns representing model outputs. """
     _call_history: dict[str, dict]
     """ plot function name -> {"args": args, "kwargs": kwargs } """
+    automation_function_map: dict[str, Callable]
+    """ Maps the name of a function to the actual function to automate metric exporting from. """
 
     def __init__(
         self,
@@ -84,6 +86,7 @@ class Seismogram(object, metaclass=Singleton):
         self.metric_types: dict[str, list[str]] = {}
         self.metric_groups: dict[str, list[str]] = {}
         self._call_history = defaultdict(list)
+        self._automation_info = {}
 
         self.copy_config_metadata()
 
@@ -104,7 +107,7 @@ class Seismogram(object, metaclass=Singleton):
         self.available_cohort_groups = dict()
         self.selected_cohort = (None, None)  # column, values
 
-    def store_call_params(self, fn_name, args, kwargs, extra_info):
+    def store_call_params(self, fn_name, fn, args, kwargs, extra_info):
         """_summary_
 
         Parameters
@@ -114,6 +117,8 @@ class Seismogram(object, metaclass=Singleton):
             the actual name of the function in the code, but if needed it can be
             set to a more readable or expected name (e.g. _plot_cohort_hist is set
             to plot_cohort_hist without an underscore).
+        fn: Callable
+            The actual fuinction itself.
         args : list
             The arguments the function was called with.
         kwargs : dict
@@ -128,6 +133,18 @@ class Seismogram(object, metaclass=Singleton):
         args = map(replace_df_map, args)
         kwargs = {k: replace_df_map(kwargs[k]) for k in kwargs}
         self._call_history[fn_name].append({"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)})
+        self._automation_info[fn_name] = fn
+
+    def is_allowed_export_function(self, fn_name: str) -> bool:
+        """Whether or not a function is an allowed export.
+
+        Parameters
+        ----------
+        fn_name : str
+            The name of the function.
+
+        """
+        return fn_name in self._automation_info
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -492,8 +509,8 @@ class Seismogram(object, metaclass=Singleton):
 
 
 # Internal implementation -- stored separately here for mocking purposes.
-def _store_call_parameters(name: str, args: list, kwargs: dict, extra_info: dict) -> None:
-    Seismogram().store_call_params(name, args, kwargs, extra_info)
+def _store_call_parameters(name: str, fn: Callable, args: list, kwargs: dict, extra_info: dict) -> None:
+    Seismogram().store_call_params(name, fn, args, kwargs, extra_info)
 
 
 def store_call_parameters(
@@ -521,7 +538,7 @@ def store_call_parameters(
         @functools.wraps(fn)
         def new_fn(*args, **kwargs):
             call_name = name if name is not None else fn.__name__
-            _store_call_parameters(call_name, list(args), kwargs, extra_params)
+            _store_call_parameters(call_name, fn, list(args), kwargs, extra_params)
             return fn(*args, **kwargs)
 
         return new_fn
