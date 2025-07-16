@@ -495,7 +495,6 @@ allowed_export_names = {
     "plot_leadtime_enc",
     "plot_binary_classifier_metrics",
     "plot_trend_intervention_outcome",
-    "show_cohort_summaries",
     "target_feature_summary",
 }
 
@@ -527,7 +526,6 @@ def do_auto_export(function_name: str, fn_settings: dict):
         plot_trend_intervention_outcome,
     )
     from seismometer.api.reports import feature_alerts, feature_summary, target_feature_summary
-    from seismometer.api.templates import show_cohort_summaries
 
     args = fn_settings["args"]
     kwargs = fn_settings["kwargs"]
@@ -549,8 +547,6 @@ def do_auto_export(function_name: str, fn_settings: dict):
             fn = plot_binary_classifier_metrics
         case "plot_trend_intervention_outcome":
             fn = plot_trend_intervention_outcome
-        case "show_cohort_summaries":
-            fn = show_cohort_summaries
         case "target_feature_summary":
             fn = target_feature_summary
         case "plot_model_score_comparison":
@@ -612,8 +608,6 @@ def do_one_manual_export(function_name: str, run_settings):
         plot_model_score_comparison,
     )
     from seismometer.api.reports import feature_alerts, feature_summary  # target_feature_summary
-
-    # from seismometer.api.templates import show_cohort_summaries
 
     match function_name:
         # These first three are super repetitive, fix them
@@ -678,8 +672,6 @@ def do_one_manual_export(function_name: str, run_settings):
             plot_model_score_comparison(**kwargs)
         case "plot_trend_intervention_outcome":
             pass  # Possibly add metric logging for this in the first place
-        case "show_cohort_summaries":
-            pass
 
 
 def do_manual_export(function_name: str, fn_settings: list | dict):
