@@ -11,7 +11,7 @@ from ipywidgets import HTML, Box, FloatSlider, Layout, ValueWidget, VBox
 from seismometer.controls.explore import ExplorationWidget, ModelOptionsWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
-from seismometer.data import otel
+from seismometer.data import metric_apis
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
@@ -193,7 +193,7 @@ def fairness_table(
     if not cohort_dict:
         raise ValueError("No cohorts provided for fairness evaluation")
 
-    recorder = otel.OpenTelemetryRecorder(metric_names=metric_list, name="Fairness Table Metric Generator")
+    recorder = metric_apis.OpenTelemetryRecorder(metric_names=metric_list, name="Fairness Table Metric Generator")
 
     for cohort_column in cohort_dict:
         cohort_indices = []

@@ -12,7 +12,7 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
-from seismometer.data import otel
+from seismometer.data import metric_apis
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
@@ -61,7 +61,7 @@ class OrdinalCategoricalPlot:
         self.values = self._extract_metric_values() if self.metrics else []
 
         readable_metric_names = [sg.metrics[metric].display_name for metric in self.metrics]
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=readable_metric_names, name=self.plot_type)
+        self.recorder = metric_apis.OpenTelemetryRecorder(metric_names=readable_metric_names, name=self.plot_type)
 
     def _extract_metric_values(self):
         """

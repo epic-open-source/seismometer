@@ -13,7 +13,7 @@ from seismometer.controls.explore import ExplorationWidget, _combine_scores_chec
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.controls.thresholds import MonotonicProbabilitySliderListWidget
-from seismometer.data import otel
+from seismometer.data import metric_apis
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
 from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
@@ -332,7 +332,7 @@ class AnalyticsTable:
         gt = self.generate_initial_table(data)
 
         METRICS = STATNAMES + OVERALL_PERFORMANCE
-        recorder = otel.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table")
+        recorder = metric_apis.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table")
         # The column names are
         for column in data.columns:
             base_attributes = {}

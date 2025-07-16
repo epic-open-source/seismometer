@@ -5,13 +5,13 @@ import pandas as pd
 import pytest
 
 try:
-    from opentelemetry import metrics
+    from opentelemetry import metrics as otel_metrics
     from opentelemetry.sdk.metrics import MeterProvider
 except ImportError:
     # No OTel!
     pytest.skip("No OpenTelemetry, nothing to test here", allow_module_level=True)
 
-from seismometer.data import otel
+from seismometer.data import metric_apis, otel
 
 # We will mock it so that all metrics that are "logged"
 # actually just end up going here.
@@ -24,16 +24,16 @@ def mock_set_one_datapoint(_, attributes, instrument, data):
 
 @pytest.fixture
 def recorder():
-    r = otel.OpenTelemetryRecorder(metric_names=[], name="Test")
+    r = metric_apis.OpenTelemetryRecorder(metric_names=[], name="Test")
     r.instruments = {"A": "A", "B": "B", "C": "C", "D": "D"}
     return r
 
 
 # We want recorder and exporter init methods to do nothing, so we don't actually have to
 # open any files or make anything.
-@patch.object(otel.OpenTelemetryRecorder, "__init__", new=lambda self: None)
+@patch.object(metric_apis.OpenTelemetryRecorder, "__init__", new=lambda self: None)
 @patch.object(otel.ExportManager, "__init__", new=lambda self: None)
-@patch.object(otel.OpenTelemetryRecorder, "_set_one_datapoint", new=mock_set_one_datapoint)
+@patch.object(metric_apis.OpenTelemetryRecorder, "_set_one_datapoint", new=mock_set_one_datapoint)
 @patch("seismometer.data.otel.STOP_ALL_OTEL", False)
 class TestMetricLogging:
     def test_log_to_instrument(self, recorder):
@@ -75,6 +75,6 @@ class TestMetricLogging:
 def otel_metrics_cleanup():
     yield
     # Cleanup ... close the meter provider so that we don't erroneously try to log late
-    provider = metrics.get_meter_provider()
+    provider = otel_metrics.get_meter_provider()
     if isinstance(provider, MeterProvider):
         provider.shutdown()

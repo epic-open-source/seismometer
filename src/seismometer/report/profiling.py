@@ -14,7 +14,7 @@ from seaborn.utils import relative_luminance
 
 import seismometer.report
 from seismometer.core.io import slugify
-from seismometer.data import otel
+from seismometer.data import metric_apis
 
 from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
 
@@ -202,7 +202,7 @@ class SingleReportWrapper(ReportWrapper):
 
         alert_types = list(set([alert.name.lower() for alert in self._parsed_alerts.alerts]))
         # TODO: add units of percent for each of these
-        self.recorder = otel.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
+        self.recorder = metric_apis.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
         for alert in self._parsed_alerts.alerts:
             variable = alert.variable
             percentage = alert.percentage

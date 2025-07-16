@@ -8,7 +8,7 @@ from IPython.display import HTML, SVG
 import seismometer.plot as plot
 from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.core.decorators import export
-from seismometer.data import get_cohort_data, get_cohort_performance_data, otel
+from seismometer.data import get_cohort_data, get_cohort_performance_data, metric_apis, otel
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import (
@@ -302,7 +302,7 @@ def _plot_leadtime_enc(
     metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
     if log_all:
         metric_names += ["Time Lead"]
-    recorder = otel.OpenTelemetryRecorder(metric_names=metric_names, name="Time Lead")
+    recorder = metric_apis.OpenTelemetryRecorder(metric_names=metric_names, name="Time Lead")
     base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
 
     def maker(frame):
@@ -445,7 +445,7 @@ def _plot_cohort_evaluation(
     plot_data = get_cohort_performance_data(
         data, cohort_col, proba=output, true=target, splits=subgroups, censor_threshold=censor_threshold
     )
-    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}")
+    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}")
     base_attributes = {"target": target, "score": output}
     # Go through all cohort values, by means of:
     cohort_categories = list(set(plot_data[cohort_col]))
@@ -592,7 +592,7 @@ def _model_evaluation(
     # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
     stats = calculate_bin_stats(data[target], data[score_col])
     ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95, force_percentages=True)
-    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance")
+    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance")
     params = {"target_column": target, "score_column": score_col}
     for t in thresholds:
         recorder.populate_metrics(
@@ -915,7 +915,7 @@ def plot_model_score_comparison(
         splits=list(scores),
         censor_threshold=sg.censor_threshold,
     )
-    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
+    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
     recorder.log_by_column(
         df=plot_data, col_name="Threshold", cohorts={"cohort": scores}, base_attributes={"Target Column": target}
     )
@@ -982,7 +982,7 @@ def plot_model_target_comparison(
         splits=list(targets),
         censor_threshold=sg.censor_threshold,
     )
-    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
+    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
     recorder.log_by_column(
         df=plot_data, col_name="Threshold", cohorts={"cohort": targets}, base_attributes={"Score Column": score}
     )
@@ -1118,7 +1118,7 @@ def binary_classifier_metric_evaluation(
     if isinstance(metrics, str):
         metrics = [metrics]
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
-    recorder = otel.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
+    recorder = metric_apis.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
     attributes = {"score_col": score_col, "target": target}
     for metric in metrics:
         log_all = otel.get_metric_config(metric)["log_all"]

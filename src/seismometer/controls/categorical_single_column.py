@@ -10,7 +10,7 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
-from seismometer.data import otel
+from seismometer.data import metric_apis
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
 from seismometer.plot.mpl.likert import likert_plot
@@ -55,7 +55,7 @@ class OrdinalCategoricalSinglePlot:
 
         self.values = self._extract_metric_values()
 
-        self.recorder = otel.OpenTelemetryRecorder(
+        self.recorder = metric_apis.OpenTelemetryRecorder(
             metric_names=[sg.metrics[metric_col].display_name], name=self.plot_type
         )
 
