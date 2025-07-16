@@ -673,7 +673,7 @@ class TestSeismogramFilterConfigs:
             FilterConfig(source="col", action="include", range=FilterRange(min=1, max=10))
         ]
 
-        with pytest.raises(ValueError, match="Values in 'col' must be comparable to '1.0'."):
+        with pytest.raises(ValueError, match="Values in 'col' must be comparable to '1'."):
             sg._apply_load_time_filters(df)
 
 
@@ -812,3 +812,42 @@ class TestSeismogramBuildCohortHierarchyCombinations:
             actual_df = sg.cohort_hierarchy_combinations[key].reset_index(drop=True)
             expected_df = expected_results[key].reset_index(drop=True)
             pd.testing.assert_frame_equal(actual_df, expected_df)
+
+
+class TestSeismogram:
+    def test_value_counts_match_after_cohort_filtering(self, tmp_path):
+        # --- Setup config and loader manually (mimics fake_seismo) ---
+        config = get_test_config(tmp_path)
+        config.cohorts = [Cohort(source=name, display_name=f"Display_{name}") for name in ["cohort1", "cohort2"]]
+        config.usage.load_time_filters = [FilterConfig(source="cohort1", action="include", values=[1])]
+        metadata_path = tmp_path / "metadata.json"
+        metadata_path.write_text('{"thresholds": [0.2, 0.8], "modelname": "TestModel"}')
+        config.metadata_path = metadata_path
+        config.cohort_hierarchies = []
+
+        # Use filtered data
+        df = get_test_data()
+
+        loader = get_test_loader(config)
+        loader.load_data.return_value = df
+
+        # --- Act: Create Seismogram instance manually ---
+        Seismogram.kill()
+        sg = Seismogram(config=config, dataloader=loader)
+        sg.load_data()
+
+        # --- Assert: source vs. display column value_counts match ---
+        for cohort in config.cohorts:
+            source_col = cohort.source
+            display_col = cohort.display_name or source_col
+
+            if display_col not in sg.dataframe.columns:
+                continue  # skipped due to censoring or config
+
+            source_counts = sg.dataframe[source_col].value_counts(sort=False).sort_index()
+            display_counts = sg.dataframe[display_col].value_counts(sort=False).sort_index()
+
+            mismatch_msg = f"Counts for {display_col} do not match {source_col} after filtering."
+            assert dict(display_counts) == dict(source_counts), mismatch_msg
+        # Cleanup
+        Seismogram.kill()
