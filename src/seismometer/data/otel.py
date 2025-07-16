@@ -372,7 +372,9 @@ class OpenTelemetryRecorder:
                 else:
                     self.populate_metrics(attributes=attributes, metrics=metrics)
 
-    def log_by_column(self, df: pd.DataFrame, col_name: str, cohorts: dict, base_attributes: dict):
+    def log_by_column(
+        self, df: pd.DataFrame, col_name: str, cohorts: dict, base_attributes: dict, col_values: list = []
+    ):
         """Log with a particular column as the index, only if each metric is set to log_all.
 
         Parameters
@@ -385,6 +387,9 @@ class OpenTelemetryRecorder:
             Which cohorts we want to extract data from when it's time.
         base_attributes : dict
             The attributes we want to associate to all of the logs from this.
+        col_values: list
+            If log_all is not set for a particular metric, we will only log using the particular values provided. An
+            example use case is a set of thresholds.
         """
         for metric in df.columns:
 
@@ -392,8 +397,11 @@ class OpenTelemetryRecorder:
                 return frame.set_index(col_name)[[metric]].to_dict()
 
             log_all = get_metric_config(metric)["log_all"]
-            if log_all:
-                self.log_by_cohort(base_attributes=base_attributes, dataframe=df, cohorts=cohorts, metric_maker=maker)
+            if log_all or col_values != []:
+                log_df = df if log_all else df[df[col_name] in col_values]
+                self.log_by_cohort(
+                    base_attributes=base_attributes, dataframe=log_df, cohorts=cohorts, metric_maker=maker
+                )
 
 
 # If we don't have telemetry, we make everything into a no-op.
