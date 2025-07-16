@@ -510,40 +510,10 @@ def do_auto_export(function_name: str, fn_settings: dict):
         extra_params: the current settings of Seismogram,
         saved at the time of export.
     """
-    from seismometer.api.plots import (
-        _plot_leadtime_enc,
-        plot_binary_classifier_metrics,
-        plot_cohort_evaluation,
-        plot_model_evaluation,
-        plot_model_score_comparison,
-        plot_trend_intervention_outcome,
-    )
-    from seismometer.api.reports import feature_alerts, feature_summary, target_feature_summary
 
     args = fn_settings["args"]
     kwargs = fn_settings["kwargs"]
     # We need to have these here for circular import reasons.
-    match function_name:
-        case "feature_alerts":
-            fn = feature_alerts
-        case "feature_summary":
-            fn = feature_summary
-        case "plot_model_evaluation":
-            fn = plot_model_evaluation
-        case "plot_cohort_evaluation":
-            fn = plot_cohort_evaluation
-        case "plot_leadtime_enc":
-            fn = _plot_leadtime_enc
-        case "plot_binary_classifier_metrics":
-            fn = plot_binary_classifier_metrics
-        case "plot_trend_intervention_outcome":
-            fn = plot_trend_intervention_outcome
-        case "target_feature_summary":
-            fn = target_feature_summary
-        case "plot_model_score_comparison":
-            fn = plot_model_score_comparison
-        case _:
-            raise ValueError(f"Unknown function name: {function_name}")
     fn = Seismogram().get_function_from_export_name(function_name)
     fn(*args, **kwargs)
 
@@ -612,24 +582,11 @@ def do_one_manual_export(function_name: str, run_settings):
             for cohort in run_settings["cohorts"]:
                 subgroups = run_settings["cohorts"][cohort]
                 fn(cohort_col=cohort, subgroups=subgroups, **kwargs)
-        case "plot_leadtime_enc":
-            kwargs = extract_arguments(
-                [
-                    "entity_keys",
-                    "target_event",
-                    "target_zero",
-                    "score",
-                    "threshold",
-                    "ref_time",
-                    "max_hours",
-                    "x_label",
-                    "censor_threshold",
-                ],
-                run_settings,
-            )
+        case "plot_cohort_lead_time":
+            kwargs = extract_arguments(["event_column", "score_column", "threshold"], run_settings)
             for cohort_col in run_settings["cohorts"]:
                 subgroups = run_settings["cohorts"][cohort_col]
-                fn(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
+                fn(cohort_col=cohort_col, subgroups=subgroups, **kwargs)
         case "plot_binary_classifier_metrics":
             kwargs = extract_arguments(
                 ["metrics", "target", "score_column", "per_context", "table_only", run_settings]

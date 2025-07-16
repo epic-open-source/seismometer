@@ -125,13 +125,6 @@ class Seismogram(object, metaclass=Singleton):
             The keyword arguments the function was called with.
         """
 
-        # Some of the plot functions take data frames as arguments, and we do not want to cache those.
-        # So, we will look through args and kwargs and replaec any arguments of DataFrame type.
-        def replace_df_map(val):
-            return "[Data Frame]" if isinstance(val, pd.DataFrame) else val
-
-        args = map(replace_df_map, args)
-        kwargs = {k: replace_df_map(kwargs[k]) for k in kwargs}
         self._call_history[fn_name].append({"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)})
         self._automation_info[fn_name] = fn
 

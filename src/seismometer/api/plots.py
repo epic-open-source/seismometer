@@ -163,6 +163,7 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
     )
 
 
+@store_call_parameters
 @disk_cached_html_segment
 @export
 def plot_cohort_lead_time(
@@ -212,7 +213,6 @@ def plot_cohort_lead_time(
     )
 
 
-@store_call_parameters(name="plot_leadtime_enc")
 @disk_cached_html_segment
 def _plot_leadtime_enc(
     dataframe: pd.DataFrame,
