@@ -146,6 +146,23 @@ class Seismogram(object, metaclass=Singleton):
         """
         return fn_name in self._automation_info
 
+    def get_function_from_export_name(self, fn_name: str) -> Callable:
+        """Get the actual function to export metrics with, from its name.
+        This is not necessarily the function name itself: ex. we may use
+        plot_xyz instead of _plot_xyz.
+
+        Parameters
+        ----------
+        fn_name : str
+            The name of the function itself.
+
+        Returns
+        -------
+        Callable
+            Which function we should call when we see this in automation.
+        """
+        return self._automation_info[fn_name]
+
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
     ):

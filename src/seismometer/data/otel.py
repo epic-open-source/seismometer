@@ -539,7 +539,7 @@ def do_auto_export(function_name: str, fn_settings: dict):
             fn = plot_model_score_comparison
         case _:
             raise ValueError(f"Unknown function name: {function_name}")
-    fn = allowed_export_names[function_name]
+    fn = Seismogram().get_function_from_export_name(function_name)
     fn(*args, **kwargs)
 
 
@@ -585,43 +585,34 @@ def do_one_manual_export(function_name: str, run_settings):
         The appropriate section of YAML.
     """
 
-    from seismometer.api.plots import (  # plot_trend_intervention_outcome,
-        _plot_cohort_hist,
-        _plot_leadtime_enc,
-        plot_binary_classifier_metrics,
-        plot_cohort_evaluation,
-        plot_model_evaluation,
-        plot_model_score_comparison,
-    )
-    from seismometer.api.reports import feature_alerts, feature_summary  # target_feature_summary
+    sg = Seismogram()
+    fn = sg.get_function_from_export_name(function_name)
 
     match function_name:
         # These first three are super repetitive, fix them
         case "feature_alerts":
             # The only possibility here is the exclude_cols option so let's look for that.
             kwargs = extract_arguments(["exclude_cols"], run_settings)
-            feature_alerts(**kwargs)
+            fn(**kwargs)
         case "feature_summary":
             kwargs = extract_arguments(["exclude_cols", "inline"], run_settings)
-            feature_summary(**kwargs)
+            fn(**kwargs)
         case "plot_model_evaluation":
             kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
             kwargs["cohort_dict"] = run_settings["cohort"]
-            plot_model_evaluation(**kwargs)
+            fn(**kwargs)
         case "plot_cohort_evaluation":
             kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
             # Now we loop over cohort columns and subgroups specified.
             for cohort in run_settings["cohorts"]:
                 subgroups = run_settings["cohorts"][cohort]
-                plot_cohort_evaluation(cohort_col=cohort, subgroups=subgroups, **kwargs)
+                fn(cohort_col=cohort, subgroups=subgroups, **kwargs)
         case "plot_cohort_hist":
-            sg = Seismogram()
             kwargs = extract_arguments(["target", "output", "censor_threshold", "filter_zero_one"], run_settings)
             for cohort_col in run_settings["cohorts"]:
                 subgroups = run_settings["cohorts"][cohort_col]
-                _plot_cohort_hist(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
+                fn(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
         case "plot_leadtime_enc":
-            sg = Seismogram()
             kwargs = extract_arguments(
                 [
                     "entity_keys",
@@ -638,7 +629,7 @@ def do_one_manual_export(function_name: str, run_settings):
             )
             for cohort_col in run_settings["cohorts"]:
                 subgroups = run_settings["cohorts"][cohort_col]
-                _plot_leadtime_enc(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
+                fn(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
         case "plot_binary_classifier_metrics":
             kwargs = extract_arguments(
                 ["metrics", "target", "score_column", "per_context", "table_only", run_settings]
@@ -651,11 +642,11 @@ def do_one_manual_export(function_name: str, run_settings):
             except KeyError:
                 rho = None
             metric_generator = BinaryClassifierMetricGenerator(rho)
-            plot_binary_classifier_metrics(metric_generator=metric_generator, **kwargs)
+            fn(metric_generator=metric_generator, **kwargs)
         case "plot_model_score_comparison":
             kwargs = extract_arguments(["target", "scores", "per_context"], run_settings)
             kwargs["cohort_dict"] = run_settings["cohorts"]
-            plot_model_score_comparison(**kwargs)
+            fn(**kwargs)
         case "plot_trend_intervention_outcome":
             pass  # Possibly add metric logging for this in the first place
 
