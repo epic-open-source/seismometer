@@ -22,10 +22,13 @@ Configuration DataModel
    :toctree: api/
 
    Cohort
+   CohortHierarchy
    DataUsage
    DictionaryItem
    Event
    EventDictionary
    EventTableMap
+   FilterRange
+   FilterConfig
    OtherInfo
    PredictionDictionary
