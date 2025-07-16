@@ -10,7 +10,7 @@ import pandas as pd
 
 # API
 from seismometer.api import *
-from seismometer.data.otel import *
+from seismometer.core.autometrics import *
 
 __version__ = importlib.metadata.version("seismometer")
 logger = logging.getLogger("seismometer")
