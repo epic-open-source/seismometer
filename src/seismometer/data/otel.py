@@ -523,6 +523,7 @@ def do_auto_export(function_name: str, fn_settings: dict):
         plot_binary_classifier_metrics,
         plot_cohort_evaluation,
         plot_model_evaluation,
+        plot_model_score_comparison,
         plot_trend_intervention_outcome,
     )
     from seismometer.api.reports import feature_alerts, feature_summary, target_feature_summary
@@ -552,6 +553,8 @@ def do_auto_export(function_name: str, fn_settings: dict):
             fn = show_cohort_summaries
         case "target_feature_summary":
             fn = target_feature_summary
+        case "plot_model_score_comparison":
+            fn = plot_model_score_comparison
         case _:
             raise ValueError(f"Unknown function name: {function_name}")
     fn = allowed_export_names[function_name]
@@ -606,6 +609,7 @@ def do_one_manual_export(function_name: str, run_settings):
         plot_binary_classifier_metrics,
         plot_cohort_evaluation,
         plot_model_evaluation,
+        plot_model_score_comparison,
     )
     from seismometer.api.reports import feature_alerts, feature_summary  # target_feature_summary
 
@@ -621,9 +625,8 @@ def do_one_manual_export(function_name: str, run_settings):
             kwargs = extract_arguments(["exclude_cols", "inline"], run_settings)
             feature_summary(**kwargs)
         case "plot_model_evaluation":
-            kwargs = extract_arguments(
-                ["cohort_dict", "target_column", "score_column", "thresholds", "per_context"], run_settings
-            )
+            kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
+            kwargs["cohort_dict"] = run_settings["cohort"]
             plot_model_evaluation(**kwargs)
         case "plot_cohort_evaluation":
             kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
@@ -669,6 +672,10 @@ def do_one_manual_export(function_name: str, run_settings):
                 rho = None
             metric_generator = BinaryClassifierMetricGenerator(rho)
             plot_binary_classifier_metrics(metric_generator=metric_generator, **kwargs)
+        case "plot_model_score_comparison":
+            kwargs = extract_arguments(["target", "scores", "per_context"], run_settings)
+            kwargs["cohort_dict"] = run_settings["cohorts"]
+            plot_model_score_comparison(**kwargs)
         case "plot_trend_intervention_outcome":
             pass  # Possibly add metric logging for this in the first place
         case "show_cohort_summaries":

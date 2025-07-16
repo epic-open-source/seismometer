@@ -886,6 +886,7 @@ def _plot_ts_cohort(
     )
 
 
+@store_call_parameters
 @disk_cached_html_segment
 @export
 def plot_model_score_comparison(
