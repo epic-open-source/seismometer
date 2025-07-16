@@ -27,8 +27,8 @@ try:
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
     TELEMETRY = True
-except ImportError as e:
-    logger.warning(f"Was not able to use metric exporting (message {str(e)}). Not using telemetry ...")
+except ImportError:
+    # No OTel.
     TELEMETRY = False
 
 
