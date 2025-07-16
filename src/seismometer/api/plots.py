@@ -62,7 +62,6 @@ def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_c
     return _plot_cohort_hist(sg.dataframe, target_column, score_column, cohort_col, subgroups, sg.censor_threshold)
 
 
-@store_call_parameters(name="plot_cohort_hist")
 @disk_cached_html_segment
 def _plot_cohort_hist(
     dataframe: pd.DataFrame,
@@ -111,32 +110,7 @@ def _plot_cohort_hist(
 
     bin_count = 20
     bins = np.histogram_bin_edges(cData["pred"], bins=bin_count)
-    recorder = otel.OpenTelemetryRecorder(
-        metric_names=[f"Bin {i+1} out of {bin_count - 1}" for i in range(bin_count - 1)], name="Cohort Histogram"
-    )
-    ts_attributes = {"target": target, "score": output}
-    # Get all possible combinations of other attributes
-    df_other_attributes = cData.drop(columns=["pred", "cohort"])
-    for subgroup in subgroups:
-        for i in range(bin_count - 1):
-            bin_series = cData[
-                (bins[i] <= cData["pred"]) & (cData["pred"] < bins[i + 1]) & (cData["cohort"] == subgroup)
-            ]
 
-            # This is the information we really want to log:
-            # How many rows of each frame are in the corresponding bucket.
-            def maker(frame):
-                return {f"Bin {i+1} out of {bin_count - 1}": len(frame)}
-
-            cohorts = {col: df_other_attributes[col] for col in df_other_attributes.columns}
-            base_attributes = ts_attributes | {cohort_col: subgroup}
-            recorder.log_by_cohort(
-                base_attributes=base_attributes,
-                dataframe=bin_series,
-                cohorts=cohorts,
-                intersecting=False,
-                metric_maker=maker,
-            )
     try:
         svg = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
         title = f"Predicted Probabilities by {cohort_col}"

@@ -511,7 +511,6 @@ def do_auto_export(function_name: str, fn_settings: dict):
         saved at the time of export.
     """
     from seismometer.api.plots import (
-        _plot_cohort_hist,
         _plot_leadtime_enc,
         plot_binary_classifier_metrics,
         plot_cohort_evaluation,
@@ -533,8 +532,6 @@ def do_auto_export(function_name: str, fn_settings: dict):
             fn = plot_model_evaluation
         case "plot_cohort_evaluation":
             fn = plot_cohort_evaluation
-        case "plot_cohort_hist":
-            fn = _plot_cohort_hist
         case "plot_leadtime_enc":
             fn = _plot_leadtime_enc
         case "plot_binary_classifier_metrics":
@@ -615,11 +612,6 @@ def do_one_manual_export(function_name: str, run_settings):
             for cohort in run_settings["cohorts"]:
                 subgroups = run_settings["cohorts"][cohort]
                 fn(cohort_col=cohort, subgroups=subgroups, **kwargs)
-        case "plot_cohort_hist":
-            kwargs = extract_arguments(["target", "output", "censor_threshold", "filter_zero_one"], run_settings)
-            for cohort_col in run_settings["cohorts"]:
-                subgroups = run_settings["cohorts"][cohort_col]
-                fn(dataframe=sg.dataframe, cohort_col=cohort_col, subgroups=subgroups, **kwargs)
         case "plot_leadtime_enc":
             kwargs = extract_arguments(
                 [
