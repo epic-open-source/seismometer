@@ -494,30 +494,6 @@ def _plot_cohort_evaluation(
 
 
 @store_call_parameters
-@export
-def model_evaluation(per_context_id=False):
-    """Displays overall performance of the model.
-
-    Parameters
-    ----------
-    per_context_id : bool, optional
-        If True, limits data to one row per context_id, by default False.
-    """
-    sg = Seismogram()
-    return _model_evaluation(
-        sg.dataframe,
-        sg.entity_keys,
-        sg.target_event,
-        sg.target,
-        sg.output,
-        sg.thresholds,
-        sg.censor_threshold,
-        per_context_id,
-        sg.event_aggregation_method(sg.target),
-        sg.predict_time,
-    )
-
-
 @disk_cached_html_segment
 @export
 def plot_model_evaluation(

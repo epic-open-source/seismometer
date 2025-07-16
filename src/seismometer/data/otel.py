@@ -489,7 +489,7 @@ def export_config():
 allowed_export_names = {
     "feature_alerts",
     "feature_summary",
-    "model_evaluation",
+    "plot_model_evaluation",
     "plot_cohort_evaluation",
     "plot_cohort_hist",
     "plot_leadtime_enc",
@@ -520,9 +520,9 @@ def do_auto_export(function_name: str, fn_settings: dict):
     from seismometer.api.plots import (
         _plot_cohort_hist,
         _plot_leadtime_enc,
-        model_evaluation,
         plot_binary_classifier_metrics,
         plot_cohort_evaluation,
+        plot_model_evaluation,
         plot_trend_intervention_outcome,
     )
     from seismometer.api.reports import feature_alerts, feature_summary, target_feature_summary
@@ -536,8 +536,8 @@ def do_auto_export(function_name: str, fn_settings: dict):
             fn = feature_alerts
         case "feature_summary":
             fn = feature_summary
-        case "model_evaluation":
-            fn = model_evaluation
+        case "plot_model_evaluation":
+            fn = plot_model_evaluation
         case "plot_cohort_evaluation":
             fn = plot_cohort_evaluation
         case "plot_cohort_hist":
@@ -603,9 +603,9 @@ def do_one_manual_export(function_name: str, run_settings):
     from seismometer.api.plots import (  # plot_trend_intervention_outcome,
         _plot_cohort_hist,
         _plot_leadtime_enc,
-        model_evaluation,
         plot_binary_classifier_metrics,
         plot_cohort_evaluation,
+        plot_model_evaluation,
     )
     from seismometer.api.reports import feature_alerts, feature_summary  # target_feature_summary
 
@@ -620,9 +620,11 @@ def do_one_manual_export(function_name: str, run_settings):
         case "feature_summary":
             kwargs = extract_arguments(["exclude_cols", "inline"], run_settings)
             feature_summary(**kwargs)
-        case "model_evaluation":
-            kwargs = extract_arguments(["per_context_id"], run_settings)
-            model_evaluation(**kwargs)
+        case "plot_model_evaluation":
+            kwargs = extract_arguments(
+                ["cohort_dict", "target_column", "score_column", "thresholds", "per_context"], run_settings
+            )
+            plot_model_evaluation(**kwargs)
         case "plot_cohort_evaluation":
             kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
             # Now we loop over cohort columns and subgroups specified.
