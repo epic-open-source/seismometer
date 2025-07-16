@@ -213,10 +213,10 @@ class BaseDetails(BaseModel):
 class FilterRange(BaseModel):
     """A numeric range filter specifying minimum and/or maximum values."""
 
-    min: Optional[float] = None
+    min: Optional[Union[int, float]] = None
     """Inclusive lower bound for allowed values."""
 
-    max: Optional[float] = None
+    max: Optional[Union[int, float]] = None
     """Exclusive upper bound for allowed values."""
 
 
