@@ -405,7 +405,6 @@ def plot_cohort_evaluation(
         subgroups,
         sg.censor_threshold,
         per_context,
-        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}"),
     )
 
 
@@ -421,8 +420,8 @@ def _plot_cohort_evaluation(
     censor_threshold: int = 10,
     per_context_id: bool = False,
     aggregation_method: str = "max",
+    threshold_col: str = "Threshold",
     ref_time: str = None,
-    recorder: otel.OpenTelemetryRecorder = None,
 ) -> HTML:
     """
     Plots model performance metrics split by on a cohort attribute.
@@ -450,10 +449,10 @@ def _plot_cohort_evaluation(
     aggregation_method : str, optional
         method to reduce multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
+    threshold_col: str, optional
+        Which column should be called the threshold column.
     ref_time : str, optional
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
-    recorder: OpenTelemetryRecorder
-        The object that metrics can be logged to.
     Returns
     -------
     HTML
@@ -472,19 +471,19 @@ def _plot_cohort_evaluation(
     plot_data = get_cohort_performance_data(
         data, cohort_col, proba=output, true=target, splits=subgroups, censor_threshold=censor_threshold
     )
-    if recorder is not None:
-        base_attributes = {"target": target, "score": output}
-        # Go through all cohort values, by means of:
-        cohort_categories = list(set(plot_data["cohort"]))
-        recorder.log_by_cohort(
-            base_attributes=base_attributes,
-            dataframe=plot_data,
-            cohorts={"cohort": cohort_categories, "Threshold": [t * 100 for t in thresholds]},
-            intersecting=True,
-        )
-        recorder.log_by_column(
-            df=plot_data, col_name="Threshold", cohorts={"cohort": cohort_categories}, base_attributes=base_attributes
-        )
+    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}")
+    base_attributes = {"target": target, "score": output}
+    # Go through all cohort values, by means of:
+    cohort_categories = list(set(plot_data[cohort_col]))
+    recorder.log_by_cohort(
+        base_attributes=base_attributes,
+        dataframe=plot_data,
+        cohorts={cohort_col: cohort_categories, threshold_col: [t * 100 for t in thresholds]},
+        intersecting=True,
+    )
+    recorder.log_by_column(
+        df=plot_data, col_name=threshold_col, cohorts={cohort_col: cohort_categories}, base_attributes=base_attributes
+    )
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
@@ -516,7 +515,6 @@ def model_evaluation(per_context_id=False):
         per_context_id,
         sg.event_aggregation_method(sg.target),
         sg.predict_time,
-        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance"),
     )
 
 
@@ -571,7 +569,6 @@ def plot_model_evaluation(
         per_context,
         aggregation_method,
         ref_time,
-        recorder=otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance"),
         cohort=cohort_dict,
     )
 
@@ -588,7 +585,6 @@ def _model_evaluation(
     per_context_id: bool = False,
     aggregation_method: str = "max",
     ref_time: Optional[str] = None,
-    recorder: otel.OpenTelemetryRecorder = None,
     cohort: dict = {},
 ) -> HTML:
     """
@@ -617,8 +613,6 @@ def _model_evaluation(
         ignored if per_context_id is False
     ref_time : Optional[str], optional
         reference time column used for aggregation when per_context_id is True and aggregation_method is time-based
-    recorder: otel.OpenTelemetryRecorder = None
-        Where to dump metrics from this call. If none, will not dump metrics.
 
     Returns
     -------
@@ -648,19 +642,19 @@ def _model_evaluation(
     # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
     stats = calculate_bin_stats(data[target], data[score_col])
     ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95, force_percentages=True)
-    if recorder is not None:
-        params = {"target_column": target, "score_column": score_col}
-        for t in thresholds:
+    recorder = otel.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance")
+    params = {"target_column": target, "score_column": score_col}
+    for t in thresholds:
+        recorder.populate_metrics(
+            attributes=params | cohort | {"threshold": t}, metrics=stats[stats["Threshold"] == t * 100]
+        )
+    for metric in stats.columns:
+        log_all = otel.get_metric_config(metric)["log_all"]
+        if log_all:
             recorder.populate_metrics(
-                attributes=params | cohort | {"threshold": t}, metrics=stats[stats["Threshold"] == t * 100]
+                attributes=params | cohort,
+                metrics={metric: stats[[metric, "Threshold"]].set_index("Threshold").to_dict()},
             )
-        for metric in stats.columns:
-            log_all = otel.get_metric_config(metric)["log_all"]
-            if log_all:
-                recorder.populate_metrics(
-                    attributes=params | cohort,
-                    metrics={metric: stats[[metric, "Threshold"]].set_index("Threshold").to_dict()},
-                )
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
