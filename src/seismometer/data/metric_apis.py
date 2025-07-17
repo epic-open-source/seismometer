@@ -168,16 +168,12 @@ class OpenTelemetryRecorder:
         """
         if not intersecting:
             # Simpler case: just go through each label provided.
-            for cohort_category in cohorts.keys():
-                for cohort_value in set(cohorts[cohort_category]):
-                    # We want to log all of the attributes passed in, but also what cohorts we are selecting on.
-                    attributes = base_attributes | {cohort_category: cohort_value}
-                    metrics = dataframe[dataframe[cohort_category] == cohort_value]
-                    if metric_maker is not None:
-                        self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
-                    else:
-                        self.populate_metrics(attributes=attributes, metrics=metrics)
-            # More complex: go through each combination of attributes.
+            selections = [
+                {cohort_category: cohort_value}
+                for cohort_category in cohorts
+                for cohort_value in cohorts[cohort_category]
+            ]
+        # More complex: go through each combination of attributes.
         else:
             if cohorts:
                 keys = cohorts.keys()
@@ -193,18 +189,18 @@ class OpenTelemetryRecorder:
                 logger.warning(
                     f"More than 100 cohort groups ({len(selections)}) were provided. This might take a while."
                 )
-            for selection in selections:
-                attributes = base_attributes | selection
-                selection_condition = (
-                    functools.reduce(operator.and_, (dataframe[k] == v for k, v in selection.items()))
-                    if selection
-                    else pd.Series([True] * len(dataframe), index=dataframe.index)  # Condition which always succeeds
-                )
-                metrics = dataframe[selection_condition]
-                if metric_maker is not None:
-                    self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
-                else:
-                    self.populate_metrics(attributes=attributes, metrics=metrics)
+        for selection in selections:
+            attributes = base_attributes | selection
+            selection_condition = (
+                functools.reduce(operator.and_, (dataframe[k] == v for k, v in selection.items()))
+                if selection
+                else pd.Series([True] * len(dataframe), index=dataframe.index)  # Condition which always succeeds
+            )
+            metrics = dataframe[selection_condition]
+            if metric_maker is not None:
+                self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
+            else:
+                self.populate_metrics(attributes=attributes, metrics=metrics)
 
     def log_by_column(
         self, df: pd.DataFrame, col_name: str, cohorts: dict, base_attributes: dict, col_values: list = []
