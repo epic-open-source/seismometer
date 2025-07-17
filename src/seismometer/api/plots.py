@@ -448,11 +448,11 @@ def _plot_cohort_evaluation(
     recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}")
     base_attributes = {"target": target, "score": output}
     # Go through all cohort values, by means of:
-    cohort_categories = list(set(plot_data[cohort_col]))
+    cohort_categories = list(set(plot_data["cohort"]))
     recorder.log_by_cohort(
         base_attributes=base_attributes,
         dataframe=plot_data,
-        cohorts={cohort_col: cohort_categories, threshold_col: [t * 100 for t in thresholds]},
+        cohorts={"cohort": cohort_categories, threshold_col: [t * 100 for t in thresholds]},
         intersecting=True,
     )
     recorder.log_by_column(
@@ -1052,6 +1052,19 @@ def plot_binary_classifier_metrics(
         sg.predict_time,
         table_only=table_only,
     )
+
+
+def _plot_binary_classifier_metrics(metric_generator_rho: float, **kwargs):
+    """Serves only as a wrapper of plot_binary_classifier_metrics so that
+    we don't have to serialize a metric generator object.
+
+    Parameters
+    ----------
+    metric_generator_rho : float
+        The value of rho to create a BCMG with.
+    """
+    bcmg = BinaryClassifierMetricGenerator(rho=metric_generator_rho)
+    plot_binary_classifier_metrics(metric_generator=bcmg, **kwargs)
 
 
 def binary_classifier_metric_evaluation(

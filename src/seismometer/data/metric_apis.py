@@ -115,6 +115,8 @@ class OpenTelemetryRecorder:
         if data is None:
             logger.warning("otel: Tried to log 'None'.")
             return
+        # Attributes cannot contain lists, so we make them into tuples.
+        attributes = {k: tuple(v) if isinstance(v, list) else v for k, v in attributes.items()}
         if isinstance(data, (int, float)):
             self._set_one_datapoint(attributes, instrument, data)
         # Some code seems to be logging numpy int64s so here we are.

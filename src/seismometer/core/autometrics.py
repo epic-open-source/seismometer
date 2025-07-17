@@ -5,7 +5,6 @@ import yaml
 from seismometer.configuration.model import OtherInfo
 from seismometer.core.decorators import export
 from seismometer.data.otel import config_otel_stoppage, read_otel_info
-from seismometer.data.performance import BinaryClassifierMetricGenerator
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("Seismometer Metric Automation")
@@ -150,7 +149,7 @@ def do_one_manual_export(function_name: str, run_settings):
             fn(**kwargs)
         case "plot_model_evaluation":
             kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
-            kwargs["cohort_dict"] = run_settings["cohort"]
+            kwargs["cohort_dict"] = run_settings["cohorts"]
             fn(**kwargs)
         case "plot_cohort_evaluation":
             kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
@@ -165,23 +164,15 @@ def do_one_manual_export(function_name: str, run_settings):
                 fn(cohort_col=cohort_col, subgroups=subgroups, **kwargs)
         case "plot_binary_classifier_metrics":
             kwargs = extract_arguments(
-                ["metrics", "target", "score_column", "per_context", "table_only", run_settings]
+                ["metrics", "target", "score_column", "per_context", "table_only", "metric_generator_rho"],
+                run_settings,
             )
-            # We treat cohorts differently in automation, so we'll have to build it up specially here.
             kwargs["cohort_dict"] = run_settings["cohorts"]
-            # This also takes a binary classifier metric generator as input, so we'll need to create one too.
-            try:
-                rho = run_settings["options"]["rho"]
-            except KeyError:
-                rho = None
-            metric_generator = BinaryClassifierMetricGenerator(rho)
-            fn(metric_generator=metric_generator, **kwargs)
+            fn(**kwargs)
         case "plot_model_score_comparison":
             kwargs = extract_arguments(["target", "scores", "per_context"], run_settings)
             kwargs["cohort_dict"] = run_settings["cohorts"]
             fn(**kwargs)
-        case "plot_trend_intervention_outcome":
-            pass  # Possibly add metric logging for this in the first place
 
 
 def do_manual_export(function_name: str, fn_settings: list | dict):

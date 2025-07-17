@@ -21,6 +21,10 @@ MAXIMUM_NUM_COHORTS = 25
 logger = logging.getLogger("seismometer")
 
 
+automation_function_map: dict[str, Callable] = {}
+""" Maps the name of a function to the actual function to automate metric exporting from. """
+
+
 class Seismogram(object, metaclass=Singleton):
     """
     Seismogram is the main orchestrator for the seismometer package.
@@ -51,8 +55,6 @@ class Seismogram(object, metaclass=Singleton):
     """ The list of columns representing model outputs. """
     _call_history: dict[str, dict]
     """ plot function name -> {"args": args, "kwargs": kwargs } """
-    automation_function_map: dict[str, Callable]
-    """ Maps the name of a function to the actual function to automate metric exporting from. """
 
     def __init__(
         self,
@@ -137,7 +139,7 @@ class Seismogram(object, metaclass=Singleton):
             The name of the function.
 
         """
-        return fn_name in self._automation_info
+        return fn_name in automation_function_map
 
     def get_function_from_export_name(self, fn_name: str) -> Callable:
         """Get the actual function to export metrics with, from its name.
@@ -154,7 +156,13 @@ class Seismogram(object, metaclass=Singleton):
         Callable
             Which function we should call when we see this in automation.
         """
-        return self._automation_info[fn_name]
+
+        # Special case: plot_binary_classifier_metrics (see autometrics.py)
+        if fn_name == "plot_binary_classifier_metrics":
+            from seismometer.api import plots
+
+            return plots._plot_binary_classifier_metrics
+        return automation_function_map[fn_name]
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -545,12 +553,14 @@ def store_call_parameters(
     """
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        call_name = name if name is not None else fn.__name__
+
         @functools.wraps(fn)
         def new_fn(*args, **kwargs):
-            call_name = name if name is not None else fn.__name__
             _store_call_parameters(call_name, fn, list(args), kwargs, extra_params)
             return fn(*args, **kwargs)
 
+        automation_function_map[call_name] = fn
         return new_fn
 
     if func is not None and callable(func):

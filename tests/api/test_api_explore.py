@@ -357,7 +357,7 @@ class TestExploreModelEvaluation:
         assert "rendered" in result.data
 
 
-_mock_perf_df = pd.DataFrame({"metric": [1], "Cohort": ["Group"], "Threshold": [0]})
+_mock_perf_df = pd.DataFrame({"metric": [1], "cohort": ["Group"], "Threshold": [0]})
 
 
 class TestExploreModelScoreComparison:
