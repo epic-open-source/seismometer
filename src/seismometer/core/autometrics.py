@@ -1,4 +1,5 @@
 import logging
+from typing import Callable
 
 import yaml
 
@@ -119,6 +120,129 @@ def extract_arguments(argument_names: list[str], run_settings: dict) -> dict:
         return {}
 
 
+"""
+Because automation has it built in so that we can loop over cohorts, the structure
+of plotting function automation depends heavily on how each function uses cohorts.
+
+There are three main patterns in terms of plotting functions:
+- (1) The plot function takes no cohorts as arguments. We can then just pass all arguments
+directly to the function.
+- (2) The plot function takes a cohort dictionary as an argument. We then pass the cohort dict
+from run settings directly in.
+- (3) The plot function takes a cohort column and a list of subgroups as arguments. We then
+iterate over the cohort dict, selecting key (cohort) and value (subgroup) pairs one at a time,
+calling the function with each.
+"""
+
+
+def _call_cohortless_function(function: Callable, arg_names: list[str], run_settings: dict):
+    """Call a function in the style of (1) above.
+
+    Parameters
+    ----------
+    function : Callable
+        Which function we are trying to call.
+    arg_names : list[str]
+        The list of parameters this function takes, which we then read values for from the YAML.
+    run_settings : dict
+        The relevant section of YAML we are reading.
+    """
+    kwargs = extract_arguments(arg_names, run_settings)
+    function(**kwargs)
+
+
+def _call_cohort_dict_function(function: Callable, arg_names: list[str], run_settings: dict, cohort_arg_name: str):
+    """Call a function in the style of (2) above.
+
+    Parameters
+    ----------
+    function : Callable
+        Which function we are trying to call.
+    arg_names : list[str]
+        The list of parameters this function takes, which we then read values for from the YAML.
+    run_settings : dict
+        The relevant section of YAML we are reading.
+    cohort_arg_name : str
+        What argument in the function is the cohort dictionary. E.g.
+        def my_plot_function(cohort_dict: ...) would give us "cohort_dict".
+    """
+    kwargs = extract_arguments(arg_names, run_settings)
+    kwargs[cohort_arg_name] = run_settings["cohorts"]
+    function(**kwargs)
+
+
+def _call_single_cohort_function(
+    function: Callable, arg_names: list[str], run_settings: dict, cohort_arg_name: str, subgroup_arg_name: str
+):
+    """Call a function the style of (3) above.
+
+    Parameters
+    ----------
+    function : Callable
+        Which function we are trying to call.
+    arg_names : list[str]
+        The list of parameters this function takes, which we then read values for from the YAML.
+    run_settings : dict
+        The relevant section of YAML we are reading.
+    cohort_arg_name : str
+        What argument in the function is the cohort column name.
+    subgroup_arg_name : str
+        What argument to the function is the list of subgroups for that cohort column.
+    """
+    kwargs = extract_arguments(arg_names, run_settings)
+    for cohort in run_settings["cohorts"]:
+        subgroups = run_settings["cohorts"][cohort]
+        kwargs_copy = kwargs.copy()
+        kwargs_copy[cohort_arg_name] = cohort
+        kwargs_copy[subgroup_arg_name] = subgroups
+        function(**kwargs_copy)
+
+
+def _dispatch_appropriate_call(kwargs: dict):
+    """Based on the set of parameters provided for an automated metric call, use the appropriate
+    function from the three above.
+
+    Parameters
+    ----------
+    kwargs : dict
+        All function arguments
+    """
+    if "subgroup_arg_name" in kwargs:
+        _call_single_cohort_function(**kwargs)
+    elif "cohort_arg_name" in kwargs:
+        _call_cohort_dict_function(**kwargs)
+    else:
+        _call_cohortless_function(**kwargs)
+
+
+_call_information = {
+    "feature_alerts": {"arg_names": ["exclude_cols"]},
+    "feature_summary": {"arg_names": ["exclude_cols", "inline"]},
+    "plot_model_evaluation": {
+        "arg_names": ["target_column", "score_column", "thresholds", "per_context"],
+        "cohort_arg_name": "cohort_dict",
+    },
+    "plot_cohort_evaluation": {
+        "arg_names": ["target_column", "score_column", "thresholds", "per_context"],
+        "cohort_arg_name": "cohort_col",
+        "subgroup_arg_name": "subgroups",
+    },
+    "plot_cohort_lead_time": {
+        "arg_names": ["event_column", "score_column", "threshold"],
+        "cohort_arg_name": "cohort_col",
+        "subgroup_arg_name": "subgroups",
+    },
+    "plot_binary_classifier_metrics": {
+        "arg_names": ["metrics", "target", "score_column", "per_context", "table_only", "metric_generator_rho"],
+        "cohort_arg_name": "cohort_dict",
+    },
+    "plot_model_score_comparison": {
+        "arg_names": ["target", "scores", "per_context"],
+        "cohort_arg_name": "cohort_dict",
+    },
+}
+
+
 def do_one_manual_export(function_name: str, run_settings):
     """Perform an export from handwritten config.
 
@@ -138,41 +262,10 @@ def do_one_manual_export(function_name: str, run_settings):
     sg = Seismogram()
     fn = sg.get_function_from_export_name(function_name)
 
-    match function_name:
-        # These first three are super repetitive, fix them
-        case "feature_alerts":
-            # The only possibility here is the exclude_cols option so let's look for that.
-            kwargs = extract_arguments(["exclude_cols"], run_settings)
-            fn(**kwargs)
-        case "feature_summary":
-            kwargs = extract_arguments(["exclude_cols", "inline"], run_settings)
-            fn(**kwargs)
-        case "plot_model_evaluation":
-            kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
-            kwargs["cohort_dict"] = run_settings["cohorts"]
-            fn(**kwargs)
-        case "plot_cohort_evaluation":
-            kwargs = extract_arguments(["target_column", "score_column", "thresholds", "per_context"], run_settings)
-            # Now we loop over cohort columns and subgroups specified.
-            for cohort in run_settings["cohorts"]:
-                subgroups = run_settings["cohorts"][cohort]
-                fn(cohort_col=cohort, subgroups=subgroups, **kwargs)
-        case "plot_cohort_lead_time":
-            kwargs = extract_arguments(["event_column", "score_column", "threshold"], run_settings)
-            for cohort_col in run_settings["cohorts"]:
-                subgroups = run_settings["cohorts"][cohort_col]
-                fn(cohort_col=cohort_col, subgroups=subgroups, **kwargs)
-        case "plot_binary_classifier_metrics":
-            kwargs = extract_arguments(
-                ["metrics", "target", "score_column", "per_context", "table_only", "metric_generator_rho"],
-                run_settings,
-            )
-            kwargs["cohort_dict"] = run_settings["cohorts"]
-            fn(**kwargs)
-        case "plot_model_score_comparison":
-            kwargs = extract_arguments(["target", "scores", "per_context"], run_settings)
-            kwargs["cohort_dict"] = run_settings["cohorts"]
-            fn(**kwargs)
+    arg_info = _call_information[function_name]
+    arg_info["function"] = fn
+    arg_info["run_settings"] = run_settings
+    _dispatch_appropriate_call(arg_info)
 
 
 def do_manual_export(function_name: str, fn_settings: list | dict):
