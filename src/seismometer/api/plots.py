@@ -318,7 +318,7 @@ def _plot_leadtime_enc(
         return metrics
 
     recorder.log_by_cohort(
-        base_attributes=base_attributes, dataframe=summary_data, cohorts={cohort_col: good_groups}, metric_maker=maker
+        dataframe=summary_data, base_attributes=base_attributes, cohorts={cohort_col: good_groups}, metric_maker=maker
     )
     if len(summary_data.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
@@ -450,8 +450,8 @@ def _plot_cohort_evaluation(
     # Go through all cohort values, by means of:
     cohort_categories = list(set(plot_data["cohort"]))
     recorder.log_by_cohort(
-        base_attributes=base_attributes,
         dataframe=plot_data,
+        base_attributes=base_attributes,
         cohorts={"cohort": cohort_categories, threshold_col: [t * 100 for t in thresholds]},
         intersecting=True,
     )

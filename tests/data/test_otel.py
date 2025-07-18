@@ -60,10 +60,10 @@ class TestMetricLogging:
         )
         cohorts = {"Age": [10, 20], "Birth Season": ["Spring", "Summer"]}
         recorder.log_by_cohort(
-            base_attributes={"foo": "bar"}, dataframe=dataframe, cohorts=cohorts, intersecting=False
+            dataframe=dataframe, base_attributes={"foo": "bar"}, cohorts=cohorts, intersecting=False
         )
         assert {"attributes": {"foo": "bar", "Age": 10, "key": 1}, "value": 2} in RECEIVED_METRICS["A"]
-        recorder.log_by_cohort(base_attributes={"foo": "bar"}, dataframe=dataframe, cohorts=cohorts, intersecting=True)
+        recorder.log_by_cohort(dataframe=dataframe, base_attributes={"foo": "bar"}, cohorts=cohorts, intersecting=True)
         assert {
             "attributes": {"foo": "bar", "Age": 10, "Birth Season": "Spring", "key": 0},
             "value": 1,

@@ -138,8 +138,8 @@ class OpenTelemetryRecorder:
 
     def log_by_cohort(
         self,
-        base_attributes: Dict[str, Any],
         dataframe: pd.DataFrame,
+        base_attributes: Dict[str, Any],
         cohorts: Dict[str, List[str]],
         intersecting: bool = False,
         metric_maker: Callable = None,
@@ -230,7 +230,7 @@ class OpenTelemetryRecorder:
             if log_all or col_values != []:
                 log_df = df if log_all else df[df[col_name] in col_values]
                 self.log_by_cohort(
-                    base_attributes=base_attributes, dataframe=log_df, cohorts=cohorts, metric_maker=maker
+                    dataframe=log_df, base_attributes=base_attributes, cohorts=cohorts, metric_maker=maker
                 )
 
 
