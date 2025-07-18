@@ -22,6 +22,28 @@ except ImportError:
 
 
 class OpenTelemetryRecorder:
+    def __new__(cls, *args, **kwargs):
+        if TELEMETRY_POSSIBLE:
+            return RealOpenTelemetryRecorder(*args, **kwargs)
+        else:
+            return NoOpOpenTelemetryRecorder(*args, **kwargs)
+
+
+class NoOpOpenTelemetryRecorder:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def populate_metrics(self, *args, **kwargs):
+        pass
+
+    def log_by_cohort(self, *args, **kwargs):
+        pass
+
+    def log_by_column(self, *args, **kwargs):
+        pass
+
+
+class RealOpenTelemetryRecorder:
     def __init__(self, metric_names: List[str], name: str = "Seismo-meter"):
         """_summary_
 
@@ -232,21 +254,3 @@ class OpenTelemetryRecorder:
                 self.log_by_cohort(
                     dataframe=log_df, base_attributes=base_attributes, cohorts=cohorts, metric_maker=maker
                 )
-
-
-# If we don't have telemetry, we make everything into a no-op.
-if not TELEMETRY_POSSIBLE:
-
-    class OpenTelemetryRecorder:  # noqa: F811
-        def __init__(self, *args, **kwargs):
-            self.instruments = {}
-            self.metric_names = []
-
-        def populate_metrics(self, *args, **kwargs):  # noqa: F811
-            pass
-
-        def log_by_cohort(self, *args, **kwargs):  # noqa: F811
-            pass
-
-        def log_by_column(self, *args, **kwargs):  # noqa: F811
-            pass

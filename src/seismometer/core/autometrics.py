@@ -5,7 +5,7 @@ import yaml
 
 from seismometer.configuration.model import OtherInfo
 from seismometer.core.decorators import export
-from seismometer.data.otel import config_otel_stoppage, read_otel_info
+from seismometer.data.otel import read_otel_info
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("Seismometer Metric Automation")
@@ -20,10 +20,9 @@ def initialize_otel_config(config: OtherInfo):
     config : OtherInfo
         The configuration object handed in during Seismogram initialization.
     """
-    global OTEL_INFO, STOP_ALL_OTEL
+    global OTEL_INFO
     OTEL_INFO = read_otel_info(config.usage_config)
     Seismogram().load_automation_config(config.automation_config)
-    STOP_ALL_OTEL = config_otel_stoppage()
 
 
 @export

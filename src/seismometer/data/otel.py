@@ -1,5 +1,4 @@
 import logging
-import os
 import socket
 import sys
 from typing import Callable
@@ -19,21 +18,6 @@ try:
 except ImportError:
     # No OTel.
     TELEMETRY_POSSIBLE = False
-
-
-def config_otel_stoppage() -> bool:
-    """Get from the environment whether we should export metrics at all, or not.
-
-    Returns
-    -------
-    bool
-        Whether or not all OTel outputs will be disabled.
-    """
-    raw_stop = os.getenv("SEISMO_NO_OTEL", "FALSE")
-    if raw_stop not in ["TRUE", "FALSE"]:
-        logger.warn("Unrecognized value for SEISMO_NO_OTEL. Defaulting to false (metrics will be output ...)")
-        raw_stop = "FALSE"
-    return raw_stop == "TRUE"
 
 
 def read_otel_info(file_path: str) -> dict:

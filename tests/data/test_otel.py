@@ -33,7 +33,7 @@ def recorder():
 # open any files or make anything.
 @patch.object(metric_apis.OpenTelemetryRecorder, "__init__", new=lambda self: None)
 @patch.object(otel.ExportManager, "__init__", new=lambda self: None)
-@patch.object(metric_apis.OpenTelemetryRecorder, "_set_one_datapoint", new=mock_set_one_datapoint)
+@patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint", new=mock_set_one_datapoint)
 class TestMetricLogging:
     def test_log_to_instrument(self, recorder):
         """We're just testing some basic logging outside of the context of any widget."""
