@@ -15,10 +15,10 @@ try:
     from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-    TELEMETRY = True
+    TELEMETRY_POSSIBLE = True
 except ImportError:
     # No OTel.
-    TELEMETRY = False
+    TELEMETRY_POSSIBLE = False
 
 
 def config_otel_stoppage() -> bool:
@@ -181,7 +181,7 @@ class ExportManager:
 
 
 # If we don't have telemetry, we make everything into a no-op.
-if not TELEMETRY:
+if not TELEMETRY_POSSIBLE:
 
     def noop(*args, **kwargs):
         pass

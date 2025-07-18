@@ -15,10 +15,10 @@ logger = logging.getLogger("Seismometer OpenTelemetry")
 try:
     from opentelemetry.metrics import Histogram, UpDownCounter
 
-    TELEMETRY = True
+    TELEMETRY_POSSIBLE = True
 except ImportError:
     # No OTel.
-    TELEMETRY = False
+    TELEMETRY_POSSIBLE = False
 
 
 class OpenTelemetryRecorder:
@@ -235,7 +235,7 @@ class OpenTelemetryRecorder:
 
 
 # If we don't have telemetry, we make everything into a no-op.
-if not TELEMETRY:
+if not TELEMETRY_POSSIBLE:
 
     class OpenTelemetryRecorder:  # noqa: F811
         def __init__(self, *args, **kwargs):
