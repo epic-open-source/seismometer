@@ -209,7 +209,7 @@ _call_information = {
         "subgroup_arg_name": "subgroups",
     },
     "plot_binary_classifier_metrics": {
-        "arg_names": ["metrics", "target", "score_column", "per_context", "table_only", "metric_generator_rho"],
+        "arg_names": ["metrics", "target", "score_column", "per_context", "table_only", "rho"],
         "cohort_arg_name": "cohort_dict",
     },
     "plot_model_score_comparison": {

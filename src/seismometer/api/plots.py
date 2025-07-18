@@ -1054,16 +1054,16 @@ def plot_binary_classifier_metrics(
     )
 
 
-def _plot_binary_classifier_metrics(metric_generator_rho: float, **kwargs):
+def _plot_binary_classifier_metrics(rho: float, **kwargs):
     """Serves only as a wrapper of plot_binary_classifier_metrics so that
     we don't have to serialize a metric generator object.
 
     Parameters
     ----------
-    metric_generator_rho : float
-        The value of rho to create a BCMG with.
+    rho: float between 0 and 1
+        Probability of a treatment being effective
     """
-    bcmg = BinaryClassifierMetricGenerator(rho=metric_generator_rho)
+    bcmg = BinaryClassifierMetricGenerator(rho=rho)
     plot_binary_classifier_metrics(metric_generator=bcmg, **kwargs)
 
 
