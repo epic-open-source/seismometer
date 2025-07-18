@@ -397,12 +397,12 @@ def do_metric_exports() -> None:
     """This function does automated metric exporting for
     everything specified in Seismogram.
     """
-    sg = Seismogram()
-    for function_name in sg._automation_info.keys():
-        if not sg.is_allowed_export_function(function_name):
+    am = AutomationManager()
+    for function_name in am._automation_info.keys():
+        if not am.is_allowed_export_function(function_name):
             logger.warning(f"Unrecognized auto-export function name {function_name}. Continuing ...")
             continue
-        fn_settings = sg._automation_info[function_name]
+        fn_settings = am._automation_info[function_name]
         # See if this is auto-generated or if it was hand-written.
         # Different processing will be needed in each case.
         if fn_settings is not None and "args" in fn_settings:
