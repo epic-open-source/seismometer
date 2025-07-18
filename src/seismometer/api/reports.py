@@ -3,6 +3,7 @@ from typing import Optional
 
 from seismometer.controls.categorical import ExploreCategoricalPlots
 from seismometer.controls.categorical_single_column import ExploreSingleCategoricalPlots
+from seismometer.core.autometrics import store_call_parameters
 from seismometer.core.decorators import export
 from seismometer.data.filter import FilterRule
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
@@ -69,6 +70,7 @@ class ExploreCohortOrdinalMetrics(ExploreSingleCategoricalPlots):
 
 
 # region Reports
+@store_call_parameters
 @export
 def feature_alerts(exclude_cols: Optional[list[str]] = None):
     """
@@ -94,6 +96,7 @@ def feature_alerts(exclude_cols: Optional[list[str]] = None):
     ).display_alerts()
 
 
+@store_call_parameters
 @export
 def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = False):
     """
@@ -141,6 +144,7 @@ def cohort_comparison_report(exclude_cols: list[str] = None):
     comparison_selections.show()
 
 
+@store_call_parameters
 @export
 def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     """

@@ -315,6 +315,8 @@ class TestSingleReportWrapper:
         alert = MagicMock()
         alert.alert_type.name.lower.return_value = "missing"
         alert.alert_type_name = "Missing Value"
+        alert.column_name = "test_column"
+        alert.values = {"imbalance": 42.0}
 
         alert_config = MagicMock()
         alert_config.parse_alert.return_value = (True, "#FF0000")
