@@ -122,12 +122,12 @@ def get_metric_creator(metric_name: str, meter) -> Callable:
 class ExportManager:
     def __new__(cls, *args, **kwargs):
         if TELEMETRY_POSSIBLE:
-            return super().__new__(RealMetricExporter)
+            return RealExportManager(*args, **kwargs)
         else:
-            return super().__new__(NoOpExportManager)
+            return NoOpExportManager(*args, **kwargs)
 
 
-class NoOpExportManager(ExportManager):
+class NoOpExportManager:
     def __init__(self, *args, **kwargs):
         pass
 
@@ -139,7 +139,7 @@ class NoOpExportManager(ExportManager):
 
 
 # Class which stores info about exporting metrics.
-class RealMetricExporter(ExportManager):
+class RealExportManager:
     def __init__(self, file_output_path=None, export_port=None, dump_to_stdout=False):
         """Create a place to export files.
 
