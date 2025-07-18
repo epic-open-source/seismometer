@@ -69,4 +69,4 @@ def run_startup(
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
     autometrics.AutomationManager()
-    initialize_otel_config(config.config)
+    initialize_otel_config(config.config, config_path_base=config_path)

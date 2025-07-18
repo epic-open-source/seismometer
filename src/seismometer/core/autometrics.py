@@ -1,6 +1,7 @@
 import functools
 import logging
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Callable
 
 import yaml
@@ -142,17 +143,23 @@ def store_call_parameters(
 
 
 @export
-def initialize_otel_config(config: OtherInfo):
+def initialize_otel_config(config: OtherInfo, config_path_base: str = ""):
     """Read all metric exporting and automation info.
 
     Parameters
     ----------
     config : OtherInfo
         The configuration object handed in during Seismogram initialization.
+    config_path_base: str
+        Where to look for the automation config file
     """
     global OTEL_INFO
     OTEL_INFO = read_otel_info(config.usage_config)
-    AutomationManager().load_automation_config(config.automation_config)
+    try:
+        auto_config_path = Path(config_path_base) / config.automation_config
+    except TypeError:
+        auto_config_path = config.automation_config
+    AutomationManager().load_automation_config(auto_config_path)
 
 
 @export
@@ -195,7 +202,7 @@ def do_auto_export(function_name: str, fn_settings: dict):
     args = fn_settings["args"]
     kwargs = fn_settings["kwargs"]
     # We need to have these here for circular import reasons.
-    fn = Seismogram().get_function_from_export_name(function_name)
+    fn = AutomationManager().get_function_from_export_name(function_name)
     fn(*args, **kwargs)
 
 
@@ -364,8 +371,8 @@ def do_one_manual_export(function_name: str, run_settings):
         The appropriate section of YAML.
     """
 
-    sg = Seismogram()
-    fn = sg.get_function_from_export_name(function_name)
+    am = AutomationManager()
+    fn = am.get_function_from_export_name(function_name)
 
     arg_info = _call_information[function_name]
     arg_info["function"] = fn
