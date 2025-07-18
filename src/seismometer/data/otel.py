@@ -110,13 +110,36 @@ def get_metric_creator(metric_name: str, meter) -> Callable:
         The function creating the right metric instrument.
 
     """
+    if not TELEMETRY_POSSIBLE:
+        # This should not happen, but just in case ...
+        logger.warning("Tried to get a metric creator, but no metrics are active!")
+        return None
     TYPES = {"Gauge": meter.create_gauge, "Counter": meter.create_up_down_counter, "Histogram": meter.create_histogram}
     typestring = get_metric_config(metric_name)["measurement_type"]
     return TYPES[typestring] if typestring in TYPES else Meter.create_gauge
 
 
-# Class which stores info about exporting metrics.
 class ExportManager:
+    def __new__(cls, *args, **kwargs):
+        if TELEMETRY_POSSIBLE:
+            return super().__new__(RealMetricExporter)
+        else:
+            return super().__new__(NoOpExportManager)
+
+
+class NoOpExportManager(ExportManager):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def deactivate_exports(self, *args, **kwargs):
+        logger.warning("Telemetry packages have not been installed! Exports are already deactivated.")
+
+    def activate_exports(self, *args, **kwargs):
+        logger.warning("Telemetry packages have not been installed! Exports cannot be activated.")
+
+
+# Class which stores info about exporting metrics.
+class RealMetricExporter(ExportManager):
     def __init__(self, file_output_path=None, export_port=None, dump_to_stdout=False):
         """Create a place to export files.
 
@@ -165,32 +188,19 @@ class ExportManager:
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
         set_meter_provider(self.meter_provider)
-        self.active = True
+        self.active = False  # by default!
 
-    def pause_exports(self):
+    def deactivate_exports(self):
         """Make it so that all metric emission calls are no-ops."""
         self.active = False
 
-    def resume_exports(self):
+    def activate_exports(self):
         """Revert to the default state of allowing metric emission."""
         self.active = True
 
     def __del__(self):
         if self.otlp_exhaust is not None and (sys is None or self.otlp_exhaust != sys.stdout):
             self.otlp_exhaust.close()
-
-
-# If we don't have telemetry, we make everything into a no-op.
-if not TELEMETRY_POSSIBLE:
-
-    def noop(*args, **kwargs):
-        pass
-
-    class ExportManager:  # noqa: F811
-        def __init__(self, *args, **kwargs):
-            pass
-
-    get_metric_creator = noop  # noqa: F811
 
 
 # For debug purposes: dump to stdout, and also to exporter path
