@@ -1,14 +1,144 @@
+import functools
 import logging
-from typing import Callable
+from collections import defaultdict
+from typing import Any, Callable
 
 import yaml
 
 from seismometer.configuration.model import OtherInfo
 from seismometer.core.decorators import export
+from seismometer.core.patterns import Singleton
 from seismometer.data.otel import read_otel_info
 from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("Seismometer Metric Automation")
+
+
+automation_function_map: dict[str, Callable] = {}
+""" Maps the name of a function to the actual function to automate metric exporting from. """
+
+
+class AutomationManager(object, metaclass=Singleton):
+    _call_history: dict[str, dict]
+    """ plot function name -> {"args": args, "kwargs": kwargs } """
+    _automation_info: dict[str, Callable]
+    """ Mapping function names to the corresponding callable. """
+
+    def __init__(self):
+        self._call_history = defaultdict(list)
+        self.automation_function_map = {}
+
+    def load_automation_config(self, automation_file_path: str) -> None:
+        """Load in a config from YAML.
+
+        Parameters
+        ----------
+        automation_file_path : str
+            Where the automation file lives (metric-automation.yml)
+        """
+        try:
+            with open(automation_file_path, "r") as automation_file:
+                self._automation_info = yaml.safe_load(automation_file)
+        except (FileNotFoundError, TypeError):  # TypeError is for when the path is None
+            self._automation_info = {}
+
+    def store_call_params(self, fn_name, fn, args, kwargs, extra_info):
+        """_summary_
+
+        Parameters
+        ----------
+        fn_name : str
+            The name of the function that has been called. By default it is
+            the actual name of the function in the code, but if needed it can be
+            set to a more readable or expected name (e.g. _plot_cohort_hist is set
+            to plot_cohort_hist without an underscore).
+        fn: Callable
+            The actual fuinction itself.
+        args : list
+            The arguments the function was called with.
+        kwargs : dict
+            The keyword arguments the function was called with.
+        """
+
+        self._call_history[fn_name].append({"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)})
+        automation_function_map[fn_name] = fn
+
+    def is_allowed_export_function(self, fn_name: str) -> bool:
+        """Whether or not a function is an allowed export.
+
+        Parameters
+        ----------
+        fn_name : str
+            The name of the function.
+
+        """
+        return fn_name in automation_function_map
+
+    def get_function_from_export_name(self, fn_name: str) -> Callable:
+        """Get the actual function to export metrics with, from its name.
+        This is not necessarily the function name itself: ex. we may use
+        plot_xyz instead of _plot_xyz.
+
+        Parameters
+        ----------
+        fn_name : str
+            The name of the function itself.
+
+        Returns
+        -------
+        Callable
+            Which function we should call when we see this in automation.
+        """
+
+        # Special case: plot_binary_classifier_metrics (see autometrics.py)
+        if fn_name == "plot_binary_classifier_metrics":
+            from seismometer.api import plots
+
+            return plots._plot_binary_classifier_metrics
+        return automation_function_map[fn_name]
+
+
+# Internal implementation -- stored separately here for mocking purposes.
+def _store_call_parameters(name: str, fn: Callable, args: list, kwargs: dict, extra_info: dict) -> None:
+    AutomationManager().store_call_params(name, fn, args, kwargs, extra_info)
+
+
+def store_call_parameters(
+    func: Callable[..., Any] = None, name: str = None, extra_params: Callable[[tuple, dict], dict] = lambda x, y: {}
+) -> Callable[..., Any]:
+    """_summary_
+
+    Parameters
+    ----------
+    func : Callable[..., Any], optional
+        The function we are wrapping.
+    name : str, optional
+        What name to store in the call.
+        (Maybe we want to represent _internal_generate_widget_actually as just generate_widget, for example).
+    extra_params : Callable[tuple, dict, dict], optional
+        Extra arguments we need to reconstruct the call.
+
+    Returns
+    -------
+    Callable[..., Any]
+        _description_
+    """
+
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        call_name = name if name is not None else fn.__name__
+
+        @functools.wraps(fn)
+        def new_fn(*args, **kwargs):
+            _store_call_parameters(call_name, fn, list(args), kwargs, extra_params)
+            return fn(*args, **kwargs)
+
+        automation_function_map[call_name] = fn
+        return new_fn
+
+    if func is not None and callable(func):
+        return decorator(func)
+    else:
+        return decorator
 
 
 @export
@@ -22,7 +152,7 @@ def initialize_otel_config(config: OtherInfo):
     """
     global OTEL_INFO
     OTEL_INFO = read_otel_info(config.usage_config)
-    Seismogram().load_automation_config(config.automation_config)
+    AutomationManager().load_automation_config(config.automation_config)
 
 
 @export
@@ -269,10 +399,10 @@ def do_metric_exports() -> None:
     """
     sg = Seismogram()
     for function_name in sg._automation_info.keys():
-        fn_settings = sg._automation_info[function_name]
         if not sg.is_allowed_export_function(function_name):
             logger.warning(f"Unrecognized auto-export function name {function_name}. Continuing ...")
             continue
+        fn_settings = sg._automation_info[function_name]
         # See if this is auto-generated or if it was hand-written.
         # Different processing will be needed in each case.
         if fn_settings is not None and "args" in fn_settings:

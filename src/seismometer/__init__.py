@@ -10,6 +10,7 @@ import pandas as pd
 
 # API
 from seismometer.api import *
+from seismometer.core import autometrics
 from seismometer.core.autometrics import *
 
 __version__ = importlib.metadata.version("seismometer")
@@ -67,4 +68,5 @@ def run_startup(
 
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
+    autometrics.AutomationManager()
     initialize_otel_config(config.config)

@@ -7,6 +7,7 @@ from IPython.display import HTML, SVG
 
 import seismometer.plot as plot
 from seismometer.controls.decorators import disk_cached_html_segment
+from seismometer.core.autometrics import store_call_parameters
 from seismometer.core.decorators import export
 from seismometer.data import get_cohort_data, get_cohort_performance_data, metric_apis, otel
 from seismometer.data import pandas_helpers as pdh
@@ -20,7 +21,7 @@ from seismometer.data.performance import (
 )
 from seismometer.data.timeseries import create_metric_timeseries
 from seismometer.html import template
-from seismometer.seismogram import Seismogram, store_call_parameters
+from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("seismometer")
 

@@ -3,10 +3,11 @@ from typing import Optional
 
 from seismometer.controls.categorical import ExploreCategoricalPlots
 from seismometer.controls.categorical_single_column import ExploreSingleCategoricalPlots
+from seismometer.core.autometrics import store_call_parameters
 from seismometer.core.decorators import export
 from seismometer.data.filter import FilterRule
 from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWrapper
-from seismometer.seismogram import Seismogram, store_call_parameters
+from seismometer.seismogram import Seismogram
 from seismometer.table.analytics_table import ExploreBinaryModelAnalytics
 from seismometer.table.fairness import ExploreBinaryModelFairness
 
