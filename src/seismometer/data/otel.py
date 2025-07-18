@@ -36,9 +36,6 @@ def config_otel_stoppage() -> bool:
     return raw_stop == "TRUE"
 
 
-STOP_ALL_OTEL = False
-
-
 def read_otel_info(file_path: str) -> dict:
     """Reads in the OTel information (which metrics to load, etc.) from a file.
 
@@ -136,10 +133,6 @@ class ExportManager:
             Whether to dump the metrics to stdout.
         """
 
-        if STOP_ALL_OTEL:
-            self.otlp_exhaust = None
-            return
-
         if file_output_path is None and export_port is None:
             raise Exception("Metrics must go somewhere!")
         self.readers = []
@@ -156,7 +149,7 @@ class ExportManager:
                     ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
                 )
             )
-        if export_port is not None and not STOP_ALL_OTEL:
+        if export_port is not None:
             otel_collector_reader = None
             try:
                 otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)

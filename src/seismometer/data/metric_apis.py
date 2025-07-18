@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from seismometer.core.io import slugify
-from seismometer.data.otel import STOP_ALL_OTEL, export_manager, get_metric_config, get_metric_creator
+from seismometer.data.otel import export_manager, get_metric_config, get_metric_creator
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
 
@@ -32,7 +32,7 @@ class OpenTelemetryRecorder:
         """
 
         # If we are not recording metrics, don't bother.
-        if STOP_ALL_OTEL:
+        if not export_manager.active:
             self.metric_names = []
             return
 
@@ -64,7 +64,7 @@ class OpenTelemetryRecorder:
             The actual data we are populating.
         """
 
-        if STOP_ALL_OTEL or not export_manager.active:
+        if not export_manager.active:
             return
 
         if metrics is None:

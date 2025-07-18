@@ -44,3 +44,9 @@ def working_dir_as(path: Path) -> Generator:
 def sg_decorator_mock():
     with patch("seismometer.seismogram._store_call_parameters"):
         yield
+
+
+@fixture(scope="module", autouse=True)
+def sg_export_manager_mock():
+    with patch("seismometer.data.otel.export_manager.active", value=True):
+        yield
