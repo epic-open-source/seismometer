@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 from pytest import fixture
 
-from seismometer.data import metric_apis, otel
+from seismometer.data import metric_apis
 
 TEST_ROOT = Path(__file__).parent
 
@@ -50,10 +50,13 @@ def sg_decorator_mock():
 
 @fixture(scope="module", autouse=True)
 def export_manager_mock():
-    mock_export_manager = Mock()
-    mock_export_manager.active = True
-    otel.export_manager = mock_export_manager
-    yield
+    class ExportManagerMock:
+        def __init__(self, *args, **kwargs):
+            self.active = True
+            self.meter_provider = Mock()
+
+    with patch("seismometer.data.otel.RealExportManager", ExportManagerMock):
+        yield
 
 
 @fixture(scope="module", autouse=True)
