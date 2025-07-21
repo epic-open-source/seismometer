@@ -5,6 +5,8 @@ from typing import Callable
 
 import yaml
 
+from seismometer.core.decorators import export
+
 logger = logging.getLogger("Seismometer OpenTelemetry")
 
 try:
@@ -189,3 +191,13 @@ class RealExportManager:
 
 # For debug purposes: dump to stdout, and also to exporter path
 export_manager = ExportManager(file_output_path=sys.stdout, export_port=4317)
+
+
+@export
+def deactivate_exports():
+    export_manager.deactivate_exports()
+
+
+@export
+def activate_exports():
+    export_manager.activate_exports()
