@@ -22,8 +22,8 @@ automation_function_map: dict[str, Callable] = {}
 class AutomationManager(object, metaclass=Singleton):
     _call_history: dict[str, dict]
     """ plot function name -> {"args": args, "kwargs": kwargs } """
-    _automation_info: dict[str, Callable]
-    """ Mapping function names to the corresponding callable. """
+    _automation_info: dict[str, dict]
+    """ Mapping function names to the corresponding automation settings. """
 
     def __init__(self):
         self._call_history = defaultdict(list)
