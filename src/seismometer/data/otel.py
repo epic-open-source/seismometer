@@ -189,8 +189,7 @@ class RealExportManager:
             self.otlp_exhaust.close()
 
 
-# For debug purposes: dump to stdout, and also to exporter path
-export_manager = ExportManager(file_output_path=sys.stdout, export_port=4317)
+export_manager = None
 
 
 @export
@@ -201,3 +200,8 @@ def deactivate_exports():
 @export
 def activate_exports():
     export_manager.activate_exports()
+
+
+# A better way to access export_manager, for mocking purposes.
+def get_export_manager() -> ExportManager:
+    return export_manager

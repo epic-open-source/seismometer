@@ -2,9 +2,11 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from pytest import fixture
+
+from seismometer.data import metric_apis, otel
 
 TEST_ROOT = Path(__file__).parent
 
@@ -47,6 +49,14 @@ def sg_decorator_mock():
 
 
 @fixture(scope="module", autouse=True)
-def sg_export_manager_mock():
-    with patch("seismometer.data.otel.export_manager.active", value=True):
+def export_manager_mock():
+    mock_export_manager = Mock()
+    mock_export_manager.active = True
+    otel.export_manager = mock_export_manager
+    yield
+
+
+@fixture(scope="module", autouse=True)
+def set_datapoint_mock():
+    with patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint"):
         yield

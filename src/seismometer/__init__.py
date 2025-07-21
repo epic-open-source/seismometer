@@ -3,6 +3,7 @@ import importlib.metadata
 
 # typing
 import logging
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -11,7 +12,7 @@ import pandas as pd
 # API
 from seismometer.api import *
 from seismometer.core import autometrics
-from seismometer.data.otel import *
+from seismometer.data import otel
 
 __version__ = importlib.metadata.version("seismometer")
 logger = logging.getLogger("seismometer")
@@ -55,6 +56,7 @@ def run_startup(
     reset : bool, optional
         A flag when True, will reset the Seismogram instance before loading configuration and data, by default False.
     """
+
     _ = init_logger()
     logger.setLevel(log_level)
     logger.info(f"seismometer version {__version__} starting")
@@ -70,3 +72,6 @@ def run_startup(
 
     autometrics.AutomationManager()
     autometrics.initialize_otel_config(config.config, config_path_base=config_path)
+
+    # For debug purposes: dump to stdout, and also to exporter path
+    otel.export_manager = otel.ExportManager(file_output_path=sys.stdout, export_port=4317)
