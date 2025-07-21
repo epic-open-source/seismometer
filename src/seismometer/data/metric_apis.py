@@ -244,13 +244,15 @@ class RealOpenTelemetryRecorder:
             example use case is a set of thresholds.
         """
         for metric in df.columns:
+            if metric == col_name:
+                continue
 
             def maker(frame):
                 return frame.set_index(col_name)[[metric]].to_dict()
 
             log_all = get_metric_config(metric)["log_all"]
             if log_all or col_values != []:
-                log_df = df if log_all else df[df[col_name] in col_values]
+                log_df = df if log_all else df[df[col_name].isin(col_values)]
                 self.log_by_cohort(
                     dataframe=log_df, base_attributes=base_attributes, cohorts=cohorts, metric_maker=maker
                 )

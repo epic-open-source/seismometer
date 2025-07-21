@@ -450,14 +450,12 @@ def _plot_cohort_evaluation(
     base_attributes = {"target": target, "score": output}
     # Go through all cohort values, by means of:
     cohort_categories = list(set(plot_data["cohort"]))
-    recorder.log_by_cohort(
-        dataframe=plot_data,
-        base_attributes=base_attributes,
-        cohorts={"cohort": cohort_categories, threshold_col: [t * 100 for t in thresholds]},
-        intersecting=True,
-    )
     recorder.log_by_column(
-        df=plot_data, col_name=threshold_col, cohorts={cohort_col: cohort_categories}, base_attributes=base_attributes
+        df=plot_data,
+        col_name=threshold_col,
+        cohorts={"cohort": cohort_categories},
+        base_attributes=base_attributes,
+        col_values=[t * 100 for t in thresholds],
     )
     try:
         assert_valid_performance_metrics_df(plot_data)
