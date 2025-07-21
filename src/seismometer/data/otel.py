@@ -6,6 +6,7 @@ from typing import Callable
 import yaml
 
 from seismometer.core.decorators import export
+from seismometer.core.patterns import Singleton
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
 
@@ -105,6 +106,7 @@ def get_metric_creator(metric_name: str, meter) -> Callable:
     return TYPES[typestring] if typestring in TYPES else Meter.create_gauge
 
 
+@export
 class ExportManager:
     def __new__(cls, *args, **kwargs):
         if TELEMETRY_POSSIBLE:
@@ -113,7 +115,7 @@ class ExportManager:
             return NoOpExportManager(*args, **kwargs)
 
 
-class NoOpExportManager:
+class NoOpExportManager(object, metaclass=Singleton):
     def __init__(self, *args, **kwargs):
         pass
 
@@ -125,7 +127,7 @@ class NoOpExportManager:
 
 
 # Class which stores info about exporting metrics.
-class RealExportManager:
+class RealExportManager(object, metaclass=Singleton):
     def __init__(self, file_output_path=None, export_port=None, dump_to_stdout=False):
         """Create a place to export files.
 
@@ -189,19 +191,11 @@ class RealExportManager:
             self.otlp_exhaust.close()
 
 
-export_manager = None
-
-
 @export
 def deactivate_exports():
-    export_manager.deactivate_exports()
+    ExportManager().deactivate_exports()
 
 
 @export
 def activate_exports():
-    export_manager.activate_exports()
-
-
-# A better way to access export_manager, for mocking purposes.
-def get_export_manager() -> ExportManager:
-    return export_manager
+    ExportManager().activate_exports()

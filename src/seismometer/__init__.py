@@ -12,7 +12,7 @@ import pandas as pd
 # API
 from seismometer.api import *
 from seismometer.core import autometrics
-from seismometer.data import otel
+from seismometer.data.otel import *
 
 __version__ = importlib.metadata.version("seismometer")
 logger = logging.getLogger("seismometer")
@@ -74,4 +74,4 @@ def run_startup(
     autometrics.initialize_otel_config(config.config, config_path_base=config_path)
 
     # For debug purposes: dump to stdout, and also to exporter path
-    otel.export_manager = otel.ExportManager(file_output_path=sys.stdout, export_port=4317)
+    ExportManager(file_output_path=sys.stdout, export_port=4317)

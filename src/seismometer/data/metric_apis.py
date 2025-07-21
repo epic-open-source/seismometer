@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from seismometer.core.io import slugify
-from seismometer.data.otel import get_export_manager, get_metric_config, get_metric_creator
+from seismometer.data.otel import ExportManager, get_metric_config, get_metric_creator
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
 
@@ -53,12 +53,14 @@ class RealOpenTelemetryRecorder:
             These are the kinds of metrics we want to be collecting. E.g. fairness, accuracy.
         """
 
+        export_manager = ExportManager()
+
         # If we are not recording metrics, don't bother.
-        if not get_export_manager().active:
+        if not export_manager.active:
             self.metric_names = []
             return
 
-        meter_provider = get_export_manager().meter_provider
+        meter_provider = export_manager.meter_provider
         # OpenTelemetry: use this new object to spawn new "Instruments" (measuring devices)
         self.meter = meter_provider.get_meter(name)
         # Keep it like this for now: just make an instrument for each metric we are measuring
@@ -86,7 +88,7 @@ class RealOpenTelemetryRecorder:
             The actual data we are populating.
         """
 
-        if not get_export_manager().active:
+        if not ExportManager().active:
             return
 
         if metrics is None:
