@@ -7,9 +7,9 @@ from IPython.display import HTML, SVG
 
 import seismometer.plot as plot
 from seismometer.controls.decorators import disk_cached_html_segment
-from seismometer.core.autometrics import store_call_parameters
+from seismometer.core.autometrics import AutomationManager, store_call_parameters
 from seismometer.core.decorators import export
-from seismometer.data import get_cohort_data, get_cohort_performance_data, metric_apis, otel
+from seismometer.data import get_cohort_data, get_cohort_performance_data, metric_apis
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import (
@@ -298,8 +298,9 @@ def _plot_leadtime_enc(
     good_groups = counts.loc[counts > censor_threshold].index
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
 
-    log_all = otel.get_metric_config("Time Lead")["log_all"]
-    NUMBER_QUANTILES = otel.get_metric_config("Time Lead")["granularity"]
+    am = AutomationManager()
+    log_all = am.get_metric_config("Time Lead")["log_all"]
+    NUMBER_QUANTILES = am.get_metric_config("Time Lead")["granularity"]
     metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
     if log_all:
         metric_names += ["Time Lead"]
@@ -597,8 +598,9 @@ def _model_evaluation(
         recorder.populate_metrics(
             attributes=params | cohort | {"threshold": t}, metrics=stats[stats["Threshold"] == t * 100]
         )
+    am = AutomationManager()
     for metric in stats.columns:
-        log_all = otel.get_metric_config(metric)["log_all"]
+        log_all = am.get_metric_config(metric)["log_all"]
         if log_all:
             recorder.populate_metrics(
                 attributes=params | cohort,
@@ -1132,8 +1134,9 @@ def binary_classifier_metric_evaluation(
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
     recorder = metric_apis.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
     attributes = {"score_col": score_col, "target": target}
+    am = AutomationManager()
     for metric in metrics:
-        log_all = otel.get_metric_config(metric)["log_all"]
+        log_all = am.get_metric_config(metric)["log_all"]
         if log_all:
             recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric].to_dict()})
     if table_only:

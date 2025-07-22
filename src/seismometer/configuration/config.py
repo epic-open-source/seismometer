@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from seismometer.configuration.metrics import MetricConfig
 from seismometer.core.io import load_yaml
 
 from .model import DataUsage, Event, EventDictionary, Metric, OtherInfo, PredictionDictionary
@@ -71,6 +72,38 @@ class ConfigProvider:
         self._resolve_other_paths(usage_config, automation_config, info_dir, data_dir, output_path)
         self._load_output_as_metric()
         self._load_metrics()
+        self._load_metric_config(self.config.usage_config)
+        self._load_automation_config(self.config.automation_config)
+
+    def _load_metric_config(self, usage_config: Path):
+        all_info = load_yaml(usage_config, self.config_dir)
+        if "otel_info" in all_info.keys():
+            raw_yaml = all_info["otel_info"]
+        else:
+            raw_yaml = {}
+        self._metric_config = MetricConfig(**raw_yaml)
+
+    def _load_automation_config(self, automation_config: Path):
+        # Because the structure of the saved automation is different for every single function call, we just save it
+        # off as a raw dictionary.
+        if automation_config is not None:
+            self._automation_config = self._load_definitions(
+                automation_config, "automation_config", lambda **kwargs: kwargs
+            )
+        else:
+            self._automation_config = {}
+
+    @property
+    def automation_config(self):
+        return self._automation_config
+
+    @property
+    def automation_config_path(self):
+        return self._config.automation_config
+
+    @property
+    def metric_config(self):
+        return self._metric_config
 
     def _load_config_config(self, config_config: str | Path) -> None:
         """

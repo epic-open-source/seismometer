@@ -6,11 +6,9 @@ from typing import Any, Callable
 
 import yaml
 
-from seismometer.configuration.model import OtherInfo
+from seismometer.configuration.config import ConfigProvider
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
-from seismometer.data.otel import read_otel_info
-from seismometer.seismogram import Seismogram
 
 logger = logging.getLogger("Seismometer Metric Automation")
 
@@ -19,29 +17,39 @@ automation_function_map: dict[str, Callable] = {}
 """ Maps the name of a function to the actual function to automate metric exporting from. """
 
 
+@export
 class AutomationManager(object, metaclass=Singleton):
     _call_history: dict[str, dict]
     """ plot function name -> {"args": args, "kwargs": kwargs } """
     _automation_info: dict[str, dict]
     """ Mapping function names to the corresponding automation settings. """
+    automation_file_path: Path
+    """ Where we are reading or dumping automation data. """
 
-    def __init__(self):
-        self._call_history = defaultdict(list)
-        self.automation_function_map = {}
-
-    def load_automation_config(self, automation_file_path: str) -> None:
-        """Load in a config from YAML.
-
+    def __init__(self, config_provider: ConfigProvider = None):
+        """
         Parameters
         ----------
-        automation_file_path : str
-            Where the automation file lives (metric-automation.yml)
+        config_provider : ConfigProvider
+            Tells us where the automation file lives (for instance, metric-automation.yml)
         """
-        try:
-            with open(automation_file_path, "r") as automation_file:
-                self._automation_info = yaml.safe_load(automation_file)
-        except (FileNotFoundError, TypeError):  # TypeError is for when the path is None
+        self._call_history = defaultdict(list)
+        # If no setup is provided, set up effective no-ops for everything.
+        if config_provider is None:
             self._automation_info = {}
+            self._metric_info = {}
+            return
+        self.automation_file_path = config_provider.automation_config_path
+        self.load_automation_config(config_provider)
+        self.load_metric_config(config_provider)
+
+    def load_automation_config(self, config_provider: ConfigProvider) -> None:
+        """Copy in the metric automation config."""
+        self._automation_info = config_provider.automation_config
+
+    def load_metric_config(self, config_provider: ConfigProvider) -> None:
+        """Copy in the metric config (how much granularity, etc.)"""
+        self._metric_info = config_provider.metric_config
 
     def store_call_params(self, fn_name, fn, args, kwargs, extra_info):
         """_summary_
@@ -98,6 +106,46 @@ class AutomationManager(object, metaclass=Singleton):
             return plots._plot_binary_classifier_metrics
         return automation_function_map[fn_name]
 
+    def export_config(self):
+        """Produce a configuration file specifying which metrics to export,
+        based on which functions have been run in the notebook.
+
+        To note: this only counts the most recent run of each function,
+        because this is what we might expect output to look like for a
+        given run (each type of cell is only run once, and we don't want to
+        store the old runs that have been overwritten as users figure out which
+        plots and metrics they want to see). It also does not accommodate
+        cells being deleted, because this would require some more in-depth
+        access to the Jupyter frontend.
+        """
+        with open(self.automation_file_path, "w") as automation_file:
+            call_history = self._call_history
+            yaml.dump(call_history, automation_file)
+
+    def get_metric_config(self, metric_name: str) -> dict:
+        """_summary_
+
+        Parameters
+        ----------
+        metric_name : str
+            The metric.
+
+        Returns
+        -------
+        dict
+            The configuration, as described in RFC #4 as a dictionary.
+            E.g. {"output_metrics": True}, etc.
+        """
+
+        METRIC_DEFAULTS = {"output_metrics": True, "log_all": False, "granularity": 4, "measurement_type": "Gauge"}
+
+        if metric_name in self._metric_info:
+            ret = self._metric_info[metric_name]
+        else:
+            ret = {}
+        # Overwrite defaults with whatever is in the dictionary.
+        return METRIC_DEFAULTS | ret
+
 
 # Internal implementation -- stored separately here for mocking purposes.
 def _store_call_parameters(name: str, fn: Callable, args: list, kwargs: dict, extra_info: dict) -> None:
@@ -143,42 +191,17 @@ def store_call_parameters(
 
 
 @export
-def initialize_otel_config(config: OtherInfo, config_path_base: str = ""):
+def initialize_otel_config(config: ConfigProvider):
     """Read all metric exporting and automation info.
 
     Parameters
     ----------
     config : OtherInfo
         The configuration object handed in during Seismogram initialization.
-    config_path_base: str
-        Where to look for the automation config file
     """
-    global OTEL_INFO
-    OTEL_INFO = read_otel_info(config.usage_config)
-    try:
-        auto_config_path = Path(config_path_base) / config.automation_config
-    except TypeError:
-        auto_config_path = config.automation_config
-    AutomationManager().load_automation_config(auto_config_path)
-
-
-@export
-def export_config():
-    """Produce a configuration file specifying which metrics to export,
-    based on which functions have been run in the notebook.
-
-    To note: this only counts the most recent run of each function,
-    because this is what we might expect output to look like for a
-    given run (each type of cell is only run once, and we don't want to
-    store the old runs that have been overwritten as users figure out which
-    plots and metrics they want to see). It also does not accommodate
-    cells being deleted, because this would require some more in-depth
-    access to the Jupyter frontend.
-    """
-    with open("metric-automation.yml", "w") as automation_file:
-        sg = Seismogram()
-        call_history = sg._call_history
-        yaml.dump(call_history, automation_file)
+    am = AutomationManager()
+    am.load_automation_config(config)
+    am.load_metric_config(config)
 
 
 def do_auto_export(function_name: str, fn_settings: dict):

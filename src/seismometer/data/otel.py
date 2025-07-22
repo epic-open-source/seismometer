@@ -5,6 +5,7 @@ from typing import Callable
 
 import yaml
 
+from seismometer.core.autometrics import AutomationManager
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
 
@@ -51,35 +52,6 @@ def read_otel_info(file_path: str) -> dict:
         return {}
 
 
-# This will be set once usage_config.yml is done downloading, in run_startup.
-OTEL_INFO = {}
-
-
-def get_metric_config(metric_name: str) -> dict:
-    """_summary_
-
-    Parameters
-    ----------
-    metric_name : str
-        The metric.
-
-    Returns
-    -------
-    dict
-        The configuration, as described in RFC #4 as a dictionary.
-        E.g. {"output_metrics": True}, etc.
-    """
-
-    METRIC_DEFAULTS = {"output_metrics": True, "log_all": False, "granularity": 4, "measurement_type": "Gauge"}
-
-    if metric_name in OTEL_INFO:
-        ret = OTEL_INFO[metric_name]
-    else:
-        ret = {}
-    # Overwrite defaults with whatever is in the dictionary.
-    return METRIC_DEFAULTS | ret
-
-
 def get_metric_creator(metric_name: str, meter) -> Callable:
     """Takes in the name of a metric and determines the OTel function which creates
     the corresponding instrument.
@@ -102,7 +74,7 @@ def get_metric_creator(metric_name: str, meter) -> Callable:
         logger.warning("Tried to get a metric creator, but no metrics are active!")
         return None
     TYPES = {"Gauge": meter.create_gauge, "Counter": meter.create_up_down_counter, "Histogram": meter.create_histogram}
-    typestring = get_metric_config(metric_name)["measurement_type"]
+    typestring = AutomationManager().get_metric_config(metric_name)["measurement_type"]
     return TYPES[typestring] if typestring in TYPES else Meter.create_gauge
 
 

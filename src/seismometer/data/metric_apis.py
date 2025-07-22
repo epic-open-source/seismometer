@@ -7,8 +7,9 @@ from typing import Any, Callable, Dict, List
 import numpy as np
 import pandas as pd
 
+from seismometer.core.autometrics import AutomationManager
 from seismometer.core.io import slugify
-from seismometer.data.otel import ExportManager, get_metric_config, get_metric_creator
+from seismometer.data.otel import ExportManager, get_metric_creator
 
 logger = logging.getLogger("Seismometer OpenTelemetry")
 
@@ -96,10 +97,11 @@ class RealOpenTelemetryRecorder:
             raise Exception()
         # OTel doesn't like fancy Unicode characters.
         metrics = {metric_name.replace("\xa0", " "): metrics[metric_name] for metric_name in metrics}
+        am = AutomationManager()
         for name in self.instruments.keys():
             # I think metrics.keys() is a subset of self.instruments.keys()
             # but I am not 100% on it. So this stays for now.
-            if name in metrics and get_metric_config(name)["output_metrics"]:
+            if name in metrics and am.get_metric_config(name)["output_metrics"]:
                 self._log_to_instrument(attributes, self.instruments[name], metrics[name])
         if not any([name in metrics for name in self.instruments.keys()]):
             logger.warning("No metrics populated with this call!")
@@ -245,6 +247,7 @@ class RealOpenTelemetryRecorder:
             If log_all is not set for a particular metric, we will only log using the particular values provided. An
             example use case is a set of thresholds.
         """
+        am = AutomationManager()
         for metric in df.columns:
             if metric == col_name:
                 continue
@@ -252,7 +255,7 @@ class RealOpenTelemetryRecorder:
             def maker(frame):
                 return frame.set_index(col_name)[[metric]].to_dict()
 
-            log_all = get_metric_config(metric)["log_all"]
+            log_all = am.get_metric_config(metric)["log_all"]
             if log_all or col_values != []:
                 log_df = df if log_all else df[df[col_name].isin(col_values)]
                 self.log_by_cohort(
