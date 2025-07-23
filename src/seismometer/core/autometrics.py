@@ -1,6 +1,7 @@
 import functools
 import logging
 from collections import defaultdict
+from inspect import signature
 from pathlib import Path
 from typing import Any, Callable
 
@@ -69,7 +70,11 @@ class AutomationManager(object, metaclass=Singleton):
             The keyword arguments the function was called with.
         """
 
-        self._call_history[fn_name].append({"args": args, "kwargs": kwargs, "extra_info": extra_info(args, kwargs)})
+        # Get kwargs from args, because a list of unlabeled arguments would be extremely confusing.
+        sig = signature(fn)
+        bound = sig.bind_partial(*args, **kwargs)
+        bound.apply_defaults()
+        self._call_history[fn_name].append({"options": dict(bound.arguments), "extra_info": extra_info(args, kwargs)})
         automation_function_map[fn_name] = fn
 
     def is_allowed_export_function(self, fn_name: str) -> bool:
