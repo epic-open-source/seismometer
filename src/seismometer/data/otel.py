@@ -100,39 +100,31 @@ class NoOpExportManager(object, metaclass=Singleton):
 
 # Class which stores info about exporting metrics.
 class RealExportManager(object, metaclass=Singleton):
-    def __init__(self, file_output_path=None, export_port=None, dump_to_stdout=False):
+    def __init__(self, file_output_paths=[], export_ports=[], dump_to_stdout=False):
         """Create a place to export files.
 
         Parameters
         ----------
-        file_output_path : str, optional
-            Where metrics are to be dumped to for debugging purposes, if needed.
-            Set this to the object sys.stdout (NOT the string) in order to just
-            log metrics to the console.
+        file_output_path : list[str], optional
+            Where metrics are to be dumped to for debugging purposes.
         prom_port : int, optional
-            What port (local HTTP server for instance) metrics are to be dumped,
-            for Prometheus exporting purposes.
+            What ports (local HTTP server for instance) metrics are to be dumped to,
+            for Prometheus or OTel collector purposes.
         dump_to_stdout: bool, optional
             Whether to dump the metrics to stdout.
         """
 
-        if file_output_path is None and export_port is None:
+        if file_output_paths == export_ports == [] and not dump_to_stdout:
             raise Exception("Metrics must go somewhere!")
         self.readers = []
-        self.otlp_exhaust = None
-        if file_output_path is not None:
-            if file_output_path == sys.stdout:
-                self.otlp_exhaust = sys.stdout
-            else:
-                self.otlp_exhaust = open(
-                    file_output_path, "w"
-                )  # Save this for closing files down at the end of execution
+        self.otlp_exhausts = []
+        for file_output_path in file_output_paths:
+            file_exhaust = open(file_output_path, "w")
             self.readers.append(
-                PeriodicExportingMetricReader(
-                    ConsoleMetricExporter(out=self.otlp_exhaust), export_interval_millis=5000
-                )
+                PeriodicExportingMetricReader(ConsoleMetricExporter(out=file_exhaust), export_interval_millis=5000)
             )
-        if export_port is not None:
+            self.otlp_exhausts.append(file_exhaust)
+        for export_port in export_ports:
             otel_collector_reader = None
             try:
                 otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)
@@ -145,6 +137,10 @@ class RealExportManager(object, metaclass=Singleton):
                     otel_collector_reader.shutdown()
             else:
                 self.readers.append(otel_collector_reader)
+        if dump_to_stdout:
+            self.readers.append(
+                PeriodicExportingMetricReader(ConsoleMetricExporter(out=sys.stdout), export_interval_millis=5000)
+            )
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
         set_meter_provider(self.meter_provider)
@@ -159,8 +155,8 @@ class RealExportManager(object, metaclass=Singleton):
         self.active = True
 
     def __del__(self):
-        if self.otlp_exhaust is not None and (sys is None or self.otlp_exhaust != sys.stdout):
-            self.otlp_exhaust.close()
+        for file_exhaust in self.otlp_exhausts:
+            file_exhaust.close()
 
 
 @export

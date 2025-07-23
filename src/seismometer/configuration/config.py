@@ -122,6 +122,31 @@ class ConfigProvider:
 
         self.config = OtherInfo(**raw_config["other_info"])
 
+        if "log" not in raw_config:
+            self.otel_ports = self.otel_files = []
+            self.otel_stdout = False
+            return
+
+        log_config = raw_config["log"]
+
+        if "ports" in log_config:
+            ports = log_config["ports"]  # Either a single port, or a list of them
+            self.otel_ports = ports if isinstance(ports, list) else [ports]
+        else:
+            self.otel_ports = []
+
+        if "files" in log_config:
+            files = log_config["files"]
+            self.otel_files = files if isinstance(files, list) else [files]
+        else:
+            self.otel_files = []
+
+        if "stdout" in log_config and log_config["stdout"]:
+            self.otel_stdout = True
+        else:
+            self.otel_stdout = False
+        print(log_config["stdout"])
+
     def _resolve_other_paths(
         self,
         usage_config: str | Path = None,

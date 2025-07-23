@@ -74,4 +74,6 @@ def run_startup(
     initialize_otel_config(config)
 
     # For debug purposes: dump to stdout, and also to exporter path
-    ExportManager(file_output_path=sys.stdout, export_port=4317)
+    ExportManager(
+        file_output_paths=config.otel_files, export_ports=config.otel_ports, dump_to_stdout=config.otel_stdout
+    )
