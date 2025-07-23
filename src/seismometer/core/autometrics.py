@@ -118,6 +118,9 @@ class AutomationManager(object, metaclass=Singleton):
         cells being deleted, because this would require some more in-depth
         access to the Jupyter frontend.
         """
+        if self.automation_file_path is None:
+            logger.warning("Cannot export config without a file set to export to!")
+            return
         with open(self.automation_file_path, "w") as automation_file:
             call_history = self._call_history
             yaml.dump(call_history, automation_file)
