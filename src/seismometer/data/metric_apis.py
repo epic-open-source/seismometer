@@ -32,7 +32,9 @@ class OpenTelemetryRecorder:
 
 class NoOpOpenTelemetryRecorder:
     def __init__(self, *args, **kwargs):
-        pass
+        self.meter = None
+        self.instruments = {}
+        self.metric_names = []
 
     def populate_metrics(self, *args, **kwargs):
         pass
