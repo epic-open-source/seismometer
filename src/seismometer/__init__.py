@@ -70,7 +70,6 @@ def run_startup(
 
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
-    _ = AutomationManager(config_provider=config)
     initialize_otel_config(config)
 
     # For debug purposes: dump to stdout, and also to exporter path

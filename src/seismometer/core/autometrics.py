@@ -207,7 +207,7 @@ def initialize_otel_config(config: ConfigProvider):
     config : OtherInfo
         The configuration object handed in during Seismogram initialization.
     """
-    am = AutomationManager()
+    am = AutomationManager(config_provider=config)
     am.load_automation_config(config)
     am.load_metric_config(config)
 
