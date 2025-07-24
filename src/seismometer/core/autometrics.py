@@ -10,12 +10,25 @@ import yaml
 from seismometer.configuration.config import ConfigProvider
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
+from seismometer.data.performance import BinaryClassifierMetricGenerator
 
 logger = logging.getLogger("Seismometer Metric Automation")
 
 
 automation_function_map: dict[str, Callable] = {}
 """ Maps the name of a function to the actual function to automate metric exporting from. """
+
+
+def transform_item(item: Any) -> Any:
+    if isinstance(item, tuple):
+        return list(item)
+    if isinstance(item, BinaryClassifierMetricGenerator):
+        return item.rho
+    return item
+
+
+def call_transform(call: dict) -> dict:
+    return {k: transform_item(v) for k, v in call.items()}
 
 
 @export
@@ -74,7 +87,10 @@ class AutomationManager(object, metaclass=Singleton):
         sig = signature(fn)
         bound = sig.bind_partial(*args, **kwargs)
         bound.apply_defaults()
-        self._call_history[fn_name].append({"options": dict(bound.arguments), "extra_info": extra_info(args, kwargs)})
+        argument_set = dict(bound.arguments)
+        self._call_history[fn_name].append(
+            {"options": call_transform(argument_set), "extra_info": extra_info(args, kwargs)}
+        )
         automation_function_map[fn_name] = fn
 
     def is_allowed_export_function(self, fn_name: str) -> bool:
@@ -127,7 +143,7 @@ class AutomationManager(object, metaclass=Singleton):
             logger.warning("Cannot export config without a file set to export to!")
             return
         with open(self.automation_file_path, "w") as automation_file:
-            call_history = self._call_history
+            call_history = dict(self._call_history)
             yaml.dump(call_history, automation_file)
 
     def get_metric_config(self, metric_name: str) -> dict:
