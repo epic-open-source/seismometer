@@ -145,7 +145,6 @@ class ConfigProvider:
             self.otel_stdout = True
         else:
             self.otel_stdout = False
-        print(log_config["stdout"])
 
     def _resolve_other_paths(
         self,
