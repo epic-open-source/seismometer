@@ -164,7 +164,7 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
     )
 
 
-@store_call_parameters
+@store_call_parameters(cohort_col="cohort_col", subgroups="subgroups")
 @disk_cached_html_segment
 @export
 def plot_cohort_lead_time(
@@ -334,7 +334,7 @@ def _plot_leadtime_enc(
     return template.render_title_with_image(title, svg)
 
 
-@store_call_parameters
+@store_call_parameters(cohort_col="cohort_col", subgroups="subgroups")
 @disk_cached_html_segment
 @export
 def plot_cohort_evaluation(
@@ -467,7 +467,7 @@ def _plot_cohort_evaluation(
     return template.render_title_with_image(title, svg)
 
 
-@store_call_parameters
+@store_call_parameters(cohort_dict="cohort_dict")
 @disk_cached_html_segment
 @export
 def plot_model_evaluation(
@@ -861,7 +861,7 @@ def _plot_ts_cohort(
     )
 
 
-@store_call_parameters
+@store_call_parameters(cohort_dict="cohort_dict")
 @disk_cached_html_segment
 @export
 def plot_model_score_comparison(
@@ -997,7 +997,7 @@ def plot_model_target_comparison(
 
 
 # region Explore Any Metric (NNT, etc)
-@store_call_parameters
+@store_call_parameters(cohort_dict="cohort_dict")
 @disk_cached_html_segment
 @export
 def plot_binary_classifier_metrics(
@@ -1055,7 +1055,16 @@ def plot_binary_classifier_metrics(
     )
 
 
-def _plot_binary_classifier_metrics(rho: float, **kwargs):
+def _plot_binary_classifier_metrics(
+    rho: float,
+    metrics: str | list[str],
+    cohort_dict: dict[str, tuple[Any]],
+    target: str,
+    score_column: str,
+    *,
+    per_context: bool = False,
+    table_only: bool = False,
+):
     """Serves only as a wrapper of plot_binary_classifier_metrics so that
     we don't have to serialize a metric generator object.
 
@@ -1065,7 +1074,9 @@ def _plot_binary_classifier_metrics(rho: float, **kwargs):
         Probability of a treatment being effective
     """
     bcmg = BinaryClassifierMetricGenerator(rho=rho)
-    plot_binary_classifier_metrics(metric_generator=bcmg, **kwargs)
+    plot_binary_classifier_metrics(
+        bcmg, metrics, cohort_dict, target, score_column, per_context=per_context, table_only=table_only
+    )
 
 
 def binary_classifier_metric_evaluation(

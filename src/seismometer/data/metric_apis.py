@@ -251,7 +251,7 @@ class RealOpenTelemetryRecorder:
         """
         am = AutomationManager()
         for metric in df.columns:
-            if metric == col_name:
+            if metric == col_name or metric not in self.metric_names:
                 continue
 
             def maker(frame):

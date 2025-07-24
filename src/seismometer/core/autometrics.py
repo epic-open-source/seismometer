@@ -15,8 +15,28 @@ from seismometer.data.performance import BinaryClassifierMetricGenerator
 logger = logging.getLogger("seismometer.telemetry")
 
 
-automation_function_map: dict[str, Callable] = {}
-""" Maps the name of a function to the actual function to automate metric exporting from. """
+automation_function_map: dict[str, dict] = {}
+""" Maps the name of a function to the actual function to automate metric exporting from,
+as well as information about its cohorts."""
+
+
+def get_function_args(function_name: str) -> list[str]:
+    """Get a list of arguments from a function.
+
+    def foo(x: int, y: int)
+
+    Parameters
+    ----------
+    function_name : str
+        "foo"
+
+    Returns
+    -------
+    list[str]
+        ["x", "y"]
+    """
+    name = AutomationManager().get_function_from_export_name(function_name)
+    return list(signature(name).parameters.keys())
 
 
 def transform_item(item: Any) -> Any:
@@ -91,7 +111,6 @@ class AutomationManager(object, metaclass=Singleton):
         self._call_history[fn_name].append(
             {"options": call_transform(argument_set), "extra_info": extra_info(args, kwargs)}
         )
-        automation_function_map[fn_name] = fn
 
     def is_allowed_export_function(self, fn_name: str) -> bool:
         """Whether or not a function is an allowed export.
@@ -125,7 +144,7 @@ class AutomationManager(object, metaclass=Singleton):
             from seismometer.api import plots
 
             return plots._plot_binary_classifier_metrics
-        return automation_function_map[fn_name]
+        return automation_function_map[fn_name]["function"]
 
     def export_config(self):
         """Produce a configuration file specifying which metrics to export,
@@ -177,7 +196,12 @@ def _store_call_parameters(name: str, fn: Callable, args: list, kwargs: dict, ex
 
 
 def store_call_parameters(
-    func: Callable[..., Any] = None, name: str = None, extra_params: Callable[[tuple, dict], dict] = lambda x, y: {}
+    func: Callable[..., Any] = None,
+    name: str = None,
+    extra_params: Callable[[tuple, dict], dict] = lambda x, y: {},
+    cohort_col: str = None,
+    subgroups: str = None,
+    cohort_dict: str = None,
 ) -> Callable[..., Any]:
     """_summary_
 
@@ -190,6 +214,12 @@ def store_call_parameters(
         (Maybe we want to represent _internal_generate_widget_actually as just generate_widget, for example).
     extra_params : Callable[tuple, dict, dict], optional
         Extra arguments we need to reconstruct the call.
+    cohort_col: str, optional
+        Which function parameter represents a cohort (like Age).
+    subgroups: str, optional
+        Which function parameter represents a list of subgroups (like 70+, 10-20).
+    cohort_dict: dict, optional
+        Which function parameter represents a dict like {"Age": ["70+", "[10-20)"]}
 
     Returns
     -------
@@ -205,7 +235,16 @@ def store_call_parameters(
             _store_call_parameters(call_name, fn, list(args), kwargs, extra_params)
             return fn(*args, **kwargs)
 
-        automation_function_map[call_name] = fn
+        automation_function_map[call_name] = {
+            k: v
+            for k, v in {
+                "function": fn,
+                "cohort_col": cohort_col,
+                "subgroups": subgroups,
+                "cohort_dict": cohort_dict,
+            }.items()
+            if v is not None
+        }
         return new_fn
 
     if func is not None and callable(func):
@@ -226,31 +265,6 @@ def initialize_otel_config(config: ConfigProvider):
     am = AutomationManager(config_provider=config)
     am.load_automation_config(config)
     am.load_metric_config(config)
-
-
-def do_auto_export(function_name: str, fn_settings: dict):
-    """Run a (metric-generating) function with
-    predetermined settings. To be used when reading in
-    an auto-generated config file, as opposed to a
-    manually-written one which takes a bit more
-    preprocessing.
-
-    Parameters
-    ----------
-    function_name : str
-        The name of the function to export.
-    fn_settings : dict
-        What settings (see output config) to apply:
-        args, kwargs: function parameters
-        extra_params: the current settings of Seismogram,
-        saved at the time of export.
-    """
-
-    args = fn_settings["args"]
-    kwargs = fn_settings["kwargs"]
-    # We need to have these here for circular import reasons.
-    fn = AutomationManager().get_function_from_export_name(function_name)
-    fn(*args, **kwargs)
 
 
 def extract_arguments(argument_names: list[str], run_settings: dict) -> dict:
@@ -310,7 +324,7 @@ def _call_cohortless_function(function: Callable, arg_names: list[str], run_sett
     function(**kwargs)
 
 
-def _call_cohort_dict_function(function: Callable, arg_names: list[str], run_settings: dict, cohort_arg_name: str):
+def _call_cohort_dict_function(function: Callable, arg_names: list[str], run_settings: dict, cohort_dict: str):
     """Call a function in the style of (2) above.
 
     Parameters
@@ -321,17 +335,17 @@ def _call_cohort_dict_function(function: Callable, arg_names: list[str], run_set
         The list of parameters this function takes, which we then read values for from the YAML.
     run_settings : dict
         The relevant section of YAML we are reading.
-    cohort_arg_name : str
+    cohort_dict : str
         What argument in the function is the cohort dictionary. E.g.
         def my_plot_function(cohort_dict: ...) would give us "cohort_dict".
     """
     kwargs = extract_arguments(arg_names, run_settings)
-    kwargs[cohort_arg_name] = run_settings["cohorts"]
+    kwargs[cohort_dict] = run_settings["cohorts"]
     function(**kwargs)
 
 
 def _call_single_cohort_function(
-    function: Callable, arg_names: list[str], run_settings: dict, cohort_arg_name: str, subgroup_arg_name: str
+    function: Callable, arg_names: list[str], run_settings: dict, cohort_col: str, subgroups: str
 ):
     """Call a function the style of (3) above.
 
@@ -343,72 +357,54 @@ def _call_single_cohort_function(
         The list of parameters this function takes, which we then read values for from the YAML.
     run_settings : dict
         The relevant section of YAML we are reading.
-    cohort_arg_name : str
+    cohort_col : str
         What argument in the function is the cohort column name.
-    subgroup_arg_name : str
+    subgroups : str
         What argument to the function is the list of subgroups for that cohort column.
     """
     kwargs = extract_arguments(arg_names, run_settings)
     for cohort in run_settings["cohorts"]:
-        subgroups = run_settings["cohorts"][cohort]
+        subgroups_list = run_settings["cohorts"][cohort]
         kwargs_copy = kwargs.copy()
-        kwargs_copy[cohort_arg_name] = cohort
-        kwargs_copy[subgroup_arg_name] = subgroups
+        kwargs_copy[cohort_col] = cohort
+        kwargs_copy[subgroups] = subgroups_list
         function(**kwargs_copy)
 
 
-def _dispatch_appropriate_call(kwargs: dict):
+def _dispatch_appropriate_call(fn: Callable, arg_info: dict, run_settings: dict, argument_names: list[str]):
     """Based on the set of parameters provided for an automated metric call, use the appropriate
     function from the three above.
 
     Parameters
     ----------
-    kwargs : dict
-        All function arguments
+    fn : Callable
+        The function itself we want to call.
+    arg_info: dict
+        The stored information about special cohort-related arguments.
+    run_settings: dict
+        Which settings we have loaded in from YAML for this one specific run.
+    argument_names: list[str]
+        What arguments are being passed to the function.
     """
-    if "subgroup_arg_name" in kwargs:
+
+    kwargs = {"function": fn, "arg_names": argument_names, "run_settings": run_settings}
+    kwargs |= {k: v for k, v in arg_info.items() if k != "function"}
+
+    if "cohort_col" in arg_info:
         _call_single_cohort_function(**kwargs)
-    elif "cohort_arg_name" in kwargs:
+    elif "cohort_dict" in arg_info:
         _call_cohort_dict_function(**kwargs)
     else:
         _call_cohortless_function(**kwargs)
 
 
-_call_information = {
-    "feature_alerts": {"arg_names": ["exclude_cols"]},
-    "feature_summary": {"arg_names": ["exclude_cols", "inline"]},
-    "plot_model_evaluation": {
-        "arg_names": ["target_column", "score_column", "thresholds", "per_context"],
-        "cohort_arg_name": "cohort_dict",
-    },
-    "plot_cohort_evaluation": {
-        "arg_names": ["target_column", "score_column", "thresholds", "per_context"],
-        "cohort_arg_name": "cohort_col",
-        "subgroup_arg_name": "subgroups",
-    },
-    "plot_cohort_lead_time": {
-        "arg_names": ["event_column", "score_column", "threshold"],
-        "cohort_arg_name": "cohort_col",
-        "subgroup_arg_name": "subgroups",
-    },
-    "plot_binary_classifier_metrics": {
-        "arg_names": ["metrics", "target", "score_column", "per_context", "table_only", "rho"],
-        "cohort_arg_name": "cohort_dict",
-    },
-    "plot_model_score_comparison": {
-        "arg_names": ["target", "scores", "per_context"],
-        "cohort_arg_name": "cohort_dict",
-    },
-}
-
-
-def do_one_manual_export(function_name: str, run_settings):
+def do_one_export(function_name: str, run_settings):
     """Perform an export from handwritten config.
 
     The process is roughly:
     - extract function call parameters
     - extract Seismogram info (which is set prior to function call)
-    - extra cohort info (for looping purposes)
+    - extract cohort info (for looping purposes)
 
     Parameters
     ----------
@@ -419,16 +415,14 @@ def do_one_manual_export(function_name: str, run_settings):
     """
 
     am = AutomationManager()
+    arg_info = automation_function_map[function_name]
+    argument_names = get_function_args(function_name)
     fn = am.get_function_from_export_name(function_name)
-
-    arg_info = _call_information[function_name]
-    arg_info["function"] = fn
-    arg_info["run_settings"] = run_settings
-    _dispatch_appropriate_call(arg_info)
+    _dispatch_appropriate_call(fn, arg_info, run_settings, argument_names)
 
 
-def do_manual_export(function_name: str, fn_settings: list | dict):
-    """Because a handwritten config can have multiple
+def do_export(function_name: str, fn_settings: list | dict):
+    """Because a config can have multiple
     sets of parameters for one function, here we differentiate
     them and provide a uniform interface.
 
@@ -440,10 +434,10 @@ def do_manual_export(function_name: str, fn_settings: list | dict):
         Either the set of parameters, or a list of such sets.
     """
     if isinstance(fn_settings, dict):
-        do_one_manual_export(function_name, fn_settings)
+        do_one_export(function_name, fn_settings)
     elif isinstance(fn_settings, list):
         for setting in fn_settings:
-            do_one_manual_export(function_name, setting)
+            do_one_export(function_name, setting)
 
 
 @export
@@ -457,9 +451,4 @@ def do_metric_exports() -> None:
             logger.warning(f"Unrecognized auto-export function name {function_name}. Continuing ...")
             continue
         fn_settings = am._automation_info[function_name]
-        # See if this is auto-generated or if it was hand-written.
-        # Different processing will be needed in each case.
-        if fn_settings is not None and "args" in fn_settings:
-            do_auto_export(function_name, fn_settings)
-        else:
-            do_manual_export(function_name, fn_settings)
+        do_export(function_name, fn_settings)
