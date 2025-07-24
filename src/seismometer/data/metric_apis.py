@@ -11,7 +11,7 @@ from seismometer.core.autometrics import AutomationManager
 from seismometer.core.io import slugify
 from seismometer.data.otel import ExportManager, get_metric_creator
 
-logger = logging.getLogger("Seismometer OpenTelemetry")
+logger = logging.getLogger("seismometer.telemetry")
 
 try:
     from opentelemetry.metrics import Histogram, UpDownCounter

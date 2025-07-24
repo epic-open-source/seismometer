@@ -9,7 +9,7 @@ from seismometer.core.autometrics import AutomationManager
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
 
-logger = logging.getLogger("Seismometer OpenTelemetry")
+logger = logging.getLogger("seismometer.telemetry")
 
 try:
     from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter

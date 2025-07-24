@@ -12,7 +12,7 @@ from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
 from seismometer.data.performance import BinaryClassifierMetricGenerator
 
-logger = logging.getLogger("Seismometer Metric Automation")
+logger = logging.getLogger("seismometer.telemetry")
 
 
 automation_function_map: dict[str, Callable] = {}
