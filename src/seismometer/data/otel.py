@@ -131,9 +131,11 @@ class RealExportManager(object, metaclass=Singleton):
 
 @export
 def deactivate_exports():
+    """Make it so that all metric emission calls are no-ops."""
     ExportManager().deactivate_exports()
 
 
 @export
 def activate_exports():
+    """Revert to the default state of allowing metric emission."""
     ExportManager().activate_exports()

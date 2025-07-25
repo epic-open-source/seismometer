@@ -187,8 +187,8 @@ class RealOpenTelemetryRecorder:
         intersecting: bool
             Whether we are logging each combination of separate cohorts or not.
             Given the example cohorts above:
-                - intersecting=False would log data for Age=[10-20), Age=70+, Race=AfricanAmerican, and Race=Caucasian.
-                - intersecting=True: Age=[10,20) and Race=AfricanAmerican, Age=[20, 50) and Race=Caucasian, etc.
+            - intersecting=False would log data for Age=[10-20), Age=70+, Race=AfricanAmerican, and Race=Caucasian.
+            - intersecting=True: Age=[10,20) and Race=AfricanAmerican, Age=[20, 50) and Race=Caucasian, etc.
         metric_maker: Callable
             Produce a metric to log from the Series we will create.
             For example, in plot_cohort_hist, what we want is the length of each dataframe.
