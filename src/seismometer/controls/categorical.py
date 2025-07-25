@@ -13,6 +13,7 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
+from seismometer.data import metric_apis
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
@@ -59,6 +60,9 @@ class OrdinalCategoricalPlot:
         self.censor_threshold = sg.censor_threshold
 
         self.values = self._extract_metric_values()
+
+        readable_metric_names = [sg.metrics[metric].display_name for metric in self.metrics]
+        self.recorder = metric_apis.OpenTelemetryRecorder(metric_names=readable_metric_names, name=self.plot_type)
 
     def _extract_metric_values(self):
         """
@@ -368,6 +372,10 @@ class OrdinalCategoricalPlot:
         counts_df = pd.DataFrame(data)
         counts_df.set_index("Feedback Metrics", inplace=True)
         counts_df = counts_df[counts_df.sum(axis=1) >= self.censor_threshold]
+
+        self.recorder.populate_metrics(
+            attributes={}, metrics={name: counts_df.loc[name].to_dict() for name in self.recorder.metric_names}
+        )
 
         return counts_df
 

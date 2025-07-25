@@ -13,6 +13,8 @@ from seismometer.controls.explore import ExplorationWidget, _combine_scores_chec
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.controls.thresholds import MonotonicProbabilitySliderListWidget
+from seismometer.data import metric_apis
+from seismometer.data import pandas_helpers
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
 from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
@@ -329,6 +331,26 @@ class AnalyticsTable:
             return template.render_censored_plot_message(self.censor_threshold)
 
         gt = self.generate_initial_table(data)
+
+        METRICS = STATNAMES + OVERALL_PERFORMANCE
+        recorder = metric_apis.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table")
+        # The column names are
+        for column in data.columns:
+            metric_name = pandas_helpers.analytics_metric_name(METRICS, self.metric_values, column)
+            if metric_name is None:
+                continue
+            # If we have unmangled the name, keep a record of the part we have chopped off.
+            if metric_name != column:
+                base_attributes = {"metric_value": column.rstrip(f"_{metric_name}")}
+            else:
+                base_attributes = {}
+            # The table in the graphic is definitely indexed by score + target, so
+            # we will be storing those as attributes and the rest of the row as a
+            # bunch of key-value pairs.
+            for i in range(len(data["Score"])):
+                row = data.to_dict("records")[i]
+                attributes = base_attributes | {"Score": row["Score"], "Target": row["Target"]}
+                recorder.populate_metrics(attributes=attributes, metrics={metric_name: row[column]})
 
         # Group columns of the form value_*** together
         for value in self.metric_values:

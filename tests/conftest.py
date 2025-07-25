@@ -2,8 +2,11 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
+from unittest.mock import Mock, patch
 
 from pytest import fixture
+
+from seismometer.data import metric_apis
 
 TEST_ROOT = Path(__file__).parent
 
@@ -37,3 +40,26 @@ def working_dir_as(path: Path) -> Generator:
         yield
     finally:
         os.chdir(oldpath)
+
+
+@fixture(scope="module", autouse=True)
+def sg_decorator_mock():
+    with patch("seismometer.core.autometrics._store_call_parameters"):
+        yield
+
+
+@fixture(scope="module", autouse=True)
+def export_manager_mock():
+    class ExportManagerMock:
+        def __init__(self, *args, **kwargs):
+            self.active = True
+            self.meter_provider = Mock()
+
+    with patch("seismometer.data.otel.RealExportManager", ExportManagerMock):
+        yield
+
+
+@fixture(scope="module", autouse=True)
+def set_datapoint_mock():
+    with patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint"):
+        yield
