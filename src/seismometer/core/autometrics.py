@@ -1,5 +1,6 @@
 import functools
 import logging
+import os
 from collections import defaultdict
 from inspect import signature
 from pathlib import Path
@@ -146,20 +147,23 @@ class AutomationManager(object, metaclass=Singleton):
             return plots._plot_binary_classifier_metrics
         return automation_function_map[fn_name]["function"]
 
-    def export_config(self):
+    def export_config(self, overwrite_existing=False):
         """Produce a configuration file specifying which metrics to export,
         based on which functions have been run in the notebook.
 
-        To note: this only counts the most recent run of each function,
-        because this is what we might expect output to look like for a
-        given run (each type of cell is only run once, and we don't want to
-        store the old runs that have been overwritten as users figure out which
-        plots and metrics they want to see). It also does not accommodate
+        This counts all runs of each function, but does not accommodate
         cells being deleted, because this would require some more in-depth
         access to the Jupyter frontend.
+
+        Parameters
+        ----------
+        overwrite_existing : bool
+            Whether to overwrite an existing automation file at the same path.
         """
         if self.automation_file_path is None:
             logger.warning("Cannot export config without a file set to export to!")
+            return
+        if not overwrite_existing and os.path.exists(self.automation_file_path):
             return
         with open(self.automation_file_path, "w") as automation_file:
             call_history = dict(self._call_history)
