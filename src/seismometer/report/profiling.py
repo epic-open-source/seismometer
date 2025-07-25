@@ -201,7 +201,6 @@ class SingleReportWrapper(ReportWrapper):
             self._deserialize_alerts()
 
         alert_types = list(set([alert.name.lower() for alert in self._parsed_alerts.alerts]))
-        # TODO: add units of percent for each of these
         self.recorder = metric_apis.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
         for alert in self._parsed_alerts.alerts:
             variable = alert.variable
