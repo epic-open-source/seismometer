@@ -40,7 +40,7 @@ def get_function_args(function_name: str) -> list[str]:
     return list(signature(name).parameters.keys())
 
 
-def transform_item(item: Any) -> Any:
+def _transform_item(item: Any) -> Any:
     if isinstance(item, tuple):
         return list(item)
     if isinstance(item, BinaryClassifierMetricGenerator):
@@ -48,8 +48,8 @@ def transform_item(item: Any) -> Any:
     return item
 
 
-def call_transform(call: dict) -> dict:
-    return {k: transform_item(v) for k, v in call.items()}
+def _call_transform(call: dict) -> dict:
+    return {k: _transform_item(v) for k, v in call.items()}
 
 
 @export
@@ -110,7 +110,7 @@ class AutomationManager(object, metaclass=Singleton):
         bound.apply_defaults()
         argument_set = dict(bound.arguments)
         self._call_history[fn_name].append(
-            {"options": call_transform(argument_set), "extra_info": extra_info(args, kwargs)}
+            {"options": _call_transform(argument_set), "extra_info": extra_info(args, kwargs)}
         )
 
     def is_allowed_export_function(self, fn_name: str) -> bool:
@@ -144,7 +144,7 @@ class AutomationManager(object, metaclass=Singleton):
         if fn_name == "plot_binary_classifier_metrics":
             from seismometer.api import plots
 
-            return plots._plot_binary_classifier_metrics
+            return plots._autometric_plot_binary_classifier_metrics
         return automation_function_map[fn_name]["function"]
 
     def export_config(self, overwrite_existing=False):
@@ -403,7 +403,7 @@ def _dispatch_appropriate_call(fn: Callable, arg_info: dict, run_settings: dict,
 
 
 def do_one_export(function_name: str, run_settings):
-    """Perform an export from handwritten config.
+    """Perform an export from one particular config.
 
     The process is roughly:
     - extract function call parameters

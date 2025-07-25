@@ -3,8 +3,6 @@ import socket
 import sys
 from typing import Callable
 
-import yaml
-
 from seismometer.core.autometrics import AutomationManager
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
@@ -22,34 +20,6 @@ try:
 except ImportError:
     # No OTel.
     TELEMETRY_POSSIBLE = False
-
-
-def read_otel_info(file_path: str) -> dict:
-    """Reads in the OTel information (which metrics to load, etc.) from a file.
-
-    Parameters
-    ----------
-    file_path : str
-        Where to read from.
-
-    Returns
-    -------
-    dict
-        The YAML object.
-
-    Raises
-    ------
-    Exception
-        If there is no file at the specified location.
-    """
-    try:
-        file = open(file_path, "r")
-        return yaml.safe_load(file)["otel_info"]
-    except FileNotFoundError:
-        raise Exception("Could not find usage config file for metric setup!")
-    except (KeyError, TypeError):
-        logger.warning(f"No OTel config found in {file_path}. Will be defaulting ...")
-        return {}
 
 
 def get_metric_creator(metric_name: str, meter) -> Callable:

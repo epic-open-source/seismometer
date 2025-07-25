@@ -1055,7 +1055,7 @@ def plot_binary_classifier_metrics(
     )
 
 
-def _plot_binary_classifier_metrics(
+def _autometric_plot_binary_classifier_metrics(
     rho: float,
     metrics: str | list[str],
     cohort_dict: dict[str, tuple[Any]],
