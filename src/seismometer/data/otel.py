@@ -97,15 +97,17 @@ class RealExportManager(object, metaclass=Singleton):
         for export_port in export_ports:
             otel_collector_reader = None
             try:
-                otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)
-                otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
                 with socket.create_connection(("otel-collector", export_port), timeout=1):
                     pass
+
             except OSError:
                 logger.warning("Connecting to port failed. Ignoring ...")
-                if otel_collector_reader is not None:
-                    otel_collector_reader.shutdown()
+
             else:
+                # Only proceed if that worked
+                logger.debug(f"Successfully tested connection to socket {export_port}")
+                otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)
+                otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
                 self.readers.append(otel_collector_reader)
         if dump_to_stdout:
             self.readers.append(
