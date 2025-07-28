@@ -120,6 +120,7 @@ the OpenTelemetry collector, which will send it eventually to Grafana --
 as long as you have the collector and backends running in the first place.
 
 Make sure your `config.yml`, in the `log:` section, has the following:
+
 .. code-block:: yaml
 
   ports:
@@ -137,11 +138,13 @@ Metric exporting and collection can also be automated. Call history is saved per
 notebook run, and can then be exported to disk for future runs.
 
 To view the current call history:
+
 .. code-block:: python
 
   sm.preview_automation()
 
 To do an export of the current call settings:
+
 .. code-block:: python
   
   sm.export_config()
@@ -152,6 +155,7 @@ the file is already populated.
 
 Upon Seismogram load, any config stored in this path will be loaded. You may run an
 automatic export based on the saved settings using
+
 .. code-block:: python
 
   sm.do_metric_exports()
