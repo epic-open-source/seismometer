@@ -129,4 +129,30 @@ Start the instances with ``docker-compose up -d`` and then visit
 ``localhost:4000`` to use Grafana. Log in with ``admin/admin``
 username/password to explore metrics.
 
+=================
+Metric Automation
+=================
+
+Metric exporting and collection can also be automated. Call history is saved per
+notebook run, and can then be exported to disk for future runs.
+
+To view the current call history:
+.. code-block:: python
+
+  sm.preview_automation()
+
+To do an export of the current call settings:
+.. code-block:: python
+  
+  sm.export_config()
+
+This will export to the path given in ``config.yml`` under ``other_info: automation_config:``.
+The parameter ``overwrite_existing`` specifies whether existing config will be overwritten if
+the file is already populated.
+
+Upon Seismogram load, any config stored in this path will be loaded. You may run an
+automatic export based on the saved settings using
+.. code-block:: python
+
+  sm.do_metric_exports()
    
