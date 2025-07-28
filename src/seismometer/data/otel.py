@@ -70,7 +70,7 @@ class NoOpExportManager:
 
 # Class which stores info about exporting metrics.
 class RealExportManager:
-    def __init__(self, file_output_paths=[], export_ports=[], dump_to_stdout=False):
+    def __init__(self, file_output_paths, export_ports, dump_to_stdout):
         """Create a place to export files.
 
         Parameters
@@ -85,7 +85,8 @@ class RealExportManager:
         """
 
         if file_output_paths == export_ports == [] and not dump_to_stdout:
-            raise Exception("Metrics must go somewhere!")
+            self.deactivate_exports()
+            return  # We're done already!
         self.readers = []
         self.otlp_exhausts = []
         for file_output_path in file_output_paths:

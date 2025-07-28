@@ -1,6 +1,7 @@
 import functools
 import logging
 import os
+import sys
 from collections import defaultdict
 from inspect import signature
 from pathlib import Path
@@ -146,6 +147,10 @@ class AutomationManager(object, metaclass=Singleton):
 
             return plots._autometric_plot_binary_classifier_metrics
         return automation_function_map[fn_name]["function"]
+
+    def preview_automation(self):
+        call_history = dict(self._call_history)
+        yaml.dump(call_history, sys.stdout)
 
     def export_config(self, overwrite_existing=False):
         """Produce a configuration file specifying which metrics to export,
@@ -456,3 +461,20 @@ def do_metric_exports() -> None:
             continue
         fn_settings = am._automation_info[function_name]
         do_export(function_name, fn_settings)
+
+
+@export
+def export_config(overwrite_existing=False) -> None:
+    """Wrapper around the export config method in the automation manager.
+
+    Parameters
+    ----------
+    overwrite_existing : bool, optional
+        Whether to overwrite pre-existing config in the same location.
+    """
+    AutomationManager().export_config(overwrite_existing=overwrite_existing)
+
+
+@export
+def preview_automation():
+    AutomationManager().preview_automation()
