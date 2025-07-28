@@ -159,4 +159,19 @@ automatic export based on the saved settings using
 .. code-block:: python
 
   sm.do_metric_exports()
+
+Here is an example script to run in any seismograph, which will read the metrics in
+``metric-automation.yml`` (or appropriate other path) and export them automatically:
+
+.. code-block:: python
+
+  import seismometer as sm
+  # do not download any example dataset (like in example-notebooks) because this will
+  # overwrite your config for automation paths
+  sm.run_startup(config_path='.') # load config
+  sm.activate_exports()
+  sm.do_metric_exports()
+
+In the future, we aim for a smoother CLI to do the same thing; for now, this short Python
+script will suffice.
    
