@@ -128,7 +128,9 @@ Make sure your `config.yml`, in the `log:` section, has the following:
 
 Start the instances with ``docker-compose up -d`` and then visit
 ``localhost:4000`` to use Grafana. Log in with ``admin/admin``
-username/password to explore metrics.
+username/password to explore metrics. For example, a dashboard with a panel
+whose sole query is a metric set to just ``accuracy`` will scrape all datapoints
+which quantify accuracy from the exported metrics.
 
 =================
 Metric Automation
