@@ -49,7 +49,7 @@ def get_metric_creator(metric_name: str, meter) -> Callable:
 
 
 @export
-class ExportManager:
+class ExportManager(object, metaclass=Singleton):
     def __new__(cls, *args, **kwargs):
         if TELEMETRY_POSSIBLE:
             return RealExportManager(*args, **kwargs)
@@ -57,7 +57,7 @@ class ExportManager:
             return NoOpExportManager(*args, **kwargs)
 
 
-class NoOpExportManager(object, metaclass=Singleton):
+class NoOpExportManager:
     def __init__(self, *args, **kwargs):
         pass
 
@@ -69,7 +69,7 @@ class NoOpExportManager(object, metaclass=Singleton):
 
 
 # Class which stores info about exporting metrics.
-class RealExportManager(object, metaclass=Singleton):
+class RealExportManager:
     def __init__(self, file_output_paths=[], export_ports=[], dump_to_stdout=False):
         """Create a place to export files.
 
@@ -89,7 +89,7 @@ class RealExportManager(object, metaclass=Singleton):
         self.readers = []
         self.otlp_exhausts = []
         for file_output_path in file_output_paths:
-            file_exhaust = open(file_output_path, "w")
+            file_exhaust = open(file_output_path, "a")  # Does not overwrite existing data
             self.readers.append(
                 PeriodicExportingMetricReader(ConsoleMetricExporter(out=file_exhaust), export_interval_millis=5000)
             )
