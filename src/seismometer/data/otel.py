@@ -70,11 +70,13 @@ class NoOpExportManager:
 
 # Class which stores info about exporting metrics.
 class RealExportManager:
-    def __init__(self, file_output_paths, export_ports, dump_to_stdout):
+    def __init__(self, hostname, file_output_paths, export_ports, dump_to_stdout):
         """Create a place to export files.
 
         Parameters
         ----------
+        hostname: str
+            The host name to use for the ports.
         file_output_path : list[str], optional
             Where metrics are to be dumped to for debugging purposes.
         prom_port : int, optional
@@ -98,7 +100,7 @@ class RealExportManager:
         for export_port in export_ports:
             otel_collector_reader = None
             try:
-                with socket.create_connection(("otel-collector", export_port), timeout=1):
+                with socket.create_connection((hostname, export_port), timeout=1):
                     pass
 
             except OSError:
@@ -107,7 +109,7 @@ class RealExportManager:
             else:
                 # Only proceed if that worked
                 logger.debug(f"Successfully tested connection to socket {export_port}")
-                otlp_exporter = OTLPMetricExporter(endpoint=f"otel-collector:{export_port}", insecure=True)
+                otlp_exporter = OTLPMetricExporter(endpoint=f"{hostname}:{export_port}", insecure=True)
                 otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
                 self.readers.append(otel_collector_reader)
         if dump_to_stdout:

@@ -8,6 +8,8 @@ class ExportConfig:
     """Which ports we are exporting our OTel data over."""
     stdout: bool
     """Whether we are dumping our data to standard out."""
+    hostname: str
+    """Where to send data over ports. By default, otel-collector."""
 
     def __init__(self, raw_config: dict):
         """Real in all relevant sections of the raw config from config.yml.
@@ -20,6 +22,7 @@ class ExportConfig:
         if "log" not in raw_config:
             self.otel_ports = self.otel_files = []
             self.otel_stdout = False
+            # self.hostname will never be accessed
             return
 
         log_config = raw_config["log"]
@@ -31,6 +34,11 @@ class ExportConfig:
             self.otel_stdout = True
         else:
             self.otel_stdout = False
+
+        if "hostname" in log_config:
+            self.hostname = log_config["hostname"]
+        else:
+            self.hostname = "otel-collector"
 
     def _parse_to_list(self, config: dict, section_header: str) -> list[Any]:
         """If we are exporting to a list of foos, the YAML will look like:
