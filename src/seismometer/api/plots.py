@@ -1056,7 +1056,7 @@ def plot_binary_classifier_metrics(
 
 
 def _autometric_plot_binary_classifier_metrics(
-    rho: float,
+    metric_generator: float,
     metrics: str | list[str],
     cohort_dict: dict[str, tuple[Any]],
     target: str,
@@ -1070,10 +1070,13 @@ def _autometric_plot_binary_classifier_metrics(
 
     Parameters
     ----------
-    rho: float between 0 and 1
-        Probability of a treatment being effective
+    metric_generator: float between 0 and 1
+        Probability of a treatment being effective. This is named metric_generator
+        instead of rho because it is an internal method and having the object be
+        the same name as what it is replacing in the real method makes
+        serialization much easier.
     """
-    bcmg = BinaryClassifierMetricGenerator(rho=rho)
+    bcmg = BinaryClassifierMetricGenerator(rho=metric_generator)
     plot_binary_classifier_metrics(
         bcmg, metrics, cohort_dict, target, score_column, per_context=per_context, table_only=table_only
     )
