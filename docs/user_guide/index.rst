@@ -557,6 +557,10 @@ and how to merge in events. Events are typically stored in a separate dataset so
 flexibly merged multiple times based on different definitions. Events typically encompass
 targets, interventions, and outcomes associated with an entity.
 
+In this file you may also specify which metrics are exported from your runs, and what sorts of
+metrics you want. See the :doc:`metrics documentation <../integration_guide/metrics>` for more
+information on this option.
+
 .. code-block:: yaml
 
    # usage_config.yml
@@ -609,7 +613,7 @@ targets, interventions, and outcomes associated with an entity.
    # this example (except that metric_type has no default because it is a name).
    otel_info:
       # The kind of metric that this pertains to. For example, Accuracy.
-      metric_type: Accuracy
+      Accuracy:
          # Whether metrics are to be logged from this at all.
          output_metrics: true
          # For some widgets, a while plot is provided along with a few select points on that plot.

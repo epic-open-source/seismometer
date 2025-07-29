@@ -9,6 +9,7 @@ Integration Guide
     :maxdepth: 1
 
     backend
+    metrics
 
 This guide contains references to systems and packages that integrate with Seismometer. If you are interested in including your content here, either open a pull request or reach out to OpenSourceContributions-Python@epic.com
 
