@@ -35,8 +35,7 @@ Make an empty folder with the following files:
 
 .. code-block:: yaml
 
-   # docker-compose.yml
-   version: "3.8"
+  # docker-compose.yml
   services:
     prometheus:
       image: prom/prometheus
