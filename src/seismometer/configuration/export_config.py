@@ -38,7 +38,12 @@ class ExportConfig:
         if "hostname" in log_config:
             self.hostname = log_config["hostname"]
         else:
-            self.hostname = "otel-collector"
+            # We need a hostname if we are exporting over any ports.
+            if self.otel_ports != []:
+                raise ValueError("No hostname provided in the config!")
+            else:
+                # Need an argument to pass anyway.
+                self.hostname = ""
 
     def _parse_to_list(self, config: dict, section_header: str) -> list[Any]:
         """If we are exporting to a list of foos, the YAML will look like:
