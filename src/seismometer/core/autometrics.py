@@ -111,9 +111,20 @@ class AutomationManager(object, metaclass=Singleton):
         sig = signature(fn)
         bound = sig.bind_partial(*args, **kwargs)
         bound.apply_defaults()
-        argument_set = dict(bound.arguments)
+        argument_set = _call_transform(dict(bound.arguments))
+        # We need to separate out the cohort options.
+        auto_info = automation_function_map[fn_name]
+        cohort_info = (
+            argument_set[auto_info["cohort_dict"]]
+            if "cohort_dict" in auto_info
+            else {argument_set[auto_info["cohort_col"]]: argument_set[auto_info["subgroups"]]}
+            if "cohort_col" in auto_info
+            else {}
+        )
+        for arg_name in auto_info.keys():
+            argument_set.pop(arg_name, None)
         self._call_history[fn_name].append(
-            {"options": _call_transform(argument_set), "extra_info": extra_info(args, kwargs)}
+            {"options": _call_transform(argument_set), "extra_info": extra_info(args, kwargs), "cohorts": cohort_info}
         )
 
     def is_allowed_export_function(self, fn_name: str) -> bool:
