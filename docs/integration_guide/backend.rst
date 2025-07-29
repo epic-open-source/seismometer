@@ -3,8 +3,31 @@ Metric Collection
 =================
 
 Seismometer is already configured to export metrics to the OpenTelemetry collector, from where metrics can be exported
-to backends (like Prometheus and Grafana). Here is an example of configuring all three components -- Collector,
-Prometheus, and Grafana -- for metric visualization.
+to backends (like Prometheus and Grafana).
+
+In the ``config.yml`` file, the ``log:`` section configures where metrics should go.
+
+.. code-block:: yaml
+
+  # config.yml
+  log:
+    stdout: true
+    hostname: otel-collector
+    ports: port1, port2, port3
+    files: output/metrics.json
+
+There are four sets of values here: ``stdout`` determines whether the metrics should be printed out, ``files`` names the
+files where JSON should be dumped (omit if no files), ``ports`` lists the ports that metrics should be exported over to an
+OpenTelemetry collector (omit if no ports), and ``hostname`` specifies what hostname said ports are under.
+
+A simple example will follow, exporting over a single port to an OpenTelemetry collector instance.
+
+===============
+Getting Started
+===============
+
+
+Here is an example of configuring all three components -- Collector, Prometheus, and Grafana -- for metric visualization.
 
 This requires ``docker-compose``.
 
