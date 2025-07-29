@@ -88,7 +88,9 @@ class AutomationManager(object, metaclass=Singleton):
         self._metric_info = config_provider.metric_config
 
     def store_call_params(self, fn_name, fn, args, kwargs, extra_info):
-        """_summary_
+        """Core logic for storing call parameters. We associate with each
+        function the list of arguments (keyword-indexed always), and any
+        extra info which we might want
 
         Parameters
         ----------
@@ -175,7 +177,7 @@ class AutomationManager(object, metaclass=Singleton):
             yaml.dump(call_history, automation_file)
 
     def get_metric_config(self, metric_name: str) -> dict:
-        """_summary_
+        """Get the settings from otel_info for a given metric.
 
         Parameters
         ----------
@@ -212,7 +214,9 @@ def store_call_parameters(
     subgroups: str = None,
     cohort_dict: str = None,
 ) -> Callable[..., Any]:
-    """_summary_
+    """Decorator logic for storing call parameters. The internal function pattern is because
+    we need to be able to say either @decorator or @decorator(params=...), and so handle both
+    functions as arguments (first case) or returning such a function (second case).
 
     Parameters
     ----------

@@ -48,7 +48,7 @@ class NoOpOpenTelemetryRecorder:
 
 class RealOpenTelemetryRecorder:
     def __init__(self, metric_names: List[str], name: str = "Seismo-meter"):
-        """_summary_
+        """Set up a list of instruments according to the metrics we are logging.
 
         Parameters
         ----------

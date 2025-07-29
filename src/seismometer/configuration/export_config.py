@@ -22,7 +22,7 @@ class ExportConfig:
         if "log" not in raw_config:
             self.otel_ports = self.otel_files = []
             self.otel_stdout = False
-            # self.hostname will never be accessed
+            self.hostname = ""
             return
 
         log_config = raw_config["log"]
