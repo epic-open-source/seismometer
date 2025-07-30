@@ -1,6 +1,7 @@
 import logging
 import socket
 import sys
+import time
 from typing import Callable
 
 from seismometer.core.autometrics import AutomationManager
@@ -98,17 +99,7 @@ class RealExportManager:
             )
             self.otlp_exhausts.append(file_exhaust)
         for export_port in export_ports:
-            otel_collector_reader = None
-            try:
-                with socket.create_connection((hostname, export_port), timeout=1):
-                    pass
-
-            except OSError:
-                logger.warning("Connecting to port failed. Ignoring ...")
-
-            else:
-                # Only proceed if that worked
-                logger.debug(f"Successfully tested connection to socket {export_port}")
+            if self._can_connect_to_socket(host=hostname, port=export_port):
                 otlp_exporter = OTLPMetricExporter(endpoint=f"{hostname}:{export_port}", insecure=True)
                 otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
                 self.readers.append(otel_collector_reader)
@@ -120,6 +111,37 @@ class RealExportManager:
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
         set_meter_provider(self.meter_provider)
         self.active = False  # by default!
+
+    def _can_connect_to_socket(self, host: str, port: int, timeout: float = 1.0, retries: int = 10) -> bool:
+        """See if we can connect to host:port.
+
+        Parameters
+        ----------
+        host : str
+            The host name.
+        port : int
+            Which port number we are connecting to.
+        timeout : float, optional
+            How long of a timeout to set when connecting, by default 1.0
+        retries : int, optional
+            How many tries we can do at most, by default 10
+
+        Returns
+        -------
+        bool
+            Whether connection succeeded or failed.
+
+        """
+        for i in range(retries):
+            try:
+                with socket.create_connection((host, port), timeout=timeout):
+                    logger.info(f"Connection to {host}:{port} succeeded.")
+                    return True
+            except (socket.timeout, ConnectionRefusedError, OSError) as e:
+                logger.debug(f"Attempt {i+1} out of {retries} attempts to {host}:{port} failed: {e}")
+                time.sleep(1)
+            logger.warning(f"Max retries ({retries}) passed, could not connect to {host}:{port}.")
+            return False
 
     def deactivate_exports(self):
         """Make it so that all metric emission calls are no-ops."""
