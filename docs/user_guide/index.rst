@@ -621,7 +621,7 @@ information on this option.
          log_all: false
          # For some plots, a box-and-whiskers plot is provided. This option allows us to generalize
          # the graphic display to logged metrics with an arbitrary number of quantiles.
-         granularity: 4
+         quantiles: 4
          # What kind of measurement this is. Counter (for measurements which should be summed up
          # after the fact), Histogram (for measurements which should be presented as a histogram), and
          # Gauge (for arbitrary numeric data) are provided as options.

@@ -9,7 +9,7 @@ class SingleMetricConfig:
 
     output_metrics: bool = True
     log_all: bool = False
-    granularity: int = 4
+    quantiles: int = 4
     measurement_type: str = "Gauge"
 
 

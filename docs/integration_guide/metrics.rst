@@ -22,7 +22,7 @@ what metrics we want to export from our plotting functions.
       Accuracy:
         output_metrics: true
         log_all: false
-        granularity: 4
+        quantiles: 4
         measurement_type: Gauge
 
 A sequence of entries follows, each of which specifies a type of metric to be
@@ -32,8 +32,8 @@ logged (accuracy, specificity, etc). There are four settings for each metric:
 - ``log_all``: in some displays, an entire curve is plotted while only a few
   points are singled out (by threshold, for example). This options says whether
   to log the entire curve or just the singled-out points.
-- ``granularity``: for plots which display in quantiles, specifies how many quantiles
-  to output in the metrics. (For instance, quartiles would be ``granularity: 4``.)
+- ``quantiles``: for plots which display in quantiles, specifies how many quantiles
+  to output in the metrics. (For instance, quartiles would be ``quantiles: 4``.)
 - ``measurement_type``: specifies what the sort of data should be logged as. Default
   is ``Gauge`` (for individual data points), but also offered are ``Counter`` (for
   cumulative data) and ``Histogram`` (for data which is meant to be processed as a histogram).

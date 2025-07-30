@@ -84,7 +84,7 @@ class AutomationManager(object, metaclass=Singleton):
         self._automation_info = config_provider.automation_config
 
     def load_metric_config(self, config_provider: ConfigProvider) -> None:
-        """Copy in the metric config (how much granularity, etc.)"""
+        """Copy in the metric config (how many quantiles, etc.)"""
         self._metric_info = config_provider.metric_config
 
     def store_call_params(self, fn_name, fn, args, kwargs, extra_info):
@@ -202,7 +202,7 @@ class AutomationManager(object, metaclass=Singleton):
             E.g. {"output_metrics": True}, etc.
         """
 
-        METRIC_DEFAULTS = {"output_metrics": True, "log_all": False, "granularity": 4, "measurement_type": "Gauge"}
+        METRIC_DEFAULTS = {"output_metrics": True, "log_all": False, "quantiles": 4, "measurement_type": "Gauge"}
 
         if metric_name in self._metric_info:
             ret = self._metric_info[metric_name]

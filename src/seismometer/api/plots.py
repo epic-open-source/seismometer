@@ -300,7 +300,7 @@ def _plot_leadtime_enc(
 
     am = AutomationManager()
     log_all = am.get_metric_config("Time Lead")["log_all"]
-    NUMBER_QUANTILES = am.get_metric_config("Time Lead")["granularity"]
+    NUMBER_QUANTILES = am.get_metric_config("Time Lead")["quantiles"]
     metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
     if log_all:
         metric_names += ["Time Lead"]
