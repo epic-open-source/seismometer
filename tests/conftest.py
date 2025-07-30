@@ -68,17 +68,22 @@ def automation_manager_mock():
 
 @fixture(scope="session", autouse=True)
 def patch_opentelemetry_modules():
-    with patch("opentelemetry.exporter.otlp.proto.grpc.metric_exporter.OTLPMetricExporter", new=MagicMock()), patch(
-        "opentelemetry.metrics.Meter", new=MagicMock()
-    ), patch("opentelemetry.metrics.set_meter_provider", new=MagicMock()), patch(
-        "opentelemetry.sdk.metrics.MeterProvider", new=MagicMock()
-    ), patch(
-        "opentelemetry.sdk.metrics.export.ConsoleMetricExporter", new=MagicMock()
-    ), patch(
-        "opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader", new=MagicMock()
-    ), patch(
-        "opentelemetry.sdk.resources.SERVICE_NAME", new="mocked_service"
-    ), patch(
-        "opentelemetry.sdk.resources.Resource", new=MagicMock()
-    ):
+    try:
+        with patch(
+            "opentelemetry.exporter.otlp.proto.grpc.metric_exporter.OTLPMetricExporter", new=MagicMock()
+        ), patch("opentelemetry.metrics.Meter", new=MagicMock()), patch(
+            "opentelemetry.metrics.set_meter_provider", new=MagicMock()
+        ), patch(
+            "opentelemetry.sdk.metrics.MeterProvider", new=MagicMock()
+        ), patch(
+            "opentelemetry.sdk.metrics.export.ConsoleMetricExporter", new=MagicMock()
+        ), patch(
+            "opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader", new=MagicMock()
+        ), patch(
+            "opentelemetry.sdk.resources.SERVICE_NAME", new="mocked_service"
+        ), patch(
+            "opentelemetry.sdk.resources.Resource", new=MagicMock()
+        ):
+            yield
+    except ModuleNotFoundError:
         yield
