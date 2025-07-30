@@ -84,7 +84,10 @@ Such a file looks like a list of plot functions and their arguments, i.e.
         threshold: 0.1
 
 The ``options`` section specifies function arguments besides cohorts,
-and the cohorts themselves are specified in the ``cohorts`` section.
+and the cohorts themselves are specified in the ``cohorts`` section. The
+``extra_info`` section is yet unused but may in the future provide extra
+information about the context of a function call should we ever need
+to store such data.
 
 This is automatically loaded on startup; to export an automation file which
 will do exactly what your current run has done so far, call ``sm.export_config()``.
