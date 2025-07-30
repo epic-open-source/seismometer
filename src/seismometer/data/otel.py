@@ -42,7 +42,7 @@ def get_metric_creator(metric_name: str, meter) -> Callable:
     """
     if not TELEMETRY_POSSIBLE:
         # This should not happen, but just in case ...
-        logger.warning("Tried to get a metric creator, but no metrics are active!")
+        logger.warning("Tried to get a metric creator, but metrics packages are not installed!")
         return None
     TYPES = {"Gauge": meter.create_gauge, "Counter": meter.create_up_down_counter, "Histogram": meter.create_histogram}
     typestring = AutomationManager().get_metric_config(metric_name)["measurement_type"]
