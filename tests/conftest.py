@@ -43,12 +43,6 @@ def working_dir_as(path: Path) -> Generator:
 
 
 @fixture(scope="module", autouse=True)
-def sg_decorator_mock():
-    with patch("seismometer.core.autometrics._store_call_parameters"):
-        yield
-
-
-@fixture(scope="module", autouse=True)
 def export_manager_mock():
     class ExportManagerMock:
         def __init__(self, *args, **kwargs):
