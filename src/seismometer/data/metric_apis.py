@@ -13,20 +13,14 @@ from seismometer.data.otel import ExportManager, get_metric_creator
 
 logger = logging.getLogger("seismometer.telemetry")
 
-try:
-    from opentelemetry.metrics import Histogram, UpDownCounter
-
-    TELEMETRY_POSSIBLE = True
-except ImportError:
-    # No OTel.
-    TELEMETRY_POSSIBLE = False
-
 
 class OpenTelemetryRecorder:
     def __new__(cls, *args, **kwargs):
-        if TELEMETRY_POSSIBLE:
+        try:
+            from opentelemetry.metrics import Histogram, UpDownCounter  # noqa: F401
+
             return RealOpenTelemetryRecorder(*args, **kwargs)
-        else:
+        except ImportError:
             return NoOpOpenTelemetryRecorder(*args, **kwargs)
 
 
