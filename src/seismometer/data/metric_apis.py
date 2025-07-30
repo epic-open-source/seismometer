@@ -105,6 +105,8 @@ class RealOpenTelemetryRecorder:
             logger.warning(f"Metrics provided for population: {metrics.keys()}")
 
     def _set_one_datapoint(self, attributes, instrument, value):
+        from opentelemetry.metrics import Histogram, UpDownCounter
+
         # The SDK doesn't expose Gauge as a type, so we need to get creative here.
         if type(instrument).__name__ == "_Gauge":
             instrument.set(value, attributes=attributes)
