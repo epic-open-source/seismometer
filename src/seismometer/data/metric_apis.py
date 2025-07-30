@@ -259,3 +259,63 @@ class RealOpenTelemetryRecorder:
                 self.log_by_cohort(
                     dataframe=log_df, base_attributes=base_attributes, cohorts=cohorts, metric_maker=maker
                 )
+
+
+def log_quantiles(
+    df: pd.DataFrame,
+    metric_name: str,
+    score: str,
+    target_zero: str,
+    ref_time: str,
+    cohort_col: str,
+    good_groups: list[str],
+    threshold: float,
+):
+    """Log entries from a dataframe by quantiles.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The dataframe we are logging information from.
+    metric_name : str
+        What the metric we are logging is called, e.g. "Time Lead"
+    score : str
+        The score column.
+    target_zero : str
+        event value
+    ref_time : str
+        prediction time
+    cohort_col : str
+        The cohort we are splitting on.
+    good_groups : list[str]
+        Which groups of the cohort column (e.g. specific age groups) we are logging.
+    threshold : float
+        The threshold we are filtering by on the score column.
+    """
+    am = AutomationManager()
+    log_all = am.get_metric_config(metric_name)["log_all"]
+    NUMBER_QUANTILES = am.get_metric_config(metric_name)["quantiles"]
+    metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES} of {metric_name}" for i in range(1, NUMBER_QUANTILES)]
+    if log_all:
+        metric_names += [metric_name]
+    recorder = OpenTelemetryRecorder(metric_names=metric_names, name=metric_name)
+    base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
+
+    def maker(frame):
+        leads = frame[target_zero] - frame[ref_time]
+        metrics = {
+            # Exporting in hours for now
+            f"Quantile {i} out of {NUMBER_QUANTILES} of {metric_name}": (
+                leads.quantile(i / NUMBER_QUANTILES)
+            ).total_seconds()
+            / 3600
+            for i in range(1, NUMBER_QUANTILES)
+        }
+        if log_all:
+            # If we're logging all, then log all data and not just the quantiles.
+            metrics |= {metric_name: [lead.total_seconds() / 3600 for lead in list(leads)]}
+        return metrics
+
+    recorder.log_by_cohort(
+        dataframe=df, base_attributes=base_attributes, cohorts={cohort_col: good_groups}, metric_maker=maker
+    )

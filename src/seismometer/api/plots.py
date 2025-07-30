@@ -298,30 +298,10 @@ def _plot_leadtime_enc(
     good_groups = counts.loc[counts > censor_threshold].index
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
 
-    am = AutomationManager()
-    log_all = am.get_metric_config("Time Lead")["log_all"]
-    NUMBER_QUANTILES = am.get_metric_config("Time Lead")["quantiles"]
-    metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES}" for i in range(1, NUMBER_QUANTILES)]
-    if log_all:
-        metric_names += ["Time Lead"]
-    recorder = metric_apis.OpenTelemetryRecorder(metric_names=metric_names, name="Time Lead")
-    base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
-
-    def maker(frame):
-        leads = frame[target_zero] - frame[ref_time]
-        metrics = {
-            # Exporting in hours for now
-            f"Quantile {i} out of {NUMBER_QUANTILES}": (leads.quantile(i / NUMBER_QUANTILES)).total_seconds() / 3600
-            for i in range(1, NUMBER_QUANTILES)
-        }
-        if log_all:
-            # If we're logging all, then log all data and not just the quantiles.
-            metrics |= {"Time Lead": [lead.total_seconds() / 3600 for lead in list(leads)]}
-        return metrics
-
-    recorder.log_by_cohort(
-        dataframe=summary_data, base_attributes=base_attributes, cohorts={cohort_col: good_groups}, metric_maker=maker
+    metric_apis.log_quantiles(
+        summary_data, "Time Lead", score, target_zero, ref_time, cohort_col, good_groups, threshold
     )
+
     if len(summary_data.index) == 0:
         return template.render_censored_plot_message(censor_threshold)
 
