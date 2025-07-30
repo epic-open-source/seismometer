@@ -82,7 +82,7 @@ class AutomationManager(object, metaclass=Singleton):
         """Copy in the metric config (how many quantiles, etc.)"""
         self._metric_info = config_provider.metric_config
 
-    def store_call_params(self, fn_name, fn, args, kwargs, extra_info):
+    def store_call_params(self, fn_name, fn, args, kwargs):
         """Core logic for storing call parameters. We associate with each
         function the list of arguments (keyword-indexed always), and any
         extra info which we might want
@@ -118,9 +118,7 @@ class AutomationManager(object, metaclass=Singleton):
         )
         for arg_name in auto_info.keys():
             argument_set.pop(arg_name, None)
-        self._call_history[fn_name].append(
-            {"options": _call_transform(argument_set), "extra_info": extra_info(args, kwargs), "cohorts": cohort_info}
-        )
+        self._call_history[fn_name].append({"options": _call_transform(argument_set), "cohorts": cohort_info})
 
     def is_allowed_export_function(self, fn_name: str) -> bool:
         """Whether or not a function is an allowed export.
@@ -208,14 +206,13 @@ class AutomationManager(object, metaclass=Singleton):
 
 
 # Internal implementation -- stored separately here for mocking purposes.
-def _store_call_parameters(name: str, fn: Callable, args: list, kwargs: dict, extra_info: dict) -> None:
-    AutomationManager().store_call_params(name, fn, args, kwargs, extra_info)
+def _store_call_parameters(name: str, fn: Callable, args: list, kwargs: dict) -> None:
+    AutomationManager().store_call_params(name, fn, args, kwargs)
 
 
 def store_call_parameters(
     func: Callable[..., Any] = None,
     name: str = None,
-    extra_params: Callable[[tuple, dict], dict] = lambda x, y: {},
     cohort_col: str = None,
     subgroups: str = None,
     cohort_dict: str = None,
@@ -251,7 +248,7 @@ def store_call_parameters(
 
         @functools.wraps(fn)
         def new_fn(*args, **kwargs):
-            _store_call_parameters(call_name, fn, list(args), kwargs, extra_params)
+            _store_call_parameters(call_name, fn, list(args), kwargs)
             return fn(*args, **kwargs)
 
         automation_function_map[call_name] = {
