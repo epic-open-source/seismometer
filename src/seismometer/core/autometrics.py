@@ -62,7 +62,7 @@ class AutomationManager(object, metaclass=Singleton):
     automation_file_path: Path
     """ Where we are reading or dumping automation data. """
 
-    def __init__(self, config_provider: ConfigProvider = None):
+    def __init__(self, config_provider: ConfigProvider):
         """
         Parameters
         ----------
@@ -70,11 +70,6 @@ class AutomationManager(object, metaclass=Singleton):
             Tells us where the automation file lives (for instance, metric-automation.yml)
         """
         self._call_history = defaultdict(list)
-        # If no setup is provided, set up effective no-ops for everything.
-        if config_provider is None:
-            self._automation_info = {}
-            self._metric_info = {}
-            return
         self.automation_file_path = config_provider.automation_config_path
         self.load_automation_config(config_provider)
         self.load_metric_config(config_provider)

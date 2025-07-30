@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from pytest import fixture
 
+from seismometer.core import autometrics
 from seismometer.data import metric_apis
 
 TEST_ROOT = Path(__file__).parent
@@ -57,6 +58,12 @@ def export_manager_mock():
 def set_datapoint_mock():
     with patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint"):
         yield
+
+
+@fixture(scope="module", autouse=True)
+def automation_manager_mock():
+    _ = autometrics.AutomationManager(MagicMock())
+    yield
 
 
 @fixture(scope="session", autouse=True)
