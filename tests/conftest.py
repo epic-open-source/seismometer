@@ -2,7 +2,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from pytest import fixture
 
@@ -62,4 +62,22 @@ def export_manager_mock():
 @fixture(scope="module", autouse=True)
 def set_datapoint_mock():
     with patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint"):
+        yield
+
+
+@fixture(scope="session", autouse=True)
+def patch_opentelemetry_modules():
+    with patch("opentelemetry.exporter.otlp.proto.grpc.metric_exporter.OTLPMetricExporter", new=MagicMock()), patch(
+        "opentelemetry.metrics.Meter", new=MagicMock()
+    ), patch("opentelemetry.metrics.set_meter_provider", new=MagicMock()), patch(
+        "opentelemetry.sdk.metrics.MeterProvider", new=MagicMock()
+    ), patch(
+        "opentelemetry.sdk.metrics.export.ConsoleMetricExporter", new=MagicMock()
+    ), patch(
+        "opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader", new=MagicMock()
+    ), patch(
+        "opentelemetry.sdk.resources.SERVICE_NAME", new="mocked_service"
+    ), patch(
+        "opentelemetry.sdk.resources.Resource", new=MagicMock()
+    ):
         yield
