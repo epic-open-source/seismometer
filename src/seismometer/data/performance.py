@@ -18,7 +18,7 @@ PathLike = Union[str, Path]
 COUNTS = ["TP", "FP", "TN", "FN"]
 PERCENTS = [f"{count} (%)" for count in COUNTS]
 RATE_METRICS = ["Flag Rate"]
-PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV"]
+PERFORMANCE = ["Accuracy", "Sensitivity", "Specificity", "PPV", "NPV", "F1", "F0.5", "F2"]
 WORKFLOW_METRICS = ["LR+", "NetBenefitScore", "NNE"]
 THRESHOLD = "Threshold"
 MONOTONIC_METRICS = ["Sensitivity", "Specificity", "Flag Rate"]
@@ -327,6 +327,9 @@ def calculate_bin_stats(
     with np.errstate(invalid="ignore", divide="ignore"):
         tpr = tps / total_positives
         fpr = fps / total_negatives
+        f1 = f_beta(tps, fns, fps, 1)
+        f_0_5 = f_beta(tps, fns, fps, 0.5)
+        f2 = f_beta(tps, fns, fps, 2)
 
         ppv = tps / (tps + fps)
         ppv[np.isnan(ppv)] = 1
@@ -360,6 +363,9 @@ def calculate_bin_stats(
                 1 - fpr,  # Specificity
                 ppv,
                 npv,
+                f_1,
+                f_0_5,
+                f2,
                 # WORKFLOWS
                 lr,
                 nbs,
@@ -379,6 +385,9 @@ def calculate_bin_stats(
     stats[COUNTS] = stats[COUNTS].fillna(0).astype(int)  # Strengthen dtypes on counts
     return stats
 
+def f_beta(tps, fns, fps, beta):
+    """Calculate f_beta from the confusion matrix"""
+   return (1+beta**2)* tps / ( (1+beta**2) * tps + (beta**2) * fns + fps ) 
 
 @export
 def calculate_nnt(arr: np.ndarray, rho: Optional[Number | None] = None) -> np.ndarray:
