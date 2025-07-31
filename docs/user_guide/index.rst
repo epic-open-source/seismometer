@@ -250,7 +250,7 @@ A fairness threshold of 0.25 is used as the example and default in the analysis 
 .. _Disparate impact: https://en.wikipedia.org/wiki/Disparate_impact#The_80%_rule 
 .. _Fairlearn's common fairness metrics: https://fairlearn.org/v0.12/user_guide/assessment/common_fairness_metrics.html
 
-The visualization is a table showing the overall metrics, and icons 
+The visualization is a table showing the overall metrics, and icons
 indicating default, within bounds, or out of bounds. Note that comparison
 across columns is not always exact due to potential differences in the
 included observations from missing information. 
