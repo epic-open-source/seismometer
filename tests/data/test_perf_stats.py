@@ -4,108 +4,378 @@ import pytest
 
 import seismometer.data.performance as undertest
 
-ALL_STATS = [undertest.THRESHOLD] + undertest.STATNAMES + ["NNT@0.333"]
-
-TEST_KEY_ORDER = [
-    "Threshold",
-    "TP",
-    "FP",
-    "TN",
-    "FN",
-    "Accuracy",
-    "Sensitivity",
-    "Specificity",
-    "PPV",
-    "NPV",
-    "Flag Rate",
-    "LR+",
-    "NNE",
-    "NetBenefitScore",
-    "NNT@0.333",
+# Test scenarios - each is a tuple of (y_true, y_prob, thresholds, description)
+SCENARIOS = [
+    # Base scenario
+    (np.array([1, 1, 0]), np.array([0.1, 0.5, 0.1]), [100, 50, 10, 0], "base"),
+    # Include prediction of exactly 0
+    (np.array([0, 1, 1, 0]), np.array([0, 0.1, 0.5, 0.1]), [100, 50, 10, 0], "0-pred"),
+    # Include prediction of exactly 1
+    (np.array([1, 1, 0, 1]), np.array([0.1, 0.5, 0.1, 1]), [100, 50, 10, 0], "1-pred"),
+    # Include predictions of exactly 0 and 1
+    (np.array([0, 1, 1, 0, 1]), np.array([0, 0.1, 0.5, 0.1, 1]), [100, 50, 10, 0], "1 and 0 preds"),
+    # Four value case
+    (np.array([1, 1, 0, 0]), np.array([0.75, 0.5, 0.25, 0]), [100, 75, 50, 25, 0], "0 preds"),
 ]
 
+# Expected values for each metric, organized as:
+# (scenario_id, threshold, metric_name): expected_value
+EXPECTED_VALUES = {
+    # Base scenario expected values
+    ("base", 100, "TP"): 0,
+    ("base", 100, "FP"): 0,
+    ("base", 100, "TN"): 1,
+    ("base", 100, "FN"): 2,
+    ("base", 100, "Accuracy"): 1 / 3,
+    ("base", 100, "Sensitivity"): 0,
+    ("base", 100, "Specificity"): 1,
+    ("base", 100, "PPV"): 1,
+    ("base", 100, "NPV"): 1 / 3,
+    ("base", 100, "Flag Rate"): 0,
+    ("base", 100, "LR+"): np.nan,
+    ("base", 100, "NNE"): 1,
+    ("base", 100, "NetBenefitScore"): np.nan,
+    ("base", 100, "NNT@0.333"): 3,
+    ("base", 50, "TP"): 1,
+    ("base", 50, "FP"): 0,
+    ("base", 50, "TN"): 1,
+    ("base", 50, "FN"): 1,
+    ("base", 50, "Accuracy"): 2 / 3,
+    ("base", 50, "Sensitivity"): 0.5,
+    ("base", 50, "Specificity"): 1,
+    ("base", 50, "PPV"): 1,
+    ("base", 50, "NPV"): 0.5,
+    ("base", 50, "Flag Rate"): 1 / 3,
+    ("base", 50, "LR+"): np.inf,
+    ("base", 50, "NNE"): 1,
+    ("base", 50, "NetBenefitScore"): 1 / 3,
+    ("base", 50, "NNT@0.333"): 3,
+    ("base", 10, "TP"): 2,
+    ("base", 10, "FP"): 1,
+    ("base", 10, "TN"): 0,
+    ("base", 10, "FN"): 0,
+    ("base", 10, "Accuracy"): 2 / 3,
+    ("base", 10, "Sensitivity"): 1,
+    ("base", 10, "Specificity"): 0,
+    ("base", 10, "PPV"): 2 / 3,
+    ("base", 10, "NPV"): 1,
+    ("base", 10, "Flag Rate"): 1,
+    ("base", 10, "LR+"): 1,
+    ("base", 10, "NNE"): 1.5,
+    ("base", 10, "NetBenefitScore"): 17 / 27,
+    ("base", 10, "NNT@0.333"): 4.5,
+    ("base", 0, "TP"): 2,
+    ("base", 0, "FP"): 1,
+    ("base", 0, "TN"): 0,
+    ("base", 0, "FN"): 0,
+    ("base", 0, "Accuracy"): 2 / 3,
+    ("base", 0, "Sensitivity"): 1,
+    ("base", 0, "Specificity"): 0,
+    ("base", 0, "PPV"): 2 / 3,
+    ("base", 0, "NPV"): 1,
+    ("base", 0, "Flag Rate"): 1,
+    ("base", 0, "LR+"): 1,
+    ("base", 0, "NNE"): 1.5,
+    ("base", 0, "NetBenefitScore"): 2 / 3,
+    ("base", 0, "NNT@0.333"): 4.5,
+    # 0-pred scenario
+    ("0-pred", 100, "TP"): 0,
+    ("0-pred", 100, "FP"): 0,
+    ("0-pred", 100, "TN"): 2,
+    ("0-pred", 100, "FN"): 2,
+    ("0-pred", 100, "Accuracy"): 0.5,
+    ("0-pred", 100, "Sensitivity"): 0,
+    ("0-pred", 100, "Specificity"): 1,
+    ("0-pred", 100, "PPV"): 1,
+    ("0-pred", 100, "NPV"): 0.5,
+    ("0-pred", 100, "Flag Rate"): 0,
+    ("0-pred", 100, "LR+"): np.nan,
+    ("0-pred", 100, "NNE"): 1,
+    ("0-pred", 100, "NetBenefitScore"): np.nan,
+    ("0-pred", 100, "NNT@0.333"): 3,
+    ("0-pred", 50, "TP"): 1,
+    ("0-pred", 50, "FP"): 0,
+    ("0-pred", 50, "TN"): 2,
+    ("0-pred", 50, "FN"): 1,
+    ("0-pred", 50, "Accuracy"): 0.75,
+    ("0-pred", 50, "Sensitivity"): 0.5,
+    ("0-pred", 50, "Specificity"): 1,
+    ("0-pred", 50, "PPV"): 1,
+    ("0-pred", 50, "NPV"): 2 / 3,
+    ("0-pred", 50, "Flag Rate"): 0.25,
+    ("0-pred", 50, "LR+"): np.inf,
+    ("0-pred", 50, "NNE"): 1,
+    ("0-pred", 50, "NetBenefitScore"): 1 / 4,
+    ("0-pred", 50, "NNT@0.333"): 3,
+    ("0-pred", 10, "TP"): 2,
+    ("0-pred", 10, "FP"): 1,
+    ("0-pred", 10, "TN"): 1,
+    ("0-pred", 10, "FN"): 0,
+    ("0-pred", 10, "Accuracy"): 0.75,
+    ("0-pred", 10, "Sensitivity"): 1,
+    ("0-pred", 10, "Specificity"): 0.5,
+    ("0-pred", 10, "PPV"): 2 / 3,
+    ("0-pred", 10, "NPV"): 1,
+    ("0-pred", 10, "Flag Rate"): 0.75,
+    ("0-pred", 10, "LR+"): 2,
+    ("0-pred", 10, "NNE"): 1.5,
+    ("0-pred", 10, "NetBenefitScore"): 17 / 36,
+    ("0-pred", 10, "NNT@0.333"): 4.5,
+    ("0-pred", 0, "TP"): 2,
+    ("0-pred", 0, "FP"): 2,
+    ("0-pred", 0, "TN"): 0,
+    ("0-pred", 0, "FN"): 0,
+    ("0-pred", 0, "Accuracy"): 0.5,
+    ("0-pred", 0, "Sensitivity"): 1,
+    ("0-pred", 0, "Specificity"): 0,
+    ("0-pred", 0, "PPV"): 0.5,
+    ("0-pred", 0, "NPV"): 1,
+    ("0-pred", 0, "Flag Rate"): 1,
+    ("0-pred", 0, "LR+"): 1,
+    ("0-pred", 0, "NNE"): 2,
+    ("0-pred", 0, "NetBenefitScore"): 1 / 2,
+    ("0-pred", 0, "NNT@0.333"): 6,
+    # 1-pred scenario
+    ("1-pred", 100, "TP"): 1,
+    ("1-pred", 100, "FP"): 0,
+    ("1-pred", 100, "TN"): 1,
+    ("1-pred", 100, "FN"): 2,
+    ("1-pred", 100, "Accuracy"): 0.5,
+    ("1-pred", 100, "Sensitivity"): 1 / 3,
+    ("1-pred", 100, "Specificity"): 1,
+    ("1-pred", 100, "PPV"): 1,
+    ("1-pred", 100, "NPV"): 1 / 3,
+    ("1-pred", 100, "Flag Rate"): 0.25,
+    ("1-pred", 100, "LR+"): np.inf,
+    ("1-pred", 100, "NNE"): 1,
+    ("1-pred", 100, "NetBenefitScore"): np.nan,
+    ("1-pred", 100, "NNT@0.333"): 3,
+    ("1-pred", 50, "TP"): 2,
+    ("1-pred", 50, "FP"): 0,
+    ("1-pred", 50, "TN"): 1,
+    ("1-pred", 50, "FN"): 1,
+    ("1-pred", 50, "Accuracy"): 0.75,
+    ("1-pred", 50, "Sensitivity"): 2 / 3,
+    ("1-pred", 50, "Specificity"): 1,
+    ("1-pred", 50, "PPV"): 1,
+    ("1-pred", 50, "NPV"): 0.5,
+    ("1-pred", 50, "Flag Rate"): 0.5,
+    ("1-pred", 50, "LR+"): np.inf,
+    ("1-pred", 50, "NNE"): 1,
+    ("1-pred", 50, "NetBenefitScore"): 1 / 2,
+    ("1-pred", 50, "NNT@0.333"): 3,
+    ("1-pred", 10, "TP"): 3,
+    ("1-pred", 10, "FP"): 1,
+    ("1-pred", 10, "TN"): 0,
+    ("1-pred", 10, "FN"): 0,
+    ("1-pred", 10, "Accuracy"): 0.75,
+    ("1-pred", 10, "Sensitivity"): 1,
+    ("1-pred", 10, "Specificity"): 0,
+    ("1-pred", 10, "PPV"): 0.75,
+    ("1-pred", 10, "NPV"): 1,
+    ("1-pred", 10, "Flag Rate"): 1,
+    ("1-pred", 10, "LR+"): 1,
+    ("1-pred", 10, "NNE"): 4 / 3,
+    ("1-pred", 10, "NetBenefitScore"): 13 / 18,
+    ("1-pred", 10, "NNT@0.333"): 4,
+    ("1-pred", 0, "TP"): 3,
+    ("1-pred", 0, "FP"): 1,
+    ("1-pred", 0, "TN"): 0,
+    ("1-pred", 0, "FN"): 0,
+    ("1-pred", 0, "Accuracy"): 0.75,
+    ("1-pred", 0, "Sensitivity"): 1,
+    ("1-pred", 0, "Specificity"): 0,
+    ("1-pred", 0, "PPV"): 0.75,
+    ("1-pred", 0, "NPV"): 1,
+    ("1-pred", 0, "Flag Rate"): 1,
+    ("1-pred", 0, "LR+"): 1,
+    ("1-pred", 0, "NNE"): 4 / 3,
+    ("1-pred", 0, "NetBenefitScore"): 3 / 4,
+    ("1-pred", 0, "NNT@0.333"): 4,
+    # 1 and 0 preds
+    ("1 and 0 preds", 100, "TP"): 1,
+    ("1 and 0 preds", 100, "FP"): 0,
+    ("1 and 0 preds", 100, "TN"): 2,
+    ("1 and 0 preds", 100, "FN"): 2,
+    ("1 and 0 preds", 100, "Accuracy"): 0.6,
+    ("1 and 0 preds", 100, "Sensitivity"): 1 / 3,
+    ("1 and 0 preds", 100, "Specificity"): 1,
+    ("1 and 0 preds", 100, "PPV"): 1,
+    ("1 and 0 preds", 100, "NPV"): 0.5,
+    ("1 and 0 preds", 100, "Flag Rate"): 0.2,
+    ("1 and 0 preds", 100, "LR+"): np.inf,
+    ("1 and 0 preds", 100, "NNE"): 1,
+    ("1 and 0 preds", 100, "NetBenefitScore"): np.nan,
+    ("1 and 0 preds", 100, "NNT@0.333"): 3,
+    ("1 and 0 preds", 50, "TP"): 2,
+    ("1 and 0 preds", 50, "FP"): 0,
+    ("1 and 0 preds", 50, "TN"): 2,
+    ("1 and 0 preds", 50, "FN"): 1,
+    ("1 and 0 preds", 50, "Accuracy"): 0.8,
+    ("1 and 0 preds", 50, "Sensitivity"): 2 / 3,
+    ("1 and 0 preds", 50, "Specificity"): 1,
+    ("1 and 0 preds", 50, "PPV"): 1,
+    ("1 and 0 preds", 50, "NPV"): 2 / 3,
+    ("1 and 0 preds", 50, "Flag Rate"): 0.4,
+    ("1 and 0 preds", 50, "LR+"): np.inf,
+    ("1 and 0 preds", 50, "NNE"): 1,
+    ("1 and 0 preds", 50, "NetBenefitScore"): 2 / 5,
+    ("1 and 0 preds", 50, "NNT@0.333"): 3,
+    ("1 and 0 preds", 10, "TP"): 3,
+    ("1 and 0 preds", 10, "FP"): 1,
+    ("1 and 0 preds", 10, "TN"): 1,
+    ("1 and 0 preds", 10, "FN"): 0,
+    ("1 and 0 preds", 10, "Accuracy"): 0.8,
+    ("1 and 0 preds", 10, "Sensitivity"): 1,
+    ("1 and 0 preds", 10, "Specificity"): 0.5,
+    ("1 and 0 preds", 10, "PPV"): 0.75,
+    ("1 and 0 preds", 10, "NPV"): 1,
+    ("1 and 0 preds", 10, "Flag Rate"): 0.8,
+    ("1 and 0 preds", 10, "LR+"): 2,
+    ("1 and 0 preds", 10, "NNE"): 4 / 3,
+    ("1 and 0 preds", 10, "NetBenefitScore"): 26 / 45,
+    ("1 and 0 preds", 10, "NNT@0.333"): 4,
+    ("1 and 0 preds", 0, "TP"): 3,
+    ("1 and 0 preds", 0, "FP"): 2,
+    ("1 and 0 preds", 0, "TN"): 0,
+    ("1 and 0 preds", 0, "FN"): 0,
+    ("1 and 0 preds", 0, "Accuracy"): 0.6,
+    ("1 and 0 preds", 0, "Sensitivity"): 1,
+    ("1 and 0 preds", 0, "Specificity"): 0,
+    ("1 and 0 preds", 0, "PPV"): 0.6,
+    ("1 and 0 preds", 0, "NPV"): 1,
+    ("1 and 0 preds", 0, "Flag Rate"): 1,
+    ("1 and 0 preds", 0, "LR+"): 1,
+    ("1 and 0 preds", 0, "NNE"): 5 / 3,
+    ("1 and 0 preds", 0, "NetBenefitScore"): 3 / 5,
+    ("1 and 0 preds", 0, "NNT@0.333"): 5,
+    # 0 preds scenario
+    ("0 preds", 100, "TP"): 0,
+    ("0 preds", 100, "FP"): 0,
+    ("0 preds", 100, "TN"): 2,
+    ("0 preds", 100, "FN"): 2,
+    ("0 preds", 100, "Accuracy"): 0.5,
+    ("0 preds", 100, "Sensitivity"): 0,
+    ("0 preds", 100, "Specificity"): 1,
+    ("0 preds", 100, "PPV"): 1,
+    ("0 preds", 100, "NPV"): 0.5,
+    ("0 preds", 100, "Flag Rate"): 0,
+    ("0 preds", 100, "LR+"): np.nan,
+    ("0 preds", 100, "NNE"): 1,
+    ("0 preds", 100, "NetBenefitScore"): np.nan,
+    ("0 preds", 100, "NNT@0.333"): 3,
+    ("0 preds", 75, "TP"): 1,
+    ("0 preds", 75, "FP"): 0,
+    ("0 preds", 75, "TN"): 2,
+    ("0 preds", 75, "FN"): 1,
+    ("0 preds", 75, "Accuracy"): 0.75,
+    ("0 preds", 75, "Sensitivity"): 0.5,
+    ("0 preds", 75, "Specificity"): 1,
+    ("0 preds", 75, "PPV"): 1,
+    ("0 preds", 75, "NPV"): 2 / 3,
+    ("0 preds", 75, "Flag Rate"): 0.25,
+    ("0 preds", 75, "LR+"): np.inf,
+    ("0 preds", 75, "NNE"): 1,
+    ("0 preds", 75, "NetBenefitScore"): 1 / 4,
+    ("0 preds", 75, "NNT@0.333"): 3,
+    ("0 preds", 50, "TP"): 2,
+    ("0 preds", 50, "FP"): 0,
+    ("0 preds", 50, "TN"): 2,
+    ("0 preds", 50, "FN"): 0,
+    ("0 preds", 50, "Accuracy"): 1,
+    ("0 preds", 50, "Sensitivity"): 1,
+    ("0 preds", 50, "Specificity"): 1,
+    ("0 preds", 50, "PPV"): 1,
+    ("0 preds", 50, "NPV"): 1,
+    ("0 preds", 50, "Flag Rate"): 0.5,
+    ("0 preds", 50, "LR+"): np.inf,
+    ("0 preds", 50, "NNE"): 1,
+    ("0 preds", 50, "NetBenefitScore"): 1 / 2,
+    ("0 preds", 50, "NNT@0.333"): 3,
+    ("0 preds", 25, "TP"): 2,
+    ("0 preds", 25, "FP"): 1,
+    ("0 preds", 25, "TN"): 1,
+    ("0 preds", 25, "FN"): 0,
+    ("0 preds", 25, "Accuracy"): 0.75,
+    ("0 preds", 25, "Sensitivity"): 1,
+    ("0 preds", 25, "Specificity"): 0.5,
+    ("0 preds", 25, "PPV"): 2 / 3,
+    ("0 preds", 25, "NPV"): 1,
+    ("0 preds", 25, "Flag Rate"): 0.75,
+    ("0 preds", 25, "LR+"): 2,
+    ("0 preds", 25, "NNE"): 1.5,
+    ("0 preds", 25, "NetBenefitScore"): 5 / 12,
+    ("0 preds", 25, "NNT@0.333"): 4.5,
+    ("0 preds", 0, "TP"): 2,
+    ("0 preds", 0, "FP"): 2,
+    ("0 preds", 0, "TN"): 0,
+    ("0 preds", 0, "FN"): 0,
+    ("0 preds", 0, "Accuracy"): 0.5,
+    ("0 preds", 0, "Sensitivity"): 1,
+    ("0 preds", 0, "Specificity"): 0,
+    ("0 preds", 0, "PPV"): 0.5,
+    ("0 preds", 0, "NPV"): 1,
+    ("0 preds", 0, "Flag Rate"): 1,
+    ("0 preds", 0, "LR+"): 1,
+    ("0 preds", 0, "NNE"): 2,
+    ("0 preds", 0, "NetBenefitScore"): 1 / 2,
+    ("0 preds", 0, "NNT@0.333"): 6,
+}
 
-def stats_case_base():
-    y_true = np.array([1, 1, 0])
-    y_prob = np.array([0.1, 0.5, 0.1])
 
-    expected = []
-    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 1, 2, 1 / 3, 0, 1, 1, 1 / 3, 0, np.nan, 1, np.nan, 3])  # 1
-    expected.append([50, 1, 0, 1, 1, 2 / 3, 0.5, 1, 1, 0.5, 1 / 3, np.inf, 1, 1 / 3, 3])  # .5
-    expected.append([10, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 17 / 27, 4.5])  # .1
-    expected.append([0, 2, 1, 0, 0, 2 / 3, 1, 0, 2 / 3, 1, 1, 1, 1.5, 2 / 3, 4.5])  # 0
+def get_scenario_params():
+    """Generate parameters for pytest.mark.parametrize"""
+    params = []
+    ids = []
 
-    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
+    for y_true, y_prob, thresholds, scenario_id in SCENARIOS:
+        for threshold in thresholds:
+            # For each metric
+            for metric in undertest.STATNAMES + ["NNT@0.333"]:
+                expected_value = EXPECTED_VALUES.get((scenario_id, threshold, metric))
+                if expected_value is not None:  # Skip if no expected value defined
+                    params.append((y_true, y_prob, threshold, metric, expected_value))
+                    ids.append(f"{scenario_id}-t{threshold}-{metric}")
 
-
-def stats_case_0():
-    "include prediction of exactly 0"
-    y_true = np.array([0, 1, 1, 0])
-    y_prob = np.array([0, 0.1, 0.5, 0.1])
-
-    expected = []
-    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 1, 0.5, 0, np.nan, 1, np.nan, 3])  # 1
-    expected.append([50, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .5
-    expected.append([10, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 17 / 36, 4.5])  # .1
-    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 2, 1 / 2, 6])  # 0
-
-    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
+    return params, ids
 
 
-def stats_case_1():
-    "include prediction of exactly 1"
-    y_true = np.array([1, 1, 0, 1])
-    y_prob = np.array([0.1, 0.5, 0.1, 1])
-
-    expected = []
-    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 1, 0, 1, 2, 0.5, 1 / 3, 1, 1, 1 / 3, 0.25, np.inf, 1, np.nan, 3])  # 1
-    expected.append([50, 2, 0, 1, 1, 0.75, 2 / 3, 1, 1, 0.5, 0.5, np.inf, 1, 1 / 2, 3])  # .5
-    expected.append([10, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 4 / 3, 13 / 18, 4])  # .1
-    expected.append([0, 3, 1, 0, 0, 0.75, 1, 0, 0.75, 1, 1, 1, 4 / 3, 3 / 4, 4])  # 0
-
-    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
+# Generate all the parameter combinations
+METRIC_PARAMS, METRIC_IDS = get_scenario_params()
 
 
-def stats_case_01():
-    "include predictions of exactly 0 and 1"
-    y_true = np.array([0, 1, 1, 0, 1])
-    y_prob = np.array([0, 0.1, 0.5, 0.1, 1])
+@pytest.mark.parametrize("y_true,y_prob,threshold,metric,expected_value", METRIC_PARAMS, ids=METRIC_IDS)
+def test_individual_metric_values(y_true, y_prob, threshold, metric, expected_value):
+    """Test individual metric values for various scenarios and thresholds"""
+    stats = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
 
-    expected = []
-    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 1, 0, 2, 2, 0.6, 1 / 3, 1, 1, 0.5, 0.2, np.inf, 1, np.nan, 3])  # 1
-    expected.append([50, 2, 0, 2, 1, 0.8, 2 / 3, 1, 1, 2 / 3, 0.4, np.inf, 1, 2 / 5, 3])  # .5
-    expected.append([10, 3, 1, 1, 0, 0.8, 1, 0.5, 0.75, 1, 0.8, 2, 4 / 3, 26 / 45, 4])  # .1
-    expected.append([0, 3, 2, 0, 0, 0.6, 1, 0, 0.6, 1, 1, 1, 5 / 3, 3 / 5, 5])  # 0
+    # Find the row with the matching threshold
+    row = stats.loc[stats["Threshold"] == threshold]
 
-    return y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER)
+    if len(row) != 1:
+        pytest.fail(f"Expected exactly one row with threshold={threshold}, got {len(row)}")
 
+    actual_value = row[metric].iloc[0]
 
-def stats_case_0_4():
-    y_true = np.array([1, 1, 0, 0])
-    y_prob = np.array([0.75, 0.5, 0.25, 0])
-
-    expected = []
-    # Threshold, TP, FP, TN, FN, Acc, Sens, Spec, PPV, NPV, Flag Rate, LR+, NNE, NBS, NNT1/3 |  Threshold
-    expected.append([100, 0, 0, 2, 2, 0.5, 0, 1, 1, 0.5, 0, np.nan, 1, np.nan, 3])  # 1
-    expected.append([75, 1, 0, 2, 1, 0.75, 0.5, 1, 1, 2 / 3, 0.25, np.inf, 1, 1 / 4, 3])  # .75
-    expected.append([50, 2, 0, 2, 0, 1, 1, 1, 1, 1, 0.5, np.inf, 1, 1 / 2, 3])  # .5
-    expected.append([25, 2, 1, 1, 0, 0.75, 1, 0.5, 2 / 3, 1, 0.75, 2, 1.5, 5 / 12, 4.5])  # .25
-    expected.append([0, 2, 2, 0, 0, 0.5, 1, 0, 0.5, 1, 1, 1, 2, 1 / 2, 6])  # 0
-
-    return (y_true, y_prob, pd.DataFrame(expected, columns=TEST_KEY_ORDER))
+    # For nan values, check that both are nan
+    if np.isnan(expected_value):
+        assert np.isnan(actual_value), f"Expected {metric} to be nan, got {actual_value}"
+    else:
+        assert actual_value == pytest.approx(
+            expected_value, rel=0.01
+        ), f"Expected {metric}={expected_value}, got {actual_value}"
 
 
-@pytest.mark.parametrize(
-    "y_true,y_prob,expected",
-    [stats_case_base(), stats_case_0(), stats_case_1(), stats_case_01(), stats_case_0_4()],
-    ids=["base", "0-pred", "1-pred", "1 and 0 preds", "0 preds"],
-)
-class Test_Stats:
-    def test_stat_keys(self, y_true, y_prob, expected):
+# Get unique scenarios
+SCENARIOS_PARAMS = [(y_true, y_prob, thresholds, desc) for y_true, y_prob, thresholds, desc in SCENARIOS]
+SCENARIOS_IDS = [params[-1] for params in SCENARIOS]
+
+
+@pytest.mark.parametrize("y_true,y_prob,thresholds,scenario_id", SCENARIOS_PARAMS, ids=SCENARIOS_IDS)
+class TestScenarios:
+    """Group tests by scenario to make it easier to test variations on the same data"""
+
+    def test_stat_keys(self, y_true, y_prob, thresholds, scenario_id):
         """Ensure stat manipulations are intentional"""
         expected_keys = {
             "Flag Rate",
@@ -124,45 +394,81 @@ class Test_Stats:
         }
         assert set(undertest.STATNAMES) == expected_keys
 
-    def test_score_arr(self, y_true, y_prob, expected):
-        actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert ALL_STATS == list(actual)
-        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
+    def test_all_metrics_present(self, y_true, y_prob, thresholds, scenario_id):
+        """Test that all expected metrics are present in the output"""
+        stats = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
+        expected_columns = [undertest.THRESHOLD] + undertest.STATNAMES + [f"NNT@{undertest.DEFAULT_RHO:0.3n}"]
+        assert all(col in stats.columns for col in expected_columns)
 
-    def test_score_arr_percentile(self, y_true, y_prob, expected):
-        y_prob = y_prob * 100
-        actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert ALL_STATS == list(actual)
-        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
+    def test_score_arr_percentile(self, y_true, y_prob, thresholds, scenario_id):
+        """Test that percentile scores produce the same results"""
+        # Original score
+        original_stats = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
 
-    def test_score_with_y_proba_nulls(self, y_true, y_prob, expected):
-        y_prob = np.hstack((y_prob, [np.nan, np.nan]))
-        y_true = np.hstack((y_true, [0, 1]))
-        actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert ALL_STATS == list(actual)
-        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
+        # Percentile score (x100)
+        percentile_stats = undertest.calculate_bin_stats(y_true, y_prob * 100, not_point_thresholds=True)
 
-    def test_score_with_y_true_nulls(self, y_true, y_prob, expected):
-        y_prob = np.hstack((y_prob, [0.1, 0.9]))
-        y_true = np.hstack((y_true, [np.nan, np.nan]))
-        actual = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
-        assert ALL_STATS == list(actual)
-        pd.testing.assert_frame_equal(actual, expected, check_column_type=False, check_like=True, check_dtype=False)
+        # Should produce the same results
+        pd.testing.assert_frame_equal(
+            original_stats, percentile_stats, check_column_type=False, check_like=True, check_dtype=False
+        )
+
+    def test_score_with_y_proba_nulls(self, y_true, y_prob, thresholds, scenario_id):
+        """Test handling of NaN values in probability scores"""
+        # Original stats
+        original_stats = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
+
+        # Add some NaN values
+        y_prob_with_nulls = np.hstack((y_prob, [np.nan, np.nan]))
+        y_true_with_nulls = np.hstack((y_true, [0, 1]))
+
+        # Stats with nulls
+        nulls_stats = undertest.calculate_bin_stats(y_true_with_nulls, y_prob_with_nulls, not_point_thresholds=True)
+
+        # Should produce the same results
+        pd.testing.assert_frame_equal(
+            original_stats, nulls_stats, check_column_type=False, check_like=True, check_dtype=False
+        )
+
+    def test_score_with_y_true_nulls(self, y_true, y_prob, thresholds, scenario_id):
+        """Test handling of NaN values in true labels"""
+        # Original stats
+        original_stats = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
+
+        # Add some NaN values
+        y_prob_with_nulls = np.hstack((y_prob, [0.1, 0.9]))
+        y_true_with_nulls = np.hstack((y_true, [np.nan, np.nan]))
+
+        # Stats with nulls
+        nulls_stats = undertest.calculate_bin_stats(y_true_with_nulls, y_prob_with_nulls, not_point_thresholds=True)
+
+        # Should produce the same results
+        pd.testing.assert_frame_equal(
+            original_stats, nulls_stats, check_column_type=False, check_like=True, check_dtype=False
+        )
 
 
 def test_bin_stats_point_thresholds():
-    y_true, y_prob, base_expected = stats_case_base()
+    # Get the base scenario data
+    y_true = np.array([1, 1, 0])
+    y_prob = np.array([0.1, 0.5, 0.1])
+
+    # Get results with not_point_thresholds=True (original behavior)
+    base_stats = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
+
+    # Get results with default point thresholds
     actual = undertest.calculate_bin_stats(y_true, np.array(y_prob))
 
+    # In the original test, the rows were duplicated based on threshold gaps
     expected = []
-    for dup, row in zip([50, 40, 11], base_expected.iterrows()):
+    for dup, row in zip([50, 40, 11], base_stats.iterrows()):
         expected.extend([row[1]] * dup)
     expected = pd.DataFrame(expected)
     expected.Threshold = np.arange(100, -1, -1)
     expected = expected.reset_index(drop=True)
 
-    # Verify accuracy of threshold point-wise in above cases,
-    # duplication doesn't apply
+    # Verify accuracy of threshold point-wise
+    # Some columns don't work with the duplication
     threshold_dependent_columns = ["NetBenefitScore"]
     expected = expected.drop(columns=threshold_dependent_columns)
     actual = actual.drop(columns=threshold_dependent_columns)
@@ -220,14 +526,6 @@ def test_all_metrics_valid_with_high_threshold_precision():
 
         else:
             assert pd.api.types.is_numeric_dtype(values)
-
-
-def sumall(a, b):
-    return a.sum() + b.sum()
-
-
-def sumdiff(a, b):
-    return (a - b).sum()
 
 
 class Test_AsProbabilities:
