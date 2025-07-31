@@ -79,7 +79,7 @@ def expected_df(cohorts):
 
 # We drop these ase the values are threshold dependent and testing would reimplement the formula
 # Instead rely on the test_cases in test_perf_stats.py
-THRESHOLD_DEPENDENT_COLUMNS = ["NetBenefitScore"]
+THRESHOLD_DEPENDENT_COLUMNS = ["NetBenefitScore", "F1", "F0.5", "F2"]
 
 
 @patch.object(seismometer.data.performance, "DEFAULT_RHO", 0.5)
