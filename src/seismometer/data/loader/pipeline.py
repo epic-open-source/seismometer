@@ -133,8 +133,10 @@ class SeismogramLoader:
 
         logger.info(f"Configuration speficies path {self.config.config_dir}")
 
+        logger.info("Loading predictions dataframes.")
         dataframe = self._load_predictions(prediction_obj)
         dataframe = self.post_predict_fn(self.config, dataframe)
+        logger.info("Adding events to predictions dataframes.")
         dataframe = self._add_events(dataframe, event_obj)
 
         dataframe = self.post_load_fn(self.config, dataframe)

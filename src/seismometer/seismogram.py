@@ -72,6 +72,7 @@ class Seismogram(object, metaclass=Singleton):
         self.config = config
         self.dataloader = dataloader
 
+        logger.debug("Initializing the empty dataframe.")
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
         self.metrics: dict[str, Metric] = {}
@@ -123,6 +124,7 @@ class Seismogram(object, metaclass=Singleton):
 
         self._load_metadata()
 
+        logger.debug("Loading dataframe from dataloader.")
         self.dataframe = self.dataloader.load_data(predictions, events)
 
         self.create_cohorts()

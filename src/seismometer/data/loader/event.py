@@ -26,11 +26,13 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
     pd.DataFrame
         the events dataframe with standarized column names.
     """
+    logger.debug(f"Loading events from {config.event_path}.")
     try:
         events = pd.read_parquet(config.event_path).rename(
             columns={config.ev_type: "Type", config.ev_time: "Time", config.ev_value: "Value"},
             copy=False,
         )
+        logger.debug(f"Loaded {len(events)} events from {config.event_path}.")
     except BaseException:
         logger.debug(f"No events found at {config.event_path}")
         events = pd.DataFrame(columns=config.entity_keys + ["Type", "Time", "Value"])
@@ -57,6 +59,7 @@ def post_transform_fn(config: ConfigProvider, events: pd.DataFrame) -> pd.DataFr
     # Time column in events is known
     events["Time"] = events["Time"].astype("<M8[ns]")
 
+    logger.debug("Transformed events dataframe with Time as datetime64[ns].")
     return events
 
 
@@ -81,14 +84,20 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
     pd.DataFrame
         The merged dataframe of predictions plus new event columns.
     """
+    logger.debug("Merging events onto predictions dataframe.")
     dataframe = (
         dataframe.sort_values(config.predict_time, kind="mergesort")
         .drop_duplicates(subset=config.entity_keys + [config.predict_time])
         .dropna(subset=[config.predict_time])
     )
+    logger.debug(
+        f"Sorted predictions dataframe by {config.predict_time}, dropping duplicate (entity time, prediction time) "
+        "and dropping predictions with Null prediction time."
+    )
     event_frame = event_frame.sort_values("Time", kind="mergesort")
 
     for one_event in config.events.values():
+        logger.debug(f"Processing event {one_event.display_name} with sources {one_event.source}")
         # Get dtype
         event_dtype = _get_source_type(config, one_event)
 
@@ -151,6 +160,7 @@ def _merge_event(
 ) -> pd.DataFrame:
     """Wrapper for calling merge_windowed_event with the correct event column names."""
     disp_event = display if display else event_cols[0]
+    logger.debug(f"Merging event {disp_event} with columns {event_cols} onto predictions dataframe.")
 
     return pdh.merge_windowed_event(
         dataframe,
