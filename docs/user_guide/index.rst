@@ -245,6 +245,11 @@ so that a fairness threshold of 0.25 sets the upper bound at 1.25 times larger,
 or a 25% increase in the metric. Since the lower bound is checked
 with the reciprocal, this would result in a 20% decrease.
 
+A fairness threshold of 0.25 is used as the example and default in the analysis since it is commonly used due to the Four-Fifths rule for the lower end of the threshold (0.8). However it may not be appropriate to use for all metrics. See `Disparate impact`_ for more information on the Four-Fifths rule and `Fairlearn's common fairness metrics`_ for more information about commonly used metrics and how to interpret them.
+
+.. _Disparate impact: https://en.wikipedia.org/wiki/Disparate_impact#The_80%_rule 
+.. _Fairlearn's common fairness metrics: https://fairlearn.org/v0.12/user_guide/assessment/common_fairness_metrics.html
+
 The visualization is a table showing the overall metrics, and icons 
 indicating default, within bounds, or out of bounds. Note that comparison
 across columns is not always exact due to potential differences in the
