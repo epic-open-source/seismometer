@@ -19,307 +19,92 @@ SCENARIOS = [
 ]
 
 # Expected values for each metric, organized as:
-# (scenario_id, threshold, metric_name): expected_value
+# (metric_name, scenario_id): [values by threshold index]
 EXPECTED_VALUES = {
-    # Base scenario expected values
-    ("base", 100, "TP"): 0,
-    ("base", 100, "FP"): 0,
-    ("base", 100, "TN"): 1,
-    ("base", 100, "FN"): 2,
-    ("base", 100, "Accuracy"): 1 / 3,
-    ("base", 100, "Sensitivity"): 0,
-    ("base", 100, "Specificity"): 1,
-    ("base", 100, "PPV"): 1,
-    ("base", 100, "NPV"): 1 / 3,
-    ("base", 100, "Flag Rate"): 0,
-    ("base", 100, "LR+"): np.nan,
-    ("base", 100, "NNE"): 1,
-    ("base", 100, "NetBenefitScore"): np.nan,
-    ("base", 100, "NNT@0.333"): 3,
-    ("base", 50, "TP"): 1,
-    ("base", 50, "FP"): 0,
-    ("base", 50, "TN"): 1,
-    ("base", 50, "FN"): 1,
-    ("base", 50, "Accuracy"): 2 / 3,
-    ("base", 50, "Sensitivity"): 0.5,
-    ("base", 50, "Specificity"): 1,
-    ("base", 50, "PPV"): 1,
-    ("base", 50, "NPV"): 0.5,
-    ("base", 50, "Flag Rate"): 1 / 3,
-    ("base", 50, "LR+"): np.inf,
-    ("base", 50, "NNE"): 1,
-    ("base", 50, "NetBenefitScore"): 1 / 3,
-    ("base", 50, "NNT@0.333"): 3,
-    ("base", 10, "TP"): 2,
-    ("base", 10, "FP"): 1,
-    ("base", 10, "TN"): 0,
-    ("base", 10, "FN"): 0,
-    ("base", 10, "Accuracy"): 2 / 3,
-    ("base", 10, "Sensitivity"): 1,
-    ("base", 10, "Specificity"): 0,
-    ("base", 10, "PPV"): 2 / 3,
-    ("base", 10, "NPV"): 1,
-    ("base", 10, "Flag Rate"): 1,
-    ("base", 10, "LR+"): 1,
-    ("base", 10, "NNE"): 1.5,
-    ("base", 10, "NetBenefitScore"): 17 / 27,
-    ("base", 10, "NNT@0.333"): 4.5,
-    ("base", 0, "TP"): 2,
-    ("base", 0, "FP"): 1,
-    ("base", 0, "TN"): 0,
-    ("base", 0, "FN"): 0,
-    ("base", 0, "Accuracy"): 2 / 3,
-    ("base", 0, "Sensitivity"): 1,
-    ("base", 0, "Specificity"): 0,
-    ("base", 0, "PPV"): 2 / 3,
-    ("base", 0, "NPV"): 1,
-    ("base", 0, "Flag Rate"): 1,
-    ("base", 0, "LR+"): 1,
-    ("base", 0, "NNE"): 1.5,
-    ("base", 0, "NetBenefitScore"): 2 / 3,
-    ("base", 0, "NNT@0.333"): 4.5,
-    # 0-pred scenario
-    ("0-pred", 100, "TP"): 0,
-    ("0-pred", 100, "FP"): 0,
-    ("0-pred", 100, "TN"): 2,
-    ("0-pred", 100, "FN"): 2,
-    ("0-pred", 100, "Accuracy"): 0.5,
-    ("0-pred", 100, "Sensitivity"): 0,
-    ("0-pred", 100, "Specificity"): 1,
-    ("0-pred", 100, "PPV"): 1,
-    ("0-pred", 100, "NPV"): 0.5,
-    ("0-pred", 100, "Flag Rate"): 0,
-    ("0-pred", 100, "LR+"): np.nan,
-    ("0-pred", 100, "NNE"): 1,
-    ("0-pred", 100, "NetBenefitScore"): np.nan,
-    ("0-pred", 100, "NNT@0.333"): 3,
-    ("0-pred", 50, "TP"): 1,
-    ("0-pred", 50, "FP"): 0,
-    ("0-pred", 50, "TN"): 2,
-    ("0-pred", 50, "FN"): 1,
-    ("0-pred", 50, "Accuracy"): 0.75,
-    ("0-pred", 50, "Sensitivity"): 0.5,
-    ("0-pred", 50, "Specificity"): 1,
-    ("0-pred", 50, "PPV"): 1,
-    ("0-pred", 50, "NPV"): 2 / 3,
-    ("0-pred", 50, "Flag Rate"): 0.25,
-    ("0-pred", 50, "LR+"): np.inf,
-    ("0-pred", 50, "NNE"): 1,
-    ("0-pred", 50, "NetBenefitScore"): 1 / 4,
-    ("0-pred", 50, "NNT@0.333"): 3,
-    ("0-pred", 10, "TP"): 2,
-    ("0-pred", 10, "FP"): 1,
-    ("0-pred", 10, "TN"): 1,
-    ("0-pred", 10, "FN"): 0,
-    ("0-pred", 10, "Accuracy"): 0.75,
-    ("0-pred", 10, "Sensitivity"): 1,
-    ("0-pred", 10, "Specificity"): 0.5,
-    ("0-pred", 10, "PPV"): 2 / 3,
-    ("0-pred", 10, "NPV"): 1,
-    ("0-pred", 10, "Flag Rate"): 0.75,
-    ("0-pred", 10, "LR+"): 2,
-    ("0-pred", 10, "NNE"): 1.5,
-    ("0-pred", 10, "NetBenefitScore"): 17 / 36,
-    ("0-pred", 10, "NNT@0.333"): 4.5,
-    ("0-pred", 0, "TP"): 2,
-    ("0-pred", 0, "FP"): 2,
-    ("0-pred", 0, "TN"): 0,
-    ("0-pred", 0, "FN"): 0,
-    ("0-pred", 0, "Accuracy"): 0.5,
-    ("0-pred", 0, "Sensitivity"): 1,
-    ("0-pred", 0, "Specificity"): 0,
-    ("0-pred", 0, "PPV"): 0.5,
-    ("0-pred", 0, "NPV"): 1,
-    ("0-pred", 0, "Flag Rate"): 1,
-    ("0-pred", 0, "LR+"): 1,
-    ("0-pred", 0, "NNE"): 2,
-    ("0-pred", 0, "NetBenefitScore"): 1 / 2,
-    ("0-pred", 0, "NNT@0.333"): 6,
-    # 1-pred scenario
-    ("1-pred", 100, "TP"): 1,
-    ("1-pred", 100, "FP"): 0,
-    ("1-pred", 100, "TN"): 1,
-    ("1-pred", 100, "FN"): 2,
-    ("1-pred", 100, "Accuracy"): 0.5,
-    ("1-pred", 100, "Sensitivity"): 1 / 3,
-    ("1-pred", 100, "Specificity"): 1,
-    ("1-pred", 100, "PPV"): 1,
-    ("1-pred", 100, "NPV"): 1 / 3,
-    ("1-pred", 100, "Flag Rate"): 0.25,
-    ("1-pred", 100, "LR+"): np.inf,
-    ("1-pred", 100, "NNE"): 1,
-    ("1-pred", 100, "NetBenefitScore"): np.nan,
-    ("1-pred", 100, "NNT@0.333"): 3,
-    ("1-pred", 50, "TP"): 2,
-    ("1-pred", 50, "FP"): 0,
-    ("1-pred", 50, "TN"): 1,
-    ("1-pred", 50, "FN"): 1,
-    ("1-pred", 50, "Accuracy"): 0.75,
-    ("1-pred", 50, "Sensitivity"): 2 / 3,
-    ("1-pred", 50, "Specificity"): 1,
-    ("1-pred", 50, "PPV"): 1,
-    ("1-pred", 50, "NPV"): 0.5,
-    ("1-pred", 50, "Flag Rate"): 0.5,
-    ("1-pred", 50, "LR+"): np.inf,
-    ("1-pred", 50, "NNE"): 1,
-    ("1-pred", 50, "NetBenefitScore"): 1 / 2,
-    ("1-pred", 50, "NNT@0.333"): 3,
-    ("1-pred", 10, "TP"): 3,
-    ("1-pred", 10, "FP"): 1,
-    ("1-pred", 10, "TN"): 0,
-    ("1-pred", 10, "FN"): 0,
-    ("1-pred", 10, "Accuracy"): 0.75,
-    ("1-pred", 10, "Sensitivity"): 1,
-    ("1-pred", 10, "Specificity"): 0,
-    ("1-pred", 10, "PPV"): 0.75,
-    ("1-pred", 10, "NPV"): 1,
-    ("1-pred", 10, "Flag Rate"): 1,
-    ("1-pred", 10, "LR+"): 1,
-    ("1-pred", 10, "NNE"): 4 / 3,
-    ("1-pred", 10, "NetBenefitScore"): 13 / 18,
-    ("1-pred", 10, "NNT@0.333"): 4,
-    ("1-pred", 0, "TP"): 3,
-    ("1-pred", 0, "FP"): 1,
-    ("1-pred", 0, "TN"): 0,
-    ("1-pred", 0, "FN"): 0,
-    ("1-pred", 0, "Accuracy"): 0.75,
-    ("1-pred", 0, "Sensitivity"): 1,
-    ("1-pred", 0, "Specificity"): 0,
-    ("1-pred", 0, "PPV"): 0.75,
-    ("1-pred", 0, "NPV"): 1,
-    ("1-pred", 0, "Flag Rate"): 1,
-    ("1-pred", 0, "LR+"): 1,
-    ("1-pred", 0, "NNE"): 4 / 3,
-    ("1-pred", 0, "NetBenefitScore"): 3 / 4,
-    ("1-pred", 0, "NNT@0.333"): 4,
-    # 1 and 0 preds
-    ("1 and 0 preds", 100, "TP"): 1,
-    ("1 and 0 preds", 100, "FP"): 0,
-    ("1 and 0 preds", 100, "TN"): 2,
-    ("1 and 0 preds", 100, "FN"): 2,
-    ("1 and 0 preds", 100, "Accuracy"): 0.6,
-    ("1 and 0 preds", 100, "Sensitivity"): 1 / 3,
-    ("1 and 0 preds", 100, "Specificity"): 1,
-    ("1 and 0 preds", 100, "PPV"): 1,
-    ("1 and 0 preds", 100, "NPV"): 0.5,
-    ("1 and 0 preds", 100, "Flag Rate"): 0.2,
-    ("1 and 0 preds", 100, "LR+"): np.inf,
-    ("1 and 0 preds", 100, "NNE"): 1,
-    ("1 and 0 preds", 100, "NetBenefitScore"): np.nan,
-    ("1 and 0 preds", 100, "NNT@0.333"): 3,
-    ("1 and 0 preds", 50, "TP"): 2,
-    ("1 and 0 preds", 50, "FP"): 0,
-    ("1 and 0 preds", 50, "TN"): 2,
-    ("1 and 0 preds", 50, "FN"): 1,
-    ("1 and 0 preds", 50, "Accuracy"): 0.8,
-    ("1 and 0 preds", 50, "Sensitivity"): 2 / 3,
-    ("1 and 0 preds", 50, "Specificity"): 1,
-    ("1 and 0 preds", 50, "PPV"): 1,
-    ("1 and 0 preds", 50, "NPV"): 2 / 3,
-    ("1 and 0 preds", 50, "Flag Rate"): 0.4,
-    ("1 and 0 preds", 50, "LR+"): np.inf,
-    ("1 and 0 preds", 50, "NNE"): 1,
-    ("1 and 0 preds", 50, "NetBenefitScore"): 2 / 5,
-    ("1 and 0 preds", 50, "NNT@0.333"): 3,
-    ("1 and 0 preds", 10, "TP"): 3,
-    ("1 and 0 preds", 10, "FP"): 1,
-    ("1 and 0 preds", 10, "TN"): 1,
-    ("1 and 0 preds", 10, "FN"): 0,
-    ("1 and 0 preds", 10, "Accuracy"): 0.8,
-    ("1 and 0 preds", 10, "Sensitivity"): 1,
-    ("1 and 0 preds", 10, "Specificity"): 0.5,
-    ("1 and 0 preds", 10, "PPV"): 0.75,
-    ("1 and 0 preds", 10, "NPV"): 1,
-    ("1 and 0 preds", 10, "Flag Rate"): 0.8,
-    ("1 and 0 preds", 10, "LR+"): 2,
-    ("1 and 0 preds", 10, "NNE"): 4 / 3,
-    ("1 and 0 preds", 10, "NetBenefitScore"): 26 / 45,
-    ("1 and 0 preds", 10, "NNT@0.333"): 4,
-    ("1 and 0 preds", 0, "TP"): 3,
-    ("1 and 0 preds", 0, "FP"): 2,
-    ("1 and 0 preds", 0, "TN"): 0,
-    ("1 and 0 preds", 0, "FN"): 0,
-    ("1 and 0 preds", 0, "Accuracy"): 0.6,
-    ("1 and 0 preds", 0, "Sensitivity"): 1,
-    ("1 and 0 preds", 0, "Specificity"): 0,
-    ("1 and 0 preds", 0, "PPV"): 0.6,
-    ("1 and 0 preds", 0, "NPV"): 1,
-    ("1 and 0 preds", 0, "Flag Rate"): 1,
-    ("1 and 0 preds", 0, "LR+"): 1,
-    ("1 and 0 preds", 0, "NNE"): 5 / 3,
-    ("1 and 0 preds", 0, "NetBenefitScore"): 3 / 5,
-    ("1 and 0 preds", 0, "NNT@0.333"): 5,
-    # 0 preds scenario
-    ("0 preds", 100, "TP"): 0,
-    ("0 preds", 100, "FP"): 0,
-    ("0 preds", 100, "TN"): 2,
-    ("0 preds", 100, "FN"): 2,
-    ("0 preds", 100, "Accuracy"): 0.5,
-    ("0 preds", 100, "Sensitivity"): 0,
-    ("0 preds", 100, "Specificity"): 1,
-    ("0 preds", 100, "PPV"): 1,
-    ("0 preds", 100, "NPV"): 0.5,
-    ("0 preds", 100, "Flag Rate"): 0,
-    ("0 preds", 100, "LR+"): np.nan,
-    ("0 preds", 100, "NNE"): 1,
-    ("0 preds", 100, "NetBenefitScore"): np.nan,
-    ("0 preds", 100, "NNT@0.333"): 3,
-    ("0 preds", 75, "TP"): 1,
-    ("0 preds", 75, "FP"): 0,
-    ("0 preds", 75, "TN"): 2,
-    ("0 preds", 75, "FN"): 1,
-    ("0 preds", 75, "Accuracy"): 0.75,
-    ("0 preds", 75, "Sensitivity"): 0.5,
-    ("0 preds", 75, "Specificity"): 1,
-    ("0 preds", 75, "PPV"): 1,
-    ("0 preds", 75, "NPV"): 2 / 3,
-    ("0 preds", 75, "Flag Rate"): 0.25,
-    ("0 preds", 75, "LR+"): np.inf,
-    ("0 preds", 75, "NNE"): 1,
-    ("0 preds", 75, "NetBenefitScore"): 1 / 4,
-    ("0 preds", 75, "NNT@0.333"): 3,
-    ("0 preds", 50, "TP"): 2,
-    ("0 preds", 50, "FP"): 0,
-    ("0 preds", 50, "TN"): 2,
-    ("0 preds", 50, "FN"): 0,
-    ("0 preds", 50, "Accuracy"): 1,
-    ("0 preds", 50, "Sensitivity"): 1,
-    ("0 preds", 50, "Specificity"): 1,
-    ("0 preds", 50, "PPV"): 1,
-    ("0 preds", 50, "NPV"): 1,
-    ("0 preds", 50, "Flag Rate"): 0.5,
-    ("0 preds", 50, "LR+"): np.inf,
-    ("0 preds", 50, "NNE"): 1,
-    ("0 preds", 50, "NetBenefitScore"): 1 / 2,
-    ("0 preds", 50, "NNT@0.333"): 3,
-    ("0 preds", 25, "TP"): 2,
-    ("0 preds", 25, "FP"): 1,
-    ("0 preds", 25, "TN"): 1,
-    ("0 preds", 25, "FN"): 0,
-    ("0 preds", 25, "Accuracy"): 0.75,
-    ("0 preds", 25, "Sensitivity"): 1,
-    ("0 preds", 25, "Specificity"): 0.5,
-    ("0 preds", 25, "PPV"): 2 / 3,
-    ("0 preds", 25, "NPV"): 1,
-    ("0 preds", 25, "Flag Rate"): 0.75,
-    ("0 preds", 25, "LR+"): 2,
-    ("0 preds", 25, "NNE"): 1.5,
-    ("0 preds", 25, "NetBenefitScore"): 5 / 12,
-    ("0 preds", 25, "NNT@0.333"): 4.5,
-    ("0 preds", 0, "TP"): 2,
-    ("0 preds", 0, "FP"): 2,
-    ("0 preds", 0, "TN"): 0,
-    ("0 preds", 0, "FN"): 0,
-    ("0 preds", 0, "Accuracy"): 0.5,
-    ("0 preds", 0, "Sensitivity"): 1,
-    ("0 preds", 0, "Specificity"): 0,
-    ("0 preds", 0, "PPV"): 0.5,
-    ("0 preds", 0, "NPV"): 1,
-    ("0 preds", 0, "Flag Rate"): 1,
-    ("0 preds", 0, "LR+"): 1,
-    ("0 preds", 0, "NNE"): 2,
-    ("0 preds", 0, "NetBenefitScore"): 1 / 2,
-    ("0 preds", 0, "NNT@0.333"): 6,
+    # TP metric values for each scenario
+    ("TP", "base"): [0, 1, 2, 2],
+    ("TP", "0-pred"): [0, 1, 2, 2],
+    ("TP", "1-pred"): [1, 2, 3, 3],
+    ("TP", "1 and 0 preds"): [1, 2, 3, 3],
+    ("TP", "0 preds"): [0, 1, 2, 2, 2],
+    # FP metric values for each scenario
+    ("FP", "base"): [0, 0, 1, 1],
+    ("FP", "0-pred"): [0, 0, 1, 2],
+    ("FP", "1-pred"): [0, 0, 1, 1],
+    ("FP", "1 and 0 preds"): [0, 0, 1, 2],
+    ("FP", "0 preds"): [0, 0, 0, 1, 2],
+    # TN metric values for each scenario
+    ("TN", "base"): [1, 1, 0, 0],
+    ("TN", "0-pred"): [2, 2, 1, 0],
+    ("TN", "1-pred"): [1, 1, 0, 0],
+    ("TN", "1 and 0 preds"): [2, 2, 1, 0],
+    ("TN", "0 preds"): [2, 2, 2, 1, 0],
+    # FN metric values for each scenario
+    ("FN", "base"): [2, 1, 0, 0],
+    ("FN", "0-pred"): [2, 1, 0, 0],
+    ("FN", "1-pred"): [2, 1, 0, 0],
+    ("FN", "1 and 0 preds"): [2, 1, 0, 0],
+    ("FN", "0 preds"): [2, 1, 0, 0, 0],
+    # Accuracy metric values for each scenario
+    ("Accuracy", "base"): [1 / 3, 2 / 3, 2 / 3, 2 / 3],
+    ("Accuracy", "0-pred"): [0.5, 0.75, 0.75, 0.5],
+    ("Accuracy", "1-pred"): [0.5, 0.75, 0.75, 0.75],
+    ("Accuracy", "1 and 0 preds"): [0.6, 0.8, 0.8, 0.6],
+    ("Accuracy", "0 preds"): [0.5, 0.75, 1, 0.75, 0.5],
+    # Sensitivity metric values for each scenario
+    ("Sensitivity", "base"): [0, 0.5, 1, 1],
+    ("Sensitivity", "0-pred"): [0, 0.5, 1, 1],
+    ("Sensitivity", "1-pred"): [1 / 3, 2 / 3, 1, 1],
+    ("Sensitivity", "1 and 0 preds"): [1 / 3, 2 / 3, 1, 1],
+    ("Sensitivity", "0 preds"): [0, 0.5, 1, 1, 1],
+    # Specificity metric values for each scenario
+    ("Specificity", "base"): [1, 1, 0, 0],
+    ("Specificity", "0-pred"): [1, 1, 0.5, 0],
+    ("Specificity", "1-pred"): [1, 1, 0, 0],
+    ("Specificity", "1 and 0 preds"): [1, 1, 0.5, 0],
+    ("Specificity", "0 preds"): [1, 1, 1, 0.5, 0],
+    # PPV metric values for each scenario
+    ("PPV", "base"): [1, 1, 2 / 3, 2 / 3],
+    ("PPV", "0-pred"): [1, 1, 2 / 3, 0.5],
+    ("PPV", "1-pred"): [1, 1, 0.75, 0.75],
+    ("PPV", "1 and 0 preds"): [1, 1, 0.75, 0.6],
+    ("PPV", "0 preds"): [1, 1, 1, 2 / 3, 0.5],
+    # NPV metric values for each scenario
+    ("NPV", "base"): [1 / 3, 0.5, 1, 1],
+    ("NPV", "0-pred"): [0.5, 2 / 3, 1, 1],
+    ("NPV", "1-pred"): [1 / 3, 0.5, 1, 1],
+    ("NPV", "1 and 0 preds"): [0.5, 2 / 3, 1, 1],
+    ("NPV", "0 preds"): [0.5, 2 / 3, 1, 1, 1],
+    # Flag Rate metric values for each scenario
+    ("Flag Rate", "base"): [0, 1 / 3, 1, 1],
+    ("Flag Rate", "0-pred"): [0, 0.25, 0.75, 1],
+    ("Flag Rate", "1-pred"): [0.25, 0.5, 1, 1],
+    ("Flag Rate", "1 and 0 preds"): [0.2, 0.4, 0.8, 1],
+    ("Flag Rate", "0 preds"): [0, 0.25, 0.5, 0.75, 1],
+    # LR+ metric values for each scenario
+    ("LR+", "base"): [np.nan, np.inf, 1, 1],
+    ("LR+", "0-pred"): [np.nan, np.inf, 2, 1],
+    ("LR+", "1-pred"): [np.inf, np.inf, 1, 1],
+    ("LR+", "1 and 0 preds"): [np.inf, np.inf, 2, 1],
+    ("LR+", "0 preds"): [np.nan, np.inf, np.inf, 2, 1],
+    # NNE metric values for each scenario
+    ("NNE", "base"): [1, 1, 1.5, 1.5],
+    ("NNE", "0-pred"): [1, 1, 1.5, 2],
+    ("NNE", "1-pred"): [1, 1, 4 / 3, 4 / 3],
+    ("NNE", "1 and 0 preds"): [1, 1, 4 / 3, 5 / 3],
+    ("NNE", "0 preds"): [1, 1, 1, 1.5, 2],
+    # NetBenefitScore metric values for each scenario
+    ("NetBenefitScore", "base"): [np.nan, 1 / 3, 17 / 27, 2 / 3],
+    ("NetBenefitScore", "0-pred"): [np.nan, 1 / 4, 17 / 36, 1 / 2],
+    ("NetBenefitScore", "1-pred"): [np.nan, 1 / 2, 13 / 18, 3 / 4],
+    ("NetBenefitScore", "1 and 0 preds"): [np.nan, 2 / 5, 26 / 45, 3 / 5],
+    ("NetBenefitScore", "0 preds"): [np.nan, 1 / 4, 1 / 2, 5 / 12, 1 / 2],
+    # NNT@0.333 metric values for each scenario
+    ("NNT@0.333", "base"): [3, 3, 4.5, 4.5],
+    ("NNT@0.333", "0-pred"): [3, 3, 4.5, 6],
+    ("NNT@0.333", "1-pred"): [3, 3, 4, 4],
+    ("NNT@0.333", "1 and 0 preds"): [3, 3, 4, 5],
+    ("NNT@0.333", "0 preds"): [3, 3, 3, 4.5, 6],
 }
 
 
@@ -329,13 +114,12 @@ def get_scenario_params():
     ids = []
 
     for y_true, y_prob, thresholds, scenario_id in SCENARIOS:
-        for threshold in thresholds:
-            # For each metric
-            for metric in undertest.STATNAMES + ["NNT@0.333"]:
-                expected_value = EXPECTED_VALUES.get((scenario_id, threshold, metric))
-                if expected_value is not None:  # Skip if no expected value defined
-                    params.append((y_true, y_prob, threshold, metric, expected_value))
-                    ids.append(f"{scenario_id}-t{threshold}-{metric}")
+        # For each metric
+        for metric in undertest.STATNAMES + ["NNT@0.333"]:
+            expected_values = EXPECTED_VALUES.get((metric, scenario_id))
+            if expected_values is not None:  # Skip if no expected value defined
+                params.append((y_true, y_prob, thresholds, metric, expected_values))
+                ids.append(f"{scenario_id}-{metric}")
 
     return params, ids
 
@@ -344,26 +128,33 @@ def get_scenario_params():
 METRIC_PARAMS, METRIC_IDS = get_scenario_params()
 
 
-@pytest.mark.parametrize("y_true,y_prob,threshold,metric,expected_value", METRIC_PARAMS, ids=METRIC_IDS)
-def test_individual_metric_values(y_true, y_prob, threshold, metric, expected_value):
+@pytest.mark.parametrize("y_true,y_prob,thresholds,metric,expected_values", METRIC_PARAMS, ids=METRIC_IDS)
+def test_individual_metric_values(y_true, y_prob, thresholds, metric, expected_values):
     """Test individual metric values for various scenarios and thresholds"""
     stats = undertest.calculate_bin_stats(y_true, y_prob, not_point_thresholds=True)
 
-    # Find the row with the matching threshold
-    row = stats.loc[stats["Threshold"] == threshold]
+    # Ensure thresholds and expected_values are the same length
+    assert len(thresholds) >= len(
+        expected_values
+    ), f"Thresholds array length ({len(thresholds)}) must be >= expected values length ({len(expected_values)})"
 
-    if len(row) != 1:
-        pytest.fail(f"Expected exactly one row with threshold={threshold}, got {len(row)}")
+    # Loop through thresholds and expected values using zip
+    for threshold, expected_value in zip(thresholds, expected_values):
+        # Find the row with the matching threshold
+        row = stats.loc[stats["Threshold"] == threshold]
 
-    actual_value = row[metric].iloc[0]
+        if len(row) != 1:
+            pytest.fail(f"Expected exactly one row with threshold={threshold}, got {len(row)}")
 
-    # For nan values, check that both are nan
-    if np.isnan(expected_value):
-        assert np.isnan(actual_value), f"Expected {metric} to be nan, got {actual_value}"
-    else:
-        assert actual_value == pytest.approx(
-            expected_value, rel=0.01
-        ), f"Expected {metric}={expected_value}, got {actual_value}"
+        actual_value = row[metric].iloc[0]
+
+        # For nan values, check that both are nan
+        if np.isnan(expected_value):
+            assert np.isnan(actual_value), f"Expected {metric} to be nan for threshold {threshold}, got {actual_value}"
+        else:
+            assert actual_value == pytest.approx(
+                expected_value, rel=0.01
+            ), f"Expected {metric}={expected_value} for threshold {threshold}, got {actual_value}"
 
 
 # Get unique scenarios
