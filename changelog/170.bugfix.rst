@@ -1,1 +1,1 @@
-Update unit tests for performance metrics to allow for easeir addition of new metrics
+Refactored performance metrics unit tests to improve modularity and make adding new metrics easier
