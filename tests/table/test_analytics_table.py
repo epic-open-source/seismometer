@@ -1,3 +1,4 @@
+import re
 from unittest.mock import Mock
 
 import pandas as pd
@@ -6,6 +7,7 @@ import pytest
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event
 from seismometer.data.loader import SeismogramLoader
+from seismometer.data.performance import THRESHOLD
 from seismometer.seismogram import Seismogram
 from seismometer.table.analytics_table import AnalyticsTable
 from seismometer.table.analytics_table_config import AnalyticsTableConfig
@@ -137,6 +139,15 @@ class TestAnalyticsTable:
                 metric="Sensitivity",
                 metric_values=metric_values,
                 top_level="invalid_top_level",
+            )
+
+    def test_metrics_to_display_invalid_metric(self, fake_seismo):
+        with pytest.raises(ValueError, match="Invalid metric name:"):
+            AnalyticsTable(
+                score_columns=["score1"],
+                target_columns=["target1"],
+                metric="Threshold",
+                metrics_to_display=["INVALID_METRIC"],
             )
 
     def test_empty_df_and_statistics_data(self, fake_seismo):
@@ -320,3 +331,50 @@ class TestAnalyticsTable:
 
         # Check if the data is None due to filtering to an empty set
         assert data is None
+
+    def test_all_columns_are_rounded_correctly_in_html(self, fake_seismo):
+        scores = ["score1"]
+        targets = ["target1"]
+        decimals = 3
+
+        table = AnalyticsTable(
+            score_columns=scores,
+            target_columns=targets,
+            metric="Threshold",
+            metric_values=[0.8],
+            table_config=AnalyticsTableConfig(decimals=decimals),
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
+        )
+
+        data = table._generate_table_data()
+        assert data is not None
+
+        gt = table.generate_initial_table(data)
+        assert gt is not None
+        html = gt.as_raw_html()
+
+        for col in data.columns:
+            if not pd.api.types.is_numeric_dtype(data[col]):
+                continue  # Skip non-numeric columns
+            if pd.api.types.is_integer_dtype(data[col]):
+                continue  # Skip integers (not formatted with decimals)
+
+            col_decimals = max(0, decimals - 2) if col.endswith(f"_{THRESHOLD}") else decimals
+
+            for val in data[col].dropna():
+                rounded = round(val, col_decimals)
+                formatted = f"{rounded:.{col_decimals}f}"
+                assert re.search(rf">\s*{formatted}\s*<", html)
+
+    def test_add_borders(self, fake_seismo):
+        table = AnalyticsTable(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Threshold",
+            censor_threshold=1,
+        )
+        data = table._generate_table_data()
+        gt = table.generate_initial_table(data)
+        gt = table.add_borders(gt, left_column=data.columns[2], right_column=data.columns[3])
+        assert gt is not None

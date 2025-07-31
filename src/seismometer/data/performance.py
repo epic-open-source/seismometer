@@ -164,7 +164,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         stats = stats.loc[score_threshold_integer]
         return stats.to_dict()
 
-    def calculate_binary_stats(self, dataframe, target_col, score_col, metrics):
+    def calculate_binary_stats(self, dataframe, target_col, score_col, metrics, threshold_precision=0):
         """
         Calculates binary stats for all thresholds.
 
@@ -178,13 +178,24 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             The column in the dataframe that contains the predicted scores.
         metrics: list[str], optional
             List of metrics to filter down to.
+        threshold_precision : int, optional
+            Number of decimal places to use when generating thresholds as percentages.
+            - E.g., `threshold_precision=0` yields thresholds like 0, 1, ..., 100 (coarse).
+            - `threshold_precision=2` yields 0.00, 0.01, ..., 100.00 (fine-grained).
+            - Higher values improve AUC approximation but increase computation cost.
+            By default 0.
         """
         y_true = dataframe[target_col]
         y_pred = dataframe[score_col]
         logger.info(f"data before using calculating stats has {len(y_true)} rows.")
         keep = ~(np.isnan(y_true) | np.isnan(y_pred))
         logger.info(f"Calculating stats drops {len(y_true)-len(y_true[keep])} rows.")
-        stats = calculate_bin_stats(y_true, y_pred, rho=self.rho).round(5).set_index(THRESHOLD)
+        stats = (
+            calculate_bin_stats(y_true, y_pred, rho=self.rho, threshold_precision=threshold_precision)
+            .round(5)
+            .set_index(THRESHOLD)
+        )
+
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
 
@@ -245,6 +256,7 @@ def calculate_bin_stats(
     keep_score_values: bool = False,
     not_point_thresholds: bool = False,
     rho: float = None,
+    threshold_precision: int = 0,
 ) -> pd.DataFrame:
     """
     Calculate summary statistics from y_true and y_pred (y_proba[:,1] for binary classification) arrays.
@@ -262,6 +274,12 @@ def calculate_bin_stats(
         If True, does not use point thresholds, by default False; uses 0-100.
     rho : float, optional
         The relative risk reduction for NNT calculation, by default DEFAULT_RHO.
+    threshold_precision : int, optional
+        Number of decimal places to use when generating thresholds as percentages.
+        - E.g., `threshold_precision=0` yields thresholds like 0, 1, ..., 100 (coarse).
+        - `threshold_precision=2` yields 0.00, 0.01, ..., 100.00 (fine-grained).
+        - Higher values improve AUC approximation but increase computation cost.
+        By default 0.
 
     Returns
     -------
@@ -300,7 +318,7 @@ def calculate_bin_stats(
     # Reduce thresholds to table 0-100
     # This can reintroduce redundant thresholds, particularly in sparse regions
     if not not_point_thresholds:
-        threshold_ix, thresholds = _point_thresholds(thresholds)
+        threshold_ix, thresholds = _point_thresholds(thresholds, threshold_precision)
         tps = tps[threshold_ix]
         fps = fps[threshold_ix]
 
@@ -437,14 +455,14 @@ def calculate_eval_ci(
         output = as_percentages(output)
 
     roc_conf = ROCConfidenceParam(conf)
-    aucpr_conf = PRConfidenceParam(conf)
+    auprc_conf = PRConfidenceParam(conf)
     with np.errstate(invalid="ignore", divide="ignore"):
         # roc
         thresholds, tpr, fpr, auc_region = roc_conf.region(roc_conf, truth, output)
         auc_interval = roc_conf.interval(roc_conf, truth, output)
         # pr
-        aucpr_interval = aucpr_conf.interval(
-            aucpr_conf,
+        auprc_interval = auprc_conf.interval(
+            auprc_conf,
             auc(stats.Sensitivity, stats.PPV),
             stats[["TP", "FP", "TN", "FN"]].iloc[0].sum(),
         )
@@ -457,7 +475,7 @@ def calculate_eval_ci(
             "region": auc_region,
             "interval": auc_interval,
         },
-        "pr": {"interval": aucpr_interval},
+        "pr": {"interval": auprc_interval},
         "conf": conf,
     }
     return ci_data
@@ -486,13 +504,19 @@ def _bin_class_curve(
     return fps, tps, y_pred[threshold_idxs]
 
 
-def _point_thresholds(orig_thresholds: np.ndarray) -> np.ndarray:
+def _point_thresholds(orig_thresholds: np.ndarray, threshold_precision: int = 0) -> np.ndarray:
     """
-    Convert thresholds to percent increments (0.01) between 0 to 1.
+    Convert float thresholds into evenly spaced percent thresholds between 0 and 100,
+    with granularity based on the specified number of decimal places.
     """
     if orig_thresholds.max() < 1:
         logger.warning("Passed thresholds do not extend to maximum of 1.")
-    thresholds = np.arange(0, 101)[::-1]
+
+    # Compute number of divisions per unit based on precision
+    step_size = 10**threshold_precision
+    num_steps = 100 * step_size
+
+    thresholds = (np.arange(0, num_steps + 1)[::-1]) / step_size  # Convert to percent scale
     ixs = np.digitize(thresholds, orig_thresholds, right=True) - 1
     ixs = np.where(ixs < 0, 0, ixs)  # Clip to 0
     ixs[-1] = -1  # Keep the last threshold

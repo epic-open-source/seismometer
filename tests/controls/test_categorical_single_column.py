@@ -99,11 +99,18 @@ def fake_seismo(tmp_path):
 
 class TestOrdinalCategoricalSinglePlot:
     def test_initialize_plot_functions(self, fake_seismo):
-        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1")
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Metric1": ["disagree"]})
         assert "Likert Plot" in plot.plot_functions
 
+    def test_generate_plot_invalid_type_raises(self, fake_seismo):
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", plot_type="Unknown", cohort_dict={"Cohort": ("C1",)})
+        with pytest.raises(ValueError, match="Unknown plot type"):
+            plot.generate_plot()
+
     def test_extract_metric_values(self, fake_seismo):
-        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1")
+        plot = OrdinalCategoricalSinglePlot(
+            metric_col="Metric1", cohort_dict={"Metric1": ["disagree", "neutral", "agree"]}
+        )
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
 
@@ -169,6 +176,27 @@ class TestOrdinalCategoricalSinglePlot:
         )
         plot._extract_metric_values()
         assert plot.values == ["disagree", "neutral", "agree"]
+
+    def test_generate_plot_returns_censored_message_when_below_threshold(self, fake_seismo):
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
+        plot.censor_threshold = 10
+        result = plot.generate_plot()
+        assert isinstance(result, HTML)
+        assert f"There are {plot.censor_threshold} or fewer observations" in result.data
+
+    def test_count_cohort_group_values_handles_missing_metric(self, fake_seismo):
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1",)})
+        plot.values = ["agree", "disagree", "neutral", "strongly agree"]
+        df = plot._count_cohort_group_values()
+        assert "strongly agree" in df.columns
+        assert df["strongly agree"].eq(0).all()
+
+    def test_extract_metric_values_falls_back_to_dataframe(self, fake_seismo, caplog):
+        fake_seismo.metrics["Metric1"].metric_details.values = None  # trigger fallback
+        caplog.set_level("WARNING")
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1",)})
+        assert sorted(plot.values) == ["agree", "disagree", "neutral"]
+        assert any("Metric values for metric Metric1 are not provided" in message for message in caplog.messages)
 
 
 class TestOrdinalCategoricalSinglePlotFunction:

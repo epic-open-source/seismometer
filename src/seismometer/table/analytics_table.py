@@ -254,6 +254,10 @@ class AnalyticsTable:
                 ],
                 decimals=self.decimals,
             )
+            .fmt_number(
+                columns=[col for col in data.columns if col.endswith(f"_{THRESHOLD}")],
+                decimals=self.decimals - 2,
+            )
             .fmt_percent(columns=self.columns_show_percentages, decimals=self.percentages_decimals)
             .tab_style(
                 style=[
@@ -282,7 +286,7 @@ class AnalyticsTable:
         gt : GT
             The table object with grouped columns and added borders.
         """
-        value = value * 100 if self.metric == "Threshold" else value
+        value = round(value * 100, max(0, self.decimals - 2)) if self.metric == THRESHOLD else value
         gt = gt.tab_spanner(label=f"{self.metric}={value}", columns=columns).cols_label(
             **{col: "_".join(col.split("_")[1:]) for col in columns}
         )
@@ -482,7 +486,7 @@ class ExploreBinaryModelAnalytics(ExplorationWidget):
             option_widget=AnalyticsTableOptionsWidget(
                 tuple(map(pdh.event_name, sg.get_binary_targets())),
                 sg.output_list,
-                metric="Threshold",
+                metric=THRESHOLD,
                 metric_values=None,
                 metrics_to_display=None,
                 cohort_dict=sg.available_cohort_groups,
@@ -575,7 +579,10 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
         )
         metric_values = metric_values or (0.8, 0.2)
         self._metric_values = MonotonicProbabilitySliderListWidget(
-            names=("Metric Value 1", "Metric Value 2"), value=tuple(metric_values), ascending=False
+            names=("Metric Value 1", "Metric Value 2"),
+            value=tuple(metric_values),
+            ascending=False,
+            decimals=AnalyticsTableConfig().decimals,
         )
         for slider in self._metric_values.sliders.values():
             slider.style.description_width = "min-content"

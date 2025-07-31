@@ -1,1 +1,0 @@
-Addresses #131 by adding cohort selection to analytics table options.

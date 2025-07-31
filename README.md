@@ -1,4 +1,4 @@
-# Seismometer
+# Seismometer – Data Science Visualization and Investigation Tools for AI Trust & Assurance
 
 [![Docs](https://img.shields.io/badge/docs-stable-blue)](https://epic-open-source.github.io/seismometer/)
 [![PyPI](https://img.shields.io/pypi/v/seismometer)](https://pypi.org/project/seismometer/)

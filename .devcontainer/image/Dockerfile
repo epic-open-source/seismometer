@@ -1,4 +1,4 @@
-FROM python:3.11-slim as seismometer
+FROM python:3.12-slim as seismometer
 
 RUN useradd --create-home --uid 1000 --shell /bin/bash seismo
 ENV PATH=${PATH}:/home/seismo/.local/bin

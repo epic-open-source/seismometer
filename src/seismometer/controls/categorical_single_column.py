@@ -22,8 +22,8 @@ class OrdinalCategoricalSinglePlot:
     def __init__(
         self,
         metric_col: str,
-        plot_type="Likert Plot",
-        cohort_dict: Optional[dict[str, tuple]] = None,
+        plot_type: str = "Likert Plot",
+        cohort_dict: dict[str, tuple] = None,
         title: str = None,
     ):
         """
@@ -35,7 +35,7 @@ class OrdinalCategoricalSinglePlot:
             The metric column to be plotted.
         plot_type : str, optional
             Type of plot to generate, by default "Likert Plot".
-        cohort_dict : Optional[dict[str, tuple]], optional
+        cohort_dict : dict[str, tuple]
             Dictionary defining the cohort filter, by default None.
         title : Optional[str], optional
             Title of the plot, by default None.
@@ -45,7 +45,6 @@ class OrdinalCategoricalSinglePlot:
         self.title = title
 
         sg = Seismogram()
-        cohort_dict = cohort_dict or sg.available_cohort_groups
         self.cohort_col = next(iter(cohort_dict))
         self.cohort_values = list(cohort_dict[self.cohort_col])
         self.dataframe = sg.dataframe[[self.cohort_col, self.metric_col]]
@@ -68,7 +67,7 @@ class OrdinalCategoricalSinglePlot:
         values = [value for value in values if not isna(value)]
         logger.warning(
             f"Metric values for metric {self.metric_col} are not provided. "
-            + f"Using values from the corresponding dataframe column: {self.values}."
+            + f"Using values from the corresponding dataframe column: {values}."
         )
         return values
 
@@ -140,14 +139,13 @@ class OrdinalCategoricalSinglePlot:
         """
         if self.plot_type not in self.plot_functions:
             raise ValueError(f"Unknown plot type: {self.plot_type}")
-        sg = Seismogram()
-        if len(self.dataframe) < sg.censor_threshold:
-            return template.render_censored_plot_message(sg.censor_threshold)
+        if len(self.dataframe) < self.censor_threshold:
+            return template.render_censored_plot_message(self.censor_threshold)
         svg = self.plot_functions[self.plot_type](self)
         return (
             template.render_title_with_image(self.title, svg)
             if svg is not None
-            else template.render_censored_plot_message(sg.censor_threshold)
+            else template.render_censored_plot_message(self.censor_threshold)
         )
 
 
