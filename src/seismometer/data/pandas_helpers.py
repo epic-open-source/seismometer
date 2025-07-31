@@ -308,7 +308,7 @@ def _merge_event_counts(
     """Creates a new column for each event in the right frame's event_label column,
     counting the number of times that event has occurred"""
     logger.debug(f"Merging event counts for {event_name} with columns {pks}.")
-  
+
     if l_ref == r_ref:
         raise ValueError(
             f"`l_ref` and `r_ref` must be different to avoid column collisions during merge (both are '{l_ref}')."
