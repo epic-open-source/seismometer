@@ -105,6 +105,15 @@ EXPECTED_VALUES = {
     ("NNT@0.333", "1-pred"): [3, 3, 4, 4],
     ("NNT@0.333", "1 and 0 preds"): [3, 3, 4, 5],
     ("NNT@0.333", "0 preds"): [3, 3, 3, 4.5, 6],
+    # F1 metric values for each scenario
+    ("F1", "base"): [0.0, 0.6667, 0.8, 0.8],
+    ("F1", "0-pred"): [0.0, 0.6667, 0.8, 0.6667],
+    # F0.5 metric values for each scenario
+    ("F0.5", "base"): [0.0, 0.8333, 0.7143, 0.7143],
+    ("F0.5", "0-pred"): [0.0, 0.8333, 0.7143, 0.5556],
+    # F2 metric values for each scenario
+    ("F2", "base"): [0.0, 0.5556, 0.9091, 0.9091],
+    ("F2", "0-pred"): [0.0, 0.5556, 0.9091, 0.8333], 
 }
 
 
@@ -175,6 +184,9 @@ class TestScenarios:
             "Specificity",
             "PPV",
             "NPV",
+            "F1",
+            "F0.5",
+            "F2",
             "LR+",
             "NNE",
             "NetBenefitScore",
