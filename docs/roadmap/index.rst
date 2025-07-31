@@ -7,11 +7,11 @@ Roadmap
 Contributions
 =============
 
-As an open-source project, we welcome community contributions to ``seismometer``. 
+As an open-source project, we welcome community contributions to ``seismometer``.
 Ultimately, we want this project to be a community-led effort to codify guidelines
-for ensuring the equitable and informed use of machine learning and AI tools in the 
-healthcare space. Contributions to this project can be as simple as fixing typos or 
-small bugs, or more complex contributions that, with the support and scrutiny of our 
+for ensuring the equitable and informed use of machine learning and AI tools in the
+healthcare space. Contributions to this project can be as simple as fixing typos or
+small bugs, or more complex contributions that, with the support and scrutiny of our
 development team, guide the overall direction of the project.
 
 .. seealso::
@@ -23,20 +23,20 @@ Use Cases
 Templates
 ---------
 
-As of ``v0.1.0``, ``seismometer`` supports evaluating model performance using standardized evaluation 
-criteria binary classifier models. We plan to add support in the near future for other types of 
-machine learning models, such as multiple classifier models. Similarly, we plan to add 
+As of ``v0.1.0``, ``seismometer`` supports evaluating model performance using standardized evaluation
+criteria binary classifier models. We plan to add support in the near future for other types of
+machine learning models, such as multiple classifier models. Similarly, we plan to add
 support for validating generative AI models. These enhancements will include changes to
 the underlying ``seismometer`` tooling, as well as adding new templates for validating
-generative models. 
+generative models.
 
 Workflows and Pre-Live Evaluation
 ---------------------------------
 
 As of ``v0.1.0``, ``seismometer`` has limited support for evaluating model performance pre-live.
-We are planning to add support for workflow simulation (e.g., estimating the number of 
-alerts that would be shown to end-users for a clinical model that predicts an adverse 
-event, or the amount of time saved per clinician for a generative model that drafts 
+We are planning to add support for workflow simulation (e.g., estimating the number of
+alerts that would be shown to end-users for a clinical model that predicts an adverse
+event, or the amount of time saved per clinician for a generative model that drafts
 messages to patients) based on particular thresholds. We will also add tools to identify
 thresholds for models based on pre-live data and operational goals. These tools are intended
 to help identify when a machine learning or artificial intelligence solutions will improve
@@ -45,8 +45,8 @@ current workflows and also improve efficiency when integrating models into a wor
 Comparing to Baselines
 ----------------------
 
-We plan to add support for comparing model performance to baseline statistics (e.g., statistics 
-from a model train or from model performance at a separate site). These are intended to verify 
+We plan to add support for comparing model performance to baseline statistics (e.g., statistics
+from a model train or from model performance at a separate site). These are intended to verify
 that the model feature or target drift are not adversely affecting the model's performance after
 it goes live.
 
@@ -56,14 +56,14 @@ Functional changes
 Visualizations
 --------------
 
-As ``seismometer`` grows, we will add support for new types of visualizations. Our initial focus 
-is to improve visualizations for interventions and outcomes stratified by sensitive groups, but 
+As ``seismometer`` grows, we will add support for new types of visualizations. Our initial focus
+is to improve visualizations for interventions and outcomes stratified by sensitive groups, but
 we plan to extend our model performance visualizations as well.
 
 Data Layer
 ----------
 
-As of ``v0.1.0``, ``seismometer`` supports reading data from `parquet` files, which contain data 
+As of ``v0.1.0``, ``seismometer`` supports reading data from `parquet` files, which contain data
 type information and performance improvements that standard CSV data does not have. We plan to add
 support for more file formats (alongside metadata files that will describe the data types) as well
 as support for reading data directly from a database (e.g., through an ODBC connection).
@@ -78,3 +78,14 @@ a major version bump.
 
 .. seealso::
     :ref:`release` for our Release Notes and any breaking changes.
+
+
+Technical Plans
+===============
+
+Some changes are known to have potential impact on using the package, such as changing supported python
+versions.  As these arise, issues will be created using the `label 'compatibility'`_ for ease of discovery. This
+is distinct from large functional enhancements using a `request for change process`_.
+
+.. _label 'compatibility': https://github.com/epic-open-source/seismometer/labels/compatibility
+.. _request for change process: https://github.com/epic-open-source/seismometer-rfcs

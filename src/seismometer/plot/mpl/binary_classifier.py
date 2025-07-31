@@ -151,7 +151,7 @@ def singleROC(
     lines.roc_plot(axis, fpr, tpr, label=modelLabel)
 
     if annotate:
-        lines.add_radial_score_labels(axis, fpr, tpr, thresholds, highlight=highlight)
+        lines._add_radial_score_labels(axis, fpr, tpr, thresholds, highlight=highlight)
     return axis.get_figure()
 
 
@@ -193,7 +193,7 @@ def recall_condition(
     lines.recall_condition_plot(axis, ppcr, recall, prevalence, show_reference)
 
     if annotate:
-        lines.add_radial_score_labels(axis, ppcr, recall, thresholds, highlight=highlight)
+        lines._add_radial_score_labels(axis, ppcr, recall, thresholds, highlight=highlight)
     return axis.get_figure()
 
 
@@ -303,25 +303,25 @@ def ppv_vs_sensitivity(
     thresholds : pd.Series
         The thresholds of the model, used for annotations.
     conf_interval : Optional['ValueWithCI'], optional
-        The confidence interval for the AUCPR, by default None.
+        The confidence interval for the AUPRC, by default None.
     highlight : Optional[list[Number]], optional
         A list of thresholds to highlight on the plot, by default None.
     axis : Optional[plt.Axes], optional
         The matplotlib axis to draw, by default None; creates a new figure.
     """
-    aucpr = f"AUCPR = {metrics.auc(sensitivity, ppv):0.2f}"
+    auprc = f"AUPRC = {metrics.auc(sensitivity, ppv):0.2f}"
 
     if conf_interval is not None:
-        aucpr = "AUCPR = %0.2f (%0.2f, %0.2f)" % (
+        auprc = "AUPRC = %0.2f (%0.2f, %0.2f)" % (
             metrics.auc(sensitivity, ppv),
             conf_interval.lower,
             conf_interval.upper,
         )
 
-    lines.ppv_sensitivity_curve(axis, sensitivity, ppv, label=aucpr)
+    lines.ppv_sensitivity_curve(axis, sensitivity, ppv, label=auprc)
 
     if highlight is not None:
-        lines.add_radial_score_thresholds(axis, sensitivity, ppv, thresholds, thresholds=highlight, Q=4)
+        lines._add_radial_score_thresholds(axis, sensitivity, ppv, thresholds, thresholds=highlight, Q=4)
     return axis.get_figure()
 
 
@@ -414,6 +414,7 @@ def plot_metric_list(
         The table of performance metrics with the index being threshold percentiles.
     metrics : list[str]
         The performance metrics to plot, must be columns in the stats dataframe.
+
     Returns
     -------
     plt.Figure

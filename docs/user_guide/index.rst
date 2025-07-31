@@ -213,6 +213,91 @@ the true positives without identifying too many of the true negatives.
 .. image:: media/predicted_count.png
    :width: 3.5in
 
+Analytics Table
+~~~~~~~~~~~~~~~
+
+Provides a table of performance statistics to compare performance across
+multiple models/scores and targets centered around two values selected
+for a specific monotonic (with respect to Threshold) performance metric.
+
+The Analytics Table is customizable, allowing users to select the metrics
+and values that are most relevant to their analysis. Users can easily
+switch between different metrics and adjust the metric values (essentially
+change threshold by other means) to see how performance statistics change.
+This flexibility makes it a useful tool for model evaluation and comparison.
+
+*Metric:*
+
+The table provides performance statistics for specified values
+(two values that users can specify) of metric. This could be one of 
+Sensitivity, Specificity, Flag Rate, or Threshold. Users can select the
+metric that best suits their analysis needs, allowing for a focused
+comparison of model performance based on the chosen criteria.
+
+*Generated Statistics:*
+
+The table provides a combination of overall (e.g., Prevalence and AUROC)
+and threshold specific (e.g., Sensitivity, Flag Rate, Specificity, etc.)
+performance statistics. These statistics offer a comprehensive view of
+model performance, highlighting both general trends and specific behaviors
+at the selected metric values. This dual perspective enables users to make
+informed decisions about model effectiveness and areas for improvement.
+
+*Example:* 
+
+Consider a scenario where you want to evaluate the performance of different
+models based on the Sensitivity metric at two specific values, 0.7 and 0.8.
+The following table is generated to compare the performance statistics:
+
+.. image:: media/analytics_table.png
+   :width: 7in
+
+In this example, the table displays various performance statistics such as
+Sensitivity, Specificity, Flag Rate, and Threshold for the specified values.
+By adjusting these values, users can observe how the performance metrics
+change, providing valuable insights into the strengths and weaknesses of
+each model. This allows for a more informed decision-making process when
+selecting the best model for a given task.
+
+Categorical Feedback
+~~~~~~~~~~~~~~~~~~~~
+
+This section presents Likert plots, which are stacked horizontal bar charts, to 
+explore and compare various categorical columns. While these plots support any
+categorical data with less or equal to 11 categories, they are primarily
+designed for those related to categorical feedback. Likert plots are a powerful
+visualization tool for understanding the distribution of responses across different
+categories, making them ideal for analyzing feedback data.
+
+The ``ExploreOrdinalMetrics`` tool facilitates the comparison of the distribution 
+of different feedback columns for a specific cohort. This tool allows you to 
+visualize how feedback varies across different categories, helping to identify 
+patterns and trends in the data. For example, you can see if certain feedback 
+categories are more prevalent for specific readmission risk levels.
+
+Furthermore, the ``ExploreCohortOrdinalMetrics`` tool enables the exploration of 
+the distribution of a specific feedback question (categorical column) across a 
+cohort attribute (e.g., ``Age``). This tool is particularly useful for understanding 
+how feedback varies across different demographic groups. For instance, you can 
+analyze how feedback on clarity differs among age groups, providing insights into 
+whether certain age groups find the data more or less clear.
+
+Using these tools provides a comprehensive understanding of the feedback 
+data, helps identify areas for improvement, and enables the user to make 
+informed decisions. The included visualizations make it easy to compare,
+interpret, and share data.
+
+.. image:: media/likert_plot.png
+   :alt: A Likert plot showing categorical feedback
+   :width: 7in
+
+In this example, we have a column indicating the likelihood of readmission risk 
+(``'low risk', 'neutral', 'high risk'``). Additionally, you have several categorical 
+columns corresponding to feedback (``'Very Poor', 'Poor', 'Neutral', 'Good', 
+'Excellent'``) about clarity, impact, effectiveness, and overall satisfaction. These 
+feedback columns provide valuable insights into how users perceive different aspects 
+of the data.
+
 Fairness Audit
 --------------
 
@@ -226,7 +311,7 @@ on a predetermined set while remaining aware of the others.
 
 This audit should be used by experts with a deep understanding of the
 model and the context in which the predictions are used. Even when a
-metric is flagged as a deviation in the fairness audit, the context 
+metric is flagged as a deviation in the fairness audit, the context
 might explain or even predict the difference. Like many
 concepts, a single parity concept can have several different names;
 notably, parity of true positive rate is equal opportunity, parity of
@@ -238,7 +323,7 @@ for each cohort attribute. The majority group is the
 baseline and a statistic for all observations in the other groups is
 compared. A fairness threshold such as 25% is then used to classify the
 ratio of each group to the reference. The metric of interest is calculated on the default
-group and the cohort under comparison. The resulting ratio (comparison/default) is then 
+group and the cohort under comparison. The resulting ratio (comparison/default) is then
 compared against the allowed bounds determined by the fairness threshold.
 The bound determined by 1 + threshold above, and 1 / (1 + threshold) below,
 so that a fairness threshold of 0.25 sets the upper bound at 1.25 times larger,
@@ -253,7 +338,7 @@ A fairness threshold of 0.25 is used as the example and default in the analysis 
 The visualization is a table showing the overall metrics, and icons
 indicating default, within bounds, or out of bounds. Note that comparison
 across columns is not always exact due to potential differences in the
-included observations from missing information. 
+included observations from missing information.
 
 .. image:: media/fairness_table_binary_classifier.png
    :alt: A table of metrics showing variation across cohort subgroups
@@ -306,6 +391,95 @@ taken based on the outputs across the cohort groups.
    :alt: A graph with colorful rectangular bars Description
       automatically generated with medium confidence
    :width: 5in
+
+Cohort Selection Behavior
+==========================
+
+When no cohort values are selected (i.e., an empty cohort dictionary ``{}``), 
+``seismometer`` generally includes all rows by default, even those where the 
+cohort attribute is ``NaN``. However, there are intentional exceptions to this 
+behavior: the Fairness Table, ``show_cohort_summaries``, and cohort summaries 
+focused on a specific cohort attribute (e.g., ``Age``). These tools always exclude 
+rows with missing cohort values to focus analysis on well-represented groups.
+
+This behavior resembles the distinction between ``count(*)`` and ``count(Age)`` 
+in SQL: the former includes all rows regardless of missing values, while the 
+latter excludes rows where ``Age`` is null. Similarly, applying a cohort filter 
+places the analysis in the context of a specific cohort attribute, and rows with 
+missing or censored values in that column are excluded. In contrast, using an 
+empty cohort dictionary (``{}``) is considered outside that context, and all 
+rows are retained. The exceptions mentioned earlier occur in tools that 
+explicitly evaluate data within the context of a cohort attribute and therefore 
+apply stricter filtering.
+
+Example:
+
+Assume your data includes a categorical column ``age`` with values:
+
+``['[0-10)', '[10-20)', '[20-50)', '[50-70)', '70+']``
+
+And the cohort is defined as:
+
+.. code-block:: yaml
+
+   cohorts:
+     - source: age
+       display_name: Age
+
+``seismometer`` will create a new column ``Age``. During preprocessing, if any 
+values (e.g., ``'[0-10)'``) occur fewer than ``censor_min_count`` times, they 
+are removed from the list of valid categories and replaced with ``NaN`` in the 
+``Age`` column.
+
+This results in two distinct filtering behaviors:
+
+1. Filtering with all available categories selected 
+   (i.e., ``sg.available_cohort_groups``):  
+   Only rows where ``Age`` is one of the common categories 
+   (e.g., ``['[10-20)', '[20-50)', '[50-70)', '70+']``) are included.  
+   All rows where ``Age`` is ``NaN`` (such as those with rare ``[0-10)`` values) are 
+   excluded.
+
+2. Filtering with ``{}`` (an empty cohort dictionary):  
+   Generally, ``seismometer`` retains all rows, including those with ``Age`` as 
+   ``NaN``. However, in the Fairness Table, ``show_cohort_summaries``, and similar 
+   cohort summaries, this behavior is overridden and rows with missing cohort values 
+   are excluded, even under empty selection.
+
+This behavior ensures that full data is available for general analysis, while key 
+tools maintain statistical clarity by excluding underrepresented groups.
+
+Score Aggregation Behavior
+--------------------------
+
+When generating one row per context -- for example, by selecting the maximum 
+score -- ``seismometer`` applies cohort filtering *before* aggregation. 
+This means that the system first restricts the data to 
+only the rows that satisfy the cohort filter, and then selects one row per 
+context from that subset.
+
+This ordering differs from an alternative approach where aggregation would be 
+performed first and cohort filtering applied to the aggregated rows. The 
+ordering affects which contexts are included in the final result.
+
+Example:
+
+A context has two rows:
+- Row A: ``Age = '[0-10)'``, ``score = 0.9``
+- Row B: ``Age = '[10-20)'``, ``score = 0.95``
+
+With a cohort filter ``{"Age": "[0-10)"}``:
+
+- In the filter-then-aggregate approach (used by ``seismometer``):
+  - Only Row A is retained before aggregation.
+  - The context is included, and Row A is selected as the result.
+
+- In the aggregate-then-filter approach:
+  - Row B is selected first (e.g., as the max score).
+  - Since Row B does not satisfy the filter, the context is excluded.
+
+In other words, ``seismometer`` keeps a context if at least one of its rows 
+satisfies the cohort filter.
 
 Customizing the Notebook
 ========================
@@ -495,19 +669,16 @@ Then, follow the pattern of normal startup but specify your function in the :py:
 
 .. code-block:: python
 
-   from seismometer.configuration import ConfigProvider
-   from seismometer.data.loader import loader_factory
-   from seismometer.seismogram import Seismogram
-   import seismometer._api as sm
+   import seismometer as sm
 
-   def custom_post_load_fn(config: ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
+   def custom_post_load_fn(config: sm.ConfigProvider, df: pd.DataFrame) -> pd.DataFrame:
       df["SameAB"] = df["A"] == df["B"]
       return df
 
    def my_startup(config_path="."):
-      config = ConfigProvider(config_path)
+      config = sm.ConfigProvider(config_path)
       loader = loader_factory(config, post_load_fn=custom_post_load_fn)
-      sg = Seismogram(config, loader)
+      sg = sm.Seismogram(config, loader)
       sg.load_data()
 
 The benefit of this approach over manipulating the frame later is that the Seismogram can be considered frozen.
@@ -538,7 +709,7 @@ The following example shows how to create the visualization above.
    import matplotlib.pyplot as plt
 
    # Control allowing users to specify a score, target, threshold, and cohort.
-   from seismometer.controls.explore import ExplorationModelSubgroupEvaluationWidget
+   from seismometer.api.explore import ExplorationModelSubgroupEvaluationWidget
    # Converts matplotlib figure to SVG for display within the control's output
    from seismometer.plot.mpl.decorators import render_as_svg
    # Filter our data based on a specified cohort

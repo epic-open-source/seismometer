@@ -114,6 +114,7 @@ def get_cohort_performance_data(
         If None, will create a dichotomy for numeric values split at the mean.
     censor_threshold : int, default=10
         Minimum number of observations in a cohort to calculate performance metrics.
+
     Returns
     -------
     pd.DataFrame

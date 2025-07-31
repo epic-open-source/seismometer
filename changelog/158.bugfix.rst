@@ -1,0 +1,1 @@
+Fix warning message for missing times to display count instead of bool.

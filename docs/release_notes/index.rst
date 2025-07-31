@@ -9,6 +9,72 @@ Breaking changes may occur between minor versions prior to the v1 release; after
 
 .. towncrier release notes start
 
+0.4.0
+-----
+
+Features
+~~~~~~~~
+
+- Implements ``ExploreAnalyticsTable`` to compare model performance across multiple model scores/targets. (`#62 <https://github.com/epic-open-source/seismometer/issues/62>`__)
+- Implements ``ExploreOrdinalMetrics`` and ``ExploreCohortOrdinalMetrics`` to analyze feedback/categorical data. (`#98 <https://github.com/epic-open-source/seismometer/issues/98>`__)
+- Adds cohort selection to analytics table options. (`#131 <https://github.com/epic-open-source/seismometer/issues/131>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Initialize Seismogram values to prevent ``AttributeErrors`` like ``available_cohort_group``. (`#120 <https://github.com/epic-open-source/seismometer/issues/120>`__)
+- Fix a scaling issue causing annotations to be misplaced on the ROC plot of the evaluation 2x3. (`#124 <https://github.com/epic-open-source/seismometer/issues/124>`__)
+- Fix an issue with reading parquet files without ``Pandas`` metadata (e.g., those created by ``Polars``). (`#134 <https://github.com/epic-open-source/seismometer/issues/134>`__)
+- Make number of positives consistent when scores are combined in ``ExploreModelEvaluation`` and ``show_cohort_summaries``. (`#138 <https://github.com/epic-open-source/seismometer/issues/138>`__)
+- Improve performance of combining scores. (`#138 <https://github.com/epic-open-source/seismometer/issues/138>`__)
+- Updating ``cohort_list_details`` to only add data corresponding to ``context_id`` if it is not ``None``. (`#138 <https://github.com/epic-open-source/seismometer/issues/138>`__)
+- Fixed a bug in ``generate_analytics_data`` where ``per_context=True`` caused data contamination across iterations due to in-place modification of the input DataFrame. (`#147 <https://github.com/epic-open-source/seismometer/issues/147>`__)
+- Limit ``pyarrow`` version to ``>14.0.0,<20.0.0`` as ``use_legacy_dataset`` keyword is removed in later versions. (`#150 <https://github.com/epic-open-source/seismometer/issues/150>`__)
+- Aligned empty filter dictionary handling across ``ExploreAnalyticsTable`` and ``ExploreModelEvaluation``. (`#151 <https://github.com/epic-open-source/seismometer/issues/151>`__)
+- Improve threshold precision handling and formatting in analytics tables and slider widgets for more accurate AUC computation. (`#153 <https://github.com/epic-open-source/seismometer/issues/153>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Updated ``integration_guide/index.rst`` to add a table documenting examples from the Seismometer Community of open source tools that are compatible/integrated with Seismometer. (`#74 <https://github.com/epic-open-source/seismometer/issues/74>`__)
+
+
+Misc
+~~~~
+
+- `#152 <https://github.com/epic-open-source/seismometer/issues/152>`__, `#155 <https://github.com/epic-open-source/seismometer/issues/155>`__
+
+
+0.3.0
+------
+
+Features
+~~~~~~~~
+
+- Addresses #77 by removing Aequitas and replacing with a great_tables based fairness audit. (`#77 <https://github.com/epic-open-source/seismometer/issues/77>`__)
+- Added ExploreBinaryModelMetrics to see plots of individual metrics, including number needed to treat. (`#86 <https://github.com/epic-open-source/seismometer/issues/86>`__)
+- Reorganize methods making initial import and public api more standard (`#102 <https://github.com/epic-open-source/seismometer/issues/102>`__)
+- Includes confusion matrix rates into Binary Fairness metrics (`#108 <https://github.com/epic-open-source/seismometer/issues/108>`__)
+- Renames `Flagged` to `Flag Rate` for clarity (`#108 <https://github.com/epic-open-source/seismometer/issues/108>`__)
+- Add function to load example datasets (`#113 <https://github.com/epic-open-source/seismometer/issues/113>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Remove remaining references to -1 'invalidation'; validate directly on time comparison when needed (`#100 <https://github.com/epic-open-source/seismometer/issues/100>`__)
+- Fixes scaling issue for binary classfier scores that use the range 0-100 rather than 0-1. (`#101 <https://github.com/epic-open-source/seismometer/issues/101>`__)
+- Fixes a few minor ux issues. (`#109 <https://github.com/epic-open-source/seismometer/issues/109>`__)
+
+  - Disable dropdowns with only one valid option.
+  - Fix the Sensitivity/Specificity/PPV plot to move the label to the lower right.
+  - Fix the Legend in the new Fairness Audit table to improve readability.
+  - Add right border to the count column.
+- Remove NotebookHost class that was no longer in use. (`#114 <https://github.com/epic-open-source/seismometer/issues/114>`__)
+
+
 0.2.2
 -----
 

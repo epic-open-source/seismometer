@@ -136,6 +136,8 @@ class TestEvent:
     expectation = {
         "source": ["source"],
         "display_name": "source",
+        "type": "binary classification",
+        "group_keys": "group_undefined",
         "window_hr": None,
         "offset_hr": 0,
         "impute_val": None,

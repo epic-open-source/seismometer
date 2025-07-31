@@ -12,13 +12,13 @@ Vendor Specific Resources
 Your model developer or health IT vendor might provide guidance on how to extract data from your system for use in ``seismometer``. The following table provides links to vendor specific integration instructions. Note that some links might only be accessible if you are licensed with the 
 associated vendor.
 
-+----------------------------+-----------------------------------------------+
-| Vendor                     | Integration instructions                      |
-+============================+===============================================+
-| Epic                       | `Setup and Support Guide`_                    |
-+----------------------------+-----------------------------------------------+
++----------------------------+---------------------------------------------------------+
+| Vendor                     | Integration instructions                                |
++============================+=========================================================+
+| Epic                       | `AI Trust and Assurance Suite Setup and Support Guide`_ |
++----------------------------+---------------------------------------------------------+
 
-.. _Setup and Support Guide: https://galaxy.epic.com/Redirect.aspx?DocumentID=100277113        
+.. _AI Trust and Assurance Suite Setup and Support Guide: https://galaxy.epic.com/Redirect.aspx?DocumentID=100277113        
 
 Seismometer Community
 =====================
@@ -32,4 +32,4 @@ tools and links to relevant code/documentation.
 | APLUSML                    | A Python Library for Usefulness Simulations of ML Models | `Example notebook integrating seismometer`_ |
 +----------------------------+----------------------------------------------------------+---------------------------------------------+
 
-.. _Example notebook integrating seismometer: https://github.com/som-shahlab/aplusml/blob/seismometer_integration/tutorials/synthetic_pad_seismometer.ipynb
+.. _Example notebook integrating seismometer: https://github.com/som-shahlab/aplusml/blob/main/tutorials/synthetic_pad_seismometer.ipynb

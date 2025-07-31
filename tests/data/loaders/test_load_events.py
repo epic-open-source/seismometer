@@ -5,6 +5,8 @@ from unittest.mock import Mock
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 import seismometer.data.loader.event as undertest
@@ -60,7 +62,7 @@ def event_frame(rename=False):
 
 # endregion
 # region File-type setup functions
-def parquet_setup():
+def pandas_parquet_setup():
     # Expects current directory to have been modified by the testcase,
     # such as using tmp_as_current
     file = Path("events.parquet")
@@ -71,8 +73,23 @@ def parquet_setup():
     return fake_config(file)
 
 
+def non_pandas_parquet_setup():
+    file = Path("predictions.parquet")
+
+    data = event_frame()
+    # remove the pandas metadata in the parquet file to simulate the data
+    # coming from a different parquet source (e.g. polars)
+    table = pa.Table.from_pandas(data).replace_schema_metadata({})
+
+    pq.write_table(table, file)
+    return fake_config(file)
+
+
 # region Tests
-@pytest.mark.parametrize("setup_fn,load_fn", [[parquet_setup, undertest.parquet_loader]])
+@pytest.mark.parametrize(
+    "setup_fn,load_fn",
+    [[pandas_parquet_setup, undertest.parquet_loader], [non_pandas_parquet_setup, undertest.parquet_loader]],
+)
 @pytest.mark.usefixtures("tmp_as_current")
 class TestPredictionLoad:
     def test_nofile_warns_and_returns_empty(self, setup_fn, load_fn, caplog):

@@ -1,10 +1,13 @@
 import json
 import logging
+from functools import lru_cache
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
+from seismometer.configuration.model import Metric
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -41,12 +44,12 @@ class Seismogram(object, metaclass=Singleton):
     predict_time: str
     """ The column name for evaluation timestamp. """
     output_list: list[str]
-    """ The list of columns representing model outputs."""
+    """ The list of columns representing model outputs. """
 
     def __init__(
         self,
-        config: ConfigProvider,
-        dataloader: SeismogramLoader,
+        config: ConfigProvider = None,
+        dataloader: SeismogramLoader = None,
     ):
         """
         Constructor for Seismogram, which can only be instantiated once.
@@ -61,13 +64,38 @@ class Seismogram(object, metaclass=Singleton):
             A loader instance for defining the data loading pipeline.
 
         """
+        if config is None or dataloader is None:
+            raise ValueError("Seismogram has not been initialized; requires Config and dataloader on initial call.")
+
+        self._initialize_attrs()
+
         self.config = config
         self.dataloader = dataloader
 
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
+        self.metrics: dict[str, Metric] = {}
+        self.metric_types: dict[str, list[str]] = {}
+        self.metric_groups: dict[str, list[str]] = {}
 
         self.copy_config_metadata()
+
+    def _initialize_attrs(self):
+        """
+        Initialize attributes
+        """
+        # _df_counts
+        self._start_time = None
+        self._end_time = None
+        self._prediction_count = 0
+        self._entity_count = 0
+        self._event_types_count = 0
+        self._cohort_attribute_count = 0
+        self._feature_counts = 0
+
+        # load data
+        self.available_cohort_groups = dict()
+        self.selected_cohort = (None, None)  # column, values
 
     def load_data(
         self, *, predictions: Optional[pd.DataFrame] = None, events: Optional[pd.DataFrame] = None, reset: bool = False
@@ -320,6 +348,9 @@ class Seismogram(object, metaclass=Singleton):
         self.output_list = self.config.output_list
         self.target_event = self.config.target
         self._cohorts = self.config.cohorts
+        self.metrics = self.config.metrics
+        self.metric_groups = self.config.metric_groups
+        self.metric_types = self.config.metric_types
 
     def _load_metadata(self):
         """
@@ -331,7 +362,7 @@ class Seismogram(object, metaclass=Singleton):
         try:
             self.thresholds: list[float] = self._metadata["thresholds"]
         except KeyError:
-            logger.warn("No thresholds set in metadata.json. Using [0.8, 0.5]")
+            logger.warning("No thresholds set in metadata.json. Using [0.8, 0.5]")
             self.thresholds = [0.8, 0.5]
 
         self.modelname: str = self._metadata.get("modelname", "UNDEFINED MODEL")
@@ -348,7 +379,7 @@ class Seismogram(object, metaclass=Singleton):
                 try:
                     new_col = resolve_cohorts(self.dataframe[cohort.source], cohort.splits)
                 except IndexError as exc:
-                    logger.warn(f"Failed to resolve cohort {disp_attr}: {exc}")
+                    logger.warning(f"Failed to resolve cohort {disp_attr}: {exc}")
                     continue
             else:
                 new_col = pd.Series(pd.Categorical(self.dataframe[cohort.source]))
@@ -372,5 +403,40 @@ class Seismogram(object, metaclass=Singleton):
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
+
+    def _is_binary_array(self, arr):
+        # Convert the input to a NumPy array if it isn't already
+        arr = np.asarray(arr)
+        # Check if all elements are either 0 or 1
+        return np.all((arr == 0) | (arr == 1))
+
+    def get_binary_targets(self):
+        return [
+            pdh.event_value(target_col)
+            for target_col in self.target_cols
+            if self._is_binary_array(self.dataframe[[pdh.event_value(target_col)]])
+        ]
+
+    @lru_cache(maxsize=None)
+    def get_ordinal_categorical_metrics(self, max_cat_size):
+        return [metric for metric in self.metrics if self._is_ordinal_categorical_metric(metric, max_cat_size)]
+
+    def _is_ordinal_categorical_metric(self, metric, max_cat_size):
+        if self.metrics[metric].type != "ordinal/categorical":
+            return False
+        limit_is_respected = self.dataframe[metric].nunique() <= max_cat_size
+        if not limit_is_respected:
+            logger.warning(
+                f"Dropping the ordinal/categorical metric {metric}, as it has more than {max_cat_size} categories."
+            )
+        return limit_is_respected
+
+    @lru_cache(maxsize=None)
+    def get_ordinal_categorical_groups(self, max_cat_size):
+        return [
+            group
+            for group in self.metric_groups
+            if any(self._is_ordinal_categorical_metric(metric, max_cat_size) for metric in self.metric_groups[group])
+        ]
 
     # endregion

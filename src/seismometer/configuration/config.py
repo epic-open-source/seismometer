@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from seismometer.core.io import load_yaml
 
-from .model import DataUsage, Event, EventDictionary, OtherInfo, PredictionDictionary
+from .model import DataUsage, Event, EventDictionary, Metric, OtherInfo, PredictionDictionary
 
 
 class ConfigProvider:
@@ -58,6 +58,9 @@ class ConfigProvider:
         self._output_notebook: str = ""
         self._event_defs: EventDictionary = None
         self._prediction_defs: PredictionDictionary = None
+        self._metrics: dict[str, Metric] = None
+        self._metric_groups: dict = None
+        self._metric_types: dict = None
 
         if definitions is not None:
             self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
@@ -65,6 +68,8 @@ class ConfigProvider:
 
         self._load_config_config(config_config)
         self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
+        self._load_output_as_metric()
+        self._load_metrics()
 
     def _load_config_config(self, config_config: str | Path) -> None:
         """
@@ -98,6 +103,41 @@ class ConfigProvider:
         self.config.info_dir = Path(info_dir) if info_dir is not None else Path(self.config.info_dir)
         self.config.data_dir = Path(data_dir) if data_dir is not None else Path(self.config.data_dir)
         self.set_output(output_path)
+
+    def _load_metrics(self):
+        """Load metrics data defined in configuration."""
+        self._metrics = {}
+        for metric in self.usage.metrics:
+            if metric.source in self._metrics:
+                logging.warning(
+                    f"{metric.source} is also the source for {self._metrics[metric.source].display_name}. "
+                    + "Skipping {metric.display_name}."
+                )
+                continue
+            self._metrics[metric.source] = metric
+        self._metric_groups = {}
+        self._metric_types = {}
+        for metric_source in self._metrics:
+            metric = self._metrics[metric_source]
+            group_keys = [metric.group_keys] if isinstance(metric.group_keys, str) else metric.group_keys
+            for group in group_keys:
+                self._metric_groups[group] = self._metric_groups.get(group, []) + [metric.source]
+            self._metric_types[metric.type] = self._metric_types.get(metric.type, []) + [metric.source]
+        for group in self._metric_groups:
+            self._metric_groups[group] = sorted(list(set(self._metric_groups[group])))
+        for metric_type in self._metric_types:
+            self._metric_types[metric_type] = sorted(list(set(self.metric_types[metric_type])))
+
+    def _load_output_as_metric(self):
+        # For backward compatibility, outputs are loaded as Metrics with metric type of "binary classification".
+        for output in self.output_list:
+            metric = Metric(
+                source=output,
+                display_name=output,
+                type="binary classification",
+                group_keys="binary classification scores",
+            )
+            self.usage.metrics.append(metric)
 
     # region Config
     @property
@@ -205,6 +245,21 @@ class ConfigProvider:
     def entity_keys(self) -> list:
         """List of entity and context ids."""
         return [k for k in [self.entity_id, self.context_id] if k is not None]
+
+    @property
+    def metrics(self) -> dict:
+        """Collection of metric objects to use during analysis."""
+        return self._metrics
+
+    @property
+    def metric_groups(self) -> dict:
+        """Collection of metrics that are members of each metric group."""
+        return self._metric_groups
+
+    @property
+    def metric_types(self) -> dict:
+        """Collection of the metric type associated with each metric."""
+        return self._metric_types
 
     # region EventTableMap
     @property
@@ -341,6 +396,7 @@ class ConfigProvider:
             + self.features
             + self.output_list
             + [c.source for c in self.cohorts]
+            + [m.source for m in self.metrics.values()]
         )
         return sorted(col_set)
 

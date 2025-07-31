@@ -3,6 +3,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.metrics import roc_auc_score
 
 import seismometer.data.performance as undertest
 from seismometer.data.confidence.calculations import ValueWithCI, _RocRegionResults
@@ -128,6 +129,7 @@ def ci_testcase0():
     return (stats, model.truth.values, model.output.values, roc, pr)
 
 
+@pytest.mark.parametrize("force", [True, False])
 class TestCalCi:
     @pytest.mark.parametrize(
         "key",
@@ -139,37 +141,45 @@ class TestCalCi:
             "interval",
         ],
     )
-    def test_calc_ci_maps_roc_values(self, key):
+    @pytest.mark.parametrize("input_percentages", [True, False])
+    def test_calc_ci_maps_roc_values(self, key, force, input_percentages):
         stats, truth, output, expected, _ = ci_testcase0()
-        actual = undertest.calculate_eval_ci(stats, truth, output)
+        if input_percentages:  # convert the input argument to percentages
+            output = output * 100
+
+        actual = undertest.calculate_eval_ci(stats, truth, output, force_percentages=force)
 
         # sklearn update 1.3.0 changed 0,0 threshold from 1+max to inf
         if key == "Threshold":
             assert actual["roc"][key][0] > 1
             actual["roc"][key][0] = np.inf
 
+        if force or input_percentages:  # expect 0-100 thresholds
+            expected["Threshold"] = [np.inf, 70, 60, 50, 40]
+
         for actual_val, expected_val in zip(actual["roc"][key], expected[key]):
             assert np.isclose(actual_val, expected_val).all()
 
-    def test_calc_ci_maps_pr(self):
+    def test_calc_ci_maps_pr(self, force):
         key = "interval"
         stats, truth, output, _, expected = ci_testcase0()
-        actual = undertest.calculate_eval_ci(stats, truth, output)
+
+        actual = undertest.calculate_eval_ci(stats, truth, output, force_percentages=force)
 
         for actual_val, expected_val in zip(actual["pr"][key], expected[key]):
             assert np.isclose(actual_val, expected_val).all()
 
     @pytest.mark.parametrize("conf_val", [0.99, 0.95, 0.90])
-    def test_calc_ci_returns_conf(self, conf_val):
+    def test_calc_ci_returns_conf(self, conf_val, force):
         stats, truth, output, _, _ = ci_testcase0()
-        actual = undertest.calculate_eval_ci(stats, truth, output, conf_val)
+        actual = undertest.calculate_eval_ci(stats, truth, output, conf_val, force_percentages=force)
         conf = actual["conf"]
         for plot in _SUPPORTED_PLOTS:
             assert "level" in conf[plot] and conf[plot]["level"] == conf_val
 
-    def test_no_truth_returns_conf(self):
+    def test_no_truth_returns_conf(self, force):
         stats, truth, output, _, _ = ci_testcase0()
-        actual = undertest.calculate_eval_ci(stats, None, output, 0.7)
+        actual = undertest.calculate_eval_ci(stats, None, output, 0.7, force_percentages=force)
 
         for plot in _SUPPORTED_PLOTS:
             assert "level" in actual[0][plot] and actual[0][plot]["level"] == 0.7
@@ -177,9 +187,9 @@ class TestCalCi:
         for i in [1, 2, 3]:
             assert actual[i] is None
 
-    def test_no_output_returns_conf(self):
+    def test_no_output_returns_conf(self, force):
         stats, truth, output, _, _ = ci_testcase0()
-        actual = undertest.calculate_eval_ci(stats, truth, None, 0.7)
+        actual = undertest.calculate_eval_ci(stats, truth, None, 0.7, force_percentages=force)
 
         for plot in _SUPPORTED_PLOTS:
             assert "level" in actual[0][plot] and actual[0][plot]["level"] == 0.7
@@ -211,7 +221,7 @@ class TestMetricGenerator:
     def test_generate_metrics_empty_dataframe(self):
         metric = undertest.MetricGenerator(["test_metric"], lambda data, names: {"test_metric": 1})
         assert metric.metric_names == ["test_metric"]
-        assert metric(pd.DataFrame()) == {"test_metric": np.NaN}
+        assert metric(pd.DataFrame()) == {"test_metric": np.nan}
 
     def test_generate_named_metrics(self):
         metric = undertest.MetricGenerator(["metric1", "metric2"], lambda data, names: {name: 1 for name in names})
@@ -237,8 +247,11 @@ class TestBinaryMetricGenerator:
     @mock.patch.object(
         undertest.BinaryClassifierMetricGenerator,
         "calculate_binary_stats",
-        return_value=pd.DataFrame.from_records(
-            [{"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4}], index=[20]
+        return_value=(
+            pd.DataFrame.from_records(
+                [{"Accuracy": 0.8, "Sensitivity": 0.7, "Specificity": 0.6, "PPV": 0.5, "NPV": 0.4}], index=[20]
+            ),
+            None,
         ),
     )
     def test_binary_metric_generation(self, mock_stats):
@@ -277,3 +290,60 @@ class TestBinaryMetricGenerator:
         )
 
         assert actual == expected
+
+    def test_binary_metric_generator_with_threshold_precision(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        y_true = np.array([1, 0])
+        y_prob = np.array([0.9, 0.2])
+        df = pd.DataFrame({"truth": y_true, "score": y_prob})
+
+        # Low precision: coarse thresholds
+        low_precision = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"], threshold_precision=0)[0]
+
+        # High precision: fine-grained thresholds
+        high_precision = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"], threshold_precision=2)[0]
+
+        assert len(high_precision) > len(low_precision)
+        assert "Accuracy" in high_precision.columns
+
+    def test_score_threshold_row_lookup(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        y_true = np.array([1, 0])
+        y_prob = np.array([0.55, 0.25])
+        df = pd.DataFrame({"truth": y_true, "score": y_prob})
+
+        stats, _ = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"])
+        assert 55 in stats.index  # score_threshold=0.55 → index 55
+
+    def test_overall_stats_include_auc_with_precision(self):
+        metrics = undertest.BinaryClassifierMetricGenerator()
+        y_true = np.array([1, 1, 0, 0])
+        y_prob = np.array([0.9, 0.7, 0.4, 0.1])
+        df = pd.DataFrame({"truth": y_true, "score": y_prob})
+
+        _, overall = metrics.calculate_binary_stats(df, "truth", "score", ["Accuracy"], threshold_precision=2)
+
+        assert "AUROC" in overall
+        assert 0.0 <= overall["AUROC"] <= 1.0
+        assert "AUPRC" in overall
+        assert 0.0 <= overall["AUPRC"] <= 1.0
+
+    def test_auc_precision_effect_on_larger_data(self):
+        rng = np.random.default_rng(42)
+        y_true = rng.integers(0, 2, size=1000)
+        y_prob = rng.uniform(0, 1, size=1000)
+
+        true_auc = roc_auc_score(y_true, y_prob)
+
+        # Coarse threshold grid
+        stats_coarse = undertest.calculate_bin_stats(y_true, y_prob, threshold_precision=0)
+        auc_coarse = undertest.auc(1 - stats_coarse["Specificity"], stats_coarse["Sensitivity"])
+
+        # Fine threshold grid
+        stats_fine = undertest.calculate_bin_stats(y_true, y_prob, threshold_precision=1)
+        auc_fine = undertest.auc(1 - stats_fine["Specificity"], stats_fine["Sensitivity"])
+
+        # Assertions
+        assert abs(auc_fine - true_auc) < abs(auc_coarse - true_auc)
+        assert abs(auc_fine - true_auc) < 0.001
+        assert abs(auc_coarse - true_auc) < 0.01

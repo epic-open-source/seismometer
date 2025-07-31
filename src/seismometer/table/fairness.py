@@ -210,7 +210,7 @@ def fairness_table(
         )
         cohort_ratios = cohort_data.div(cohort_data.loc[cohort_data[COUNT].idxmax()], axis=1)
 
-        cohort_icons = cohort_ratios.drop(COUNT, axis=1).applymap(
+        cohort_icons = cohort_ratios.drop(COUNT, axis=1).map(
             lambda ratio: FairnessIcons.get_fairness_icon(ratio, fairness_ratio)
         )
         cohort_icons[COUNT] = cohort_data[COUNT]
@@ -221,7 +221,7 @@ def fairness_table(
 
     fairness_data = pd.concat(fairness_groups)
     metric_data = pd.concat(metric_groups)
-    fairness_icons = pd.concat(icon_groups)
+    fairness_icons = pd.concat(icon_groups).astype(object)
 
     for cohort_column, cohort_class in metric_data.index:
         if metric_data.loc[(cohort_column, cohort_class), COUNT] < censor_threshold:
@@ -231,13 +231,13 @@ def fairness_table(
                 metric_data.loc[(cohort_column, cohort_class), metric] = np.nan
                 fairness_data.loc[(cohort_column, cohort_class), metric] = np.nan
 
-    fairness_icons[metric_list] = fairness_icons[metric_list].applymap(
+    fairness_icons[metric_list] = fairness_icons[metric_list].map(
         lambda x: x.value if x != FairnessIcons.UNKNOWN else "--"
     )
     fairness_icons[metric_list] = (
         fairness_icons[metric_list]
-        + metric_data[metric_list].applymap(lambda x: f"  {x:.2f}  " if not np.isnan(x) else "")
-        + fairness_data[metric_list].applymap(lambda x: f"  ({x-1:.2%})  " if (np.isfinite(x) and x != 1.0) else "")
+        + metric_data[metric_list].map(lambda x: f"  {x:.2f}  " if not np.isnan(x) else "")
+        + fairness_data[metric_list].map(lambda x: f"  ({x-1:.2%})  " if (np.isfinite(x) and x != 1.0) else "")
     )
 
     legend = FairnessIcons.get_fairness_legend(fairness_ratio, censor_threshold=censor_threshold)
@@ -265,6 +265,7 @@ def fairness_table(
     return HTML(table_html, layout=Layout(max_height="800px"))
 
 
+# endregion
 # region Fairness Table Wrapper
 
 
@@ -314,7 +315,8 @@ def binary_metrics_fairness_table(
             sg.dataframe,
             sg.entity_keys,
             score=score,
-            ref_event=sg.predict_time,
+            ref_time=sg.predict_time,
+            ref_event=target,
             aggregation_method=sg.event_aggregation_method(target),
         )
         if per_context
@@ -387,13 +389,15 @@ class FairnessOptionsWidget(Box, ValueWidget):
         Parameters
         ----------
         metric_names : tuple[str]
-            Metrics that can be evaluated for fairness
+            Metrics that can be evaluated for fairness.
         cohort_dict : dict[str, tuple[Any]]
             Dictionary of cohort groups.
         fairness_ratio : float, optional
-            Allowed difference by cohort, by default 0.2
-        model_options_widget : _type_, optional
-            Additional model options if needed, will appear before fairness options, by default None
+            Allowed difference by cohort, by default 0.2.
+        model_options_widget : Optional[widget], optional
+            Additional model options if needed, will appear before fairness options, by default None.
+        default_metrics : Optional[tuple[str]], optional
+            Default list of metrics to select initially for fairness evaluation, by default None.
         """
         self.model_options_widget = model_options_widget
         default_metrics = default_metrics or metric_names

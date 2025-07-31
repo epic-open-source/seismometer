@@ -497,8 +497,8 @@ class TestMergeWindowedEvent:
             pytest.param(
                 12,
                 -2,
-                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", "2024-02-02 12:00:00", None],
-                [0.0, 2, 2, 2, 0],
+                [None, "2024-02-02 12:00:00", "2024-02-02 12:00:00", None, None],
+                [0.0, 2, 2, 0, 0],
                 id="offset allow future for third event",
             ),
             pytest.param(
@@ -862,10 +862,11 @@ class TestMergeWindowedEvent:
 
     def test_merge_first(self):
         # Test merge_windowed_event with merge strategy equal to first
-        ids = [1, 2]
-        ctxs = [1, 2]
+        ids = [1, 2, 3]
+        ctxs = [1, 2, 3]
         event_name = "TestEvent"
         predtimes = [
+            "2023-12-31 14:00:00",
             "2024-01-01 01:00:00",
             "2024-02-02 10:00:00",
         ]
@@ -880,16 +881,27 @@ class TestMergeWindowedEvent:
                 "2024-01-01 11:00:00",
                 "2024-01-01 09:00:00",
                 "2024-01-01 08:00:00",
+                "2024-01-01 00:00:01",
+                "2024-01-01 01:00:00",
+                "2024-01-01 11:00:00",
+                "2024-01-01 09:00:00",
+                "2024-01-01 08:00:00",
                 "2024-12-01 00:00:00",
             ]
         )
         predictions = create_prediction_table(ids, ctxs, predtimes)
         events = create_event_table(
-            [1] * 10, [x for x in range(1, 11)], event_name, event_times=event_times, event_values=[1] * 10
+            [1] * 5 + [2] * 5 + [3] * 5,
+            [x for x in range(1, 16)],
+            event_name,
+            event_times=event_times,
+            event_values=[1] * 15,
         )
 
-        expected_vals = [1, 0]
-        expected_times = ["2024-01-01 00:00:01", pd.NA]
+        expected_vals = [1, 0, 0]
+        # For the second row, eventhough "2024-01-01 01:00:00" is a valid time, we first merge with "first" strategy
+        # which gives us "2024-01-01 00:00:01" and then filter it out as it is before the scoring time.
+        expected_times = ["2024-01-01 00:00:01", pd.NA, pd.NA]
         expected = create_pred_event_frame(event_name, expected_vals, expected_times)
 
         actual = undertest.merge_windowed_event(
@@ -907,15 +919,31 @@ class TestMergeWindowedEvent:
         actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
 
-    def test_merge_nearest(self):
-        # Test merge_windowed_event with merge strategy equal to first
+    @pytest.mark.parametrize(
+        "predtimes, expected_vals, expected_times, min_leadtime_hrs",
+        [
+            (["2024-01-02 01:00:00", "2024-01-01 10:00:00"], [0, 1], [pd.NA, "2024-01-01 11:00:00"], 0),
+            # Nearest Before: Prediction time is before the event time
+            (
+                ["2024-01-01 00:00:00", "2024-01-01 00:30:00"],  # Before the first event time
+                [1, 1],
+                ["2024-01-01 01:00:00", "2024-01-01 01:00:00"],
+                0,
+            ),
+            # Nearest After: Prediction time is after the event time
+            (
+                ["2024-01-01 12:30:00", "2024-01-01 12:45:00"],  # After the last event time within the window
+                [1, 1],
+                ["2024-01-01 11:00:00", "2024-01-01 12:00:00"],
+                -2,
+            ),
+        ],
+    )
+    def test_merge_nearest(self, predtimes, expected_vals, expected_times, min_leadtime_hrs):
+        # Test merge_windowed_event with merge strategy equal to nearest
         ids = [1, 2]
         ctxs = [1, 2]
         event_name = "TestEvent"
-        predtimes = [
-            "2024-01-02 01:00:00",
-            "2024-01-01 10:00:00",
-        ]
         event_times = pd.to_datetime(
             [
                 "2024-01-01 01:00:00",
@@ -935,8 +963,6 @@ class TestMergeWindowedEvent:
             [1] * 5 + [2] * 5, [x for x in range(1, 11)], event_name, event_times=event_times, event_values=[1] * 10
         )
 
-        expected_vals = [1, 1]
-        expected_times = ["2024-01-01 11:00:00", "2024-01-01 11:00:00"]
         expected = create_pred_event_frame(event_name, expected_vals, expected_times)
 
         actual = undertest.merge_windowed_event(
@@ -945,7 +971,7 @@ class TestMergeWindowedEvent:
             events,
             event_name,
             ["Id"],
-            min_leadtime_hrs=0,
+            min_leadtime_hrs=min_leadtime_hrs,
             window_hrs=12,
             merge_strategy="nearest",
         )
@@ -1226,7 +1252,7 @@ class TestMergeEventCounts:
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
         return
 
-    def test_merge_count_some_times_missing(self):
+    def test_merge_count_some_times_missing(self, caplog):
         # Test merge_windowed_event with merge strategy of "count" and some event times missing
         ids = [1, 2]
         ctxs = [1, 2]
@@ -1257,19 +1283,23 @@ class TestMergeEventCounts:
         expected_vals = [4, 3]  # Expect ID 1 to have value of 4 and ID 2 to have value of 3
         expected = pd.DataFrame({undertest.event_value_count("TestEvent", "1"): expected_vals})
 
-        actual = undertest.merge_windowed_event(
-            predictions,
-            "PredictTime",
-            events,
-            event_name,
-            ["Id"],
-            window_hrs=12,
-            min_leadtime_hrs=0,
-            merge_strategy="count",
-        )
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            actual = undertest.merge_windowed_event(
+                predictions,
+                "PredictTime",
+                events,
+                event_name,
+                ["Id"],
+                window_hrs=12,
+                min_leadtime_hrs=0,
+                merge_strategy="count",
+            )
 
         actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+        assert len(caplog.records) == 1
+        assert "Found 3 rows" in caplog.text
 
     def test_merge_count_all_times_missing(self):
         # Test merge_windowed_event with merge strategy of "count" all event times missing
