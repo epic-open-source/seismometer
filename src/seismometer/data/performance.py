@@ -387,7 +387,7 @@ def calculate_bin_stats(
 
 def f_beta(tps, fns, fps, beta):
     """Calculate f_beta from the confusion matrix"""
-   return (1+beta**2)* tps / ( (1+beta**2) * tps + (beta**2) * fns + fps ) 
+    return (1+beta**2)* tps / ( (1+beta**2) * tps + (beta**2) * fns + fps ) 
 
 @export
 def calculate_nnt(arr: np.ndarray, rho: Optional[Number | None] = None) -> np.ndarray:
