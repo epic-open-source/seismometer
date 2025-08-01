@@ -48,7 +48,7 @@ Metric Automation
 Metric automation can also be specified. A file with a name like
 ``metric-automation.yml`` (path specified in ``config.yml`` under ``other_info: automation_config:``)
 will contain information about a series of calls to run. Upon loading a seismograph, calling
-``sm.do_metric_exports()`` will perform an export of all specified metrics.
+``sm.export_automated_metrics()`` will perform an export of all specified metrics.
 
 Such a file looks like a list of plot functions and their arguments, i.e.
 

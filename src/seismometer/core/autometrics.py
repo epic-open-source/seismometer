@@ -461,10 +461,13 @@ def do_export(function_name: str, fn_settings: list | dict):
 
 
 @export
-def do_metric_exports() -> None:
+def export_automated_metrics() -> None:
     """This function does automated metric exporting for
     everything specified in Seismogram.
     """
+    from seismometer.data.otel import activate_exports
+
+    activate_exports()
     am = AutomationManager()
     for function_name in am._automation_info.keys():
         if not am.is_allowed_export_function(function_name):

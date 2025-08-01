@@ -134,7 +134,7 @@ OpenTelemetry output
 
    store_call_parameters
    initialize_otel_config
-   do_metric_exports
+   export_automated_metrics
 
 .. autoclass:: AutomationManager
    :members:

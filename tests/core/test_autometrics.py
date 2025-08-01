@@ -92,13 +92,13 @@ class TestAutometrics:
         assert results["baz"] == [11, 12, 13]
         assert results["qux"] == [14, 15, 16]
 
-    def test_do_metric_exports(self):
+    def test_export_automated_metrics(self):
         mock_am = MagicMock()
         mock_am._automation_info = {"foo": [1, 2, 3], "bar": {4: 5}}
         mock_am.is_allowed_export_function.return_value = True
         with patch("seismometer.core.autometrics.AutomationManager", return_value=mock_am):
             with patch("seismometer.core.autometrics.do_one_export") as mock_do_one_export:
-                autometrics.do_metric_exports()
+                autometrics.export_automated_metrics()
         print(mock_do_one_export.call_args_list)
         mock_do_one_export.assert_any_call("foo", 1)
         mock_do_one_export.assert_any_call("foo", 2)

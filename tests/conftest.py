@@ -50,6 +50,9 @@ def export_manager_mock():
             self.active = True
             self.meter_provider = Mock()
 
+        def activate_exports(self):
+            pass
+
     with patch("seismometer.data.otel.RealExportManager", ExportManagerMock):
         yield
 
