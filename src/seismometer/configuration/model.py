@@ -266,6 +266,12 @@ class FilterConfig(BaseModel):
                 )
 
         if self.action in ("include", "exclude"):
+            if self.count is not None:
+                logger.warning(
+                    f"Ignoring 'count={self.count}' for filter on '{self.source}' with action '{self.action}'; "
+                    "'count' is only valid when action='keep_top'."
+                )
+                self.count = None
             if self.values is None and self.range is None:
                 raise ValueError(
                     f"Filter with action '{self.action}' must specify at least one of 'values' or 'range'."
