@@ -99,6 +99,55 @@ class TestFilterRulesFiltering:
         assert FilterRule("T/F", "notna").mask(test_dataframe).equals(~test_dataframe["T/F"].isna())
         assert FilterRule("T/F", "notna").filter(test_dataframe).equals(test_dataframe[~test_dataframe["T/F"].isna()])
 
+    @pytest.mark.parametrize(
+        "k, expected_values",
+        [
+            (1, {"A"}),  # "A" appears 3 times
+            (2, {"A", "B"}),  # "B" appears 2 times
+        ],
+    )
+    def test_filter_base_rule_topk(self, k, expected_values):
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "C", "A", "B", "D"]})
+        FilterRule.MIN_ROWS = None
+        rule = FilterRule("Cat", "topk", k)
+        result = rule.filter(df)
+        assert set(result["Cat"].unique()) == expected_values
+
+    @pytest.mark.parametrize(
+        "k, excluded_values",
+        [
+            (1, {"A"}),
+            (2, {"A", "B"}),
+        ],
+    )
+    def test_filter_base_rule_nottopk(self, k, excluded_values):
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "C", "A", "B", "D"]})
+        FilterRule.MIN_ROWS = None
+        rule = FilterRule("Cat", "nottopk", k)
+        result = rule.filter(df)
+        assert not any(val in result["Cat"].unique() for val in excluded_values)
+
+    @pytest.mark.parametrize(
+        "data, k, expected_topk, expected_nottopk",
+        [
+            (["A", "A", "B", "B", "C", "D"], 1, {"A"}, {"B", "C", "D"}),
+            (["A", "A", "B", "B", "C", "D"], 2, {"A", "B"}, {"C", "D"}),
+            (["B", "B", "A", "A", "C", "D"], 2, {"A", "B"}, {"C", "D"}),  # ties, test alphabetical tie-breaking
+            (["C", "B", "A", "A", "B", "C"], 2, {"A", "B"}, {"C"}),  # same freq, resolve by label
+            (["X"] * 3 + ["Y"] * 3 + ["Z"] * 3 + ["W"], 2, {"X", "Y"}, {"Z", "W"}),
+            (["X"] * 3 + ["Y"] * 3 + ["Z"] * 3 + ["W"], 3, {"X", "Y", "Z"}, {"W"}),
+        ],
+    )
+    def test_filter_topk_and_nottopk_tie_handling(self, data, k, expected_topk, expected_nottopk):
+        df = pd.DataFrame({"cat": data})
+        FilterRule.MIN_ROWS = None
+
+        topk_result = FilterRule("cat", "topk", k).filter(df)
+        nottopk_result = FilterRule("cat", "nottopk", k).filter(df)
+
+        assert set(topk_result["cat"].unique()) == expected_topk
+        assert set(nottopk_result["cat"].unique()) == expected_nottopk
+
 
 class TestFilterRuleConstructors:
     @pytest.mark.parametrize(
@@ -113,6 +162,14 @@ class TestFilterRuleConstructors:
             (("NeedsNone", "isna", "a_string"), TypeError),
             ((None, "none", "a_string"), TypeError),
             (("ShouldBeNone", "all", None), TypeError),
+            (("Col", "topk", "not_an_int"), TypeError),
+            (("Col", "topk", 0), ValueError),
+            (("Col", "topk", -1), ValueError),
+            ((123, "topk", 3), TypeError),
+            (("Col", "nottopk", "bad"), TypeError),
+            (("Col", "nottopk", 0), ValueError),
+            (("Col", "nottopk", -5), ValueError),
+            ((123, "nottopk", 3), TypeError),
         ],
     )
     def test_filter_base_bad_relation(self, rule, exception):
@@ -145,6 +202,29 @@ class TestFilterRuleConstructors:
     def test_between_requires_bounds(self):
         with pytest.raises(ValueError):
             FilterRule.between("Col")
+
+    @pytest.mark.parametrize(
+        "count, class_default, expected_right, expected_cats",
+        [
+            (3, None, 3, ["A", "B", "C"]),  # Explicit count
+            (3, 5, 3, ["A", "B", "C"]),  # Explicit count with class default not None
+            (None, 2, 2, ["A", "B"]),  # No count → fallback to class default
+        ],
+    )
+    def test_from_filter_config_topk_behavior(self, monkeypatch, count, class_default, expected_right, expected_cats):
+        from seismometer.configuration.model import FilterConfig
+
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "B", "C", "D", "E", "C", "D", "E"]})
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        monkeypatch.setattr(FilterRule, "MAXIMUM_NUM_COHORTS", class_default)
+        config = FilterConfig(source="Cat", action="keep_top", count=count)
+        rule = FilterRule.from_filter_config(config)
+
+        assert rule.relation == "topk"
+        assert rule.right == expected_right
+
+        result = rule.filter(df)
+        assert sorted(result["Cat"].unique()) == expected_cats
 
 
 class TestFilterRuleCombinationLogic:
@@ -216,6 +296,8 @@ class TestFilterRuleCombinationLogic:
             (FilterRule("Val", "isin", [1, 2, 3]), ~FilterRule("Val", "notin", [1, 2, 3])),
             (FilterRule("Val", "notin", [1, 2, 3]), ~FilterRule("Val", "isin", [1, 2, 3])),
             (FilterRule("Val", "isna"), ~FilterRule("Val", "notna")),
+            (FilterRule("Cat", "topk", 2), ~FilterRule("Cat", "nottopk", 2)),
+            (FilterRule("Cat", "nottopk", 2), ~FilterRule("Cat", "topk", 2)),
             (FilterRule.all(), ~FilterRule.none()),
             (FilterRule.none(), ~FilterRule.all()),
         ],
@@ -286,6 +368,8 @@ class TestFilterRulesAsText:
             (FilterRule("Cat", "==", "A"), "FilterRule('Cat', '==', 'A')"),
             (FilterRule("Cat", "isin", ["A", "B"]), "FilterRule('Cat', 'isin', ['A', 'B'])"),
             (FilterRule("Cat", "notin", ["A", "B"]), "FilterRule('Cat', 'notin', ['A', 'B'])"),
+            (FilterRule("Cat", "topk", 3), "FilterRule('Cat', 'topk', 3)"),
+            (FilterRule("Cat", "nottopk", 2), "FilterRule('Cat', 'nottopk', 2)"),
         ],
     )
     def test_repr_binary(self, rule, expected):
@@ -299,6 +383,8 @@ class TestFilterRulesAsText:
             (FilterRule("Cat", "==", "A"), "Cat is A"),
             (FilterRule("Cat", "isin", ["A", "B"]), "Cat is in: A, B"),
             (FilterRule("Cat", "notin", ["A", "B"]), "Cat not in: A, B"),
+            (FilterRule("Cat", "topk", 3), "Cat in top 3 values"),
+            (FilterRule("Cat", "nottopk", 2), "Cat not in top 2 values"),
         ],
     )
     def test_str_binary(self, rule, expected):

@@ -355,3 +355,127 @@ class TestDataUsage:
         assert len(data_usage.cohorts) == 1
         data_usage.cohorts[0].source == "cohort1"
         data_usage.cohorts[0].display_name == "cohort1"
+
+    def test_filter_defaults_are_none(self):
+        filter_range = undertest.FilterRange()
+        assert filter_range.min is None
+        assert filter_range.max is None
+
+    def test_filter_can_set_bounds(self):
+        filter_range = undertest.FilterRange(min=10, max=100)
+        assert filter_range.min == 10
+        assert filter_range.max == 100
+
+
+class TestFilterConfig:
+    @pytest.mark.parametrize(
+        "action, values, range_, count, should_raise, expected_warning, expected_attributes",
+        [
+            # (action, values, range_, count, should_raise, expected_warning, expected_attributes)
+            ("keep_top", None, None, None, False, None, {}),
+            ("keep_top", None, None, 5, False, None, {"count": 5}),
+            ("keep_top", None, None, 0, True, None, {"count": 0}),
+            ("keep_top", ["A"], undertest.FilterRange(min=1), None, False, "ignores 'values' and 'range'", {}),
+            ("include", ["A", "B"], None, None, False, None, {"values": ["A", "B"]}),
+            (
+                "exclude",
+                None,
+                undertest.FilterRange(min=0, max=10),
+                None,
+                False,
+                None,
+                {"range": undertest.FilterRange(min=0, max=10)},
+            ),
+            ("include", None, None, None, True, None, {}),
+            ("exclude", None, None, None, True, None, {}),
+            (
+                "include",
+                ["A"],
+                undertest.FilterRange(min=0),
+                None,
+                False,
+                "both 'values' and 'range'",
+                {"values": ["A"]},
+            ),
+            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'", {}),
+            ("keep_top", ["A"], None, None, False, "ignores 'values' and 'range'", {}),
+            ("keep_top", None, undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'", {}),
+            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'", {}),
+            ("keep_top", None, None, 5, False, None, {"count": 5}),
+            ("keep_top", None, None, 0, True, None, {}),
+            ("keep_top", None, None, -1, True, None, {}),
+            ("include", ["A"], None, 10, False, "Ignoring 'count=10' for filter on 'some_col'", {"values": ["A"]}),
+        ],
+    )
+    def test_filter_validation_behavior(
+        self, caplog, action, values, range_, count, should_raise, expected_warning, expected_attributes
+    ):
+        kwargs = dict(source="some_col", action=action, values=values, range=range_, count=count)
+        if should_raise:
+            with pytest.raises(ValueError):
+                undertest.FilterConfig(**kwargs)
+        else:
+            with caplog.at_level("WARNING", logger="seismometer"):
+                f = undertest.FilterConfig(**kwargs)
+                assert f.action == action
+                assert f.source == "some_col"
+                assert f.values == expected_attributes.get("values")
+                assert f.range == expected_attributes.get("range")
+                assert f.count == expected_attributes.get("count")
+            if expected_warning:
+                assert expected_warning in caplog.text
+            else:
+                assert "WARNING" not in caplog.text
+
+    def test_from_filter_config_uses_count_when_provided(self):
+        from seismometer.data.filter import FilterRule
+
+        config = undertest.FilterConfig(source="col", action="keep_top", count=7)
+        rule = FilterRule.from_filter_config(config)
+        assert rule.relation == "topk"
+        assert rule.right == 7
+
+    def test_from_filter_config_uses_class_default(self, monkeypatch):
+        from seismometer.data import filter as filter_module
+        from seismometer.data.filter import FilterRule
+
+        monkeypatch.setattr(filter_module.FilterRule, "MAXIMUM_NUM_COHORTS", 42)
+
+        config = undertest.FilterConfig(source="col", action="keep_top")
+        rule = FilterRule.from_filter_config(config)
+
+        assert rule.right == 42
+
+    @pytest.mark.parametrize(
+        "values, range_, count, expected_action",
+        [
+            (["a", "b"], None, None, "include"),  # inferred include from values
+            (None, undertest.FilterRange(min=0), None, "include"),  # inferred include from range
+            (None, None, 2, "keep_top"),  # inferred keep_top from count
+        ],
+    )
+    def test_action_is_inferred_when_none(self, values, range_, count, expected_action):
+        config = undertest.FilterConfig(source="demo", values=values, range=range_, count=count)
+        assert config.action == expected_action
+
+    def test_action_is_required_if_all_other_fields_missing(self):
+        with pytest.raises(ValueError, match="must specify one of 'values', 'range', or 'count'"):
+            undertest.FilterConfig(source="demo")
+
+
+class TestCohortHierarchy:
+    def test_valid_hierarchy_is_accepted(self):
+        h = undertest.CohortHierarchy(name="Demo", column_order=["location", "department"])
+        assert h.name == "Demo"
+        assert h.column_order == ["location", "department"]
+
+    @pytest.mark.parametrize(
+        "column_order,expected_error",
+        [
+            (["only_one"], "'Invalid' is invalid: 'column_order' must contain at least two distinct column names."),
+            (["a", "b", "a"], "'Invalid' is invalid: 'column_order' contains duplicate columns."),
+        ],
+    )
+    def test_invalid_hierarchy_raises(self, column_order, expected_error):
+        with pytest.raises(ValueError, match=expected_error):
+            undertest.CohortHierarchy(name="Invalid", column_order=column_order)
