@@ -10,7 +10,7 @@ from seismometer.configuration import AggregationStrategies, ConfigProvider, Mer
 from seismometer.configuration.model import Metric
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
-from seismometer.data import resolve_cohorts
+from seismometer.data import resolve_cohorts, resolve_top_k_cohorts
 from seismometer.data.loader import SeismogramLoader
 from seismometer.report.alerting import AlertConfigProvider
 
@@ -380,6 +380,16 @@ class Seismogram(object, metaclass=Singleton):
                     new_col = resolve_cohorts(self.dataframe[cohort.source], cohort.splits)
                 except IndexError as exc:
                     logger.warning(f"Failed to resolve cohort {disp_attr}: {exc}")
+                    continue
+            elif cohort.top_k is not None:
+                try:
+                    new_col = resolve_top_k_cohorts(
+                        self.dataframe[cohort.source],
+                        top_k=cohort.top_k,
+                        other_value=cohort.other_value,
+                    )
+                except ValueError as exc:
+                    logger.warning(f"Failed to resolve top K cohorts {disp_attr}: {exc}")
                     continue
             else:
                 new_col = pd.Series(pd.Categorical(self.dataframe[cohort.source]))

@@ -191,6 +191,12 @@ class Cohort(BaseModel):
     splits: Optional[list[Any]] = []
     """ An optional list of 'inner edges' used to create a set of cohorts from a continuous attribute."""
 
+    top_k: Optional[int] = None
+    """If set, only the top K most common values will be selected; all others grouped into 'Other'."""
+
+    other_value: Union[float, str] = None
+    """Value to use for the 'Other' category when grouping less common values. Only used if top_k is set."""
+
     @field_validator("display_name")
     def default_display_name(cls, display_name: str, values: dict) -> str:
         """Ensures that display_name exists, setting it to the source name if not provided."""
