@@ -378,7 +378,7 @@ class FairnessOptionsWidget(Box, ValueWidget):
         self,
         metric_names: tuple[str],
         cohort_dict: dict[str, tuple[Any]],
-        fairness_ratio: float = 0.2,
+        fairness_ratio: float = 0.25,
         *,
         model_options_widget=None,
         default_metrics=None,
@@ -393,7 +393,7 @@ class FairnessOptionsWidget(Box, ValueWidget):
         cohort_dict : dict[str, tuple[Any]]
             Dictionary of cohort groups.
         fairness_ratio : float, optional
-            Allowed difference by cohort, by default 0.2.
+            Allowed difference by cohort, by default 0.25
         model_options_widget : Optional[widget], optional
             Additional model options if needed, will appear before fairness options, by default None.
         default_metrics : Optional[tuple[str]], optional
@@ -500,7 +500,7 @@ class ExplorationFairnessWidget(ExplorationWidget):
 
         super().__init__(
             title="Fairness Audit",
-            option_widget=FairnessOptionsWidget(metric_names, sg.available_cohort_groups, fairness_ratio=0.2),
+            option_widget=FairnessOptionsWidget(metric_names, sg.available_cohort_groups, fairness_ratio=0.25),
             plot_function=custom_metrics_fairness_table,
             initial_plot=False,
         )
@@ -545,7 +545,7 @@ class ExploreBinaryModelFairness(ExplorationWidget):
             option_widget=FairnessOptionsWidget(
                 metric_names,
                 sg.available_cohort_groups,
-                fairness_ratio=0.2,
+                fairness_ratio=0.25,
                 model_options_widget=model_options_widget,
                 default_metrics=["Accuracy", "Sensitivity", "Specificity", "PPV"],
             ),
