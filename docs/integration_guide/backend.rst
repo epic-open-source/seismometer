@@ -191,7 +191,6 @@ Here is an example script to run in any seismograph, which will read the metrics
 
   import seismometer as sm
   sm.run_startup(config_path='.') # load config
-  sm.activate_exports()
   sm.export_automated_metrics()
 
 In the future, we aim for a smoother CLI to do the same thing; for now, this short Python
