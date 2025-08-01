@@ -6,7 +6,7 @@ As OpenTelemetry has capabilities for exporting metrics from notebook runs,
 much information about metrics may be configured. There are two main places that
 metrics are configured:
 
-- The automation settings (likely in ``metric-automation/yml``)
+- The automation settings (likely in ``metric-automation.yml``)
 - The settings for which metrics to export (likely in ``usage-config.yml``).
 
 ===============================
