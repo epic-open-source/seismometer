@@ -271,6 +271,7 @@ class FilterConfig(BaseModel):
                     f"Filter with action '{self.action}' must specify at least one of 'values' or 'range'."
                 )
             if self.values is not None and self.range is not None:
+                self.range = None
                 logger.warning(
                     f"Filter on '{self.source}' with action '{self.action}' specifies both 'values' and 'range'; "
                     "'values' will be used and 'range' will be ignored."
@@ -282,6 +283,8 @@ class FilterConfig(BaseModel):
                     f"Filter with action '{self.action}' requires '{self.count}' to be a positive integer if provided."
                 )
             if self.values is not None or self.range is not None:
+                self.values = None
+                self.range = None
                 logger.warning(f"Filter on '{self.source}' with action 'keep_top' ignores 'values' and 'range'.")
 
         return self
