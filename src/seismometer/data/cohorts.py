@@ -227,7 +227,7 @@ def resolve_top_k_cohorts(series: SeriesOrArray, top_k: int, other_value: Any = 
     top_k : int
         The number of top cohorts to select.
     other_value : Any, optional
-        The value to use for the 'Other' category. (default: np.nan for numeric, None for categorical)
+        The value to use for the 'Other' category. (default: np.nan for numeric, "Other" otherwise)
 
     Returns
     -------
@@ -238,12 +238,8 @@ def resolve_top_k_cohorts(series: SeriesOrArray, top_k: int, other_value: Any = 
     if other_value is None:
         if pd.api.types.is_numeric_dtype(series):
             other_value = np.nan
-        elif pd.api.types.is_categorical_dtype(series):
-            other_value = None
-        elif pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
-            other_value = None
         else:
-            other_value = np.nan
+            other_value = "Other"
 
     # Get the value counts and select the top K values
     top_k_values = series.value_counts().nlargest(top_k).index
