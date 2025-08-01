@@ -13,12 +13,13 @@ metrics are configured:
 Individual Metric Configuration
 ===============================
 
-The ``otel_info:`` section in the usage config file contains information about
-what metrics we want to export from our plotting functions.
+The ``otel_metric_override:`` section in the usage config file contains information about
+what metrics we want to export from our plotting functions, in the ways that it differs
+from the edfaults gievn below:
 
 .. code-block:: yaml
 
-    otel_info:
+    otel_metric_override:
       Accuracy:
         output_metrics: true
         log_all: false
