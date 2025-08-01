@@ -92,7 +92,7 @@ Make an empty folder with the following files:
 
 .. code-block:: yaml
 
-  # otel-collector-config.yml
+  # otel-collector-config.yaml
   receivers:
     otlp:
       protocols:
