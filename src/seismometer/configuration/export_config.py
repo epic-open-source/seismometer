@@ -19,13 +19,13 @@ class ExportConfig:
         raw_config : dict
             The parsed YAML.
         """
-        if "log" not in raw_config:
+        if "otel_export" not in raw_config:
             self.otel_ports = self.otel_files = []
             self.otel_stdout = False
             self.hostname = ""
             return
 
-        log_config = raw_config["log"]
+        log_config = raw_config["otel_export"]
 
         self.otel_ports = self._parse_to_list(log_config, "ports")
         self.otel_files = self._parse_to_list(log_config, "files")

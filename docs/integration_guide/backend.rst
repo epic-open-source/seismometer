@@ -5,12 +5,12 @@ Metric Collection
 Seismometer is already configured to export metrics to the OpenTelemetry collector, from where metrics can be exported
 to backends (like Prometheus and Grafana).
 
-In the ``config.yml`` file, the ``log:`` section configures where metrics should go.
+In the ``config.yml`` file, the ``otel_export:`` section configures where metrics should go.
 
 .. code-block:: yaml
 
   # config.yml
-  log:
+  otel_export:
     stdout: true
     hostname: otel-collector
     ports: port1, port2, port3
@@ -141,7 +141,7 @@ Now when in your Docker container, seismometer will output metrics to
 the OpenTelemetry collector, which will send it eventually to Grafana --
 as long as you have the collector and backends running in the first place.
 
-Make sure your `config.yml`, in the `log:` section, has the following:
+Make sure your `config.yml`, in the `export_otel:` section, has the following:
 
 .. code-block:: yaml
 
