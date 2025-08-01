@@ -110,7 +110,7 @@ class RealExportManager:
         self.resource = Resource.create(attributes={SERVICE_NAME: "Seismometer"})
         self.meter_provider = MeterProvider(resource=self.resource, metric_readers=self.readers)
         set_meter_provider(self.meter_provider)
-        self.active = False  # by default!
+        self.active = True  # by default!
 
     def _can_connect_to_socket(self, host: str, port: int, timeout: float = 1.0, retries: int = 10) -> bool:
         """See if we can connect to host:port.
@@ -149,6 +149,10 @@ class RealExportManager:
 
     def activate_exports(self):
         """Revert to the default state of allowing metric emission."""
+        # added a hasattr check to see if the meter_provider was not set
+        if not hasattr(self, "meter_provider"):
+            logger.warning("Telemetry configuration not loaded! Cannot activate exports.")
+            return
         self.active = True
 
     def __del__(self):
