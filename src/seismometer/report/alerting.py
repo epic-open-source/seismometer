@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from seismometer.plot.mpl._ux import alert_colors
 
@@ -45,6 +45,10 @@ class ParsedAlert(BaseModel):
     name: str
     severity: str
     display_html: str
+    variable: Optional[str] = Field(default=None)
+    percentage: Optional[float] = Field(default=None)
+
+    model_config = {"extra": "allow"}
 
 
 class ParsedAlertList(BaseModel):

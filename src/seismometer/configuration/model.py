@@ -25,6 +25,8 @@ class OtherInfo(BaseModel):
     """ The location of the prediction dictionary. """
     usage_config: Optional[FileLike] = None
     """ The location of the usage configuration; used during run. """
+    automation_config: Optional[FileLike] = None
+    """ The location of the automation configuration; used during run if automated metric export is desired. """
 
     # The following specify where to find the data at notebook runtime
     data_dir: Optional[DirLike] = None

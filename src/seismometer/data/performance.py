@@ -59,7 +59,12 @@ class MetricGenerator:
         self.metric_fn = metric_fn
         self.default_metrics = default_metrics or metric_names
 
-    def __call__(self, dataframe: pd.DataFrame, metric_names: list[str] = None, **kwargs) -> dict[str, float]:
+    def __call__(
+        self,
+        dataframe: pd.DataFrame,
+        metric_names: list[str] = None,
+        **kwargs,
+    ) -> dict[str, float]:
         """
         Generate metrics from a dataframe.
 
@@ -192,6 +197,7 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
             .round(5)
             .set_index(THRESHOLD)
         )
+
         for name, percent in zip(COUNTS, PERCENTS):
             stats[percent] = stats[name] * 100.0 / len(dataframe)
 

@@ -357,6 +357,9 @@ class TestExploreModelEvaluation:
         assert "rendered" in result.data
 
 
+_mock_perf_df = pd.DataFrame({"metric": [1], "cohort": ["Group"], "Threshold": [0]})
+
+
 class TestExploreModelScoreComparison:
     @patch("seismometer.html.template.render_title_with_image", return_value=HTML("Mock Rendered"))
     @patch("seismometer.api.plots.plot.cohort_evaluation_vs_threshold", return_value="svg-obj")
@@ -383,7 +386,7 @@ class TestExploreModelScoreComparison:
         mock_from_dict.return_value = MagicMock()
         mock_filter.return_value = df  # initial filter from cohort
         mock_event_score.return_value = df  # per_context=False path
-        mock_perf_data.return_value = pd.DataFrame({"metric": [1]})
+        mock_perf_data.return_value = _mock_perf_df
 
         result = plot_model_score_comparison(
             cohort_dict={"Cohort": ("C1", "C2")},
@@ -426,7 +429,7 @@ class TestExploreModelTargetComparison:
         mock_from_dict.return_value = MagicMock()
         mock_filter.return_value = df  # .filter(dataframe) returns df
         mock_event_score.return_value = df
-        mock_perf_data.return_value = pd.DataFrame({"metric": [1]})
+        mock_perf_data.return_value = _mock_perf_df
 
         result = plot_model_target_comparison(
             cohort_dict={"Cohort": ("C1", "C2")},
@@ -456,10 +459,10 @@ class TestExploreCohortEvaluation:
     ):
         df = fake_seismo.dataframe.copy()
         mock_get_scores.return_value = df
-        mock_get_perf.return_value = pd.DataFrame()
+        mock_get_perf.return_value = _mock_perf_df
 
         result = _plot_cohort_evaluation(
-            dataframe=df,
+            dataframe=_mock_perf_df,
             entity_keys=["entity"],
             target="event1_Value",
             output="score1",
@@ -489,10 +492,10 @@ class TestExploreCohortEvaluation:
     ):
         df = fake_seismo.dataframe.copy()
         mock_get_scores.return_value = df
-        mock_get_perf.return_value = pd.DataFrame({"metric": [1]})
+        mock_get_perf.return_value = _mock_perf_df
 
         result = _plot_cohort_evaluation(
-            dataframe=df,
+            dataframe=_mock_perf_df,
             entity_keys=["entity"],
             target="event1_Value",
             output="score1",
@@ -500,6 +503,7 @@ class TestExploreCohortEvaluation:
             cohort_col="Cohort",
             subgroups=["C1"],
             censor_threshold=0,
+            threshold_col="Threshold",
         )
 
         assert isinstance(result, HTML)

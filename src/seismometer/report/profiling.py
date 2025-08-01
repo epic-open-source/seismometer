@@ -14,6 +14,7 @@ from seaborn.utils import relative_luminance
 
 import seismometer.report
 from seismometer.core.io import slugify
+from seismometer.data import metric_apis
 
 from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
 
@@ -140,6 +141,10 @@ class ComparisonReportWrapper(ReportWrapper):
         self._report = first_report.compare(second_report)
 
 
+# What features of an alert object correspond to which types of alerts.
+percentage_attributes = {"Imbalance": "imbalance", "Missing": "p_missing", "Zeros": "p_zeros"}
+
+
 class SingleReportWrapper(ReportWrapper):
     _parsed_alerts: ParsedAlertList
 
@@ -175,6 +180,12 @@ class SingleReportWrapper(ReportWrapper):
 
         super().__init__()
 
+        # Some tests mock out self._parse_alerts, which will give an error when
+        # self.parsed_alerts (a field, not a method!) is accessed below this if
+        # statement. So, even though it is theoretically always set, we will set
+        # it here anyway just in case.
+        self._parsed_alerts = ParsedAlertList(alerts=[])
+
         if not Path(self._html_path).is_file() or not Path(self._alert_path).is_file():
             logger.debug(f"Generating and saving report: {self._html_path}")
             self.generate_report()
@@ -188,6 +199,13 @@ class SingleReportWrapper(ReportWrapper):
 
             logger.debug(f"Existing alerts found on disk: {self._alert_path}")
             self._deserialize_alerts()
+
+        alert_types = list(set([alert.name.lower() for alert in self._parsed_alerts.alerts]))
+        self.recorder = metric_apis.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
+        for alert in self._parsed_alerts.alerts:
+            variable = alert.variable
+            percentage = alert.percentage
+            self.recorder.populate_metrics(attributes={"variable": variable}, metrics={alert.name.lower(): percentage})
 
     def generate_report(self) -> None:
         try:
@@ -235,9 +253,12 @@ class SingleReportWrapper(ReportWrapper):
                                 alert=alert
                             )
                         ),
+                        variable=getattr(alert, "column_name", "unknown"),
+                        percentage=alert.values.get(
+                            percentage_attributes.get(alert.alert_type_name, "unknown"), float("nan")
+                        ),
                     )
                 )
-
         self._parsed_alerts = ParsedAlertList(alerts=alerts)
         self._serialize_alerts()
 

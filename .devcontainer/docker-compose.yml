@@ -1,7 +1,6 @@
 version: "3.5"
 services:
   seismometer-dev:
-    network_mode: host
     build:
       context: image
       dockerfile: Dockerfile
@@ -22,3 +21,12 @@ services:
 
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
+
+    # For communication with a backend
+    # Uncomment THE REST OF THE FILE to use networking
+#     networks:
+#       - metricsnetwork
+
+# networks:
+#   metricsnetwork:
+#     external: true
