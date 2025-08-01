@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -183,6 +183,77 @@ def resolve_col_data(df: pd.DataFrame, feature: Union[str, pd.Series]) -> pd.Ser
 
 # endregion
 # region Labels
+
+
+@export
+def resolve_top_k_cohorts(series: SeriesOrArray, top_k: int, other_value: Any = None) -> pd.Series:
+    """
+    Extract the top K most frequent values from a series and replace all other values.
+
+    This function identifies the most common values in the input series based on their
+    frequency, keeps them unchanged, and replaces all less common values with the
+    specified 'other_value'. The result is returned as a categorical Pandas Series
+    with the top K values and the 'other_value' as categories.
+
+        The input data series containing values to be processed.
+        The number of most frequent values to preserve.
+        The value to use for replacing less frequent values.
+        If None, np.nan will be used (default).
+
+        A categorical Series with the same length as the input, where only
+        the top K most frequent values are preserved and all other values are
+        replaced with other_value.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> s = pd.Series(['A', 'B', 'A', 'C', 'B', 'D', 'A'])
+    >>> resolve_top_k_cohorts(s, top_k=2)
+    0       A
+    1       B
+    2       A
+    3    NaN
+    4       B
+    5    NaN
+    6       A
+    dtype: category
+    Categories (3, object): ['A', 'B', nan]
+
+    Parameters
+    ----------
+    series : SeriesOrArray
+        The input data series.
+    top_k : int
+        The number of top cohorts to select.
+    other_value : Any, optional
+        The value to use for the 'Other' category. (default: np.nan for numeric, None for categorical)
+
+    Returns
+    -------
+    pd.Series
+        A series with values not in the top K replaced with other_value.
+    """
+    # Choose appropriate default value based on series dtype
+    if other_value is None:
+        if pd.api.types.is_numeric_dtype(series):
+            other_value = np.nan
+        elif pd.api.types.is_categorical_dtype(series):
+            other_value = None
+        elif pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+            other_value = None
+        else:
+            other_value = np.nan
+
+    # Get the value counts and select the top K values
+    top_k_values = series.value_counts().nlargest(top_k).index
+
+    # Replace values not in top_k_values with other_value
+    resolved = series.where(series.isin(top_k_values), other_value)
+
+    # Optionally, make it a categorical series with top_k_values + [other_value] as categories
+    resolved = pd.Categorical(resolved, categories=list(top_k_values) + [other_value])
+    return pd.Series(resolved, name=series.name)
 
 
 @export

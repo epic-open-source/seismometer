@@ -219,27 +219,51 @@ class TestEvent:
 
 class TestCohort:
     def test_default_values(self):
-        expected = {"source": "source", "display_name": "source", "splits": []}
+        expected = {"source": "source", "display_name": "source", "splits": [], "top_k": None, "other_value": None}
         cohort = undertest.Cohort(source="source")
 
         assert expected == cohort.model_dump()
 
     def test_set_displayname(self):
-        expected = {"source": "source", "display_name": "display", "splits": []}
+        expected = {"source": "source", "display_name": "display", "splits": [], "top_k": None, "other_value": None}
         cohort = undertest.Cohort(source="source", display_name="display")
 
         assert expected == cohort.model_dump()
 
     def test_allows_splits(self):
         split_list = ["split1", "split2"]
-        expected = {"source": "source", "display_name": "source", "splits": split_list}
+        expected = {
+            "source": "source",
+            "display_name": "source",
+            "splits": split_list,
+            "top_k": None,
+            "other_value": None,
+        }
         cohort = undertest.Cohort(source="source", splits=split_list)
 
         assert expected == cohort.model_dump()
 
     def test_strips_other_keys(self):
-        expected = {"source": "source", "display_name": "source", "splits": []}
+        expected = {"source": "source", "display_name": "source", "splits": [], "top_k": None, "other_value": None}
         cohort = undertest.Cohort(source="source", other="other")
+
+        assert expected == cohort.model_dump()
+
+    def test_allows_other_string(self):
+        expected = {
+            "source": "source",
+            "display_name": "source",
+            "splits": [],
+            "top_k": 10,
+            "other_value": "SmallCounts",
+        }
+        cohort = undertest.Cohort(source="source", top_k=10, other_value="SmallCounts")
+
+        assert expected == cohort.model_dump()
+
+    def test_allows_other_number(self):
+        expected = {"source": "source", "display_name": "source", "splits": [], "top_k": 10, "other_value": 5}
+        cohort = undertest.Cohort(source="source", top_k=10, other_value=5)
 
         assert expected == cohort.model_dump()
 
