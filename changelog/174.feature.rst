@@ -1,0 +1,1 @@
+Add support for an other value in cohort configuration
