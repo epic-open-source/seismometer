@@ -152,6 +152,10 @@ class AutomationManager(object, metaclass=Singleton):
             from seismometer.api import plots
 
             return plots._autometric_plot_binary_classifier_metrics
+        if fn_name == "binary_metrics_fairness_table":
+            from seismometer.table import fairness
+
+            return fairness._autometric_plot_binary_classifier_metrics
         return automation_function_map[fn_name]["function"]
 
     def preview_automation(self):

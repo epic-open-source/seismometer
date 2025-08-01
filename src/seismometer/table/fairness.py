@@ -11,6 +11,7 @@ from ipywidgets import HTML, Box, FloatSlider, Layout, ValueWidget, VBox
 from seismometer.controls.explore import ExplorationWidget, ModelOptionsWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
+from seismometer.core.autometrics import store_call_parameters
 from seismometer.data import metric_apis
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
@@ -276,10 +277,37 @@ def fairness_table(
     return HTML(table_html, layout=Layout(max_height="800px"))
 
 
+def _autometric_plot_binary_classifier_metrics(
+    metric_generator: float,
+    metric_list: list[str],
+    cohort_dict: dict[str, tuple[Any]],
+    fairness_ratio: float,
+    target: str,
+    score: str,
+    threshold: float,
+    *,
+    per_context=False,
+):
+    """Serves only as a wrapper of plot_binary_classifier_metrics so that
+    we don't have to serialize a metric generator object.
+
+    Parameters
+    ----------
+    metric_generator: float between 0 and 1
+        Probability of a treatment being effective. This is named metric_generator
+        instead of rho because it is an internal method and having the object be
+        the same name as what it is replacing in the real method makes
+        serialization much easier.
+    """
+    bcmg = BinaryClassifierMetricGenerator(rho=metric_generator)
+    binary_metrics_fairness_table(
+        bcmg, metric_list, cohort_dict, fairness_ratio, target, score, threshold, per_context=per_context
+    )
+
+
 # endregion
 # region Fairness Table Wrapper
-
-
+@store_call_parameters(cohort_dict="cohort_dict")
 def binary_metrics_fairness_table(
     metric_generator: BinaryClassifierMetricGenerator,
     metric_list: list[str],
