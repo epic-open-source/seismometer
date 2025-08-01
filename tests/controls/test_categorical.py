@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
@@ -34,9 +34,16 @@ def get_test_config(tmp_path):
             group_keys="Group1",
             metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
         ),
+        "Metric3": Metric(
+            source="Metric3",
+            display_name="Metric3",
+            type="categorical_feedback",
+            group_keys="Group2",
+            metric_details=MetricDetails(values=["disagree", "neutral", "agree"]),
+        ),
     }
-    mock_config.metric_groups = {"Group1": ["Metric1", "Metric2"], "Group2": ["Metric1"]}
-    mock_config.metric_types = {"categorical_feedback": ["Metric1", "Metric2"]}
+    mock_config.metric_groups = {"Group1": ["Metric1", "Metric2"], "Group2": ["Metric1", "Metric3"]}
+    mock_config.metric_types = {"categorical_feedback": ["Metric1", "Metric2", "Metric3"]}
     mock_config.target = "event1"
     mock_config.entity_keys = ["entity"]
     mock_config.predict_time = "time"
@@ -72,6 +79,7 @@ def get_test_data():
             "Cohort": ["C1", "C2", "C1", "C3"],
             "Metric1": ["disagree", "neutral", "agree", "disagree"],
             "Metric2": ["agree", "neutral", "disagree", "agree"],
+            "Metric3": ["agree", "disagree", "disagree", "agree"],
             "score1": [0.1, 0.4, 0.35, 0.8],
             "score2": [0.2, 0.5, 0.3, 0.7],
             "target1": [0, 1, 0, 1],
@@ -132,7 +140,7 @@ class TestOrdinalCategoricalPlot:
     def test_extract_metric_values_inconsistent_raises(self, fake_seismo):
         fake_seismo.metrics["Metric1"].metric_details.values = ["disagree", "neutral", "agree"]
         fake_seismo.metrics["Metric2"].metric_details.values = ["low", "medium", "high"]
-        with pytest.raises(ValueError, match="Inconsistent metric values provided"):
+        with pytest.raises(ValueError, match="Ambiguous ordering: multiple values could be the next in sequence"):
             OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
 
     def test_extract_metric_values_too_many_categories_raises(self, fake_seismo):
@@ -156,6 +164,25 @@ class TestOrdinalCategoricalPlot:
 
         # Check equality of the two DataFrames
         pd.testing.assert_frame_equal(counts_df, expected_df)
+
+    def test_count_values_logs_missing_values(self, fake_seismo, caplog):
+        # Arrange
+        caplog.set_level("WARNING")
+
+        plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
+        plot.dataframe = sample_data()
+
+        # Add a value not present in any metric definitions
+        plot.values = ["disagree", "neutral", "agree", "strongly_agree"]
+
+        # Act
+        _ = plot._count_values_in_columns()
+
+        # Assert
+        assert any(
+            "The following metric values are missing from all the metrics: ['strongly_agree']" in msg
+            for msg in caplog.messages
+        )
 
     def test_plot_likert(self, fake_seismo):
         plot = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
@@ -213,3 +240,186 @@ class TestOrdinalCategoricalPlotFunction:
         cohort_dict = {"Cohort": ["C1"]}
         html = ordinal_categorical_plot(metrics, cohort_dict, title="Test Plot")
         assert isinstance(html, HTML)
+
+
+class TestMergeOrderedLists:
+    @pytest.mark.parametrize(
+        "metric_to_values,expected",
+        [
+            ({"m1": ["a", "b", "c"], "m2": ["a", "b"], "m3": ["b", "c"]}, ["a", "b", "c"]),
+            ({"m1": ["x", "y"], "m2": ["y", "z"]}, ["x", "y", "z"]),
+            ({"m1": ["1", "2", "3"], "m2": ["1", "2"], "m3": ["2", "3"]}, ["1", "2", "3"]),
+            ({"m1": ["dog", "cat"], "m2": ["cat", "mouse"]}, ["dog", "cat", "mouse"]),
+            ({"m1": ["a", "b"], "m2": ["b", "c"], "m3": ["a", "c"]}, ["a", "b", "c"]),
+            ({"m1": ["a"]}, ["a"]),
+            ({"m1": ["a"], "m2": ["a"]}, ["a"]),
+        ],
+    )
+    def test_merge_ordered_lists_success(self, metric_to_values, expected, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        result = plot._merge_ordered_lists(metric_to_values)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "metric_to_values, expected_message_substrings, expected_metric_substrings",
+        [
+            # Case 1: Ambiguous — branching from 'a' to both 'b' and 'c'
+            (
+                {"m1": ["a", "b"], "m2": ["a", "c"]},
+                ["Ambiguous ordering", " - b:", " - c:"],
+                ["m1", "m2"],
+            ),
+            # Case 2: 2-node cycle — a → b → a
+            (
+                {"m1": ["a", "b"], "m2": ["b", "a"]},
+                ["Cycle path:", "a → b", "b → a"],
+                ["m1", "m2"],
+            ),
+            # Case 3: 3-node cycle — m → n → o → m
+            (
+                {"m1": ["m", "n"], "m2": ["n", "o"], "m3": ["o", "m"]},
+                ["Cycle path:", "m → n", "n → o", "o → m"],
+                ["m1", "m2", "m3"],
+            ),
+            # Case 4: Ambiguous — disconnected components (1,2 and 3,4 are unrelated)
+            (
+                {"m1": ["1", "2"], "m2": ["3", "4"]},
+                ["Ambiguous ordering", " - 1:", " - 3:"],
+                ["m1", "m2"],
+            ),
+            # Case 5: Ambiguous — banana → cherry and banana → kiwi creates ambiguity
+            (
+                {
+                    "m1": ["apple", "banana"],
+                    "m2": ["banana", "cherry"],
+                    "m3": ["banana", "kiwi"],
+                },
+                ["Ambiguous ordering", " - cherry:", " - kiwi:"],
+                ["m2", "m3"],
+            ),
+        ],
+    )
+    def test_merge_ordered_lists_error_messages(
+        self,
+        metric_to_values,
+        expected_message_substrings,
+        expected_metric_substrings,
+        fake_seismo,
+    ):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        with pytest.raises(ValueError) as exc_info:
+            plot._merge_ordered_lists(metric_to_values)
+
+        error_msg = str(exc_info.value)
+
+        for substring in expected_message_substrings:
+            assert substring in error_msg, f"Expected '{substring}' in error message."
+
+        for metric in expected_metric_substrings:
+            assert metric in error_msg, f"Expected metric '{metric}' in error message."
+
+    def test_merge_failure_includes_metric_debug_info(self, fake_seismo):
+        # Provide conflicting metric value orders
+        fake_seismo.metrics["Metric1"].metric_details.values = ["a", "b"]
+        fake_seismo.metrics["Metric2"].metric_details.values = ["a", "c"]
+
+        with pytest.raises(ValueError) as exc_info:
+            _ = OrdinalCategoricalPlot(metrics=["Metric1", "Metric2"])
+
+        msg = str(exc_info.value)
+
+        # Assert original error message appears
+        assert "Ambiguous ordering" in msg
+
+        # Assert per-metric value debug info is included
+        assert "Metric1: ['a', 'b']" in msg
+        assert "Metric2: ['a', 'c']" in msg
+
+    @pytest.mark.parametrize(
+        "candidates, graph, metric_to_values, expected_handler",
+        [
+            # Case 1: triggers _report_cycle_error
+            (
+                [],
+                {"a": {"b"}, "b": {"a"}},  # cycle
+                {"m1": ["a", "b"], "m2": ["b", "a"]},
+                "_report_cycle_error",
+            ),
+            # Case 2: triggers _report_ambiguous_error
+            (
+                ["a", "b"],
+                {"a": set(), "b": set()},  # ambiguous: two sources
+                {"m1": ["a"], "m2": ["b"]},
+                "_report_ambiguous_error",
+            ),
+        ],
+    )
+    def test_dispatches_to_correct_handler(
+        self,
+        candidates,
+        graph,
+        metric_to_values,
+        expected_handler,
+        fake_seismo,
+    ):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        partial_order = []
+
+        with patch.object(plot, "_report_cycle_error", wraps=plot._report_cycle_error) as cycle_spy, patch.object(
+            plot, "_report_ambiguous_error", wraps=plot._report_ambiguous_error
+        ) as ambiguous_spy:
+            with pytest.raises(ValueError):
+                plot._handle_ordering_error(candidates, graph, metric_to_values, partial_order)
+
+            if expected_handler == "_report_cycle_error":
+                cycle_spy.assert_called_once()
+                ambiguous_spy.assert_not_called()
+            else:
+                ambiguous_spy.assert_called_once()
+                cycle_spy.assert_not_called()
+
+    def test_merge_ordered_lists_empty_lists(self, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        result = plot._merge_ordered_lists({})
+        assert result == []
+
+    @pytest.mark.parametrize(
+        "graph,expected_cycle",
+        [
+            # Simple 2-node cycle
+            ({"a": {"b"}, "b": {"a"}}, ["a", "b", "a"]),
+            # 3-node cycle
+            ({"m": {"n"}, "n": {"o"}, "o": {"m"}}, ["m", "n", "o", "m"]),
+            # Self-loop
+            ({"x": {"x"}}, ["x", "x"]),
+            # No cycle: empty graph
+            ({}, []),
+            # No cycle: simple chain
+            ({"a": {"b"}, "b": {"c"}, "c": set()}, []),
+            # No cycle: longer chain
+            ({"a": {"b"}, "b": {"c"}, "c": {"d"}, "d": set()}, []),
+            # Disconnected nodes with no cycles
+            ({"a": {"b"}, "b": set(), "x": {"y"}, "y": set()}, []),
+        ],
+    )
+    def test_finds_cycle_correctly(self, graph, expected_cycle, fake_seismo):
+        plot = OrdinalCategoricalPlot(metrics=["Metric1"])
+        result = plot._find_any_cycle(graph)
+        assert result == expected_cycle
+
+
+class TestExtractMetricValues:
+    @pytest.mark.parametrize(
+        "metric_defs,expected",
+        [
+            ({"Metric1": ["a", "b", "c"], "Metric2": ["a", "b", "c"]}, ["a", "b", "c"]),
+            ({"Metric1": ["x", "y", "z"], "Metric2": ["y", "z"]}, ["x", "y", "z"]),
+            ({"Metric1": ["a", "b"], "Metric2": ["b", "c"], "Metric3": ["a", "c"]}, ["a", "b", "c"]),
+        ],
+    )
+    def test_extract_metric_values_success(self, metric_defs, expected, fake_seismo):
+        for name, values in metric_defs.items():
+            fake_seismo.metrics[name].metric_details.values = values
+
+        plot = OrdinalCategoricalPlot(metrics=list(metric_defs.keys()))
+        assert plot.values == expected

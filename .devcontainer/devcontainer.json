@@ -7,7 +7,7 @@
     "features": {
         "ghcr.io/devcontainers/features/git:1": {}
     },
-     // Use 'settings' to set *default* container specific settings.json values on container create.
+    // Use 'settings' to set *default* container specific settings.json values on container create.
     // You can edit these settings after create using File > Preferences > Settings > Remote.
     "customizations": {
         "vscode": {
@@ -17,7 +17,7 @@
                 "autoDocstring.docstringFormat": "numpy",
                 "python.venvPath": "/env/python"
             },
-          // Add the IDs of extensions you want installed when the container is created in the array below.
+            // Add the IDs of extensions you want installed when the container is created in the array below.
             "extensions": [
                 // language servers
                 "ms-python.python",
@@ -37,7 +37,7 @@
                 "johnpapa.vscode-peacock",
                 //copilot
                 "github.copilot",
-                "github.copilot-chat"
+                "GitHub.copilot-chat"
             ]
         }
     },
