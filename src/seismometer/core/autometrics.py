@@ -185,7 +185,7 @@ class AutomationManager(object, metaclass=Singleton):
             yaml.dump(call_history, automation_file)
 
     def get_metric_config(self, metric_name: str) -> dict:
-        """Get the settings from otel_info for a given metric.
+        """Get the settings from otel_metric_override for a given metric.
 
         Parameters
         ----------

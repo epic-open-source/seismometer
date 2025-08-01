@@ -78,8 +78,8 @@ class ConfigProvider:
 
     def _load_metric_config(self, usage_config: Path):
         all_info = load_yaml(usage_config, self.config_dir)
-        if "otel_info" in all_info.keys():
-            raw_yaml = all_info["otel_info"]
+        if "otel_metric_override" in all_info.keys():
+            raw_yaml = all_info["otel_metric_override"]
         else:
             raw_yaml = {}
         self._metric_config = MetricConfig(**raw_yaml)

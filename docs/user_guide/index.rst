@@ -611,7 +611,7 @@ information on this option.
    # All information about logging data to OpenTelemetry. Defaults will be provided
    # if some or all of this information is absent -- each default is the one provided in
    # this example (except that metric_type has no default because it is a name).
-   otel_info:
+   otel_metric_override:
       # The kind of metric that this pertains to. For example, Accuracy.
       Accuracy:
          # Whether metrics are to be logged from this at all.
