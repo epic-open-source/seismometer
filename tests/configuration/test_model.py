@@ -369,44 +369,40 @@ class TestDataUsage:
 
 class TestFilterConfig:
     @pytest.mark.parametrize(
-        "action, values, range_, count, should_raise, expected_warning",
+        "action, values, range_, count, should_raise, expected_warning, expected_values, expected_range",
         [
-            # Valid: keep_top with nothing
-            ("keep_top", None, None, None, False, None),
-            # Valid: keep_top with explicit count
-            ("keep_top", None, None, 5, False, None),
-            # Invalid count <= 0 → raises
-            ("keep_top", None, None, 0, True, None),
-            # Valid, hit warning: keep_top with values
-            ("keep_top", ["A"], undertest.FilterRange(min=1), None, False, "ignores 'values' and 'range'"),
-            # Valid: include with values
-            ("include", ["A", "B"], None, None, False, None),
-            # Valid: exclude with range
-            ("exclude", None, undertest.FilterRange(min=0, max=10), None, False, None),
-            # Invalid: include with neither values nor range
-            ("include", None, None, None, True, None),
-            # Invalid: exclude with neither values nor range
-            ("exclude", None, None, None, True, None),
-            # Warning: include with both values and range
-            ("include", ["A"], undertest.FilterRange(min=0), None, False, "both 'values' and 'range'"),
-            # Warning: keep_top with values and range
-            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'"),
-            # One of values or range
-            ("keep_top", ["A"], None, None, False, "ignores 'values' and 'range'"),
-            ("keep_top", None, undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'"),
-            # Both values and range
-            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'"),
-            # Valid: keep_top with explicit count
-            ("keep_top", None, None, 5, False, None),
-            # Edge case: count=0 is invalid
-            ("keep_top", None, None, 0, True, None),
-            # Invalid: count < 0
-            ("keep_top", None, None, -1, True, None),
-            # Irrelevant count should be ignored
-            ("include", ["A"], None, 10, False, None),
+            # (action, values, range_, count, should_raise, expected_warning, expected_values, expected_range)
+            ("keep_top", None, None, None, False, None, None, None),
+            ("keep_top", None, None, 5, False, None, None, None),
+            ("keep_top", None, None, 0, True, None, None, None),
+            ("keep_top", ["A"], undertest.FilterRange(min=1), None, False, "ignores 'values' and 'range'", None, None),
+            ("include", ["A", "B"], None, None, False, None, ["A", "B"], None),
+            (
+                "exclude",
+                None,
+                undertest.FilterRange(min=0, max=10),
+                None,
+                False,
+                None,
+                None,
+                undertest.FilterRange(min=0, max=10),
+            ),
+            ("include", None, None, None, True, None, None, None),
+            ("exclude", None, None, None, True, None, None, None),
+            ("include", ["A"], undertest.FilterRange(min=0), None, False, "both 'values' and 'range'", ["A"], None),
+            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'", None, None),
+            ("keep_top", ["A"], None, None, False, "ignores 'values' and 'range'", None, None),
+            ("keep_top", None, undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'", None, None),
+            ("keep_top", ["A"], undertest.FilterRange(min=0), None, False, "ignores 'values' and 'range'", None, None),
+            ("keep_top", None, None, 5, False, None, None, None),
+            ("keep_top", None, None, 0, True, None, None, None),
+            ("keep_top", None, None, -1, True, None, None, None),
+            ("include", ["A"], None, 10, False, None, ["A"], None),
         ],
     )
-    def test_filter_validation_behavior(self, caplog, action, values, range_, count, should_raise, expected_warning):
+    def test_filter_validation_behavior(
+        self, caplog, action, values, range_, count, should_raise, expected_warning, expected_values, expected_range
+    ):
         kwargs = dict(source="some_col", action=action, values=values, range=range_, count=count)
         if should_raise:
             with pytest.raises(ValueError):
@@ -416,6 +412,8 @@ class TestFilterConfig:
                 f = undertest.FilterConfig(**kwargs)
                 assert f.action == action
                 assert f.source == "some_col"
+                assert f.values == expected_values
+                assert f.range == expected_range
             if expected_warning:
                 assert expected_warning in caplog.text
             else:
