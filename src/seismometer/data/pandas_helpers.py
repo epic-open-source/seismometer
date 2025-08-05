@@ -174,6 +174,13 @@ def merge_windowed_event(
         impute_val_with_time=impute_val_with_time,
         impute_val_no_time=impute_val_no_time,
     )
+    event_val_col = event_value(event_label)
+    if logger.isEnabledFor(logging.INFO) and event_val_col in predictions:
+        added_events_count = predictions[event_val_col].eq(1).sum()
+        logger.info(
+            f"Kept {added_events_count} events (value=1) for {event_label} after applying specified lookback window "
+            f"of {window_hrs} hours and offset of {min_leadtime_hrs}."
+        )
 
     return predictions.drop(columns=r_ref)
 
@@ -421,9 +428,11 @@ def _merge_with_strategy(
                 by=pks,
                 direction=merge_strategy,
             )
-            if event_val_col := event_value(event_display):
+            event_val_col = event_value(event_display)
+            if logger.isEnabledFor(logging.INFO) and event_val_col in predictions_with_events:
                 added_events_count = predictions_with_events[event_val_col].eq(1).sum()
                 logger.info(f"Added {added_events_count} events (value=1) for {event_display}.")
+
             logger.debug(
                 f"Merged {event_display} using {merge_strategy} strategy on {pred_ref} and {event_ref} with "
                 f"keys {pks}. We have {len(predictions_with_events)} predictions."
