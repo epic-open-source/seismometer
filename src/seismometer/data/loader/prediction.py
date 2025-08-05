@@ -27,6 +27,7 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
     pd.DataFrame
         The predictions dataframe.
     """
+    logger.debug(f"Loading predictions from {config.prediction_path}.")
     if not config.features:  # no features ==> all features
         dataframe = pd.read_parquet(config.prediction_path)
     else:
@@ -44,6 +45,7 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
 
     dataframe = _rename_targets(config, dataframe)
 
+    logger.debug(f"Loaded {len(dataframe)} predictions from {config.prediction_path}.")
     return dataframe.sort_index(axis=1)  # parquet can shuffle column order
 
 
