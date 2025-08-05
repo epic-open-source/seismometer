@@ -810,6 +810,7 @@ class TestMergeWindowedEvent:
     @pytest.mark.parametrize(
         "log_level,should_log",
         [
+            (logging.DEBUG, True),
             (logging.INFO, True),
             (logging.WARNING, False),
         ],
@@ -842,6 +843,7 @@ class TestMergeWindowedEvent:
     @pytest.mark.parametrize(
         "log_level,should_log",
         [
+            (logging.DEBUG, True),
             (logging.INFO, True),
             (logging.WARNING, False),
         ],
