@@ -154,7 +154,7 @@ def merge_windowed_event(
     )
 
     # Note that filtering happens after merging.
-    logger.debug(f"Starting post-processing of events for {event_label}. we have {len(predictions)} predictions.")
+    logger.debug(f"Starting post-processing of events for {event_label}. There are {len(predictions)} predictions.")
     if window_hrs is not None:  # Clear out events outside window
         logger.debug(f"Filtering out events outside of the {window_hrs} hour window.")
         max_lookback = pd.Timedelta(window_hrs, unit="hr")  # r_ref has already been moved by min_offset.
@@ -435,7 +435,7 @@ def _merge_with_strategy(
 
             logger.debug(
                 f"Merged {event_display} using {merge_strategy} strategy on {pred_ref} and {event_ref} with "
-                f"keys {pks}. We have {len(predictions_with_events)} predictions."
+                f"keys {pks}. There are {len(predictions_with_events)} predictions."
             )
             return predictions_with_events
 

@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from unittest.mock import patch
 
@@ -805,6 +806,68 @@ class TestMergeWindowedEvent:
                 event_base_val_col="Value",
                 event_base_time_col="Time",
             )
+
+    @pytest.mark.parametrize(
+        "log_level,should_log",
+        [
+            (logging.INFO, True),
+            (logging.WARNING, False),
+        ],
+    )
+    def test_merge_windowed_event_info_logging(self, log_level, should_log, caplog):
+        caplog.set_level(log_level, logger="seismometer")
+
+        preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01 00:00:00")]})
+        events = pd.DataFrame(
+            {"Id": [1], "Time": [pd.Timestamp("2024-01-01 01:00:00")], "Value": [1], "Type": ["MyEvent"]}
+        )
+
+        undertest.merge_windowed_event(
+            preds,
+            predtime_col="PredictTime",
+            events=events,
+            event_label="MyEvent",
+            pks=["Id"],
+            min_leadtime_hrs=0,
+            window_hrs=5,
+            merge_strategy="forward",
+            event_base_val_col="Value",
+            event_base_time_col="Time",
+        )
+
+        info_logs = [r.message for r in caplog.records if r.levelno == logging.INFO]
+        matched = any("Kept" in msg and "MyEvent" in msg for msg in info_logs)
+        assert matched == should_log
+
+    @pytest.mark.parametrize(
+        "log_level,should_log",
+        [
+            (logging.INFO, True),
+            (logging.WARNING, False),
+        ],
+    )
+    def test_merge_with_strategy_info_logging(self, log_level, should_log, caplog):
+        caplog.set_level(log_level, logger="seismometer")
+
+        preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01 00:00:00")]})
+        events = pd.DataFrame(
+            {"Id": [1], "Time": [pd.Timestamp("2024-01-01 01:00:00")], "Value": [1], "Type": ["MyEvent"]}
+        )
+
+        one_event = undertest._one_event(events, "MyEvent", "Value", "Time", ["Id"])
+        _ = undertest._merge_with_strategy(
+            predictions=preds,
+            one_event=one_event,
+            pks=["Id"],
+            pred_ref="PredictTime",
+            event_ref="MyEvent_Time",
+            event_display="MyEvent",
+            merge_strategy="forward",
+        )
+
+        info_logs = [r.message for r in caplog.records if r.levelno == logging.INFO]
+        matched = any("Added" in msg and "MyEvent" in msg for msg in info_logs)
+        assert matched == should_log
 
 
 @patch("seismometer.data.pandas_helpers.try_casting")
