@@ -301,34 +301,61 @@ of the data.
 Fairness Audit
 --------------
 
-A fairness audit can help you evaluate whether the model performs
-differently across groups within a cohort relative to a reference
-cohort. Fairness evaluations are useful in identifying areas
-for further investigation, but note that they do not necessarily reveal a
-problem that requires correction. It is mathematically impossible to
-ensure parity across many definitions simultaneously, so you might focus
-on a predetermined set while remaining aware of the others.
+A fairness audit can help evaluate whether a model behaves differently for subgroups within a population when compared to a designated reference group. These evaluations are useful for identifying potential differences that may warrant further investigation. However, note that such differences do not necessarily indicate a problem requiring correction. In fact, it is mathematically impossible to satisfy all fairness criteria at once so it is often best to focus on a few key fairness definitions while being aware of others.
 
-This audit should be used by experts with a deep understanding of the
-model and the context in which the predictions are used. Even when a
-metric is flagged as a deviation in the fairness audit, the context
-might explain or even predict the difference. Like many
-concepts, a single parity concept can have several different names;
-notably, parity of true positive rate is equal opportunity, parity of
-false positive rate is predictive equality, and parity of predictive
-prevalence is demographic parity.
+Fairness audits should be performed by individuals who have deep knowledge of both the model and the real-world context in which it is used. Metrics flagged during the audit may reflect meaningful differences due to context, rather than unfairness. For example, variations may be expected and justifiable based on population characteristics.
 
-A fairness audit gives an overview of parity across all defined groups
-for each cohort attribute. The majority group is the
-baseline and a statistic for all observations in the other groups is
-compared. A fairness threshold such as 25% is then used to classify the
-ratio of each group to the reference. The metric of interest is calculated on the default
-group and the cohort under comparison. The resulting ratio (comparison/default) is then
-compared against the allowed bounds determined by the fairness threshold.
-The bound determined by 1 + threshold above, and 1 / (1 + threshold) below,
-so that a fairness threshold of 0.25 sets the upper bound at 1.25 times larger,
-or a 25% increase in the metric. Since the lower bound is checked
-with the reciprocal, this would result in a 20% decrease.
+Different fairness concepts may go by different names depending on the source. Some commonly referenced ones include:
+
+- **Equal Opportunity**: Parity in true positive rate
+- **Predictive Equality**: Parity in false positive rate
+- **Demographic Parity**: Parity in predicted positive rates (predictive prevalence)
+
+Understanding Fairness Thresholds and Ratios
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The audit examines how fairness metrics vary across groups for each cohort attribute (e.g., race, gender, age). One group, typically the largest, is chosen as the **reference group**, and each other group's results are **compared to this baseline**.
+
+To assess disparity, the audit calculates a **ratio** for each metric:
+
+::
+
+    Ratio = Metric value for group / Metric value for reference group
+
+This ratio is then compared against a **fairness threshold**, which defines acceptable bounds for differences. For example, a commonly used threshold is **25%**, based on the "Four-Fifths Rule."
+
+**Fairness bounds** are calculated as:
+
+- **Upper Bound**: ``1 + threshold`` (e.g., 1.25 for a 25% threshold)
+- **Lower Bound**: ``1 / (1 + threshold)`` (e.g., 0.8 for a 25% threshold)
+
+If the ratio for a group falls outside these bounds (e.g., above 1.25 or below 0.8), it may indicate a fairness concern.
+
+Example
+~~~~~~~
+
+Suppose we are analyzing a clinical risk identification model between those with and without a specific comorbidity:
+
+- **PPV for those without comorbidity (reference group)**: 18%
+- **PPV for those with comorbidity**: 22%
+
+The ratio is:
+
+::
+
+    22% / 18% = 1.22
+
+If we use a 25% fairness threshold, the lower bound is 0.80 and the upper bound is 1.25. Since the ratio is **1.22**, this just meets the threshold. If it were slightly higher (e.g., 1.3), it would be flagged as a potential issue.
+
+Notes on Choosing a Threshold
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A threshold of 0.25 is used as the default in this analysis because it aligns with the **Four-Fifths Rule**, a common heuristic used in legal and regulatory settings. However, this threshold may not be appropriate for every metric or application. Users should consider adjusting it based on the context and sensitivity of the use case.
+
+For more details, refer to:
+
+- `Disparate impact <https://en.wikipedia.org/wiki/Disparate_impact#The_80%_rule>`_
+- `Fairlearn's common fairness metrics <https://fairlearn.org/v0.12/user_guide/assessment/common_fairness_metrics.html>`_
 
 The visualization is a table showing the overall metrics, and icons
 indicating default, within bounds, or out of bounds. Note that comparison
