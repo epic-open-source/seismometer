@@ -301,7 +301,7 @@ of the data.
 Fairness Audit
 --------------
 
-A fairness audit can help evaluate whether a model behaves differently for subgroups within a population when compared to a designated reference group. These evaluations are useful for identifying potential disparities that may warrant further investigation. However, note that such disparities do not necessarily indicate a problem requiring correction. In fact, it is mathematically impossible to satisfy all fairness criteria at once so it is often best to focus on a few key fairness definitions while being aware of others.
+A fairness audit can help evaluate whether a model behaves differently for subgroups within a population when compared to a designated reference group. These evaluations are useful for identifying potential differences that may warrant further investigation. However, note that such differences do not necessarily indicate a problem requiring correction. In fact, it is mathematically impossible to satisfy all fairness criteria at once so it is often best to focus on a few key fairness definitions while being aware of others.
 
 Fairness audits should be performed by individuals who have deep knowledge of both the model and the real-world context in which it is used. Metrics flagged during the audit may reflect meaningful differences due to context, rather than unfairness. For example, variations may be expected and justifiable based on population characteristics.
 
