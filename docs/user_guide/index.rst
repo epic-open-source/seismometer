@@ -314,7 +314,7 @@ Different fairness concepts may go by different names depending on the source. S
 Understanding Fairness Thresholds and Ratios
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The audit examines how fairness metrics vary across groups for each cohort attribute (e.g., race, gender, age). One group—typically the largest—is chosen as the **reference group**, and each other group's results are **compared to this baseline**.
+The audit examines how fairness metrics vary across groups for each cohort attribute (e.g., race, gender, age). One group, typically the largest, is chosen as the **reference group**, and each other group's results are **compared to this baseline**.
 
 To assess disparity, the audit calculates a **ratio** for each metric:
 
