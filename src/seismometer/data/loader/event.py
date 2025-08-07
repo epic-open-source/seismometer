@@ -6,7 +6,71 @@ import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Event
 
+from .pipeline import ConfigOnlyHook
+
 logger = logging.getLogger("seismometer")
+
+
+def get_data_loader(config: ConfigProvider) -> ConfigOnlyHook:
+    """
+    Returns the proper data loader function from the event file extension.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    ConfigOnlyHook
+        The predictions dataframe.
+    """
+    loaders = {
+        ".csv": csv_loader,
+        ".tsv": tsv_loader,
+        ".parquet": parquet_loader,
+    }
+    return loaders.get(config.event_path.suffix.lower(), parquet_loader)
+
+
+def csv_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Loads the events frame from a csv file based on config.event_path.
+
+    Maps the non-key columns to the standard names "Type", "Time", "Value".
+    Will log debug message and return an empty dataframe if read_csv fails.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        the events dataframe with standarized column names.
+    """
+    return _sv_loader(config, ",")
+
+
+def tsv_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Loads the events frame from a csv file based on config.event_path.
+
+    Maps the non-key columns to the standard names "Type", "Time", "Value".
+    Will log debug message and return an empty dataframe if read_csv fails.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        the events dataframe with standarized column names.
+    """
+    return _sv_loader(config, "\t")
 
 
 def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
@@ -32,7 +96,7 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
             copy=False,
         )
     except BaseException:
-        logger.debug(f"No events found at {config.event_path}")
+        logger.warning(f"No events found at {config.event_path}")
         events = pd.DataFrame(columns=config.entity_keys + ["Type", "Time", "Value"])
 
     return events
@@ -194,3 +258,28 @@ def _get_source_type(config: ConfigProvider, event: Event) -> str:
         )
 
     return dtype
+
+
+# other
+
+
+def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
+    """General loader for CSV or TSV files"""
+    try:
+        events = pd.read_csv(config.event_path, sep=sep).rename(
+            columns={config.ev_type: "Type", config.ev_time: "Time", config.ev_value: "Value"},
+            copy=False,
+        )
+
+        # since importing CSVs automatically cast numbers to ints, make sure the columns
+        # shared with predictions become strings so we don't have a type mismatch
+        defined_types = config.prediction_types
+        usage = config.usage
+        for col in [usage.entity_id, usage.context_id, usage.predict_time]:
+            if col is not None and defined_types[col] == "object":
+                events[col] = events[col].astype(str)
+    except BaseException:
+        logger.warning(f"No events found at {config.event_path}")
+        events = pd.DataFrame(columns=config.entity_keys + ["Type", "Time", "Value"])
+
+    return events
