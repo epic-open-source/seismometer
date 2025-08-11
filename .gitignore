@@ -81,6 +81,7 @@ ENV/
 
 # Repository development directories
 .Trash-1000/
+.DS_Store
 /resources/
 /secrets/
 /secret/

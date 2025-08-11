@@ -11,8 +11,9 @@ except ImportError:
     # No OTel!
     pytest.skip("No OpenTelemetry, nothing to test here", allow_module_level=True)
 
-from seismometer.core import autometrics
-from seismometer.data import metric_apis, otel
+from seismometer.core.autometrics import AutomationManager
+from seismometer.data import metric_apis
+from seismometer.data.otel import ExportConfig, ExportManager
 
 # We will mock it so that all metrics that are "logged"
 # actually just end up going here.
@@ -24,26 +25,36 @@ def mock_set_one_datapoint(_, attributes, instrument, data):
 
 
 @pytest.fixture
-def recorder():
+def recorder(tmp_path):
+    RECEIVED_METRICS.clear()
+    ExportManager.kill()
+    ExportManager(ExportConfig({"otel_export": {"files": [tmp_path / "test_metrics.txt"], "stdout": True}}))
+    AutomationManager.kill()
+    AutomationManager(fake_config(tmp_path))
     r = metric_apis.OpenTelemetryRecorder(metric_names=[], name="Test")
     r.instruments = {"A": "A", "B": "B", "C": "C", "D": "D"}
     r.metric_names = ["A", "B", "C", "D"]
     return r
 
 
-def mock_get_metric_config(_, metric_name):
-    return {
-        "log_all": metric_name == "A",
-        "output_metrics": True,
-    }  # We are logging all for specifically the metric "A"
+def fake_config(tmp_path):
+    # Create a fake configuration object
+    class FakeConfigProvider:
+        def __init__(self):
+            self.automation_config = {}
+            self.automation_config_path = tmp_path / "automation_config.yml"
+            self.metric_config = {
+                "A": {"output_metrics": True, "log_all": True, "quantiles": 4, "measurement_type": "Gauge"},
+                "B": {"output_metrics": True, "log_all": False, "quantiles": 4, "measurement_type": "Gauge"},
+            }
+
+    return FakeConfigProvider()
 
 
 # We want recorder and exporter init methods to do nothing, so we don't actually have to
 # open any files or make anything.
 @patch.object(metric_apis.OpenTelemetryRecorder, "__init__", new=lambda self: None)
-@patch.object(otel.ExportManager, "__init__", new=lambda self: None)
 @patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint", new=mock_set_one_datapoint)
-@patch.object(autometrics.AutomationManager, "get_metric_config", new=mock_get_metric_config)
 class TestMetricLogging:
     def test_log_to_instrument(self, recorder):
         """We're just testing some basic logging outside of the context of any widget."""
@@ -92,15 +103,11 @@ class TestMetricLogging:
         recorder.log_by_column(
             dataframe, col_name="Threshold", cohorts=cohorts, base_attributes={"foo": "bar"}, col_values=[1, 4]
         )
-        assert {10, 30, 50} == (
-            set([datapoint["value"] for datapoint in RECEIVED_METRICS["A"]])
-        )  # We expect all logging here ...
-        assert {100} == set([datapoint["value"] for datapoint in RECEIVED_METRICS["B"]])  # ... but not here.
+        expected_from_A = set([datapoint["value"] for datapoint in RECEIVED_METRICS["A"]])
+        assert {10, 30, 50} == expected_from_A  # we log all metrics here
 
-
-@pytest.fixture(autouse=True)
-def clear_otel_metrics():
-    RECEIVED_METRICS.clear()
+        expected_from_B = set([datapoint["value"] for datapoint in RECEIVED_METRICS["B"]])
+        assert {100} == expected_from_B  # ... but not here.
 
 
 @pytest.fixture(scope="session", autouse=True)
