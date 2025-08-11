@@ -1136,7 +1136,7 @@ def binary_classifier_metric_evaluation(
     if isinstance(metrics, str):
         metrics = [metrics]
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
-    recorder = metric_apis.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
+    recorder = metric_apis.OpenTelemetryRecorder(metric_names=metrics, name="Binary Classifier Evaluations")
     attributes = {"score_col": score_col, "target": target}
     am = AutomationManager()
     for metric in metrics:

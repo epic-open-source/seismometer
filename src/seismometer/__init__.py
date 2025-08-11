@@ -12,7 +12,6 @@ import pandas as pd
 # API
 from seismometer.api import *
 from seismometer.core.autometrics import *
-from seismometer.data.otel import *
 
 __version__ = importlib.metadata.version("seismometer")
 logger = logging.getLogger("seismometer")
@@ -71,11 +70,3 @@ def run_startup(
     sg.load_data(predictions=predictions_frame, events=events_frame)
 
     initialize_otel_config(config)
-
-    export_config = config.export_config
-    ExportManager(
-        hostname=export_config.hostname,
-        file_output_paths=export_config.otel_files,
-        export_ports=export_config.otel_ports,
-        dump_to_stdout=export_config.otel_stdout,
-    )

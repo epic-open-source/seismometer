@@ -9,34 +9,40 @@ import pandas as pd
 
 from seismometer.core.autometrics import AutomationManager
 from seismometer.core.io import slugify
-from seismometer.data.otel import ExportManager, get_metric_creator
+from seismometer.data.otel import ExportManager
 
 logger = logging.getLogger("seismometer.telemetry")
 
 
 class OpenTelemetryRecorder:
-    def __new__(cls, *args, **kwargs):
-        try:
-            from opentelemetry.metrics import Histogram, UpDownCounter  # noqa: F401
-
-            return RealOpenTelemetryRecorder(*args, **kwargs)
-        except ImportError:
-            return NoOpOpenTelemetryRecorder(*args, **kwargs)
+    def __new__(cls, metric_names: List[str], name: str):
+        if ExportManager().active:
+            return RealOpenTelemetryRecorder(metric_names, name)
+        return NoOpOpenTelemetryRecorder()
 
 
 class NoOpOpenTelemetryRecorder:
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         self.meter = None
         self.instruments = {}
         self.metric_names = []
 
-    def populate_metrics(self, *args, **kwargs):
+    def populate_metrics(self, attributes, metrics):
         pass
 
-    def log_by_cohort(self, *args, **kwargs):
+    def log_by_cohort(
+        self,
+        dataframe: pd.DataFrame,
+        base_attributes: Dict[str, Any],
+        cohorts: Dict[str, List[str]],
+        intersecting: bool = False,
+        metric_maker: Callable = None,
+    ):
         pass
 
-    def log_by_column(self, *args, **kwargs):
+    def log_by_column(
+        self, df: pd.DataFrame, col_name: str, cohorts: dict, base_attributes: dict, col_values: list = []
+    ):
         pass
 
 
@@ -65,8 +71,31 @@ class RealOpenTelemetryRecorder:
         self.instruments: dict[str, Any] = {}
         self.metric_names = metric_names
         for mn in metric_names:
-            creator_fn = get_metric_creator(mn, self.meter)
+            creator_fn = self.get_metric_creator(mn)
             self.instruments[mn] = creator_fn(slugify(mn), description=mn)
+
+    def get_metric_creator(self, metric_name: str) -> Callable:
+        """Takes in the name of a metric and determines the OTel function which creates
+        the corresponding instrument.
+
+        Parameters
+        ----------
+        metric_name : str
+            Which metric, like "Accuracy".
+
+        Returns
+        -------
+        Callable
+            The function creating the right metric instrument.
+
+        """
+        TYPES = {
+            "Gauge": self.meter.create_gauge,
+            "Counter": self.meter.create_up_down_counter,
+            "Histogram": self.meter.create_histogram,
+        }
+        typestring = AutomationManager().get_metric_config(metric_name)["measurement_type"]
+        return TYPES[typestring] if typestring in TYPES else self.meter.create_gauge
 
     def populate_metrics(self, attributes, metrics):
         """Populate the OpenTelemetry instruments with data from

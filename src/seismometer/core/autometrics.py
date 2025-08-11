@@ -12,6 +12,7 @@ import yaml
 from seismometer.configuration.config import ConfigProvider
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
+from seismometer.data.otel import ExportManager
 from seismometer.data.performance import BinaryClassifierMetricGenerator
 
 logger = logging.getLogger("seismometer.telemetry")
@@ -282,6 +283,7 @@ def initialize_otel_config(config: ConfigProvider):
     config : OtherInfo
         The configuration object handed in during Seismogram initialization.
     """
+    ExportManager(config.export_config)
     am = AutomationManager(config_provider=config)
     am.load_automation_config(config)
     am.load_metric_config(config)
