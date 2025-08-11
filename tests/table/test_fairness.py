@@ -199,7 +199,7 @@ class TestExplorationFairnessWidget:
 
         assert widget.metrics_generator == metrics
         assert isinstance(widget.option_widget, undertest.FairnessOptionsWidget)
-        assert widget.option_widget.fairness_ratio == 0.2
+        assert widget.option_widget.fairness_ratio == 0.25
         assert widget.plot_function == undertest.custom_metrics_fairness_table
 
     def test_generate_plot_args_returns_expected_values(self, monkeypatch):
