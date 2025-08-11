@@ -2,9 +2,9 @@ import logging
 import socket
 import sys
 import time
-from typing import Callable
+from typing import Optional
 
-from seismometer.core.autometrics import AutomationManager
+from seismometer.configuration.export_config import ExportConfig
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
 
@@ -12,98 +12,63 @@ logger = logging.getLogger("seismometer.telemetry")
 
 try:
     from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-    from opentelemetry.metrics import Meter, set_meter_provider
+    from opentelemetry.metrics import set_meter_provider
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-    TELEMETRY_POSSIBLE = True
+    OTEL_AVAILABLE = True
 except ImportError:
     # No OTel.
-    TELEMETRY_POSSIBLE = False
-
-
-def get_metric_creator(metric_name: str, meter) -> Callable:
-    """Takes in the name of a metric and determines the OTel function which creates
-    the corresponding instrument.
-
-    Parameters
-    ----------
-    metric_name : str
-        Which metric, like "Accuracy".
-    meter: Meter
-        Which meter is providing these instruments.
-
-    Returns
-    -------
-    Callable
-        The function creating the right metric instrument.
-
-    """
-    if not TELEMETRY_POSSIBLE:
-        # This should not happen, but just in case ...
-        logger.warning("Tried to get a metric creator, but metrics packages are not installed!")
-        return None
-    TYPES = {"Gauge": meter.create_gauge, "Counter": meter.create_up_down_counter, "Histogram": meter.create_histogram}
-    typestring = AutomationManager().get_metric_config(metric_name)["measurement_type"]
-    return TYPES[typestring] if typestring in TYPES else Meter.create_gauge
+    OTEL_AVAILABLE = False
 
 
 @export
 class ExportManager(object, metaclass=Singleton):
-    def __new__(cls, *args, **kwargs):
-        if TELEMETRY_POSSIBLE:
-            return RealExportManager(*args, **kwargs)
-        else:
-            return NoOpExportManager(*args, **kwargs)
+    def __new__(cls, export_config: Optional[ExportConfig] = None):
+        if not OTEL_AVAILABLE or export_config is None or not export_config.is_exporting_possible():
+            return NoOpExportManager()
+        return RealExportManager(export_config)
 
 
 class NoOpExportManager:
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self):
+        self.active = False
 
-    def deactivate_exports(self, *args, **kwargs):
+    def deactivate_exports(self):
         logger.warning("Telemetry packages have not been installed! Exports are already deactivated.")
 
-    def activate_exports(self, *args, **kwargs):
+    def activate_exports(self):
         logger.warning("Telemetry packages have not been installed! Exports cannot be activated.")
 
 
 # Class which stores info about exporting metrics.
 class RealExportManager:
-    def __init__(self, hostname, file_output_paths, export_ports, dump_to_stdout):
+    def __init__(self, export_config: ExportConfig):
         """Create a place to export files.
 
         Parameters
         ----------
-        hostname: str
-            The host name to use for the ports.
-        file_output_path : list[str], optional
-            Where metrics are to be dumped to for debugging purposes.
-        prom_port : int, optional
-            What ports (local HTTP server for instance) metrics are to be dumped to,
-            for Prometheus or OTel collector purposes.
-        dump_to_stdout: bool, optional
-            Whether to dump the metrics to stdout.
+        export_config: ExportConfig
+            Configuration for exports: files, hostnames/ports, or logging to stdout
         """
-
-        if file_output_paths == export_ports == [] and not dump_to_stdout:
+        if not export_config.is_exporting_possible():
             self.deactivate_exports()
             return  # We're done already!
         self.readers = []
         self.otlp_exhausts = []
-        for file_output_path in file_output_paths:
+        for file_output_path in export_config.otel_files:
             file_exhaust = open(file_output_path, "a")  # Does not overwrite existing data
             self.readers.append(
                 PeriodicExportingMetricReader(ConsoleMetricExporter(out=file_exhaust), export_interval_millis=5000)
             )
             self.otlp_exhausts.append(file_exhaust)
-        for export_port in export_ports:
-            if self._can_connect_to_socket(host=hostname, port=export_port):
+        for export_port in export_config.otel_ports:
+            if self._can_connect_to_socket(host=export_config.hostname, port=export_port):
                 otlp_exporter = OTLPMetricExporter(endpoint=f"{hostname}:{export_port}", insecure=True)
                 otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
                 self.readers.append(otel_collector_reader)
-        if dump_to_stdout:
+        if export_config.otel_stdout:
             self.readers.append(
                 PeriodicExportingMetricReader(ConsoleMetricExporter(out=sys.stdout), export_interval_millis=5000)
             )
