@@ -242,7 +242,13 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
 
         with open(config.prediction_path, "r") as f:
             dict_reader = csv.DictReader(f, delimiter=sep)
-            present_columns = set(dict_reader.fieldnames)
+            try:
+                present_columns = set(dict_reader.fieldnames)
+            except UnicodeDecodeError:
+                # output clean error
+                raise ValueError(
+                    f"Unable to parse file {config.prediction_path}. Make sure it is the correct file type."
+                ) from None
 
         if config.target in present_columns:
             desired_columns.add(config.target)
