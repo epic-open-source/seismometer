@@ -60,9 +60,9 @@ Make an empty folder with the following files:
     otel-collector:
       image: otel/opentelemetry-collector-contrib
       container_name: otel-collector
-      command: ["--config=/etc/otel-collector-config.yaml"]
+      command: ["--config=/etc/otel-collector-config.yml"]
       volumes:
-        - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+        - ./otel-collector-config.yml:/etc/otel-collector-config.yml
       ports:
         - "4317:4317"
         - "4318:4318"
@@ -92,7 +92,7 @@ Make an empty folder with the following files:
 
 .. code-block:: yaml
 
-  # otel-collector-config.yaml
+  # otel-collector-config.yml
   receivers:
     otlp:
       protocols:
