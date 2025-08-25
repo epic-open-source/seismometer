@@ -141,7 +141,7 @@ Now when in your Docker container, seismometer will output metrics to
 the OpenTelemetry collector, which will send it eventually to Grafana --
 as long as you have the collector and backends running in the first place.
 
-Make sure your `config.yml`, in the `export_otel:` section, has the following:
+Make sure your `config.yml`, in the `otel_export:` section, has the following:
 
 .. code-block:: yaml
 
