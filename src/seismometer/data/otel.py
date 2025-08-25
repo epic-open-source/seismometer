@@ -65,7 +65,7 @@ class RealExportManager:
             self.otlp_exhausts.append(file_exhaust)
         for export_port in export_config.otel_ports:
             if self._can_connect_to_socket(host=export_config.hostname, port=export_port):
-                otlp_exporter = OTLPMetricExporter(endpoint=f"{hostname}:{export_port}", insecure=True)
+                otlp_exporter = OTLPMetricExporter(endpoint=f"{export_config.hostname}:{export_port}", insecure=True)
                 otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
                 self.readers.append(otel_collector_reader)
         if export_config.otel_stdout:
