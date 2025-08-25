@@ -115,7 +115,6 @@ OpenTelemetry output
 .. autosummary::
    :toctree: api/
 
-   get_metric_creator
    deactivate_exports
    activate_exports
 
