@@ -46,7 +46,7 @@
     // Uncomment the next line if you want to keep your containers running after VS Code shuts down.
     // "shutdownAction": "none",
     // The next line to run commands after the container is created, it auto-installs precommit hooks and the library
-    "postCreateCommand": "echo \"\\nif [ -f /home/seismo/workspace/.devcontainer/.bashrc ]; then\\n  . /home/seismo/workspace/.devcontainer/.bashrc;\\nfi\" >> $HOME/.bashrc",
+    "postCreateCommand": "echo \"\\nif [ -f /home/seismo/workspace/.devcontainer/.bashrc ]; then\\n  . /home/seismo/workspace/.devcontainer/.bashrc;\\nfi\" >> $HOME/.bashrc"
     // Uncomment the next line to have VS Code connect as an existing non-root user in the container. See
     // https://aka.ms/vscode-remote/containers/non-root for details on adding a non-root user if none exist.
     //"remoteUser": "seismo"
