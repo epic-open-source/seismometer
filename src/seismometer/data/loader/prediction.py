@@ -247,7 +247,7 @@ def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
             except UnicodeDecodeError:
                 # output clean error
                 raise ValueError(
-                    f"Unable to parse file {config.prediction_path}. Make sure it is the correct file type."
+                    f"Unable to parse file {config.prediction_path}. Make sure it is formatted correctly."
                 ) from None
 
         if config.target in present_columns:
