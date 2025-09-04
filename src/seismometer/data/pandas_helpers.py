@@ -114,6 +114,7 @@ def merge_windowed_event(
     # Preprocess events : reduce and rename
     one_event = _one_event(events, event_label, event_base_val_col, event_base_time_col, pks)
     if len(one_event.index) == 0:
+        logger.debug(f"No events found for {event_label} with keys {pks}.")
         return predictions
 
     event_time_col = event_time(event_label)
@@ -124,6 +125,7 @@ def merge_windowed_event(
     # So this case is handled separately due to needing some additional arguments.
     if merge_strategy == "count":
         # Immediately return the merged frame with the counts to avoid unnecessary processing.
+        logger.debug(f"Merging event counts for {event_label} with columns {pks}.")
         return _merge_event_counts(
             predictions,
             one_event,
@@ -138,6 +140,9 @@ def merge_windowed_event(
 
     # merge event specified by merge_strategy for each prediction
     event_ref = event_time_col if merge_strategy in ["forward", "nearest"] else r_ref
+    logger.debug(
+        f"Merging {event_label} with columns {pks} using strategy {merge_strategy} on {predtime_col} and {event_ref}."
+    )
     predictions = _merge_with_strategy(
         predictions,
         one_event,
@@ -149,12 +154,17 @@ def merge_windowed_event(
     )
 
     # Note that filtering happens after merging.
+    logger.debug(f"Starting post-processing of events for {event_label}. There are {len(predictions)} predictions.")
     if window_hrs is not None:  # Clear out events outside window
+        logger.debug(f"Filtering out events outside of the {window_hrs} hour window.")
         max_lookback = pd.Timedelta(window_hrs, unit="hr")  # r_ref has already been moved by min_offset.
         filter_map = (predictions[predtime_col] < (predictions[r_ref] - max_lookback)) | (
             predictions[predtime_col] > (predictions[r_ref])
         )
         predictions.loc[filter_map, [event_val_col, event_time_col]] = pd.NA
+        # Log how many event values were changed after filtering
+        changed_count = filter_map.sum()
+        logger.debug(f"Filtered out {changed_count} event values for {event_label} outside the window.")
 
     predictions = post_process_event(
         predictions,
@@ -164,6 +174,13 @@ def merge_windowed_event(
         impute_val_with_time=impute_val_with_time,
         impute_val_no_time=impute_val_no_time,
     )
+    event_val_col = event_value(event_label)
+    if logger.isEnabledFor(logging.INFO) and event_val_col in predictions:
+        added_events_count = predictions[event_val_col].eq(1).sum()
+        logger.info(
+            f"Kept {added_events_count} events (value=1) for {event_label} after applying specified lookback window "
+            f"of {window_hrs} hours and offset of {min_leadtime_hrs}."
+        )
 
     return predictions.drop(columns=r_ref)
 
@@ -216,7 +233,9 @@ def post_process_event(
     pd.DataFrame
         The dataframe with potentially modified labels.
     """
+    logger.debug(f"Post-processing events for {label_col} and {time_col}.")
     if label_col not in dataframe.columns or time_col not in dataframe.columns:
+        logger.debug(f"Columns {label_col} or {time_col} not found in dataframe, skipping post-processing for events.")
         return dataframe
 
     # use pandas for compatibility of imputations -- handle Nones
@@ -240,6 +259,13 @@ def post_process_event(
     # cast after imputation - supports nonnullable types
     try_casting(dataframe, label_col, column_dtype)
 
+    # Log how many rows were imputed/changed
+    imputed_with_time = ((label_na_map & ~time_na_map) & dataframe[label_col].notna()).sum()
+    imputed_no_time = (dataframe[label_col].isna()).sum()
+    logger.debug(
+        f"Post-processing of events for {label_col} and {time_col} complete. "
+        f"Imputed {imputed_with_time} rows with time, {imputed_no_time} rows with no time."
+    )
     return dataframe
 
 
@@ -288,6 +314,7 @@ def _merge_event_counts(
 ) -> pd.DataFrame:
     """Creates a new column for each event in the right frame's event_label column,
     counting the number of times that event has occurred"""
+    logger.debug(f"Merging event counts for {event_name} with columns {pks}.")
 
     if l_ref == r_ref:
         raise ValueError(
@@ -393,7 +420,7 @@ def _merge_with_strategy(
             one_event = one_event.dropna(subset=[event_ref])
 
         if merge_strategy == "forward" or merge_strategy == "nearest":
-            return pd.merge_asof(
+            predictions_with_events = pd.merge_asof(
                 predictions,
                 one_event.dropna(subset=[event_ref]),
                 left_on=pred_ref,
@@ -401,11 +428,23 @@ def _merge_with_strategy(
                 by=pks,
                 direction=merge_strategy,
             )
+            event_val_col = event_value(event_display)
+            if logger.isEnabledFor(logging.INFO) and event_val_col in predictions_with_events:
+                added_events_count = predictions_with_events[event_val_col].eq(1).sum()
+                logger.info(f"Added {added_events_count} events (value=1) for {event_display}.")
+
+            logger.debug(
+                f"Merged {event_display} using {merge_strategy} strategy on {pred_ref} and {event_ref} with "
+                f"keys {pks}. There are {len(predictions_with_events)} predictions."
+            )
+            return predictions_with_events
 
         # Assume sorted on event_ref before being passed in
         if merge_strategy == "first":
+            logger.debug(f"Updating events to only keep the first occurrence for each {event_display}.")
             one_event_filtered = one_event.groupby(pks).first().reset_index()
         if merge_strategy == "last":
+            logger.debug(f"Updating events to only keep the last occurrence for each {event_display}.")
             one_event_filtered = one_event.groupby(pks).last().reset_index()
 
     except ValueError as e:
