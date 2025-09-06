@@ -29,6 +29,8 @@ class TestUpdatePlotWidget:
         assert widget.plot_button.disabled is False
         assert widget.code_checkbox.description == widget.SHOW_CODE
         assert widget.show_code is False
+        assert widget.data_checkbox.description == widget.SHOW_DATA
+        assert widget.show_data is False
 
     def test_plot_button_click(self):
         count = 0
@@ -68,15 +70,28 @@ class TestUpdatePlotWidget:
         widget.code_checkbox.value = True
         assert count == 1
 
+    def test_toggle_data_checkbox(self):
+        count = 0
+
+        def on_toggle_callback(button):
+            nonlocal count
+            count += 1
+
+        widget = undertest.UpdatePlotWidget()
+        widget.on_toggle_data(on_toggle_callback)
+        widget.data_checkbox.value = True
+        assert count == 1
+
 
 class TestExplorationBaseClass:
     def test_base_class(self, caplog):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         widget = undertest.ExplorationWidget("ExploreTest", option_widget, plot_function)
 
         plot_function.assert_not_called()
-        assert "Subclasses must implement this method" in widget._try_generate_plot().value
+        plot = widget._try_generate_plot()
+        assert "Subclasses must implement this method" in plot.value
 
     @pytest.mark.parametrize(
         "plot_module,plot_code",
@@ -88,7 +103,7 @@ class TestExplorationBaseClass:
     )
     def test_args_subclass(self, plot_module, plot_code):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_something"
         plot_function.__module__ = plot_module
 
@@ -103,11 +118,13 @@ class TestExplorationBaseClass:
         plot_function.assert_called_once_with(False)
         assert widget.current_plot_code == plot_code
         assert widget.show_code is False
+        assert widget.show_data is False
         assert widget._try_generate_plot() == "some result"
+        assert widget.current_plot_data == "some data"
 
     def test_kwargs_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_something"
         plot_function.__module__ = "test_explore"
 
@@ -122,11 +139,13 @@ class TestExplorationBaseClass:
         plot_function.assert_called_once_with(checkbox=False)
         assert widget.current_plot_code == "test_explore.plot_something(checkbox=False)"
         assert widget.show_code is False
+        assert widget.show_data is False
         assert widget._try_generate_plot() == "some result"
+        assert widget.current_plot_data == "some data"
 
     def test_args_kwargs_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_something"
         plot_function.__module__ = "test_explore"
 
@@ -141,7 +160,9 @@ class TestExplorationBaseClass:
         plot_function.assert_called_once_with("test", checkbox=False)
         assert widget.current_plot_code == "test_explore.plot_something('test', checkbox=False)"
         assert widget.show_code is False
+        assert widget.show_data is False
         assert widget._try_generate_plot() == "some result"
+        assert widget.current_plot_data == "some data"
 
     def test_exception_plot_code_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
@@ -160,10 +181,11 @@ class TestExplorationBaseClass:
         plot = widget._try_generate_plot()
         assert "Traceback" in plot.value
         assert "Test Exception" in plot.value
+        assert widget.current_plot_data is None
 
     def test_no_initial_plot_subclass(self):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_something"
         plot_function.__module__ = "test_explore"
 
@@ -178,13 +200,16 @@ class TestExplorationBaseClass:
         widget.center.outputs == []
         plot_function.assert_not_called()
         assert widget.current_plot_code == ExploreFake.NO_CODE_STRING
+        assert widget.current_plot_data is None
         assert widget.show_code is False
-        widget._try_generate_plot() == ""
+        assert widget.show_data is False
+        assert widget._try_generate_plot() == "some result"
+        assert widget.current_plot_data == "some data"
 
     @pytest.mark.parametrize("show_code", [True, False])
     def test_toggle_code_callback(self, show_code, capsys):
         option_widget = ipywidgets.Checkbox(description="ClickMe")
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_something"
         plot_function.__module__ = "test_explore"
 
@@ -203,6 +228,29 @@ class TestExplorationBaseClass:
         assert "some result" in stdout
         code_in_output = "test_explore.plot_something" in stdout.split("\n")[-2]
         assert code_in_output == show_code
+
+    @pytest.mark.parametrize("show_data", [True, False])
+    def test_toggle_data_callback(self, show_data, capsys):
+        option_widget = ipywidgets.Checkbox(description="ClickMe")
+        plot_function = Mock(return_value=("some result", "some data"))
+        plot_function.__name__ = "plot_something"
+        plot_function.__module__ = "test_explore"
+
+        class ExploreFake(undertest.ExplorationWidget):
+            def __init__(self):
+                super().__init__("Fake Explorer", option_widget, plot_function)
+
+            def generate_plot_args(self) -> tuple[tuple, dict]:
+                return ["test"], {"checkbox": self.option_widget.value}
+
+        widget = ExploreFake()
+        widget.show_data = show_data
+        widget.data_output = MagicMock()
+        widget._on_plot_button_click()
+        stdout = capsys.readouterr().out
+        assert "some result" in stdout
+        data_in_output = "some data" in stdout.split("\n")[-2]
+        assert data_in_output == show_data
 
 
 # endregion
@@ -559,7 +607,7 @@ class TestExplorationSubpopulationWidget:
     def test_init(self, mock_seismo):
         fake_seismo = mock_seismo()
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -569,12 +617,13 @@ class TestExplorationSubpopulationWidget:
         assert widget.update_plot_widget.disabled
         assert widget.current_plot_code == "test_explore.plot_function({})"
         plot_function.assert_called_once_with({})  # default value
+        assert widget.current_plot_data == "some data"
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_option_update(self, mock_seismo):
         fake_seismo = mock_seismo()
         fake_seismo.available_cohort_groups = {"C1": ["C1.1", "C1.2"], "C2": ["C2.1", "C2.2"]}
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -593,6 +642,7 @@ class TestExplorationSubpopulationWidget:
                 ]
             }
         )  # updated value
+        assert widget.current_plot_data == "some data"
 
 
 class TestExplorationModelSubgroupEvaluationWidget:
@@ -604,7 +654,7 @@ class TestExplorationModelSubgroupEvaluationWidget:
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -616,6 +666,7 @@ class TestExplorationModelSubgroupEvaluationWidget:
         assert widget.update_plot_widget.disabled
         assert widget.current_plot_code == "test_explore.plot_function({}, 'T1', 'S1', [0.2, 0.1], per_context=False)"
         plot_function.assert_called_once_with({}, "T1", "S1", [0.2, 0.1], per_context=False)  # default value
+        assert widget.current_plot_data == "some data"
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_option_update(self, mock_seismo):
@@ -625,7 +676,7 @@ class TestExplorationModelSubgroupEvaluationWidget:
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -636,6 +687,7 @@ class TestExplorationModelSubgroupEvaluationWidget:
         widget.option_widget.cohort_list.value = {"C2": ("C2.1",)}
         widget.update_plot()
         plot_function.assert_called_with({"C2": ("C2.1",)}, "T1", "S1", [0.2, 0.1], per_context=False)  # updated value
+        assert widget.current_plot_data == "some data"
 
 
 class TestExplorationCohortSubclassEvaluationWidget:
@@ -651,7 +703,7 @@ class TestExplorationCohortSubclassEvaluationWidget:
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -673,6 +725,7 @@ class TestExplorationCohortSubclassEvaluationWidget:
                 "C1", ("C1.1", "C1.2"), "T1", "S1", per_context=False
             )  # default value
         assert widget.current_plot_code == expected_code
+        assert widget.current_plot_data == "some data"
 
 
 class TestExplorationCohortOutcomeInterventionEvaluationWidget:
@@ -688,7 +741,7 @@ class TestExplorationCohortOutcomeInterventionEvaluationWidget:
         )
         fake_seismo.config = fake_config
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -702,6 +755,7 @@ class TestExplorationCohortOutcomeInterventionEvaluationWidget:
             widget.current_plot_code == "test_explore.plot_function('C1', ('C1.1', 'C1.2'), 'O1', 'I1', 'pred_time')"
         )
         plot_function.assert_called_once_with("C1", ("C1.1", "C1.2"), "O1", "I1", "pred_time")  # default value
+        assert widget.current_plot_data == "some data"
 
 
 class TestExplorationScoreComparisonByCohortWidget:
@@ -713,7 +767,7 @@ class TestExplorationScoreComparisonByCohortWidget:
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -725,6 +779,7 @@ class TestExplorationScoreComparisonByCohortWidget:
         assert widget.update_plot_widget.disabled
         assert widget.current_plot_code == "test_explore.plot_function({}, 'T1', ('S1', 'S2'), per_context=False)"
         plot_function.assert_called_once_with({}, "T1", ("S1", "S2"), per_context=False)  # default value
+        assert widget.current_plot_data == "some data"
 
 
 class TestExplorationTargetComparisonByCohortWidget:
@@ -736,7 +791,7 @@ class TestExplorationTargetComparisonByCohortWidget:
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -748,6 +803,7 @@ class TestExplorationTargetComparisonByCohortWidget:
         assert widget.update_plot_widget.disabled
         assert widget.current_plot_code == "test_explore.plot_function({}, ('T1', 'T2'), 'S1', per_context=False)"
         plot_function.assert_called_once_with({}, ("T1", "T2"), "S1", per_context=False)  # default value
+        assert widget.current_plot_data == "some data"
 
 
 # endregion
@@ -804,7 +860,7 @@ class TestExplorationMetricWidget:
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -823,6 +879,7 @@ class TestExplorationMetricWidget:
         plot_function.assert_called_once_with(
             metric_generator, ("Precision", "Recall"), {}, "T1", "S1", per_context=False
         )
+        assert widget.current_plot_data == "some data"
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     def test_option_update(self, mock_seismo):
@@ -833,7 +890,7 @@ class TestExplorationMetricWidget:
         fake_seismo.target_cols = ["T1", "T2"]
         fake_seismo.output_list = ["S1", "S2"]
 
-        plot_function = Mock(return_value="some result")
+        plot_function = Mock(return_value=("some result", "some data"))
         plot_function.__name__ = "plot_function"
         plot_function.__module__ = "test_explore"
 
@@ -853,6 +910,7 @@ class TestExplorationMetricWidget:
             + "('F1',), {}, 'T2', 'S2', per_context=False)"
         )
         plot_function.assert_called_with(metric_generator, ("F1",), {}, "T2", "S2", per_context=False)
+        assert widget.current_plot_data == "some data"
 
 
 class TestExploreBinaryModelAnalytics:

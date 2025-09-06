@@ -6,7 +6,7 @@ import pandas as pd
 from IPython.display import HTML, SVG
 
 import seismometer.plot as plot
-from seismometer.controls.decorators import disk_cached_html_segment
+from seismometer.controls.decorators import disk_cached_html_and_df_segment
 from seismometer.core.autometrics import AutomationManager, store_call_parameters
 from seismometer.core.decorators import export
 from seismometer.data import get_cohort_data, get_cohort_performance_data, metric_apis
@@ -36,9 +36,11 @@ def plot_cohort_hist():
     return _plot_cohort_hist(sg.dataframe, sg.target, sg.output, cohort_col, subgroups, censor_threshold)
 
 
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
-def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_column: str, score_column: str) -> HTML:
+def plot_cohort_group_histograms(
+    cohort_col: str, subgroups: list[str], target_column: str, score_column: str
+) -> tuple[HTML, pd.DataFrame]:
     """
     Generate a histogram plot of predicted probabilities for each subgroup in a cohort.
 
@@ -55,15 +57,14 @@ def plot_cohort_group_histograms(cohort_col: str, subgroups: list[str], target_c
 
     Returns
     -------
-    HTML
-        html visualization of the histogram
+    tuple[HTML, pd.DataFrame]
+        html visualization of the histogram and the data used to generate it
     """
     sg = Seismogram()
     target_column = pdh.event_value(target_column)
     return _plot_cohort_hist(sg.dataframe, target_column, score_column, cohort_col, subgroups, sg.censor_threshold)
 
 
-@disk_cached_html_segment
 def _plot_cohort_hist(
     dataframe: pd.DataFrame,
     target: str,
@@ -71,7 +72,7 @@ def _plot_cohort_hist(
     cohort_col: str,
     subgroups: list[str],
     censor_threshold: int = 10,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Creates an HTML segment displaying a histogram of predicted probabilities for each cohort.
 
@@ -107,7 +108,7 @@ def _plot_cohort_hist(
     cData = cData.loc[cData["cohort"].isin(good_groups)]
 
     if len(cData.index) == 0:
-        return template.render_censored_plot_message(censor_threshold)
+        return template.render_censored_plot_message(censor_threshold), cData
 
     bin_count = 20
     bins = np.histogram_bin_edges(cData["pred"], bins=bin_count)
@@ -115,9 +116,9 @@ def _plot_cohort_hist(
     try:
         svg = plot.cohorts_vertical(cData, plot.histogram_stacked, func_kws={"show_legend": False, "bins": bins})
         title = f"Predicted Probabilities by {cohort_col}"
-        return template.render_title_with_image(title, svg)
+        return template.render_title_with_image(title, svg), cData
     except Exception as error:
-        return template.render_title_message("Error", f"Error: {error}")
+        return template.render_title_message("Error", f"Error: {error}"), pd.DataFrame()
 
 
 @export
@@ -165,11 +166,11 @@ def plot_leadtime_enc(score=None, ref_time=None, target_event=None):
 
 
 @store_call_parameters(cohort_col="cohort_col", subgroups="subgroups")
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
 def plot_cohort_lead_time(
     cohort_col: str, subgroups: list[str], event_column: str, score_column: str, threshold: float
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Plots a lead times between the first positive prediction give an threshold and an event.
 
@@ -214,7 +215,6 @@ def plot_cohort_lead_time(
     )
 
 
-@disk_cached_html_segment
 def _plot_leadtime_enc(
     dataframe: pd.DataFrame,
     entity_keys: list[str],
@@ -228,7 +228,7 @@ def _plot_leadtime_enc(
     max_hours: int,
     x_label: str,
     censor_threshold: int = 10,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     HTML Plot of time between prediction and target event.
 
@@ -261,21 +261,24 @@ def _plot_leadtime_enc(
 
     Returns
     -------
-    HTML
-        Lead time plot
+    tuple[HTML, pd.DataFrame]
+        Lead time plot and the data used to generate it
     """
     if target_event not in dataframe:
-        logger.error(f"Target event ({target_event}) not found in dataset. Cannot plot leadtime.")
-        return
+        msg = f"Target event ({target_event}) not found in dataset. Cannot plot leadtime."
+        logger.error(msg)
+        return template.render_title_message("Error", msg), pd.DataFrame()
 
     if target_zero not in dataframe:
-        logger.error(f"Target event time-zero ({target_zero}) not found in dataset. Cannot plot leadtime.")
-        return
+        msg = f"Target event time-zero ({target_zero}) not found in dataset. Cannot plot leadtime."
+        logger.error(msg)
+        return template.render_title_message("Error", msg), pd.DataFrame()
 
     summary_data = dataframe[dataframe[target_event] == 1]
     if len(summary_data.index) == 0:
-        logger.error(f"No positive events ({target_event}=1) were found")
-        return
+        msg = f"No positive events ({target_event}=1) were found"
+        logger.error(msg)
+        return template.render_title_message("Error", msg), pd.DataFrame()
 
     cohort_mask = summary_data[cohort_col].isin(subgroups)
     threshold_mask = summary_data[score] > threshold
@@ -291,7 +294,7 @@ def _plot_leadtime_enc(
     if summary_data is not None and len(summary_data) > censor_threshold:
         summary_data = summary_data[[target_zero, ref_time, cohort_col]]
     else:
-        return template.render_censored_plot_message(censor_threshold)
+        return template.render_censored_plot_message(censor_threshold), pd.DataFrame()
 
     # filter by group size
     counts = summary_data[cohort_col].value_counts()
@@ -303,7 +306,7 @@ def _plot_leadtime_enc(
     )
 
     if len(summary_data.index) == 0:
-        return template.render_censored_plot_message(censor_threshold)
+        return template.render_censored_plot_message(censor_threshold), summary_data
 
     # Truncate to minute but plot hour
     summary_data[x_label] = (summary_data[ref_time] - summary_data[target_zero]).dt.total_seconds() // 60 / 60
@@ -311,11 +314,11 @@ def _plot_leadtime_enc(
     title = f'Lead Time from {score.replace("_", " ")} to {(target_zero).replace("_", " ")}'
     rows = summary_data[cohort_col].nunique()
     svg = plot.leadtime_violin(summary_data, x_label, cohort_col, xmax=max_hours, figsize=(9, 1 + rows))
-    return template.render_title_with_image(title, svg)
+    return template.render_title_with_image(title, svg), summary_data
 
 
 @store_call_parameters(cohort_col="cohort_col", subgroups="subgroups")
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
 def plot_cohort_evaluation(
     cohort_col: str,
@@ -324,7 +327,7 @@ def plot_cohort_evaluation(
     score_column: str,
     thresholds: list[float],
     per_context: bool = False,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Plots model performance metrics split by on a cohort attribute.
 
@@ -364,7 +367,6 @@ def plot_cohort_evaluation(
     )
 
 
-@disk_cached_html_segment
 def _plot_cohort_evaluation(
     dataframe: pd.DataFrame,
     entity_keys: list[str],
@@ -378,7 +380,7 @@ def _plot_cohort_evaluation(
     aggregation_method: str = "max",
     threshold_col: str = "Threshold",
     ref_time: str = None,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Plots model performance metrics split by on a cohort attribute.
 
@@ -441,14 +443,14 @@ def _plot_cohort_evaluation(
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
-        return template.render_censored_plot_message(censor_threshold)
+        return template.render_censored_plot_message(censor_threshold), plot_data
     svg = plot.cohort_evaluation_vs_threshold(plot_data, cohort_feature=cohort_col, highlight=thresholds)
     title = f"Model Performance Metrics on {cohort_col} across Thresholds"
-    return template.render_title_with_image(title, svg)
+    return template.render_title_with_image(title, svg), plot_data
 
 
 @store_call_parameters(cohort_dict="cohort_dict")
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
 def plot_model_evaluation(
     cohort_dict: dict[str, tuple[Any]],
@@ -456,7 +458,7 @@ def plot_model_evaluation(
     score_column: str,
     thresholds: list[float],
     per_context: bool = False,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Generates a 2x3 plot showing the performance of a model.
 
@@ -503,7 +505,6 @@ def plot_model_evaluation(
     )
 
 
-@disk_cached_html_segment
 def _model_evaluation(
     dataframe: pd.DataFrame,
     entity_keys: list[str],
@@ -516,7 +517,7 @@ def _model_evaluation(
     aggregation_method: str = "max",
     ref_time: Optional[str] = None,
     cohort: dict = {},
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     plots common model evaluation metrics
 
@@ -563,10 +564,13 @@ def _model_evaluation(
     requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
     data = requirements.filter(data)
     if len(data.index) < censor_threshold:
-        return template.render_censored_plot_message(censor_threshold)
+        return template.render_censored_plot_message(censor_threshold), data
     if (lcount := data[target].nunique()) != 2:
-        return template.render_title_message(
-            "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
+        return (
+            template.render_title_message(
+                "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
+            ),
+            data,
         )
 
     # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
@@ -595,7 +599,7 @@ def _model_evaluation(
         show_thresholds=True,
         highlight=thresholds,
     )
-    return template.render_title_with_image(title, svg)
+    return template.render_title_with_image(title, svg), data
 
 
 @store_call_parameters
@@ -622,7 +626,7 @@ def plot_trend_intervention_outcome() -> HTML:
     )
 
 
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
 def plot_intervention_outcome_timeseries(
     cohort_col: str,
@@ -631,7 +635,7 @@ def plot_intervention_outcome_timeseries(
     intervention: str,
     reference_time_col: str,
     censor_threshold: int = 10,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Plots two timeseries based on an outcome and an intervention.
 
@@ -666,7 +670,6 @@ def plot_intervention_outcome_timeseries(
     )
 
 
-@disk_cached_html_segment
 def _plot_trend_intervention_outcome(
     dataframe: pd.DataFrame,
     entity_keys: list[str],
@@ -676,7 +679,7 @@ def _plot_trend_intervention_outcome(
     intervention: str,
     reftime: str,
     censor_threshold: int = 10,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Plots two timeseries based on selectors; an outcome and then an intervention.
 
@@ -748,7 +751,7 @@ def _plot_trend_intervention_outcome(
             "Missing Outcome", f"No outcome timeseries plotted; No events with name {outcome}."
         )
 
-    return HTML(outcome_plot.data + intervention_plot.data)
+    return HTML(outcome_plot.data + intervention_plot.data), dataframe
 
 
 def _plot_ts_cohort(
@@ -842,11 +845,11 @@ def _plot_ts_cohort(
 
 
 @store_call_parameters(cohort_dict="cohort_dict")
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
 def plot_model_score_comparison(
     cohort_dict: dict[str, tuple[Any]], target: str, scores: tuple[str], *, per_context: bool
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Plots a comparison of model scores for a given subpopulation.
 
@@ -903,17 +906,17 @@ def plot_model_score_comparison(
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
-        return template.render_censored_plot_message(sg.censor_threshold)
+        return template.render_censored_plot_message(sg.censor_threshold), plot_data
     svg = plot.cohort_evaluation_vs_threshold(plot_data, cohort_feature="ScoreName")
     title = f"Model Metrics: {', '.join(scores)} vs {target}"
-    return template.render_title_with_image(title, svg)
+    return template.render_title_with_image(title, svg), plot_data
 
 
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
 def plot_model_target_comparison(
     cohort_dict: dict[str, tuple[Any]], targets: tuple[str], score: str, *, per_context: bool
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Plots a comparison of model targets for a given score and subpopulation.
 
@@ -970,15 +973,15 @@ def plot_model_target_comparison(
     try:
         assert_valid_performance_metrics_df(plot_data)
     except ValueError:
-        return template.render_censored_plot_message(sg.censor_threshold)
+        return template.render_censored_plot_message(sg.censor_threshold), plot_data
     svg = plot.cohort_evaluation_vs_threshold(plot_data, cohort_feature="ScoreName")
     title = f"Model Metrics: {', '.join(targets)} vs {score}"
-    return template.render_title_with_image(title, svg)
+    return template.render_title_with_image(title, svg), plot_data
 
 
 # region Explore Any Metric (NNT, etc)
 @store_call_parameters(cohort_dict="cohort_dict")
-@disk_cached_html_segment
+@disk_cached_html_and_df_segment
 @export
 def plot_binary_classifier_metrics(
     metric_generator: BinaryClassifierMetricGenerator,
@@ -989,7 +992,7 @@ def plot_binary_classifier_metrics(
     *,
     per_context: bool = False,
     table_only: bool = False,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     Generates a plot with model metrics.
 
@@ -1074,7 +1077,7 @@ def binary_classifier_metric_evaluation(
     aggregation_method: str = "max",
     ref_time: str = None,
     table_only: bool = False,
-) -> HTML:
+) -> tuple[HTML, pd.DataFrame]:
     """
     plots common model evaluation metrics
 
@@ -1118,10 +1121,13 @@ def binary_classifier_metric_evaluation(
     requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
     data = requirements.filter(data)
     if len(data.index) < censor_threshold:
-        return template.render_censored_plot_message(censor_threshold)
+        return template.render_censored_plot_message(censor_threshold), data
     if (lcount := data[target].nunique()) != 2:
-        return template.render_title_message(
-            "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
+        return (
+            template.render_title_message(
+                "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
+            ),
+            data,
         )
     if isinstance(metrics, str):
         metrics = [metrics]
@@ -1134,8 +1140,8 @@ def binary_classifier_metric_evaluation(
         if log_all:
             recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric].to_dict()})
     if table_only:
-        return HTML(stats[metrics].T.to_html())
-    return plot.binary_classifier.plot_metric_list(stats, metrics)
+        return HTML(stats[metrics].T.to_html()), data
+    return plot.binary_classifier.plot_metric_list(stats, metrics), data
 
 
 # endregion

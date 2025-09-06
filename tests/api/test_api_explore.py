@@ -148,7 +148,7 @@ class TestExploreSubgroups:
 
         mock_filter.assert_called_once()
         mock_render.assert_called_once()
-        assert "mock summary" in result.data
+        assert "mock summary" in result[0].data
 
     def test_cohort_list_details_censored_output(self, fake_seismo):
         fake_seismo.config.censor_min_count = 10
@@ -161,7 +161,7 @@ class TestExploreSubgroups:
             rule.filter.return_value = fake_seismo.dataframe.iloc[:0]  # no rows
             mock_filter.return_value = rule
 
-            result = cohort_list_details({"Cohort": ["C1", "C2"]})
+            result, _ = cohort_list_details({"Cohort": ["C1", "C2"]})
 
         assert "censored" in result.data.lower()
         mock_render.assert_called_once()
@@ -175,7 +175,7 @@ class TestExploreSubgroups:
             rule.filter.return_value = fake_seismo.dataframe
             mock_filter.return_value = rule
 
-            result = cohort_list_details({"Cohort": ["C1", "C2"]})
+            result, _ = cohort_list_details({"Cohort": ["C1", "C2"]})
 
         assert "summary" in result.data
 
@@ -250,15 +250,15 @@ class TestExploreBinaryModelMetrics:
 
         mock_calc.assert_called_once()
         mock_plot.assert_called_once()
-        assert isinstance(result, SVG)
-        assert "http://www.w3.org/2000/svg" in result.data
+        assert isinstance(result[0], SVG)
+        assert "http://www.w3.org/2000/svg" in result[0].data
 
     @patch("seismometer.data.performance.BinaryClassifierMetricGenerator.calculate_binary_stats")
     def test_plot_binary_classifier_metrics_table_only(self, mock_calc, fake_seismo):
         mock_stats = pd.DataFrame({"Sensitivity": [0.88]}, index=["value"])
         mock_calc.return_value = (mock_stats, None)
 
-        result = plot_binary_classifier_metrics(
+        result, _ = plot_binary_classifier_metrics(
             metric_generator=BinaryClassifierMetricGenerator(rho=0.5),
             metrics="Sensitivity",
             cohort_dict={},
@@ -284,7 +284,7 @@ class TestExploreBinaryModelMetrics:
         with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
             fake_seismo.dataframe = df
 
-            result = plot_binary_classifier_metrics(
+            result, _ = plot_binary_classifier_metrics(
                 metric_generator=BinaryClassifierMetricGenerator(rho=0.5),
                 metrics=["Accuracy"],
                 cohort_dict={"Cohort": ("C1",)},
@@ -304,7 +304,7 @@ class TestExploreModelEvaluation:
         df["event1_Value"] = 1  # single class
         mock_filter.return_value = df
 
-        result = _model_evaluation(
+        result, _ = _model_evaluation(
             df,
             entity_keys=["entity"],
             target_event="event1",
@@ -341,7 +341,7 @@ class TestExploreModelEvaluation:
         mock_filter.return_value = df
         mock_scores.return_value = df
 
-        result = _model_evaluation(
+        result, _ = _model_evaluation(
             df,
             entity_keys=["entity"],
             target_event="event1",
@@ -388,7 +388,7 @@ class TestExploreModelScoreComparison:
         mock_event_score.return_value = df  # per_context=False path
         mock_perf_data.return_value = _mock_perf_df
 
-        result = plot_model_score_comparison(
+        result, _ = plot_model_score_comparison(
             cohort_dict={"Cohort": ("C1", "C2")},
             target="event1",
             scores=("score1",),
@@ -431,7 +431,7 @@ class TestExploreModelTargetComparison:
         mock_event_score.return_value = df
         mock_perf_data.return_value = _mock_perf_df
 
-        result = plot_model_target_comparison(
+        result, _ = plot_model_target_comparison(
             cohort_dict={"Cohort": ("C1", "C2")},
             targets=("event1",),
             score="score1",
@@ -461,7 +461,7 @@ class TestExploreCohortEvaluation:
         mock_get_scores.return_value = df
         mock_get_perf.return_value = _mock_perf_df
 
-        result = _plot_cohort_evaluation(
+        result, _ = _plot_cohort_evaluation(
             dataframe=_mock_perf_df,
             entity_keys=["entity"],
             target="event1_Value",
@@ -494,7 +494,7 @@ class TestExploreCohortEvaluation:
         mock_get_scores.return_value = df
         mock_get_perf.return_value = _mock_perf_df
 
-        result = _plot_cohort_evaluation(
+        result, _ = _plot_cohort_evaluation(
             dataframe=_mock_perf_df,
             entity_keys=["entity"],
             target="event1_Value",
@@ -524,7 +524,7 @@ class TestExploreCohortHistograms:
         mock_seismo.return_value = fake_seismo
         mock_filter.return_value = fake_seismo.dataframe
 
-        result = plot_cohort_group_histograms(
+        result, _ = plot_cohort_group_histograms(
             cohort_col="Cohort",
             subgroups=["C1", "C2"],
             target_column="event1",
@@ -540,7 +540,7 @@ class TestExploreCohortHistograms:
         # Simulate filtered-out result
         empty_df = fake_seismo.dataframe.iloc[0:0].copy()
 
-        result = _plot_cohort_hist(
+        result, _ = _plot_cohort_hist(
             dataframe=empty_df,
             target="event1_Value",
             output="score1",
@@ -560,7 +560,7 @@ class TestExploreCohortHistograms:
             mock_df = pd.DataFrame({"cohort": ["C1"] * 11 + ["C2"] * 11, "pred": [0.1] * 11 + [0.2] * 11})
             mock_get_cohort_data.return_value = mock_df
 
-            result = _plot_cohort_hist(
+            result, _ = _plot_cohort_hist(
                 dataframe=fake_seismo.dataframe,
                 target="event1_Value",
                 output="score1",
@@ -610,7 +610,7 @@ class TestExploreCohortLeadTime:
     def test_leadtime_enc_missing_target_column(self, fake_seismo, caplog):
         df = fake_seismo.dataframe.drop(columns=["event1_Value"])
         with caplog.at_level("ERROR"):
-            result = _plot_leadtime_enc(
+            result, _ = _plot_leadtime_enc(
                 df,
                 entity_keys=["entity"],
                 target_event="event1_Value",
@@ -623,13 +623,13 @@ class TestExploreCohortLeadTime:
                 max_hours=48,
                 x_label="Lead Time (hours)",
             )
-        assert result is None
+        assert "Error" in result.data
         assert "Target event (event1_Value) not found" in caplog.text
 
     def test_leadtime_enc_missing_target_zero_column(self, fake_seismo, caplog):
         df = fake_seismo.dataframe.drop(columns=["event1_Time"])
         with caplog.at_level("ERROR"):
-            result = _plot_leadtime_enc(
+            result, _ = _plot_leadtime_enc(
                 df,
                 entity_keys=["entity"],
                 target_event="event1_Value",
@@ -642,14 +642,14 @@ class TestExploreCohortLeadTime:
                 max_hours=48,
                 x_label="Lead Time (hours)",
             )
-        assert result is None
+        assert "Error" in result.data
         assert "Target event time-zero (event1_Time) not found" in caplog.text
 
     def test_leadtime_enc_no_positive_events(self, fake_seismo, caplog):
         df = fake_seismo.dataframe.copy()
         df["event1_Value"] = 0  # force all negative
         with caplog.at_level("ERROR"):
-            result = _plot_leadtime_enc(
+            result, _ = _plot_leadtime_enc(
                 df,
                 entity_keys=["entity"],
                 target_event="event1_Value",
@@ -662,7 +662,7 @@ class TestExploreCohortLeadTime:
                 max_hours=48,
                 x_label="Lead Time (hours)",
             )
-        assert result is None
+        assert "Error" in result.data
         assert "No positive events (event1_Value=1) were found" in caplog.text
 
     @patch("seismometer.api.plots.pdh.event_score")
@@ -673,7 +673,7 @@ class TestExploreCohortLeadTime:
         mock_filter.return_value = df[:0]
         mock_score.return_value = df[:0]
 
-        result = _plot_leadtime_enc(
+        result, _ = _plot_leadtime_enc(
             df,
             entity_keys=["entity"],
             target_event="event1_Value",
@@ -714,7 +714,7 @@ class TestExploreCohortOutcomeInterventionTimes:
         self, mock_render, mock_plot, mock_event_value, fake_seismo
     ):
         fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
-        result = plot_trend_intervention_outcome()
+        result, _ = plot_trend_intervention_outcome()
         assert isinstance(result, HTML)
         assert "Outcome" in result.data
         assert "Intervention" in result.data
@@ -728,7 +728,7 @@ class TestExploreCohortOutcomeInterventionTimes:
         self, mock_msg, mock_render, mock_plot, mock_event_value, fake_seismo
     ):
         fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
-        result = plot_trend_intervention_outcome()
+        result, _ = plot_trend_intervention_outcome()
         assert isinstance(result, HTML)
         assert "Missing Intervention" in result.data
         assert "Outcome" in result.data
@@ -741,7 +741,7 @@ class TestExploreCohortOutcomeInterventionTimes:
         self, mock_msg, mock_render, mock_plot, mock_event_value, fake_seismo
     ):
         fake_seismo.selected_cohort = ("Cohort", ["C1", "C2"])
-        result = plot_trend_intervention_outcome()
+        result, _ = plot_trend_intervention_outcome()
         assert isinstance(result, HTML)
         assert "Missing Outcome" in result.data
         assert "Intervention" in result.data
