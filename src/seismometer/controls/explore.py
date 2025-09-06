@@ -35,6 +35,7 @@ class UpdatePlotWidget(Box):
     UPDATE_PLOTS = "Update"
     UPDATING_PLOTS = "Updating ..."
     SHOW_CODE = "Show code?"
+    SHOW_DATA = "Show raw data?"
 
     def __init__(self):
         self.code_checkbox = Checkbox(
@@ -45,10 +46,18 @@ class UpdatePlotWidget(Box):
             tooltip="Show the code used to generate the plot.",
             layout=Layout(margin="var(--jp-widgets-margin) var(--jp-widgets-margin) var(--jp-widgets-margin) 10px;"),
         )
+        self.data_checkbox = Checkbox(
+            value=False,
+            description=self.SHOW_DATA,
+            disabled=False,
+            indent=False,
+            tooltip="Show the raw data used to generate the plot.",
+            layout=Layout(margin="var(--jp-widgets-margin) var(--jp-widgets-margin) var(--jp-widgets-margin) 10px;"),
+        )
 
         self.plot_button = Button(description=self.UPDATE_PLOTS, button_style="primary")
         layout = Layout(align_items="flex-start")
-        children = [self.plot_button, self.code_checkbox]
+        children = [self.plot_button, self.code_checkbox, self.data_checkbox]
         super().__init__(layout=layout, children=children)
 
     @property
@@ -58,6 +67,14 @@ class UpdatePlotWidget(Box):
     @show_code.setter
     def show_code(self, show_code: bool) -> bool:
         self.code_checkbox.value = show_code
+
+    @property
+    def show_data(self) -> bool:
+        return self.data_checkbox.value
+
+    @show_data.setter
+    def show_data(self, show_data: bool) -> bool:
+        self.data_checkbox.value = show_data
 
     @property
     def disabled(self) -> bool:
@@ -85,6 +102,13 @@ class UpdatePlotWidget(Box):
             callback(self.code_checkbox.value)
 
         self.code_checkbox.observe(callback_wrapper, "value")
+
+    def on_toggle_data(self, callback):
+        @wraps(callback)
+        def callback_wrapper(change):
+            callback(self.data_checkbox.value)
+
+        self.data_checkbox.observe(callback_wrapper, "value")
 
 
 class ModelOptionsWidget(VBox, ValueWidget):
@@ -874,11 +898,20 @@ class ExplorationWidget(VBox):
         title = HTML(value=f"""<h3 style="text-align: left; margin-top: 0px;">{title}</h3>""")
         self.center = Output(layout=Layout(height="max-content", max_width="1200px"))
         self.code_output = Output(layout=Layout(height="max-content", max_width="1200px"))
+        self.data_output = Output(layout=Layout(height="max-content", max_width="1200px"))
         self.option_widget = option_widget
         self.plot_function = plot_function
         self.update_plot_widget = UpdatePlotWidget()
         super().__init__(
-            children=[title, self.option_widget, self.update_plot_widget, self.code_output, self.center], layout=layout
+            children=[
+                title,
+                self.option_widget,
+                self.update_plot_widget,
+                self.code_output,
+                self.data_output,
+                self.center,
+            ],
+            layout=layout,
         )
 
         # show initial plot
@@ -886,11 +919,13 @@ class ExplorationWidget(VBox):
             self.update_plot(initial=True)
         else:
             self.current_plot_code = self.NO_CODE_STRING
+            self.current_plot_data = None
 
         # attache event handlers
         self.option_widget.observe(self._on_option_change, "value")
         self.update_plot_widget.on_click(self._on_plot_button_click)
         self.update_plot_widget.on_toggle_code(self._on_toggle_code)
+        self.update_plot_widget.on_toggle_data(self._on_toggle_data)
 
     @property
     def disabled(self) -> bool:
@@ -909,6 +944,17 @@ class ExplorationWidget(VBox):
     @show_code.setter
     def show_code(self, show_code: bool):
         self.update_plot_widget.show_code = show_code
+
+    @property
+    def show_data(self) -> bool:
+        """
+        If the widget should show the plot's data.
+        """
+        return self.update_plot_widget.show_data
+
+    @show_data.setter
+    def show_data(self, show_data: bool):
+        self.update_plot_widget.show_data = show_data
 
     @staticmethod
     def _is_interactive_notebook() -> bool:
@@ -937,10 +983,12 @@ class ExplorationWidget(VBox):
         try:
             plot_args, plot_kwargs = self.generate_plot_args()
             self.current_plot_code = self.generate_plot_code(plot_args, plot_kwargs)
-            plot = self.plot_function(*plot_args, **plot_kwargs)
+            # The plot function will now return a tuple (plot, data)
+            plot, self.current_plot_data = self.plot_function(*plot_args, **plot_kwargs)
         except Exception as e:
             import traceback
 
+            self.current_plot_data = None
             plot = HTML(f"<div><h3>Exception: <pre>{e}</pre> </h3><pre>{traceback.format_exc()}</pre></div>")
         return plot
 
@@ -949,6 +997,7 @@ class ExplorationWidget(VBox):
         self.option_widget.disabled = True
         self.update_plot()
         self._on_toggle_code(self.show_code)
+        self._on_toggle_data(self.show_data)
         self.option_widget.disabled = False
 
     def generate_plot_code(self, plot_args: tuple = None, plot_kwargs: dict = None) -> str:
@@ -986,6 +1035,16 @@ class ExplorationWidget(VBox):
         highlighted_code.add_class("jp-RenderedHTMLCommon")
         with self.code_output:
             display(highlighted_code)
+
+    def _on_toggle_data(self, show_data: bool):
+        """Handle for the toggle data checkbox."""
+        self.data_output.clear_output()
+        if not show_data:
+            return
+
+        if self.current_plot_data is not None:
+            with self.data_output:
+                display(self.current_plot_data)
 
     def _on_option_change(self, change=None):
         """Enable the plot to be updated."""
