@@ -60,9 +60,9 @@ Make an empty folder with the following files:
     otel-collector:
       image: otel/opentelemetry-collector-contrib
       container_name: otel-collector
-      command: ["--config=/etc/otel-collector-config.yaml"]
+      command: ["--config=/etc/otel-collector-config.yml"]
       volumes:
-        - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+        - ./otel-collector-config.yml:/etc/otel-collector-config.yml
       ports:
         - "4317:4317"
         - "4318:4318"
@@ -92,7 +92,7 @@ Make an empty folder with the following files:
 
 .. code-block:: yaml
 
-  # otel-collector-config.yaml
+  # otel-collector-config.yml
   receivers:
     otlp:
       protocols:
@@ -141,7 +141,7 @@ Now when in your Docker container, seismometer will output metrics to
 the OpenTelemetry collector, which will send it eventually to Grafana --
 as long as you have the collector and backends running in the first place.
 
-Make sure your `config.yml`, in the `export_otel:` section, has the following:
+Make sure your `config.yml`, in the `otel_export:` section, has the following:
 
 .. code-block:: yaml
 
