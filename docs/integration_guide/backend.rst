@@ -83,7 +83,7 @@ Make an empty folder with the following files:
 
   # prometheus.yml
   global:
-  scrape_interval: 15s  # Frequency of metric scraping
+    scrape_interval: 15s  # Frequency of metric scraping
 
   scrape_configs:
     - job_name: 'otel-collector'
