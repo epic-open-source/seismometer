@@ -2,6 +2,7 @@ import logging
 import socket
 import sys
 import time
+from pathlib import Path
 from typing import Optional
 
 from seismometer.configuration.export_config import ExportConfig
@@ -58,7 +59,9 @@ class RealExportManager:
         self.readers = []
         self.otlp_exhausts = []
         for file_output_path in export_config.otel_files:
-            file_exhaust = open(file_output_path, "a")  # Does not overwrite existing data
+            file_path = Path(file_output_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_exhaust = open(file_path, "a")  # Does not overwrite existing data
             self.readers.append(
                 PeriodicExportingMetricReader(ConsoleMetricExporter(out=file_exhaust), export_interval_millis=5000)
             )
