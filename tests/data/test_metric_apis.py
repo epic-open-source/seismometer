@@ -11,6 +11,7 @@ except ImportError:
     # No OTel!
     pytest.skip("No OpenTelemetry, nothing to test here", allow_module_level=True)
 
+from seismometer.configuration.metrics import MetricConfig, SingleMetricConfig
 from seismometer.core.autometrics import AutomationManager
 from seismometer.data import metric_apis
 from seismometer.data.otel import ExportConfig, ExportManager
@@ -43,10 +44,12 @@ def fake_config(tmp_path):
         def __init__(self):
             self.automation_config = {}
             self.automation_config_path = tmp_path / "automation_config.yml"
-            self.metric_config = {
-                "A": {"output_metrics": True, "log_all": True, "quantiles": 4, "measurement_type": "Gauge"},
-                "B": {"output_metrics": True, "log_all": False, "quantiles": 4, "measurement_type": "Gauge"},
-            }
+            self.metric_config = MetricConfig(
+                metric_configs={
+                    "A": SingleMetricConfig(log_all=True),
+                    "B": SingleMetricConfig(log_all=False),
+                }
+            )
 
     return FakeConfigProvider()
 

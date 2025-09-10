@@ -85,7 +85,7 @@ class ConfigProvider:
             raw_yaml = all_info["otel_metric_override"]
         else:
             raw_yaml = {}
-        self._metric_config = MetricConfig(**raw_yaml)
+        self._metric_config = MetricConfig(metric_configs=raw_yaml)
 
     def _load_automation_config(self, automation_config: Path):
         # Because the structure of the saved automation is different for every single function call, we just save it

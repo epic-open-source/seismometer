@@ -590,8 +590,9 @@ def _model_evaluation(
         )
     am = AutomationManager()
     for metric in stats.columns:
-        log_all = am.get_metric_config(metric)["log_all"]
-        if log_all:
+        if metric == "Threshold":
+            continue
+        if am.get_metric_config(metric).log_all:
             recorder.populate_metrics(
                 attributes=params | cohort,
                 metrics={metric: stats[[metric, "Threshold"]].set_index("Threshold").to_dict()},
@@ -1140,7 +1141,7 @@ def binary_classifier_metric_evaluation(
     attributes = {"score_col": score_col, "target": target}
     am = AutomationManager()
     for metric in metrics:
-        log_all = am.get_metric_config(metric)["log_all"]
+        log_all = am.get_metric_config(metric).log_all
         if log_all:
             recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric].to_dict()})
     if table_only:

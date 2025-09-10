@@ -94,7 +94,7 @@ class RealOpenTelemetryRecorder:
             "Counter": self.meter.create_up_down_counter,
             "Histogram": self.meter.create_histogram,
         }
-        typestring = AutomationManager().get_metric_config(metric_name)["measurement_type"]
+        typestring = AutomationManager().get_metric_config(metric_name).measurement_type
         return TYPES[typestring] if typestring in TYPES else self.meter.create_gauge
 
     def populate_metrics(self, attributes, metrics):
@@ -126,7 +126,7 @@ class RealOpenTelemetryRecorder:
         for name in self.instruments.keys():
             # I think metrics.keys() is a subset of self.instruments.keys()
             # but I am not 100% on it. So this stays for now.
-            if name in metrics and am.get_metric_config(name)["output_metrics"]:
+            if name in metrics and am.get_metric_config(name).output_metrics:
                 self._log_to_instrument(attributes, self.instruments[name], metrics[name])
         if not any([name in metrics for name in self.instruments.keys()]):
             logger.warning("No metrics populated with this call!")
@@ -282,7 +282,7 @@ class RealOpenTelemetryRecorder:
             def maker(frame):
                 return frame.set_index(col_name)[[metric]].to_dict()
 
-            log_all = am.get_metric_config(metric)["log_all"]
+            log_all = am.get_metric_config(metric).log_all
             if log_all or col_values != []:
                 log_df = df if log_all else df[df[col_name].isin(col_values)]
                 self.log_by_cohort(
@@ -322,9 +322,10 @@ def log_quantiles(
         The threshold we are filtering by on the score column.
     """
     am = AutomationManager()
-    log_all = am.get_metric_config(metric_name)["log_all"]
-    NUMBER_QUANTILES = am.get_metric_config(metric_name)["quantiles"]
-    metric_names = [f"Quantile {i} out of {NUMBER_QUANTILES} of {metric_name}" for i in range(1, NUMBER_QUANTILES)]
+    metric_info = am.get_metric_config(metric_name)
+    log_all = metric_info.log_all
+    quantiles = metric_info.quantiles
+    metric_names = [f"Quantile {i} out of {quantiles} of {metric_name}" for i in range(1, quantiles)]
     if log_all:
         metric_names += [metric_name]
     recorder = OpenTelemetryRecorder(metric_names=metric_names, name=metric_name)
@@ -334,11 +335,8 @@ def log_quantiles(
         leads = frame[target_zero] - frame[ref_time]
         metrics = {
             # Exporting in hours for now
-            f"Quantile {i} out of {NUMBER_QUANTILES} of {metric_name}": (
-                leads.quantile(i / NUMBER_QUANTILES)
-            ).total_seconds()
-            / 3600
-            for i in range(1, NUMBER_QUANTILES)
+            f"Quantile {i} out of {quantiles} of {metric_name}": (leads.quantile(i / quantiles)).total_seconds() / 3600
+            for i in range(1, quantiles)
         }
         if log_all:
             # If we're logging all, then log all data and not just the quantiles.

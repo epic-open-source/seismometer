@@ -1,11 +1,24 @@
-from dataclasses import dataclass
+from typing import Dict
 
 from pydantic import BaseModel
 
 
-@dataclass
-class SingleMetricConfig:
-    """The settings for outputting of a single metric."""
+class SingleMetricConfig(BaseModel):
+    """
+    Configuration for a single metric.
+
+    Parameters
+    ----------
+    output_metrics : bool, optional
+        Whether to output metrics for this metric. Default is True.
+    log_all : bool, optional
+        Whether to log all values for this metric, rather than those at specified value (usually thresholds).
+        Default is False.
+    quantiles : int, optional
+        Number of quantiles to use for this metric. Default is 4.
+    measurement_type : str, optional
+        Type of measurement (e.g., 'Gauge'). Default is 'Gauge'.
+    """
 
     output_metrics: bool = True
     log_all: bool = False
@@ -14,20 +27,45 @@ class SingleMetricConfig:
 
 
 class MetricConfig(BaseModel):
-    """The global settings, so that we can load the
-    settings for all metrics at once.
+    """
+    Container for multiple metric configurations.
+
+    Parameters
+    ----------
+    metric_configs : dict[str, SingleMetricConfig]
+        Dictionary mapping metric names to their configurations.
     """
 
-    metric_configs: dict[str, SingleMetricConfig]
+    metric_configs: Dict[str, SingleMetricConfig]
 
-    def __init__(self, **kwargs):
-        """Populate the metric information, by type of metric, from the provided YAML dict.
+    def __contains__(self, key: str) -> bool:
+        """
+        Check if a metric name exists in the configuration.
 
         Parameters
         ----------
-        kwargs : dict
-            The section of YAML with the information we want to read.
+        key : str
+            The metric name to check.
+
+        Returns
+        -------
+        bool
+            True if the metric exists, False otherwise.
         """
-        super().__init__(metric_configs={})
-        for metric_name in kwargs.keys():
-            self.metric_configs[metric_name] = SingleMetricConfig(**kwargs[metric_name])
+        return key in self.metric_configs
+
+    def __getitem__(self, key: str) -> SingleMetricConfig:
+        """
+        Get the configuration for a metric by name, or return a default config if not found.
+
+        Parameters
+        ----------
+        key : str
+            The metric name to retrieve.
+
+        Returns
+        -------
+        SingleMetricConfig
+            The configuration for the metric, or a default config.
+        """
+        return self.metric_configs.get(key, SingleMetricConfig())
