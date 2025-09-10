@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock, patch
 
 import numpy as np
 import pandas as pd
@@ -6,7 +6,7 @@ import pytest
 from ipywidgets import HTML
 
 import seismometer.table.fairness as undertest
-from seismometer.data.performance import MetricGenerator
+from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
 
 # ---- Fixtures ----
 
@@ -138,10 +138,12 @@ class TestFairnessWrappers:
         sg_mock.event_aggregation_method.return_value = "mean"
         monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
 
-        gen = MetricGenerator(["M1"], lambda x, names: {"M1": 1})
-        html_result = undertest.binary_metrics_fairness_table(
-            gen, ["M1"], {"group": ("A", "B")}, 0.25, "target", "score", 0.5
-        )
+        gen = BinaryClassifierMetricGenerator()
+        with patch.object(BinaryClassifierMetricGenerator, "metric_names", new_callable=PropertyMock) as mock_metrics:
+            mock_metrics.return_value = ["M1"]
+            html_result = undertest.binary_metrics_fairness_table(
+                gen, ["M1"], {"group": ("A", "B")}, 0.25, "target", "score", 0.5
+            )
         assert isinstance(html_result, HTML)
 
     def test_custom_metrics_fairness_table_runs(self, monkeypatch):
@@ -197,7 +199,7 @@ class TestExplorationFairnessWidget:
 
         assert widget.metrics_generator == metrics
         assert isinstance(widget.option_widget, undertest.FairnessOptionsWidget)
-        assert widget.option_widget.fairness_ratio == 0.2
+        assert widget.option_widget.fairness_ratio == 0.25
         assert widget.plot_function == undertest.custom_metrics_fairness_table
 
     def test_generate_plot_args_returns_expected_values(self, monkeypatch):

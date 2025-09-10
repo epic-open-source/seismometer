@@ -29,6 +29,9 @@ jobs:
   test-coverage:
     name: Coverage py3.12
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        otel: [true, false]  # Test with and without OpenTelemetry
 
     steps:
       - name: Checkout
@@ -37,7 +40,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dependencies
+      - name: Install dependencies (with metrics)
+        if: ${{ matrix.otel }}
+        run: |
+          pip install --upgrade pip
+          pip install -e .[dev,metrics]
+      - name: Install dependencies (without metrics)
+        if: ${{ !matrix.otel }}
         run: |
           pip install --upgrade pip
           pip install -e .[dev]
@@ -46,17 +55,17 @@ jobs:
           coverage run -m pytest
       - name: Generate report
         run: |
-          coverage xml
+          coverage xml -o coverage/coverage-otel-${{ matrix.otel }}.xml
           coverage report
       - name: Generate html
         if: failure()
         run: |
-          coverage html
+          coverage html -d coverage/html-report-otel-${{ matrix.otel }}
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-data
+          name: coverage-data-otel-${{ matrix.otel }}
           path: coverage/*
           if-no-files-found: error
   test-packaging:
@@ -89,10 +98,11 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macos-latest
+        otel: [true, false]  # Test with and without OpenTelemetry
         include:
           - experimental: false
 
-    name: Test python-${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Test python-${{ matrix.python-version }} on ${{ matrix.os }} (OTEL=${{ matrix.otel }})
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
     steps:
@@ -102,7 +112,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Install dependencies (with metrics)
+        if: ${{ matrix.otel }}
+        run: |
+          pip install --upgrade pip
+          pip install -e .[dev,metrics]
+      - name: Install dependencies (without metrics)
+        if: ${{ !matrix.otel }}
         run: |
           pip install --upgrade pip
           pip install -e .[dev]

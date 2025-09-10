@@ -88,11 +88,11 @@ Seismogram Loaders
 .. autosummary::
    :toctree: api/
 
-   loader.ConfigOnlyHook
-   loader.ConfigFrameHook
-   loader.MergeFramesHook
-   loader.SeismogramLoader
-   loader.SeismogramLoader.load_data
+   loader.pipeline.ConfigOnlyHook
+   loader.pipeline.ConfigFrameHook
+   loader.pipeline.MergeFramesHook
+   loader.pipeline.SeismogramLoader
+   loader.pipeline.SeismogramLoader.load_data
    loader.loader_factory
    loader.event.parquet_loader
    loader.event.post_transform_fn
@@ -109,6 +109,37 @@ Summaries
    summaries.default_cohort_summaries
    summaries.score_target_cohort_summaries
 
+OpenTelemetry output
+~~~~~~~~~~~~~~~~~~~~
+.. currentmodule:: seismometer.data.otel
+.. autosummary::
+   :toctree: api/
+
+   get_metric_creator
+   deactivate_exports
+   activate_exports
+
+.. currentmodule:: seismometer.data.metric_apis
+.. autosummary::
+   :toctree: api/
+
+.. autoclass:: RealOpenTelemetryRecorder
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. currentmodule:: seismometer.core.autometrics
+.. autosummary::
+   :toctree: api/
+
+   store_call_parameters
+   initialize_otel_config
+   export_automated_metrics
+
+.. autoclass:: AutomationManager
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Low-level patterns
 ------------------

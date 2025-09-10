@@ -3,6 +3,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from seismometer.configuration.export_config import ExportConfig
+from seismometer.configuration.metrics import MetricConfig
 from seismometer.core.io import load_yaml
 
 from .model import DataUsage, Event, EventDictionary, Metric, OtherInfo, PredictionDictionary
@@ -46,6 +48,7 @@ class ConfigProvider:
         config_config: str | Path,
         *,
         usage_config: str | Path = None,
+        automation_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
         template_notebook: object = None,
@@ -67,9 +70,41 @@ class ConfigProvider:
             self._event_defs = EventDictionary(events=definitions.pop("events", None))
 
         self._load_config_config(config_config)
-        self._resolve_other_paths(usage_config, info_dir, data_dir, output_path)
+        self._resolve_other_paths(usage_config, automation_config, info_dir, data_dir, output_path)
         self._load_output_as_metric()
         self._load_metrics()
+        self._load_metric_config(self.config.usage_config)
+        self._load_automation_config(self.config.automation_config)
+
+    def _load_metric_config(self, usage_config: Path):
+        all_info = load_yaml(usage_config, self.config_dir)
+        if "otel_metric_override" in all_info.keys():
+            raw_yaml = all_info["otel_metric_override"]
+        else:
+            raw_yaml = {}
+        self._metric_config = MetricConfig(**raw_yaml)
+
+    def _load_automation_config(self, automation_config: Path):
+        # Because the structure of the saved automation is different for every single function call, we just save it
+        # off as a raw dictionary.
+        if automation_config is not None:
+            self._automation_config = self._load_definitions(
+                automation_config, "automation_config", lambda **kwargs: kwargs
+            )
+        else:
+            self._automation_config = {}
+
+    @property
+    def automation_config(self):
+        return self._automation_config
+
+    @property
+    def automation_config_path(self):
+        return self._config.automation_config
+
+    @property
+    def metric_config(self):
+        return self._metric_config
 
     def _load_config_config(self, config_config: str | Path) -> None:
         """
@@ -88,9 +123,12 @@ class ConfigProvider:
 
         self.config = OtherInfo(**raw_config["other_info"])
 
+        self.export_config = ExportConfig(raw_config)
+
     def _resolve_other_paths(
         self,
         usage_config: str | Path = None,
+        automation_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
         output_path: str | Path = None,
@@ -100,6 +138,13 @@ class ConfigProvider:
         """
         # Coerce to Path or override with Path
         self.config.usage_config = Path(usage_config) if usage_config is not None else Path(self.config.usage_config)
+        self.config.automation_config = (
+            Path(automation_config)
+            if automation_config is not None
+            else Path(self.config.automation_config)
+            if self.config.automation_config is not None
+            else None
+        )
         self.config.info_dir = Path(info_dir) if info_dir is not None else Path(self.config.info_dir)
         self.config.data_dir = Path(data_dir) if data_dir is not None else Path(self.config.data_dir)
         self.set_output(output_path)
@@ -228,6 +273,11 @@ class ConfigProvider:
     def metadata_path(self) -> Path:
         """The path to the metadata json."""
         return self.config.data_dir / self.config.metadata_path
+
+    @property
+    def prediction_types(self) -> dict[str, str]:
+        """Gathers the defined types from the configuration dictionary."""
+        return {defn.name: defn.dtype for defn in self.prediction_defs.predictions if defn.dtype is not None}
 
     # endregion
     # region Usage

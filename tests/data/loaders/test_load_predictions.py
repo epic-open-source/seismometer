@@ -17,6 +17,22 @@ from seismometer.configuration.model import DictionaryItem
 
 # region Fakes and Data Prep
 def fake_config(prediction_file):
+    # Some loaders need some data structures to be present to function
+    class FakeDictionaryItem:
+        def __init__(self, name, dtype):
+            self.name = name
+            self.dtype = dtype
+
+    class FakePredictionDictionary:
+        def __init__(self):
+            self.predictions = [FakeDictionaryItem("id", "object")]
+
+    class FakeDataUsage:
+        def __init__(self):
+            self.entity_id = "id"
+            self.context_id = None
+            self.predict_time = None
+
     # Create a fake configuration object
     class FakeConfigProvider:
         def __init__(self):
@@ -29,6 +45,8 @@ def fake_config(prediction_file):
             # Intentionally empty, but used in logic for "all feattures"
             self.features = []  # This should be overwritten in tests
             self.cohorts = []
+            self.prediction_defs = FakePredictionDictionary()
+            self.usage = FakeDataUsage()
 
         @property
         def prediction_columns(self):
@@ -41,6 +59,11 @@ def fake_config(prediction_file):
                 + [c.source for c in self.cohorts]
             )
             return sorted(col_set)
+
+        @property
+        def prediction_types(self):
+            # Same thing here
+            return {defn.name: defn.dtype for defn in self.prediction_defs.predictions if defn.dtype is not None}
 
     return FakeConfigProvider()
 
@@ -72,6 +95,24 @@ def pandas_parquet_setup():
     return fake_config(file)
 
 
+def csv_setup():
+    file = Path("predictions.csv")
+
+    data = pred_frame()
+    data.to_csv(file, index=False)
+
+    return fake_config(file)
+
+
+def tsv_setup():
+    file = Path("predictions.tsv")
+
+    data = pred_frame()
+    data.to_csv(file, sep="\t", index=False)
+
+    return fake_config(file)
+
+
 def non_pandas_parquet_setup():
     file = Path("predictions.parquet")
 
@@ -93,6 +134,8 @@ def non_pandas_parquet_setup():
     [
         [pandas_parquet_setup, undertest.parquet_loader],
         [non_pandas_parquet_setup, undertest.parquet_loader],
+        [csv_setup, undertest.csv_loader],
+        [tsv_setup, undertest.tsv_loader],
     ],
 )
 @pytest.mark.usefixtures("tmp_as_current")
@@ -276,6 +319,9 @@ class TestDictionaryTypes:
 
         config.prediction_defs = Mock()
         config.prediction_defs.predictions = [DictionaryItem(**di) for di in defined_types]
+        config.prediction_types = {
+            defn.name: defn.dtype for defn in config.prediction_defs.predictions if defn.dtype is not None
+        }
 
         dataframe = pd.DataFrame(
             {
@@ -297,11 +343,10 @@ class TestDictionaryTypes:
     ):
         config = Mock(spec=ConfigProvider)
         config.output_list = []
-        config.prediction_defs = Mock()
-        config.prediction_defs.predictions = [
-            DictionaryItem(name="bad_col1", dtype="int64"),
-            DictionaryItem(name="bad_col2", dtype="datetime64[ns]"),
-        ]
+        config.prediction_types = {
+            "bad_col1": "int64",
+            "bad_col2": "datetime64[ns]",
+        }
 
         dataframe = pd.DataFrame(
             {

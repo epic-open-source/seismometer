@@ -1,3 +1,4 @@
+import csv
 import logging
 import warnings
 
@@ -8,7 +9,69 @@ import pyarrow.parquet as pq
 import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider, ConfigurationError
 
+from .pipeline import ConfigOnlyHook
+
 logger = logging.getLogger("seismometer")
+
+
+def get_data_loader(config: ConfigProvider) -> ConfigOnlyHook:
+    """
+    Returns the proper data loader function from the prediction file extension.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    ConfigOnlyHook
+        The predictions dataframe.
+    """
+    loaders = {
+        ".csv": csv_loader,
+        ".tsv": tsv_loader,
+        ".parquet": parquet_loader,
+    }
+    return loaders.get(config.prediction_path.suffix.lower(), parquet_loader)
+
+
+def csv_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Load the predictions frame from a CSV file based on config.prediction_path.
+
+    Will restrict the loaded columns to those specified in config.features, if present.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        The predictions dataframe.
+    """
+    return _sv_loader(config, ",")
+
+
+def tsv_loader(config: ConfigProvider) -> pd.DataFrame:
+    """
+    Load the predictions frame from a TSV file based on config.prediction_path.
+
+    Will restrict the loaded columns to those specified in config.features, if present.
+
+    Parameters
+    ----------
+    config : ConfigProvider
+        The loaded configuration object.
+
+    Returns
+    -------
+    pd.DataFrame
+        The predictions dataframe.
+    """
+    return _sv_loader(config, "\t")
 
 
 def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
@@ -94,7 +157,7 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
         If any columns cannot be converted to the expected types.
     """
 
-    defined_types = _gather_defined_types(config)
+    defined_types = config.prediction_types
     unspecified_columns = []
     value_error_columns = []
 
@@ -157,9 +220,6 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
 
 # other
-def _gather_defined_types(config: ConfigProvider) -> dict[str, str]:
-    """Gathers the defined types from the configuration dictionary."""
-    return {defn.name: defn.dtype for defn in config.prediction_defs.predictions if defn.dtype is not None}
 
 
 def _infer_datetime(dataframe, cols=None, override_categories=None):
@@ -171,3 +231,39 @@ def _infer_datetime(dataframe, cols=None, override_categories=None):
             dataframe[col] = pd.to_datetime(dataframe[col])
             continue
     return dataframe
+
+
+def _sv_loader(config: ConfigProvider, sep) -> pd.DataFrame:
+    """General loader for CSV or TSV files"""
+    if not config.features:  # no features ==> all features
+        dataframe = pd.read_csv(config.prediction_path, sep=sep)
+    else:
+        desired_columns = set(config.prediction_columns)
+
+        with open(config.prediction_path, "r") as f:
+            dict_reader = csv.DictReader(f, delimiter=sep)
+            try:
+                present_columns = set(dict_reader.fieldnames)
+            except UnicodeDecodeError:
+                # output clean error
+                raise ValueError(
+                    f"Unable to parse file {config.prediction_path}. Make sure it is formatted correctly."
+                ) from None
+
+        if config.target in present_columns:
+            desired_columns.add(config.target)
+        actual_columns = desired_columns & present_columns
+        _log_column_mismatch(actual_columns, desired_columns, present_columns)
+        dataframe = pd.read_csv(config.prediction_path, sep=sep, usecols=list(actual_columns))
+
+    dataframe = _rename_targets(config, dataframe)
+
+    # since importing CSVs automatically cast numbers to ints, make sure the columns
+    # shared with events become strings so we don't have a type mismatch
+    defined_types = config.prediction_types
+    usage = config.usage
+    for col in [usage.entity_id, usage.context_id, usage.predict_time]:
+        if col is not None and defined_types[col] == "object":
+            dataframe[col] = dataframe[col].astype(str)
+
+    return dataframe.sort_index(axis=1)
