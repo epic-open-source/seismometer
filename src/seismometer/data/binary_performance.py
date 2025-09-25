@@ -1,4 +1,5 @@
 import itertools
+import logging
 from typing import Any, List, Optional
 
 import numpy as np
@@ -10,6 +11,8 @@ from seismometer.seismogram import Seismogram
 
 from . import BinaryClassifierMetricGenerator
 from .performance import MONOTONIC_METRICS, THRESHOLD
+
+logger = logging.getLogger("seismometer")
 
 GENERATED_COLUMNS = [
     "Positives",
@@ -176,6 +179,7 @@ def generate_analytics_data(
     cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
     cohort_filter.MIN_ROWS = censor_threshold
     data = cohort_filter.filter(sg.dataframe)
+    logger.info(f"data after cohort filtering has {len(data)} rows.")
     if len(data) <= censor_threshold:
         return None
     for first, second in product:
@@ -193,6 +197,8 @@ def generate_analytics_data(
             if per_context
             else data
         )
+        if per_context:
+            logger.info(f"For {(first, second)} pair, after combinig scores, data has {len(data)} rows.")
         current_row.update(
             calculate_stats(
                 per_context_data[[target, score]],
