@@ -65,6 +65,33 @@ period of the analysis and number of predictions made by the model.
 
 It also provides definitions of terms used throughout the Notebook.
 
+Logging
+-------
+
+By default, ``seismometer`` enables logging at the ``WARNING`` (30) level.  
+This means only warnings and errors will be shown during normal use.
+
+If you want more visibility into how the Notebook processes your data — for example,
+how events are merged or how many rows remain after filtering — you can lower the
+logging level when starting ``seismometer``:
+
+.. code-block:: python
+
+   import logging
+   import seismometer as sm
+
+   # Default is WARNING/30
+   sm.run_startup(config_path=".", log_level=logging.WARNING)
+
+   # For more details about data changes and event-handling steps:
+   sm.run_startup(config_path=".", log_level=logging.INFO)
+
+   # For the most detailed view of loading, merging, and filtering operations:
+   sm.run_startup(config_path=".", log_level=logging.DEBUG)
+
+This logging output can help you understand both the progress of processing 
+and the transformations applied to your data.
+
 Overview
 --------
 
