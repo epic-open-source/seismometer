@@ -454,7 +454,9 @@ def _merge_with_strategy(
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
 
-def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+def max_aggregation(
+    df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str, threshold: float = None
+) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the maximum score value.
 
@@ -470,6 +472,8 @@ def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str,
         The column name containing the time to consider, by default None.
     ref_event : Optional[str], optional
         The column name containing the event to consider, by default None.
+    threshold : Optional[float], optional
+        Score threshold to compare against, by default None.
 
     Returns
     -------
@@ -485,7 +489,9 @@ def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str,
     return df.drop_duplicates(subset=pks)
 
 
-def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+def min_aggregation(
+    df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str, threshold: float = None
+) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the minimum score value.
 
@@ -501,6 +507,8 @@ def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str,
         The column name containing the time to consider, by default None.
     ref_event : Optional[str], optional
         The column name containing the event to consider, by default None.
+    threshold : Optional[float], optional
+        Score threshold to compare against, by default None.
 
     Returns
     -------
@@ -516,7 +524,9 @@ def min_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str,
     return df.drop_duplicates(subset=pks)
 
 
-def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+def first_aggregation(
+    df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str, threshold: float = None
+) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the first occurrence based on event time.
 
@@ -532,6 +542,8 @@ def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: st
         The column name containing the time to consider, by default None.
     ref_event : Optional[str], optional
         The column name containing the event to consider, by default None.
+    threshold : Optional[float], optional
+        Score threshold to compare against, by default None.
 
     Returns
     -------
@@ -547,7 +559,51 @@ def first_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: st
     return df.drop_duplicates(subset=pks)
 
 
-def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
+def first_above_threshold_aggregation(
+    df: pd.DataFrame,
+    pks: list[str],
+    score: str,
+    ref_time: Optional[str],
+    ref_event: Optional[str],
+    threshold: float,
+) -> pd.DataFrame:
+    """
+    Aggregates by selecting the first prediction with a score above the given threshold.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The dataframe to aggregate.
+    pks : list[str]
+        Keys to group by.
+    score : str
+        Score column name.
+    ref_time : str
+        Time reference column name.
+    ref_event : str
+        Not used here but retained for API consistency.
+    threshold : float
+        Score threshold to compare against.
+
+    Returns
+    -------
+    pd.DataFrame
+        Aggregated dataframe with first above-threshold score per group.
+    """
+    ref_score = _resolve_score_col(df, score)
+    if ref_time is None:
+        raise ValueError("ref_time is required for first_above_threshold aggregation")
+
+    reference_time = _resolve_time_col(df, ref_time)
+    df = df[df[ref_score] > threshold]
+    df = df[df[reference_time].notna()]
+    df = df.sort_values(by=reference_time)
+    return df.drop_duplicates(subset=pks)
+
+
+def last_aggregation(
+    df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str, threshold: float = None
+) -> pd.DataFrame:
     """
     Aggregates the DataFrame by selecting the last occurrence based on event time.
 
@@ -563,6 +619,8 @@ def last_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str
         The column name containing the time to consider, by default None.
     ref_event : Optional[str], optional
         The column name containing the event to consider, by default None.
+    threshold : Optional[float], optional
+        Score threshold to compare against, by default None.
 
     Returns
     -------
@@ -585,6 +643,7 @@ def event_score(
     ref_time: Optional[str] = None,
     ref_event: Optional[str] = None,
     aggregation_method: str = "max",
+    threshold: Optional[float] = None,
 ) -> pd.DataFrame:
     """
     Reduces a dataframe of all predictions to a single row of significance; such as the max or most recent value for
@@ -612,6 +671,8 @@ def event_score(
         the aggregation_method.
     aggregation_method : str, optional
         A string describing the method to select a value, by default 'max'.
+    threshold : Optional[float], optional
+        Score threshold to compare against, by default None.
 
     Returns
     -------
@@ -629,12 +690,13 @@ def event_score(
         "min": min_aggregation,
         "first": first_aggregation,
         "last": last_aggregation,
+        "first_above_threshold": first_above_threshold_aggregation,
     }
 
     if aggregation_method not in aggregation_methods:
         raise ValueError(f"Unknown aggregation method: {aggregation_method}")
 
-    df = aggregation_methods[aggregation_method](merged_frame, pks, score, ref_time, ref_event)
+    df = aggregation_methods[aggregation_method](merged_frame, pks, score, ref_time, ref_event, threshold)
     return df.loc[~np.isnan(df.index)]
 
 
