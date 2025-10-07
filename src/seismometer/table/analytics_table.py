@@ -59,6 +59,7 @@ class AnalyticsTable:
         statistics_data: Optional[pd.DataFrame] = None,
         per_context: bool = False,
         censor_threshold: int = 10,
+        aggregation_method: Optional[str] = None,
     ):
         """
         Initializes the AnalyticsTable object with the necessary data and parameters.
@@ -94,6 +95,10 @@ class AnalyticsTable:
         censor_threshold : int, optional
             Minimum number of rows required in the cohort data to enable the generation of an analytics table,
             by default 10.
+        aggregation_method : Optional[str], optional
+            If provided, indicates that the table is being used to summarize threshold-specific aggregation results.
+            This parameter is not used directly in this class, but it can be useful for customizing the title
+            or other aspects of the table when it is part of a threshold aggregation analysis, by default None.
 
         Raises
         ------
@@ -132,6 +137,7 @@ class AnalyticsTable:
         self._initializing = False
         self.per_context = per_context
         self.censor_threshold = censor_threshold
+        self.aggregation_method = aggregation_method
 
     def _validate_df_statistics_data(self):
         if not self._initializing:  # Skip validation during initial setup
@@ -376,6 +382,7 @@ class AnalyticsTable:
             metrics_to_display=self.metrics_to_display,
             decimals=self.decimals,
             censor_threshold=self.censor_threshold,
+            aggregation_method=self.aggregation_method,
         )
         if data is None:
             return None

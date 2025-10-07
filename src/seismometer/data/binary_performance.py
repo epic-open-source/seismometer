@@ -131,6 +131,7 @@ def generate_analytics_data(
     metrics_to_display: Optional[List[str]] = None,
     decimals: int = 3,
     censor_threshold: int = 10,
+    aggregation_method: Optional[str] = None,
 ) -> Optional[pd.DataFrame]:
     """
     Generates a DataFrame containing calculated statistics for each combination of scores and targets.
@@ -158,6 +159,10 @@ def generate_analytics_data(
         The number of decimal places for rounding numerical results, by default 3.
     censor_threshold : int, optional
         Minimum rows required to generate analytics data, by default 10.
+    aggregation_method : Optional[str], optional
+        If provided, indicates that the table is being used to summarize threshold-specific aggregation results.
+        This parameter is not used directly in this function, but it can be useful for customizing the title
+        or other aspects of the table when it is part of a threshold aggregation analysis, by default None.
 
     Returns
     -------
@@ -188,7 +193,7 @@ def generate_analytics_data(
                 score=score,
                 ref_time=sg.predict_time,
                 ref_event=target,
-                aggregation_method=sg.event_aggregation_method(target),
+                aggregation_method=aggregation_method or sg.event_aggregation_method(target),
             )
             if per_context
             else data

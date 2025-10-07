@@ -9,6 +9,7 @@ from seismometer.report.profiling import ComparisonReportWrapper, SingleReportWr
 from seismometer.seismogram import Seismogram
 from seismometer.table.analytics_table import ExploreBinaryModelAnalytics
 from seismometer.table.fairness import ExploreBinaryModelFairness
+from seismometer.table.threshold_aggregation import ExploreThresholdAggregation
 
 logger = logging.getLogger("seismometer")
 
@@ -40,6 +41,22 @@ class ExploreAnalyticsTable(ExploreBinaryModelAnalytics):
         Passes the plot function to the superclass.
         """
         super().__init__()
+
+
+@export
+class ExploreThresholdAggregationTable(ExploreThresholdAggregation):
+    """
+    Exploration widget for threshold-specific entity-level aggregation.
+
+    Applies a fixed threshold and aggregation strategy (for example, ``first_above_threshold``)
+    and generates an AnalyticsTable-style summary table showing the aggregated results.
+    """
+
+    def __init__(self):
+        """
+        Passes the plot function to the superclass.
+        """
+        super().__init__(title="Threshold Aggregation Table")
 
 
 @export
