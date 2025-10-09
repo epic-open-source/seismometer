@@ -547,8 +547,6 @@ class ExplorationFairnessWidget(ExplorationWidget):
                 metric_names,
                 sg.available_cohort_groups,
                 fairness_ratio=0.25,
-                hierarchies=sg.cohort_hierarchies,
-                hierarchy_combinations=sg.cohort_hierarchy_combinations,
             ),
             plot_function=custom_metrics_fairness_table,
             initial_plot=False,
