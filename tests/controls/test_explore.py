@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, Mock, patch
 
 import ipywidgets
+import pandas as pd
 import pytest
 
 import seismometer.controls.explore as undertest
@@ -19,6 +20,7 @@ from seismometer.table.fairness import (
     FairnessOptionsWidget,
     binary_metrics_fairness_table,
 )
+from seismometer.table.threshold_aggregation import ExploreThresholdAggregation, ThresholdAggregationOptionsWidget
 
 
 # region Test Base Classes
@@ -1602,6 +1604,228 @@ class TestExploreBinaryModelFairness:
             0.5,
         )
         assert kwargs == {"per_context": True}
+
+
+class TestThresholdAggregationOptionsWidget:
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+
+        widget = ThresholdAggregationOptionsWidget(
+            target_cols=("T1", "T2"),
+            score_cols=("S1", "S2"),
+            cohort_dict=fake_seismo.available_cohort_groups,
+        )
+
+        assert isinstance(widget, ipywidgets.VBox)
+        assert widget._target_cols.value == ("T1", "T2")
+        assert widget._score_cols.value == ("S1", "S2")
+        assert widget._aggregation_method.value == "first_above_threshold"
+        assert isinstance(widget.threshold, float)
+        assert widget.group_by in ("Score", "Target")
+        assert widget.group_scores in (True, False)
+        assert isinstance(widget.value, dict)
+        assert widget.value["aggregation_method"] == "first_above_threshold"
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_disabled_property(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1"]
+        fake_seismo.output_list = ["S1"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+
+        widget = ThresholdAggregationOptionsWidget(
+            target_cols=("T1",),
+            score_cols=("S1",),
+            cohort_dict=fake_seismo.available_cohort_groups,
+        )
+
+        widget.disabled = True
+        for child in [
+            widget._cohort_dict,
+            widget._target_cols,
+            widget._score_cols,
+            widget._aggregation_method,
+            widget._threshold,
+            widget._metrics_to_display,
+            widget._group_by,
+            widget.per_context_checkbox,
+        ]:
+            assert child.disabled is True
+
+        widget.disabled = False
+        for child in [
+            widget._cohort_dict,
+            widget._target_cols,
+            widget._score_cols,
+            widget._aggregation_method,
+            widget._threshold,
+            widget._metrics_to_display,
+            widget._group_by,
+            widget.per_context_checkbox,
+        ]:
+            assert child.disabled is False
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_on_value_changed(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1"]
+        fake_seismo.output_list = ["S1"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+
+        widget = ThresholdAggregationOptionsWidget(
+            target_cols=("T1",),
+            score_cols=("S1",),
+            cohort_dict=fake_seismo.available_cohort_groups,
+        )
+
+        # Simulate user changing values
+        widget._cohort_dict.value = {"C1": ["A"]}
+        widget._target_cols.value = ("T1",)
+        widget._score_cols.value = ("S1",)
+        widget._aggregation_method.value = "first_above_threshold"
+        widget._threshold.value = {"Threshold": 0.75}
+        widget._metrics_to_display.value = ("AUROC",)
+        widget._group_by.value = "Target"
+        widget.per_context_checkbox.value = True
+
+        widget._on_value_changed()
+
+        val = widget.value
+        assert val["cohort_dict"] == {"C1": ["A"]}
+        assert val["target_cols"] == ("T1",)
+        assert val["score_cols"] == ("S1",)
+        assert val["aggregation_method"] == "first_above_threshold"
+        assert val["threshold"] == 0.75
+        assert val["metrics_to_display"] == ("AUROC",)
+        assert val["group_by"] == "Target"
+        assert val["group_scores"] is True
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    @pytest.mark.parametrize("group_by", ["Score", "Target"])
+    def test_group_by_and_threshold_behavior(self, mock_seismo, group_by):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1"]
+        fake_seismo.output_list = ["S1"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+
+        widget = ThresholdAggregationOptionsWidget(
+            target_cols=("T1",),
+            score_cols=("S1",),
+            cohort_dict=fake_seismo.available_cohort_groups,
+        )
+
+        widget._group_by.value = group_by
+        widget._threshold.value = {"Threshold": 0.3}
+        widget._on_value_changed()
+
+        assert widget.group_by == group_by
+        assert widget.threshold == 0.3
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_property_accessors(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+
+        widget = ThresholdAggregationOptionsWidget(
+            target_cols=("T1", "T2"),
+            score_cols=("S1", "S2"),
+            cohort_dict=fake_seismo.available_cohort_groups,
+        )
+
+        assert isinstance(widget.cohort_dict, dict)
+        assert isinstance(widget.target_cols, tuple)
+        assert isinstance(widget.score_cols, tuple)
+        assert isinstance(widget.aggregation_method, str)
+        assert isinstance(widget.metrics_to_display, tuple)
+        assert widget.group_by in ("Score", "Target")
+        assert isinstance(widget.threshold, float)
+        assert isinstance(widget.group_scores, bool)
+
+
+class TestExploreThresholdAggregation:
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_init(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+
+        widget = ExploreThresholdAggregation(title="Unit Test Title")
+
+        assert widget.title == "Unit Test Title"
+        assert isinstance(widget.option_widget, ThresholdAggregationOptionsWidget)
+        assert widget.plot_function == widget._plot_threshold_aggregation
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_plot_threshold_aggregation_builds_expected_table(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.dataframe = pd.DataFrame({"C1": ["A", "B", "A"], "score1": [0.1, 0.2, 0.3], "target1": [0, 1, 0]})
+        fake_seismo.censor_threshold = 10
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+        mock_table = Mock(analytics_table=lambda: "HTML_TABLE")
+        with patch(
+            "seismometer.table.threshold_aggregation.AnalyticsTable", return_value=mock_table
+        ) as mock_analytics:
+            widget = ExploreThresholdAggregation(title="Unit Test Title")
+            result = widget._plot_threshold_aggregation(
+                cohort_dict={"C1": ["A"]},
+                target_cols=["T1"],
+                score_cols=["S1"],
+                aggregation_method="first_above_threshold",
+                threshold=0.5,
+                metrics_to_display=["AUROC"],
+                group_by="Score",
+                per_context=False,
+            )
+
+        assert result == "HTML_TABLE"
+        mock_analytics.assert_called_once()
+        args, kwargs = mock_analytics.call_args
+        assert kwargs["aggregation_method"] == "first_above_threshold"
+        assert kwargs["metric_values"] == [0.5]
+        assert kwargs["metric"] == "Threshold"
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_generate_plot_args_returns_expected_values(self, mock_seismo):
+        fake_seismo = mock_seismo()
+        fake_seismo.get_binary_targets.return_value = ["T1", "T2"]
+        fake_seismo.output_list = ["S1", "S2"]
+        fake_seismo.available_cohort_groups = {"C1": ["A", "B"]}
+
+        widget = ExploreThresholdAggregation(title="Unit Test Title")
+        opt = widget.option_widget
+
+        opt._cohort_dict.value = {"C1": ["A"]}
+        opt._target_cols.value = ("T1",)
+        opt._score_cols.value = ("S1",)
+        opt._aggregation_method.value = "first_above_threshold"
+        opt._threshold.value = {"Threshold": 0.7}
+        opt._metrics_to_display.value = ("AUROC",)
+        opt._group_by.value = "Target"
+        opt.per_context_checkbox.value = True
+        opt._on_value_changed()
+
+        args, kwargs = widget.generate_plot_args()
+
+        assert args == (
+            {"C1": ["A"]},
+            ("T1_Value",),
+            ("S1",),
+            "first_above_threshold",
+            0.7,
+            ("AUROC",),
+            "Target",
+            True,
+        )
+        assert kwargs == {}
 
 
 # endregion

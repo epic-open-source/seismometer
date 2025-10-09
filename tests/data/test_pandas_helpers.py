@@ -510,6 +510,96 @@ class TestEventScoreAndModelScores:
         )
         pd.testing.assert_frame_equal(result, df)
 
+    @pytest.mark.parametrize(
+        "threshold,expected_scores",
+        [
+            (0.5, {1: 0.6, 2: 0.8}),  # both entities exceed threshold
+            (0.7, {1: 0.9, 2: 0.8}),  # only later scores pass
+            (0.95, {}),  # no entity meets threshold → empty
+        ],
+    )
+    def test_event_score_first_above_threshold_various_thresholds(self, threshold, expected_scores):
+        """Check that event_score(first_above_threshold) correctly selects the first score above threshold."""
+        now = pd.Timestamp("2024-01-01 00:00:00")
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1, 2, 2],
+                "Score": [0.2, 0.6, 0.9, 0.3, 0.8],
+                "EventName_Time": [now + pd.Timedelta(hours=h) for h in [0, 1, 2, 0, 1]],
+                "EventName_Value": [1, 1, 1, 1, 1],
+            }
+        )
+
+        result = undertest.event_score(
+            df,
+            pks=["Id"],
+            score="Score",
+            ref_time="EventName_Time",
+            ref_event="EventName",
+            aggregation_method="first_above_threshold",
+            threshold=threshold,
+        )
+
+        if not expected_scores:
+            assert result.empty
+        else:
+            assert set(result["Id"]) == set(expected_scores)
+            for i, val in expected_scores.items():
+                assert pytest.approx(result.loc[result["Id"] == i, "Score"].iloc[0]) == val
+
+    @pytest.mark.parametrize(
+        "has_time_col, ref_time_arg, expected_error",
+        [
+            # Case 1: Missing column entirely, ref_time points to a non-existent column
+            (False, "EventName_Time", "Reference time column EventName_Time not found"),
+            # Case 2: Column exists, but ref_time=None
+            (True, None, "ref_time is required"),
+        ],
+    )
+    def test_first_above_threshold_raises_when_ref_time_missing(self, has_time_col, ref_time_arg, expected_error):
+        """Ensure first_above_threshold_aggregation raises when ref_time is missing or argument is None."""
+        now = pd.Timestamp("2024-01-01 00:00:00")
+        df = pd.DataFrame({"Id": [1, 1], "Score": [0.3, 0.8]})
+
+        # Add the time column only for the second test case
+        if has_time_col:
+            df["EventName_Time"] = [now, now + pd.Timedelta(hours=1)]
+
+        with pytest.raises(ValueError, match=expected_error):
+            undertest.first_above_threshold_aggregation(
+                df,
+                pks=["Id"],
+                score="Score",
+                ref_time=ref_time_arg,
+                ref_event="EventName",
+                threshold=0.5,
+            )
+
+    def test_first_above_threshold_ignores_missing_time_rows(self):
+        """Rows with NaT in ref_time should be dropped before selecting first above threshold."""
+        now = pd.Timestamp("2024-01-01 00:00:00")
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],
+                "Score": [0.4, 0.8, 0.9],
+                "EventName_Time": [now, pd.NaT, now + pd.Timedelta(hours=2)],
+            }
+        )
+
+        result = undertest.first_above_threshold_aggregation(
+            df,
+            pks=["Id"],
+            score="Score",
+            ref_time="EventName_Time",
+            ref_event="EventName",
+            threshold=0.5,
+        )
+
+        # should keep only rows with valid times and score > 0.5
+        assert not result.empty
+        assert result["EventName_Time"].notna().all()
+        assert (result["Score"] > 0.5).all()
+
 
 class TestMergeEventCounts:
     def test_skips_time_filter_when_window_none(self, base_counts_data):

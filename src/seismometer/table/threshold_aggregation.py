@@ -19,7 +19,6 @@ from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS
 from seismometer.data.filter import filter_rule_from_cohort_dictionary
 from seismometer.data.performance import THRESHOLD
-from seismometer.seismogram import Seismogram
 from seismometer.table.analytics_table import AnalyticsTable
 
 # region Options Widget ---------------------------------------------------------
@@ -299,6 +298,8 @@ class ExploreThresholdAggregation(ExplorationWidget):
         HTML
             Rendered AnalyticsTable summary for the aggregated data.
         """
+        from seismometer.seismogram import Seismogram
+
         sg = Seismogram()
         df = sg.dataframe
 
