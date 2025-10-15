@@ -75,6 +75,7 @@ def get_test_config(tmp_path):
     mock_config.outcomes = {"outcome1": {}, "outcome2": {}}
     mock_config.entity_id = "entity"
     mock_config.context_id = "context_id"
+    mock_config.cohort_hierarchies = None
 
     return mock_config
 
@@ -128,6 +129,7 @@ def fake_seismo(tmp_path):
     sg.create_cohorts()
     sg.thresholds = [0.2]
     sg.available_cohort_groups = {"Cohort": ["C1", "C2"]}
+    sg.cohort_hierarchies = None
     yield sg
 
     Seismogram.kill()

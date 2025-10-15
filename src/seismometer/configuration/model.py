@@ -1,8 +1,9 @@
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 logger = logging.getLogger("seismometer")
 
@@ -209,6 +210,113 @@ class BaseDetails(BaseModel):
     """ The group or groups to which the metric belongs."""
 
 
+class FilterRange(BaseModel):
+    """A numeric range filter specifying minimum and/or maximum values."""
+
+    min: Optional[Union[int, float]] = None
+    """Inclusive lower bound for allowed values."""
+
+    max: Optional[Union[int, float]] = None
+    """Exclusive upper bound for allowed values."""
+
+
+class FilterConfig(BaseModel):
+    """A configurable rule for filtering data based on values in a specific column."""
+
+    source: str
+    """The name of the column to filter."""
+
+    action: Optional[Literal["include", "exclude", "keep_top"]] = None
+    """
+    The type of filtering to apply.
+
+    - "include": keep only rows matching the specified values or range
+    - "exclude": remove rows matching the specified values or range
+    - "keep_top": retain only the top count (by default FilterRule.MAXIMUM_NUM_COHORTS) most frequent values
+    """
+
+    count: Optional[int] = None
+    """Number of top values to retain if action is 'keep_top'. Defaults to FilterRule.MAXIMUM_NUM_COHORTS."""
+
+    values: Optional[List[Union[str, int, List[str], List[int]]]] = None
+    """A list of allowed or disallowed values, by default None."""
+
+    range: Optional[FilterRange] = None
+    """
+    A numeric range with min and/or max bounds, by default None. Typically used with numeric columns.
+    """
+
+    @model_validator(mode="after")
+    def validate_filter_config(self) -> "FilterConfig":
+        """
+        Validates the consistency of filter fields after model is initialized.
+        Ensures appropriate combinations of action, values, and range.
+        """
+        if self.action is None:
+            if self.count is not None:
+                self.action = "keep_top"
+                logger.info(f"Inferred action 'keep_top' for filter on '{self.source}'")
+            elif self.values is not None or self.range is not None:
+                self.action = "include"
+                logger.info(f"Inferred action 'include' for filter on '{self.source}'")
+            else:
+                raise ValueError(
+                    f"Filter on '{self.source}' must specify one of 'values', 'range', or 'count', "
+                    "or explicitly set an action."
+                )
+
+        if self.action in ("include", "exclude"):
+            if self.count is not None:
+                logger.warning(
+                    f"Ignoring 'count={self.count}' for filter on '{self.source}' with action '{self.action}'; "
+                    "'count' is only valid when action='keep_top'."
+                )
+                self.count = None
+            if self.values is None and self.range is None:
+                raise ValueError(
+                    f"Filter with action '{self.action}' must specify at least one of 'values' or 'range'."
+                )
+            if self.values is not None and self.range is not None:
+                self.range = None
+                logger.warning(
+                    f"Filter on '{self.source}' with action '{self.action}' specifies both 'values' and 'range'; "
+                    "'values' will be used and 'range' will be ignored."
+                )
+
+        elif self.action == "keep_top":
+            if self.count is not None and self.count <= 0:
+                raise ValueError(
+                    f"Filter with action '{self.action}' requires '{self.count}' to be a positive integer if provided."
+                )
+            if self.values is not None or self.range is not None:
+                self.values = None
+                self.range = None
+                logger.warning(f"Filter on '{self.source}' with action 'keep_top' ignores 'values' and 'range'.")
+
+        return self
+
+
+class CohortHierarchy(BaseModel):
+    """A list of cohort columns representing a hierarchical dependency."""
+
+    name: str
+    column_order: List[str]
+
+    @model_validator(mode="after")
+    def validate_hierarchy_structure(self) -> "CohortHierarchy":
+        if len(self.column_order) < 2:
+            raise ValueError(
+                f"Cohort hierarchy '{self.name}' is invalid: 'column_order' must contain at least two distinct "
+                f"column names. Example: column_order: ['location', 'department']"
+            )
+        if len(set(self.column_order)) < len(self.column_order):
+            raise ValueError(
+                f"Cohort hierarchy '{self.name}' is invalid: 'column_order' contains duplicate columns. "
+                f"Ensure all listed columns are unique."
+            )
+        return self
+
+
 class MetricDetails(BaseModel):
     """Contains details about a metric."""
 
@@ -382,9 +490,12 @@ class DataUsage(BaseModel):
 
     Must have at least one target event.
     """
+    cohort_hierarchies: List[CohortHierarchy] = []
+    """A list of ordered cohort source groups defining hierarchical dependencies."""
     metrics: list[Metric] = []
     """A list of all metrics to load."""
-
+    load_time_filters: list[FilterConfig] = []
+    """A list of filters to apply at load time to reduce the working dataset."""
     censor_min_count: int = Field(10, ge=10)
     """ The minimum size of a cohort to be considered displayable. """
 
@@ -392,6 +503,36 @@ class DataUsage(BaseModel):
     def default_comparison(cls, comparison_time: str, values: dict) -> str:
         """Return the default comparison_time."""
         return comparison_time or values.data.get("predict_time")
+
+    @field_validator("cohort_hierarchies")
+    @classmethod
+    def validate_hierarchies_disjoint(cls, hierarchies: list[CohortHierarchy], info: ValidationInfo):
+        """
+        Validates that all cohort hierarchies are disjoint (no column used in more than one hierarchy).
+
+        Parameters
+        ----------
+        hierarchies : list[CohortHierarchy]
+            List of cohort hierarchies to validate.
+        info : ValidationInfo
+            Validation metadata (unused).
+
+        Returns
+        -------
+        list[CohortHierarchy]
+            The original list if valid.
+
+        Raises
+        ------
+        ValueError
+            If any column appears in more than one hierarchy.
+        """
+        all_fields = [col for h in hierarchies for col in h.column_order]
+        field_counts = Counter(all_fields)
+        duplicates = {col for col, count in field_counts.items() if count > 1}
+        if duplicates:
+            raise ValueError(f"Cohort hierarchy fields must be disjoint; found duplicates: {sorted(duplicates)}")
+        return hierarchies
 
     @field_validator("events")
     def reduce_events_to_unique_names(cls, events, values) -> list[Cohort]:

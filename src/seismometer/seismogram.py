@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
-from seismometer.configuration.model import Metric
+from seismometer.configuration.model import CohortHierarchy, Metric
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
+from seismometer.data.filter import FilterRule
 from seismometer.data.loader import SeismogramLoader
 from seismometer.report.alerting import AlertConfigProvider
 
@@ -75,6 +76,8 @@ class Seismogram(object, metaclass=Singleton):
         logger.debug("Initializing the empty dataframe.")
         self.dataframe: pd.DataFrame = None
         self.cohort_cols: list[str] = []
+        self.cohort_hierarchies: list[CohortHierarchy] = []
+        self.cohort_hierarchy_combinations = {}
         self.metrics: dict[str, Metric] = {}
         self.metric_types: dict[str, list[str]] = {}
         self.metric_groups: dict[str, list[str]] = {}
@@ -126,8 +129,10 @@ class Seismogram(object, metaclass=Singleton):
 
         logger.debug("Loading dataframe from dataloader.")
         self.dataframe = self.dataloader.load_data(predictions, events)
+        self.dataframe = self._apply_load_time_filters(self.dataframe)
 
         self.create_cohorts()
+        self._build_cohort_hierarchy_combinations()
         self._set_df_counts()
 
         # UI Controls
@@ -369,6 +374,21 @@ class Seismogram(object, metaclass=Singleton):
 
         self.modelname: str = self._metadata.get("modelname", "UNDEFINED MODEL")
 
+    def _apply_load_time_filters(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Applies all load-time filters by building a single composite mask for filtering.
+        Returns a filtered DataFrame.
+        """
+        if not self.config.usage.load_time_filters:
+            return df
+
+        for rule in self.config.usage.load_time_filters:
+            if rule.source not in df.columns:
+                raise ValueError(f"Filter source column '{rule.source}' not found in data.")
+        FilterRule.MAXIMUM_NUM_COHORTS = MAXIMUM_NUM_COHORTS
+        filtered_df = FilterRule.from_filter_config_list(self.config.usage.load_time_filters).filter(df)
+        return filtered_df.reset_index(drop=True)
+
     def create_cohorts(self) -> None:
         """Creates data columns for each cohort defined in configuration."""
         for cohort in self.config.cohorts:
@@ -405,6 +425,38 @@ class Seismogram(object, metaclass=Singleton):
             self.dataframe[disp_attr] = new_col.cat.set_categories(sufficient[sufficient].index.tolist(), ordered=True)
             self.cohort_cols.append(disp_attr)
         logger.debug(f"Created cohorts: {', '.join(self.cohort_cols)}")
+        self._validate_and_resolve_cohort_hierarchies()
+
+    def _validate_and_resolve_cohort_hierarchies(self):
+        if not self.config.cohort_hierarchies:
+            return
+        source_to_display = {c.source: c.display_name for c in self._cohorts}
+
+        resolved_hierarchies = []
+
+        for hierarchy in self.config.cohort_hierarchies:
+            resolved_levels = []
+            for level in hierarchy.column_order:
+                if level not in source_to_display:
+                    raise ValueError(
+                        f"Cohort hierarchy '{hierarchy.name}' references undefined cohort source: '{level}'"
+                    )
+                resolved_levels.append(source_to_display[level])
+
+            resolved_hierarchies.append(CohortHierarchy(name=hierarchy.name, column_order=resolved_levels))
+
+        self.cohort_hierarchies = resolved_hierarchies
+
+    def _build_cohort_hierarchy_combinations(self):
+        """Precompute distinct value combinations for each defined cohort hierarchy."""
+        source_to_display = {c.source: c.display_name for c in self._cohorts}
+        for hierarchy in self.config.cohort_hierarchies:
+            lvls = hierarchy.column_order
+            if not all(k in self.dataframe.columns for k in lvls):
+                continue  # skip invalid ones
+            lvls = [source_to_display[lvl] for lvl in lvls]
+            combinations_df = self.dataframe[lvls].dropna().drop_duplicates().sort_values(lvls).reset_index(drop=True)
+            self.cohort_hierarchy_combinations[tuple(lvls)] = combinations_df
 
     def _is_binary_array(self, arr):
         # Convert the input to a NumPy array if it isn't already

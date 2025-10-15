@@ -615,7 +615,12 @@ class AnalyticsTableOptionsWidget(VBox, traitlets.HasTraits):
             style={"description_width": "min-content"},
             layout=Layout(width="calc(max(max-content, var(--jp-widgets-inline-width-short)))", min_width="200px"),
         )
-        self._cohort_dict = MultiSelectionListWidget(cohort_dict or sg.available_cohort_groups, title="Cohort Filter")
+        self._cohort_dict = MultiSelectionListWidget(
+            cohort_dict or sg.available_cohort_groups,
+            title="Cohort Filter",
+            hierarchies=sg.cohort_hierarchies,
+            hierarchy_combinations=sg.cohort_hierarchy_combinations,
+        )
         self.per_context_checkbox = _combine_scores_checkbox(per_context=False)
 
         self._target_cols.observe(self._on_value_changed, names="value")

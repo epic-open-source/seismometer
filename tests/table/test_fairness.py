@@ -159,7 +159,10 @@ class TestFairnessWrappers:
 
 
 class TestFairnessOptionsWidget:
-    def test_fairness_options_widget_value_behavior(self):
+    @patch("seismometer.seismogram.Seismogram")
+    def test_fairness_options_widget_value_behavior(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
         metric_names = ("M1", "M2")
         cohort_dict = {"group": ("A", "B")}
         widget = undertest.FairnessOptionsWidget(metric_names, cohort_dict, fairness_ratio=0.3)
@@ -188,10 +191,11 @@ class TestFairnessOptionsWidget:
 
 
 class TestExplorationFairnessWidget:
-    def test_initialization_sets_up_components(self, monkeypatch):
-        sg_mock = Mock()
-        sg_mock.available_cohort_groups = {"gender": ("M", "F"), "age": ("young", "old")}
-        monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
+    @patch("seismometer.seismogram.Seismogram")
+    def test_initialization_sets_up_components(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
+        fake_seismo.available_cohort_groups = {"gender": ("M", "F"), "age": ("young", "old")}
 
         metrics = MetricGenerator(["Accuracy", "Sensitivity"], lambda df, names: {k: 1 for k in names})
 
@@ -202,10 +206,11 @@ class TestExplorationFairnessWidget:
         assert widget.option_widget.fairness_ratio == 0.25
         assert widget.plot_function == undertest.custom_metrics_fairness_table
 
-    def test_generate_plot_args_returns_expected_values(self, monkeypatch):
-        sg_mock = Mock()
-        sg_mock.available_cohort_groups = {"gender": ("M", "F")}
-        monkeypatch.setattr("seismometer.seismogram.Seismogram", lambda: sg_mock)
+    @patch("seismometer.seismogram.Seismogram")
+    def test_generate_plot_args_returns_expected_values(self, mock_seismo):
+        fake_seismo = mock_seismo.return_value
+        fake_seismo.cohort_hierarchies = []
+        fake_seismo.available_cohort_groups = {"gender": ("M", "F")}
 
         metrics = MetricGenerator(["AUC", "Accuracy"], lambda df, names: {k: 1 for k in names})
         widget = undertest.ExplorationFairnessWidget(metrics)

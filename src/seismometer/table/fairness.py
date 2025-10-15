@@ -442,7 +442,10 @@ class FairnessOptionsWidget(Box, ValueWidget):
         self.model_options_widget = model_options_widget
         default_metrics = default_metrics or metric_names
         self.metric_list = MultiselectDropdownWidget(metric_names, value=default_metrics, title="Fairness Metrics")
-        self.cohort_list = MultiSelectionListWidget(cohort_dict, title="Cohorts")
+        self.cohort_list = MultiSelectionListWidget(
+            cohort_dict,
+            title="Cohorts",
+        )
         self.fairness_slider = FloatSlider(
             min=0.01,
             max=1.00,
@@ -540,7 +543,11 @@ class ExplorationFairnessWidget(ExplorationWidget):
 
         super().__init__(
             title="Fairness Audit",
-            option_widget=FairnessOptionsWidget(metric_names, sg.available_cohort_groups, fairness_ratio=0.25),
+            option_widget=FairnessOptionsWidget(
+                metric_names,
+                sg.available_cohort_groups,
+                fairness_ratio=0.25,
+            ),
             plot_function=custom_metrics_fairness_table,
             initial_plot=False,
         )
