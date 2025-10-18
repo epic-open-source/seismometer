@@ -55,10 +55,6 @@ class OrdinalCategoricalSinglePlot:
 
         self.values = self._extract_metric_values()
 
-        self.recorder = metric_apis.OpenTelemetryRecorder(
-            metric_names=[sg.metrics[metric_col].display_name], name=self.plot_type
-        )
-
     def _extract_metric_values(self):
         """
         Extracts the unique metric values for the provided metric column.
@@ -126,12 +122,17 @@ class OrdinalCategoricalSinglePlot:
         df = df[available_values].astype(int)
         df = df[df.sum(axis=1) >= self.censor_threshold]
         df = df.iloc[::-1]
-        # Instrument name (in other words, type of metric we are logging)
-        instr_name = Seismogram().metrics[self.metric_col].display_name
-        for cohort in df.index:
-            self.recorder.populate_metrics(
-                attributes={self.cohort_col: cohort}, metrics={instr_name: df.loc[cohort].to_dict()}
-            )
+
+        # Dataframe now looks like
+        # Metric: Likes Cats
+        #    [Group]     Disagree  Neutral  Agree
+        #    Group 1           10       15     35
+        #    Group 2           5        10     45
+        #
+        # The columns are metrics and the rows are cohort groups.
+        # This means we need to record this metric 6 times, using both
+        # the columns and rows as attributes.
+        metric_apis.record_dataframe_counts(df, metric=self.metric_col, source="CohortCategoricalMetric")
 
         return df
 

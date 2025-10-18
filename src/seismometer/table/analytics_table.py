@@ -15,7 +15,6 @@ from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelec
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.controls.thresholds import MonotonicProbabilitySliderListWidget
 from seismometer.data import metric_apis
-from seismometer.data import pandas_helpers
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
 from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
@@ -129,7 +128,7 @@ class AnalyticsTable:
         self.metrics_to_display = metrics_to_display or GENERATED_COLUMNS
         self.title = title
         self.top_level = top_level
-        self.cohort_dict = cohort_dict
+        self.cohort_dict = cohort_dict or {}
         self.columns_show_percentages = table_config.columns_show_percentages
 
         self.percentages_decimals = table_config.percentages_decimals
@@ -336,25 +335,9 @@ class AnalyticsTable:
 
         gt = self.generate_initial_table(data)
 
-        METRICS = STATNAMES + OVERALL_PERFORMANCE
-        recorder = metric_apis.OpenTelemetryRecorder(metric_names=METRICS, name="Analytics Table")
-        # The column names are
-        for column in data.columns:
-            metric_name = pandas_helpers.analytics_metric_name(METRICS, self.metric_values, column)
-            if metric_name is None:
-                continue
-            # If we have unmangled the name, keep a record of the part we have chopped off.
-            if metric_name != column:
-                base_attributes = {"metric_value": column.rstrip(f"_{metric_name}")}
-            else:
-                base_attributes = {}
-            # The table in the graphic is definitely indexed by score + target, so
-            # we will be storing those as attributes and the rest of the row as a
-            # bunch of key-value pairs.
-            for i in range(len(data["Score"])):
-                row = data.to_dict("records")[i]
-                attributes = base_attributes | {"Score": row["Score"], "Target": row["Target"]}
-                recorder.populate_metrics(attributes=attributes, metrics={metric_name: row[column]})
+        self._record_global_metrics(data)
+        for metric_value in self.metric_values:
+            self._record_local_metrics(data, metric_value)
 
         # Group columns of the form value_*** together
         for value in self.metric_values:
@@ -427,6 +410,52 @@ class AnalyticsTable:
             )
 
         return data
+
+    def _record_global_metrics(self, data):
+        """
+        Record global (non-thresholded) metrics using the OpenTelemetry API.
+        Only columns in OVERALL_PERFORMANCE are considered global.
+        """
+        global_metrics = [m for m in OVERALL_PERFORMANCE if m in data.columns]
+        if not global_metrics:
+            return
+        metric_apis.record_dataframe_metrics(
+            data,
+            metrics=global_metrics,
+            attributes=self.cohort_dict,
+            attribute_cols=["Score", "Target"],
+            source="Analytics Table",
+        )
+
+    def _record_local_metrics(self, data, metric_value):
+        """
+        Record metrics at a specific threshold/metric value using the OpenTelemetry API.
+        This will look for columns prefixed with the metric_value (e.g., '0.2_Accuracy')
+        and record them, adding the pegged metric (e.g., flag_rate) as an attribute.
+        """
+
+        prefix = f"{metric_value}_"
+        local_metrics = [col for col in data.columns if col.startswith(prefix)]
+        if not local_metrics:
+            return
+        # Remove prefix for metric names
+        metrics = [col[len(prefix) :] for col in local_metrics]  # noqa: E203
+        # Build a DataFrame with just the relevant columns, renamed to metric names
+        local_df = data[["Score", "Target"] + local_metrics].copy()
+        local_df = local_df.rename(columns={col: col[len(prefix) :] for col in local_metrics})  # noqa: E203
+        # Add pegged metric value as an attribute (e.g., flag_rate=0.2)
+        pegged_metric = self.metric
+        pegged_value = metric_value
+        # Add pegged metric as a column for attribute_cols
+        local_df[pegged_metric] = pegged_value
+        attribute_cols = ["Score", "Target", pegged_metric]
+        metric_apis.record_dataframe_metrics(
+            local_df,
+            metrics=metrics,
+            attributes=self.cohort_dict,
+            attribute_cols=attribute_cols,
+            source="Analytics Table",
+        )
 
 
 # endregion

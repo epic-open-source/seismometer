@@ -200,12 +200,13 @@ class SingleReportWrapper(ReportWrapper):
             logger.debug(f"Existing alerts found on disk: {self._alert_path}")
             self._deserialize_alerts()
 
-        alert_types = list(set([alert.name.lower() for alert in self._parsed_alerts.alerts]))
-        self.recorder = metric_apis.OpenTelemetryRecorder(metric_names=alert_types, name="ydata profiling report")
         for alert in self._parsed_alerts.alerts:
-            variable = alert.variable
-            percentage = alert.percentage
-            self.recorder.populate_metrics(attributes={"variable": variable}, metrics={alert.name.lower(): percentage})
+            metric_apis.record_single_alert(
+                name=f"profiling_alert{alert.name.lower()}",
+                value=alert.percentage,
+                attributes={"variable": alert.variable},
+                source="ydata_profiling_alerts",
+            )
 
     def generate_report(self) -> None:
         try:

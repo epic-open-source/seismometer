@@ -1,14 +1,12 @@
-import functools
-import itertools
 import logging
-import operator
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 
 from seismometer.core.autometrics import AutomationManager
 from seismometer.core.io import slugify
+from seismometer.data.filter import FilterRule
 from seismometer.data.otel import ExportManager
 
 logger = logging.getLogger("seismometer.telemetry")
@@ -28,21 +26,6 @@ class NoOpOpenTelemetryRecorder:
         self.metric_names = []
 
     def populate_metrics(self, attributes, metrics):
-        pass
-
-    def log_by_cohort(
-        self,
-        dataframe: pd.DataFrame,
-        base_attributes: Dict[str, Any],
-        cohorts: Dict[str, List[str]],
-        intersecting: bool = False,
-        metric_maker: Callable = None,
-    ):
-        pass
-
-    def log_by_column(
-        self, df: pd.DataFrame, col_name: str, cohorts: dict, base_attributes: dict, col_values: list = []
-    ):
         pass
 
 
@@ -97,7 +80,7 @@ class RealOpenTelemetryRecorder:
         typestring = AutomationManager().get_metric_config(metric_name).measurement_type
         return TYPES[typestring] if typestring in TYPES else self.meter.create_gauge
 
-    def populate_metrics(self, attributes, metrics):
+    def populate_metrics(self, attributes: dict[str, Union[str, int]], metrics: dict[str, Any]) -> None:
         """Populate the OpenTelemetry instruments with data from
         the model.
 
@@ -117,9 +100,6 @@ class RealOpenTelemetryRecorder:
         if not ExportManager().active:
             return
 
-        if metrics is None:
-            # metrics = self()
-            raise Exception()
         # OTel doesn't like fancy Unicode characters.
         metrics = {metric_name.replace("\xa0", " "): metrics[metric_name] for metric_name in metrics}
         am = AutomationManager()
@@ -132,21 +112,6 @@ class RealOpenTelemetryRecorder:
             logger.warning("No metrics populated with this call!")
             logger.warning(f"Instruments available: {self.metric_names}")
             logger.warning(f"Metrics provided for population: {metrics.keys()}")
-
-    def _set_one_datapoint(self, attributes, instrument, value):
-        from opentelemetry.metrics import Histogram, UpDownCounter
-
-        # The SDK doesn't expose Gauge as a type, so we need to get creative here.
-        if type(instrument).__name__ == "_Gauge":
-            instrument.set(value, attributes=attributes)
-        elif isinstance(instrument, UpDownCounter):
-            instrument.add(value, attributes=attributes)
-        elif isinstance(instrument, Histogram):
-            instrument.record(value, attributes=attributes)
-        else:
-            raise Exception(
-                f"Internal error: one of the instruments is not a recognized type: {str(type(instrument))}"
-            )
 
     def _log_to_instrument(self, attributes, instrument: Any, data):
         """Write information to a single instrument. We need this
@@ -189,160 +154,401 @@ class RealOpenTelemetryRecorder:
         else:
             raise Exception(f"Unrecognized data format for OTel logging: {str(type(data))}")
 
-    def log_by_cohort(
-        self,
-        dataframe: pd.DataFrame,
-        base_attributes: Dict[str, Any],
-        cohorts: Dict[str, List[str]],
-        intersecting: bool = False,
-        metric_maker: Callable = None,
-    ):
-        """Take data from a dataframe and log it, selecting by all cohorts provided.
+    def _set_one_datapoint(self, attributes, instrument, value):
+        from opentelemetry.metrics import Histogram, UpDownCounter
 
-        Parameters
-        ----------
-        base_attributes : Dict[str, Any]
-            The information we want to store with every individual metric log. This might be, for example, every
-            parameter used to generate this data.
-        dataframe : pd.DataFrame
-            The actual dataframe containing the data we want to log.
-        cohorts : Dict[str, List[str]]
-            Which cohorts we want to select on. For instance:
-            {"Age": ["[10-20)", "70+"], "Race": ["AfricanAmerican", "Caucasian"]}
-        intersecting: bool
-            Whether we are logging each combination of separate cohorts or not.
-            Given the example cohorts above:
-            - intersecting=False would log data for Age=[10-20), Age=70+, Race=AfricanAmerican, and Race=Caucasian.
-            - intersecting=True: Age=[10,20) and Race=AfricanAmerican, Age=[20, 50) and Race=Caucasian, etc.
-        metric_maker: Callable
-            Produce a metric to log from the Series we will create.
-            For example, in plot_cohort_hist, what we want is the length of each dataframe.
-            If not, we will log each row separately.
-        """
-        if not intersecting:
-            # Simpler case: just go through each label provided.
-            selections = [
-                {cohort_category: cohort_value}
-                for cohort_category in cohorts
-                for cohort_value in cohorts[cohort_category]
-            ]
-        # More complex: go through each combination of attributes.
+        # The SDK doesn't expose Gauge as a type, so we need to get creative here.
+        if type(instrument).__name__ == "_Gauge":
+            instrument.set(value, attributes=attributes)
+        elif isinstance(instrument, UpDownCounter):
+            instrument.add(value, attributes=attributes)
+        elif isinstance(instrument, Histogram):
+            instrument.record(value, attributes=attributes)
         else:
-            if cohorts:
-                keys = cohorts.keys()
-                # So if column "A" has attributes A_false and A_true, and B has 1, 2, 3, then
-                # we will exhaust through all combinations of these attributes.
-                selections = list(itertools.product(*[cohorts[key] for key in keys]))
-                # Now we put them into a dictionary for ease of processing
-                selections = [dict(zip(keys, s)) for s in selections]
-            else:
-                # If there are in fact no other attributes, get a list so we don't just skip logging entirely
-                selections = [{}]
-            if len(selections) > 100:
-                logger.warning(
-                    f"More than 100 cohort groups ({len(selections)}) were provided. This might take a while."
-                )
-        for selection in selections:
-            attributes = base_attributes | selection
-            selection_condition = (
-                functools.reduce(operator.and_, (dataframe[k] == v for k, v in selection.items()))
-                if selection
-                else pd.Series([True] * len(dataframe), index=dataframe.index)  # Condition which always succeeds
+            raise Exception(
+                f"Internal error: one of the instruments is not a recognized type: {str(type(instrument))}"
             )
-            metrics = dataframe[selection_condition]
-            if metric_maker is not None:
-                self.populate_metrics(attributes=attributes, metrics=metric_maker(metrics))
-            else:
-                self.populate_metrics(attributes=attributes, metrics=metrics)
-
-    def log_by_column(
-        self, df: pd.DataFrame, col_name: str, cohorts: dict, base_attributes: dict, col_values: list = []
-    ):
-        """Log with a particular column as the index, only if each metric is set to log_all.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The dataframe the data resides in.
-        col_name : str
-            Which column we want the index to be.
-        cohorts : dict
-            Which cohorts we want to extract data from when it's time.
-        base_attributes : dict
-            The attributes we want to associate to all of the logs from this.
-        col_values: list
-            If log_all is not set for a particular metric, we will only log using the particular values provided. An
-            example use case is a set of thresholds.
-        """
-        am = AutomationManager()
-        for metric in df.columns:
-            if metric == col_name or metric not in self.metric_names:
-                continue
-
-            def maker(frame):
-                return frame.set_index(col_name)[[metric]].to_dict()
-
-            log_all = am.get_metric_config(metric).log_all
-            if log_all or col_values != []:
-                log_df = df if log_all else df[df[col_name].isin(col_values)]
-                self.log_by_cohort(
-                    dataframe=log_df, base_attributes=base_attributes, cohorts=cohorts, metric_maker=maker
-                )
 
 
-def log_quantiles(
+def record_dataframe_metrics(
     df: pd.DataFrame,
-    metric_name: str,
-    score: str,
-    target_zero: str,
-    ref_time: str,
-    cohort_col: str,
-    good_groups: list[str],
-    threshold: float,
-):
-    """Log entries from a dataframe by quantiles.
+    metrics: Union[str, List[str]],
+    *,
+    attribute_cols: Optional[List[str]] = None,
+    attributes: Optional[Dict[str, Any]] = None,
+    filter_rule: Optional[FilterRule] = None,
+    source: str = "DataFrameMetrics",
+) -> None:
+    """Record metrics from a DataFrame with OpenTelemetry.
+
+    This is the core API for metric logging. It handles recorder setup internally
+    and uses AutomationManager configuration to determine what gets logged.
 
     Parameters
     ----------
     df : pd.DataFrame
-        The dataframe we are logging information from.
-    metric_name : str
-        What the metric we are logging is called, e.g. "Time Lead"
-    score : str
-        The score column.
-    target_zero : str
-        event value
-    ref_time : str
-        prediction time
-    cohort_col : str
-        The cohort we are splitting on.
-    good_groups : list[str]
-        Which groups of the cohort column (e.g. specific age groups) we are logging.
-    threshold : float
-        The threshold we are filtering by on the score column.
+        DataFrame containing the metrics and attributes to record.
+    metrics : Union[str, List[str]]
+        Column name(s) in the DataFrame that contain metric values to record.
+    attribute_cols : Optional[List[str]], optional
+        Column names in the DataFrame to use as attributes (labels) for metrics.
+        Each row's values in these columns become attributes for that metric recording.
+    attributes : Optional[Dict[str, Any]], optional
+        Base attributes to apply to all metric recordings. These are merged with
+        per-row attributes from attribute_cols.
+    filter_rule : Optional[FilterRule], optional
+        Filter to apply to the DataFrame before recording metrics. If None,
+        all rows are processed. If any metric has log_all=True in AutomationManager
+        configuration, that metric will be recorded for all rows regardless of the filter.
+        Other metrics will only be recorded for rows that pass the filter.
+    source : str, optional
+        Source name for the OpenTelemetry recorder, by default "DataFrameMetrics".
+
+    Examples
+    --------
+    Simple case - record a single metric for all rows:
+    >>> df = pd.DataFrame({'accuracy': [0.85, 0.90], 'model': ['A', 'B']})
+    >>> record_dataframe_metrics(df, 'accuracy')
+
+    With attributes from DataFrame columns:
+    >>> record_dataframe_metrics(df, 'accuracy', attribute_cols=['model'])
+
+    With base attributes and filtering:
+    >>> record_dataframe_metrics(
+    ...     df,
+    ...     ['accuracy', 'precision'],
+    ...     attribute_cols=['model'],
+    ...     attributes={'experiment': 'test_1'},
+    ...     filter_rule=FilterRule.gt('accuracy', 0.8)
+    ... )
     """
+    if isinstance(metrics, str):
+        metrics = [metrics]
+
+    # Handle empty DataFrame gracefully - this is a common case and shouldn't be an error
+    if df.empty:
+        return
+
+    # Validate metric columns exist
+    missing_metrics = [m for m in metrics if m not in df.columns]
+    if missing_metrics:
+        raise ValueError(f"Metric columns not found in DataFrame: {missing_metrics}")
+
+    # Validate attribute columns exist
+    attribute_cols = attribute_cols or []
+    missing_attrs = [col for col in attribute_cols if col not in df.columns]
+    if missing_attrs:
+        raise ValueError(f"Attribute columns not found in DataFrame: {missing_attrs}")
+
+    # Split metrics into log_all vs log_some based on AutomationManager configuration
+    log_all_metrics = []
+    log_some_metrics = []
+
     am = AutomationManager()
-    metric_info = am.get_metric_config(metric_name)
-    log_all = metric_info.log_all
-    quantiles = metric_info.quantiles
-    metric_names = [f"Quantile {i} out of {quantiles} of {metric_name}" for i in range(1, quantiles)]
-    if log_all:
-        metric_names += [metric_name]
-    recorder = OpenTelemetryRecorder(metric_names=metric_names, name=metric_name)
-    base_attributes = {"from": score, "to": target_zero, "threshold": threshold}
+    for metric in metrics:
+        if am.get_metric_config(metric).log_all:
+            log_all_metrics.append(metric)
+        else:
+            log_some_metrics.append(metric)
 
-    def maker(frame):
-        leads = frame[target_zero] - frame[ref_time]
-        metrics = {
-            # Exporting in hours for now
-            f"Quantile {i} out of {quantiles} of {metric_name}": (leads.quantile(i / quantiles)).total_seconds() / 3600
-            for i in range(1, quantiles)
-        }
-        if log_all:
-            # If we're logging all, then log all data and not just the quantiles.
-            metrics |= {metric_name: [lead.total_seconds() / 3600 for lead in list(leads)]}
-        return metrics
+    # Create single recorder for all metrics
+    recorder = OpenTelemetryRecorder(metric_names=metrics, name=source)
+    base_attributes = attributes or {}
 
-    recorder.log_by_cohort(
-        dataframe=df, base_attributes=base_attributes, cohorts={cohort_col: good_groups}, metric_maker=maker
+    # Helper function to record a single row using apply
+    def record_row(row, metrics_to_record: set):
+        # Build attributes for this row
+        row_attributes = base_attributes.copy()
+        for attr_col in attribute_cols:
+            row_attributes[attr_col] = row[attr_col]
+
+        # Build metrics dict for this row (only the relevant metrics)
+        row_metrics = {metric: row[metric] for metric in metrics_to_record}
+
+        # Record using existing populate_metrics method
+        breakpoint()
+        recorder.populate_metrics(attributes=row_attributes, metrics=row_metrics)
+
+    # Process log_all metrics with full dataset
+    if log_all_metrics:
+        df[log_all_metrics + attribute_cols].apply(lambda row: record_row(row, log_all_metrics), axis=1)
+
+    # Process log_some metrics with filtered dataset
+    if log_some_metrics:
+        filtered_df = df
+        if filter_rule is not None:
+            filtered_df = filter_rule.filter(df, ignore_min_rows=True)
+
+        filtered_df[log_some_metrics + attribute_cols].apply(lambda row: record_row(row, log_some_metrics), axis=1)
+
+
+def record_dataframe_quantiles(
+    df: pd.DataFrame,
+    metrics: Union[str, List[str]],
+    *,
+    attribute_cols: Optional[List[str]] = None,
+    attributes: Optional[Dict[str, Any]] = None,
+    filter_rule: Optional[FilterRule] = None,
+    source: str = "DataFrameQuantiles",
+) -> pd.DataFrame:
+    """Record quantile metrics from a DataFrame with OpenTelemetry.
+
+    This function computes quantiles for one or more metric columns, optionally grouped by
+    specified columns, and records them using the core record_dataframe_metrics API.
+    Quantiles are determined per-metric from AutomationManager configuration, supporting
+    both integer (evenly spaced) and custom quantile specifications.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing the data to compute quantiles from.
+    metrics : Union[str, List[str]]
+        Column name(s) containing the metric values to compute quantiles for.
+        Each metric can have its own quantile configuration from AutomationManager:
+        - Integer: evenly spaced quantiles (e.g., 4 -> [0.25, 0.5, 0.75])
+        - List: custom quantile values (e.g., [0.5, 0.9, 0.95, 0.99])
+    attribute_cols : Optional[List[str]], optional
+        Column names to group by before computing quantiles. Each group will
+        have its own set of quantile metrics recorded.
+    attributes : Optional[Dict[str, Any]], optional
+        Base attributes to apply to all quantile metric recordings.
+    filter_rule : Optional[FilterRule], optional
+        Filter to apply to the DataFrame before computing quantiles.
+    source : str, optional
+        Source name for the OpenTelemetry recorder, by default "DataFrameQuantiles".
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the computed quantiles. Columns include attribute columns
+        (if any) and quantile columns named like '{metric}_quantile_{q}' for each
+        metric and quantile combination. Different metrics may have different
+        numbers of quantile columns based on their AutomationManager configuration.
+
+    Examples
+    --------
+    Simple quantiles for entire dataset:
+    >>> df = pd.DataFrame({'latency': [100, 200, 150, 300, 250]})
+    >>> result = record_dataframe_quantiles(df, 'latency')
+
+    Multiple metrics with different quantile configurations:
+    >>> df = pd.DataFrame({
+    ...     'latency': [100, 200, 150, 300, 250, 180],
+    ...     'throughput': [50, 45, 60, 40, 55, 58],
+    ...     'model': ['A', 'A', 'B', 'B', 'A', 'B']
+    ... })
+    >>> result = record_dataframe_quantiles(
+    ...     df, ['latency', 'throughput'],
+    ...     attribute_cols=['model'],
+    ...     attributes={'experiment': 'test_1'}
+    ... )
+    # With AutomationManager config:
+    # latency: quantiles: 10  # -> [0.1, 0.2, ..., 0.9]
+    # throughput: quantiles: [0.5, 0.9, 0.95]  # -> [0.5, 0.9, 0.95]
+    """
+    if isinstance(metrics, str):
+        metrics = [metrics]
+
+    if not metrics:
+        raise ValueError("At least one metric must be specified")
+
+    # Get per-metric quantile configuration from AutomationManager
+    # The AutomationManager will return default configs for any metrics not explicitly configured
+    metric_quantiles = {}
+
+    for metric in metrics:
+        metric_config = AutomationManager().get_metric_config(metric)
+        # quantiles is now already a List[float] thanks to pydantic validation
+        metric_quantiles[metric] = metric_config.quantiles
+
+    # Apply filter if provided
+    if filter_rule is not None:
+        df = filter_rule.filter(df, ignore_min_rows=True)
+
+    # Handle empty DataFrame gracefully - this is a common case and shouldn't be an error
+    if df.empty:
+        return pd.DataFrame()
+
+    # Validate metric columns exist
+    missing_metrics = [col for col in metrics if col not in df.columns]
+    if missing_metrics:
+        raise ValueError(f"Metric columns not found in DataFrame: {missing_metrics}")
+
+    # Validate attribute columns exist
+    attribute_cols = attribute_cols or []
+    missing_cols = [col for col in attribute_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Attribute columns not found in DataFrame: {missing_cols}")
+
+    # Compute quantiles
+    if attribute_cols:
+        # Group by specified columns and compute quantiles for each group
+        quantile_data = []
+
+        for group_values, group_df in df.groupby(attribute_cols):
+            # Handle single attribute column case
+            if len(attribute_cols) == 1:
+                group_values = (group_values,)
+
+            # Create a single row with all quantiles for this group
+            row_data = dict(zip(attribute_cols, group_values))
+
+            # Compute quantiles for each metric using per-metric configuration
+            for metric in metrics:
+                for q in metric_quantiles[metric]:
+                    quantile_value = group_df[metric].quantile(q)
+                    row_data[f"{metric}_quantile_{q}"] = quantile_value
+
+            quantile_data.append(row_data)
+
+        if not quantile_data:
+            logger.warning("No quantile data computed")
+            return pd.DataFrame()
+
+        # Create DataFrame with quantile results
+        quantile_df = pd.DataFrame(quantile_data)
+
+    else:
+        # No grouping - compute quantiles for entire dataset
+        row_data = {}
+
+        # Compute quantiles for each metric using per-metric configuration
+        for metric in metrics:
+            for q in metric_quantiles[metric]:
+                quantile_value = df[metric].quantile(q)
+                row_data[f"{metric}_quantile_{q}"] = quantile_value
+
+        if not row_data:
+            logger.warning("No quantile data computed")
+            return pd.DataFrame()
+
+        # Create DataFrame with quantile results (single row)
+        quantile_df = pd.DataFrame([row_data])
+
+    # Get metric columns (all quantile columns)
+    metric_columns = [col for col in quantile_df.columns if "_quantile_" in col]
+
+    # Record using the core API
+    record_dataframe_metrics(
+        quantile_df, metric_columns, attribute_cols=attribute_cols, attributes=attributes, source=source
     )
+
+    return quantile_df
+
+
+def record_dataframe_counts(
+    df: pd.DataFrame,
+    metric: str,
+    *,
+    attributes: Optional[Dict[str, Any]] = None,
+    source: str = "DataFrameCounts",
+) -> None:
+    """Record count metrics from a DataFrame with OpenTelemetry.
+
+    A counts DataFrame uses row indices to represent subgroups and columns to
+    represent score categories. This means we record rows × columns entries
+    to the specified metric name.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing count data where:
+        - Row indices represent cohort groups/subgroups
+        - Columns represent score categories or response types
+        - Values are the counts for each group/category combination
+    metric : str
+        The name of the metric to record all counts under.
+    attributes : Optional[Dict[str, Any]], optional
+        Base attributes to apply to all metric recordings, by default None.
+        These are merged with attributes derived from the DataFrame structure.
+    source : str, optional
+        Source name for the OpenTelemetry recorder, by default "DataFrameCounts".
+
+    Examples
+    --------
+    Recording Likert scale responses across cohorts:
+
+    >>> df = pd.DataFrame({
+    ...     'Disagree': [10, 5],
+    ...     'Neutral': [15, 10],
+    ...     'Agree': [35, 45]
+    ... }, index=[('A', 'C'), ('B', 'D')])
+    >>> df.index.names = ['Group1', 'Group2']
+    >>> record_dataframe_counts(df, 'likes_cats')
+
+    This records 6 values:
+    - likes_cats{Group1="A", Group2="C", score="Disagree"} 10
+    - likes_cats{Group1="A", Group2="C", score="Neutral"} 15
+    - likes_cats{Group1="A", Group2="C", score="Agree"} 35
+    - likes_cats{Group1="B", Group2="D", score="Disagree"} 5
+    - likes_cats{Group1="B", Group2="D", score="Neutral"} 10
+    - likes_cats{Group1="B", Group2="D", score="Agree"} 45
+    """
+    if df.empty:
+        return
+
+    # Create recorder for this single metric
+    recorder = OpenTelemetryRecorder(metric_names=[metric], name=source)
+    base_attributes = attributes or {}
+
+    # Get index column names - these become attribute labels
+    index_names = df.index.names if df.index.names != [None] else [f"index_{i}" for i in range(df.index.nlevels)]
+
+    # Iterate through each row (index values) and column (score categories)
+    for row_idx, row in df.iterrows():
+        # Handle multi-index case
+        if isinstance(row_idx, tuple):
+            row_attributes = dict(zip(index_names, row_idx))
+        else:
+            row_attributes = {index_names[0]: row_idx}
+
+        # Add base attributes
+        row_attributes.update(base_attributes)
+
+        # Record each column value with the score category as an attribute
+        for col_name, count_value in row.items():
+            # Skip NaN values
+            if pd.isna(count_value):
+                continue
+
+            # Add the score category attribute
+            final_attributes = row_attributes.copy()
+            final_attributes["score"] = col_name
+
+            # Record the count
+            recorder.populate_metrics(attributes=final_attributes, metrics={metric: count_value})
+
+
+def record_single_metric(
+    name: str,
+    value: Union[int, float],
+    *,
+    attributes: Optional[Dict[str, Any]] = None,
+    source: str = "SingleMetric",
+) -> None:
+    """Record a single metric value with OpenTelemetry.
+
+    This is a convenience function for recording a single metric value
+    with optional attributes.
+
+    Parameters
+    ----------
+    name : str
+        The name of the metric to record.
+    value : Union[int, float]
+        The numeric value of the metric to record.
+    attributes : Optional[Dict[str, Any]], optional
+        Attributes to associate with this metric recording, by default None.
+    source : str, optional
+        Source name for the OpenTelemetry recorder, by default "SingleMetric".
+
+    Examples
+    --------
+    Recording a single accuracy metric:
+
+    >>> record_single_metric('accuracy', 0.92, attributes={'model': 'A'})
+    """
+    recorder = OpenTelemetryRecorder(metric_names=[name], name=source)
+    final_attributes = attributes or {}
+
+    recorder.populate_metrics(attributes=final_attributes, metrics={name: value})
