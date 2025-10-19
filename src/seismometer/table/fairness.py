@@ -305,10 +305,9 @@ def _record_fairness_metrics(
         return f"fairness_ratio_{x}" if x in metric_list else x
 
     fair_metrics = fairness_data[metric_list].rename(columns=renamer)
-    all_metrics = (
-        fair_metrics.join(metric_data).reset_index().rename(columns={CLASS: cohort_column}).drop(columns=[COHORT])
-    )
-    print(all_metrics)
+    all_metrics = fair_metrics.join(metric_data).reset_index()
+    all_metrics = all_metrics.drop(columns=[COHORT]).rename(columns={CLASS: cohort_column})
+
     metric_apis.record_dataframe_metrics(
         all_metrics,
         metrics=metric_list + [renamer(x) for x in metric_list],

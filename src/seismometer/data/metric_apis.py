@@ -264,9 +264,6 @@ def record_dataframe_metrics(
 
         # Build metrics dict for this row (only the relevant metrics)
         row_metrics = {metric: row[metric] for metric in metrics_to_record}
-
-        # Record using existing populate_metrics method
-        breakpoint()
         recorder.populate_metrics(attributes=row_attributes, metrics=row_metrics)
 
     # Process log_all metrics with full dataset

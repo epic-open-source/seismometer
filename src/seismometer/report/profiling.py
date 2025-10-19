@@ -201,7 +201,7 @@ class SingleReportWrapper(ReportWrapper):
             self._deserialize_alerts()
 
         for alert in self._parsed_alerts.alerts:
-            metric_apis.record_single_alert(
+            metric_apis.record_single_metric(
                 name=f"profiling_alert{alert.name.lower()}",
                 value=alert.percentage,
                 attributes={"variable": alert.variable},

@@ -1,7 +1,6 @@
 from collections import defaultdict
 from unittest.mock import patch
 
-import pandas as pd
 import pytest
 
 try:
@@ -71,46 +70,6 @@ class TestMetricLogging:
         assert {"attributes": {"test?": True}, "value": 1} in RECEIVED_METRICS["A"]
         assert {"attributes": {"bar?": "foo"}, "value": 3} in RECEIVED_METRICS["B"]
         assert {"attributes": {"bar?": "foo"}, "value": 4} in RECEIVED_METRICS["C"]
-
-    def test_log_by_cohort(self, recorder):
-        """Finally, we test the most complicated method in both fashions: intersecting and not."""
-        dataframe = pd.DataFrame(
-            {
-                "Name": ["U", "V", "W", "X", "Y", "Z"],
-                "Age": [10, 10, 20, 20, 30, 30],
-                "Birth Season": ["Spring", "Summer", "Spring", "Summer", "Fall", "Winter"],
-                "A": [1, 2, 3, 4, 5, 6],  # What we ostensibly want to log.
-            }
-        )
-        cohorts = {"Age": [10, 20], "Birth Season": ["Spring", "Summer"]}
-        recorder.log_by_cohort(
-            dataframe=dataframe, base_attributes={"foo": "bar"}, cohorts=cohorts, intersecting=False
-        )
-        assert {"attributes": {"foo": "bar", "Age": 10, "key": 1}, "value": 2} in RECEIVED_METRICS["A"]
-        recorder.log_by_cohort(dataframe=dataframe, base_attributes={"foo": "bar"}, cohorts=cohorts, intersecting=True)
-        assert {
-            "attributes": {"foo": "bar", "Age": 10, "Birth Season": "Spring", "key": 0},
-            "value": 1,
-        } in RECEIVED_METRICS["A"]
-
-    def test_log_by_column(self, recorder):
-        dataframe = pd.DataFrame(
-            {
-                "Threshold": [1, 2, 3, 4, 5, 6],
-                "Cohort": ["Cohort A", "Cohort B"] * 3,
-                "A": [10, 20, 30, 40, 50, 60],
-                "B": [100, 200, 300, 400, 500, 600],
-            }
-        )
-        cohorts = {"Cohort": ["Cohort A"]}
-        recorder.log_by_column(
-            dataframe, col_name="Threshold", cohorts=cohorts, base_attributes={"foo": "bar"}, col_values=[1, 4]
-        )
-        expected_from_A = set([datapoint["value"] for datapoint in RECEIVED_METRICS["A"]])
-        assert {10, 30, 50} == expected_from_A  # we log all metrics here
-
-        expected_from_B = set([datapoint["value"] for datapoint in RECEIVED_METRICS["B"]])
-        assert {100} == expected_from_B  # ... but not here.
 
 
 @pytest.fixture(scope="session", autouse=True)

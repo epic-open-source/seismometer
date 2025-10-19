@@ -443,7 +443,7 @@ def _plot_cohort_evaluation(
 
     # Use API to record performance metrics
     metric_apis.record_dataframe_metrics(
-        plot_data,
+        plot_data.rename(columns={"cohort": cohort_col}),
         metrics=[col for col in plot_data.columns if col in STATNAMES],
         attributes={"target": target, "score": output},
         attribute_cols=[threshold_col, cohort_col],
@@ -923,7 +923,7 @@ def plot_model_score_comparison(
 
     # Use new API to record performance metrics
     metric_apis.record_dataframe_metrics(
-        plot_data,
+        plot_data.rename(columns={"cohort": "ScoreName"}),
         metrics=[col for col in plot_data.columns if col in STATNAMES],
         attributes={"Target Column": target} | cohort_dict,
         attribute_cols=["Threshold", "ScoreName"],
@@ -995,7 +995,7 @@ def plot_model_target_comparison(
 
     # Use new API to record performance metrics
     metric_apis.record_dataframe_metrics(
-        plot_data,
+        plot_data.rename(columns={"cohort": "TargetName"}),
         metrics=[col for col in plot_data.columns if col in STATNAMES],
         attributes={"Score Column": score} | cohort_dict,
         attribute_cols=["Threshold", "TargetName"],
@@ -1069,6 +1069,8 @@ def plot_binary_classifier_metrics(
     )
     attributes = {"score_col": score_column, "target": target, "per_context": per_context}
 
+    # Reset index to make Threshold available as a column for metric recording
+    stats = stats.reset_index()
     metric_apis.record_dataframe_metrics(
         stats,
         metrics=metrics,
@@ -1119,7 +1121,7 @@ def binary_classifier_metric_evaluation(
     aggregation_method: str = "max",
     ref_time: str = None,
     table_only: bool = False,
-) -> HTML:
+) -> tuple[pd.DataFrame, HTML]:
     """
     plots common model evaluation metrics
 
@@ -1173,8 +1175,8 @@ def binary_classifier_metric_evaluation(
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
 
     if table_only:
-        return HTML(stats[metrics].T.to_html())
-    return plot.binary_classifier.plot_metric_list(stats, metrics)
+        return stats, HTML(stats[metrics].T.to_html())
+    return stats, plot.binary_classifier.plot_metric_list(stats, metrics)
 
 
 # endregion
