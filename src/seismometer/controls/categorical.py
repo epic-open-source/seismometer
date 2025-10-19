@@ -13,6 +13,8 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
+from seismometer.core.autometrics import store_call_parameters
+from seismometer.core.decorators import export
 from seismometer.data import metric_apis
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
@@ -418,8 +420,10 @@ class OrdinalCategoricalPlot:
 # region Plots Wrapper
 
 
+@export
+@store_call_parameters(cohort_dict="cohort_dict")
 @disk_cached_html_segment
-def ordinal_categorical_plot(
+def plot_ordinal_categorical_metrics(
     metrics: list[str],
     cohort_dict: dict[str, tuple],
     *,
@@ -453,8 +457,6 @@ def ordinal_categorical_plot(
 
 # endregion
 # region Plot Controls
-
-
 class ExploreCategoricalPlots(ExplorationWidget):
     def __init__(self, group_key: Optional[str] = None, title: Optional[str] = None):
         """
@@ -477,7 +479,7 @@ class ExploreCategoricalPlots(ExplorationWidget):
                 cohort_dict=sg.available_cohort_groups,
                 title=title,
             ),
-            plot_function=ordinal_categorical_plot,
+            plot_function=plot_ordinal_categorical_metrics,
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:

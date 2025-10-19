@@ -10,6 +10,8 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
+from seismometer.core.autometrics import store_call_parameters
+from seismometer.core.decorators import export
 from seismometer.data import metric_apis
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
@@ -165,8 +167,10 @@ class OrdinalCategoricalSinglePlot:
 # region Plots Wrapper
 
 
+@export
+@store_call_parameters(cohort_dict="cohort_dict")
 @disk_cached_html_segment
-def ordinal_categorical_single_col_plot(
+def plot_cohort_ordinal_categorical_metric(
     metric_col: str,
     cohort_dict: dict[str, tuple],
     *,
@@ -236,7 +240,7 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
                 cohort_groups=sg.available_cohort_groups,
                 title=title,
             ),
-            plot_function=ordinal_categorical_single_col_plot,
+            plot_function=plot_cohort_ordinal_categorical_metric,
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:

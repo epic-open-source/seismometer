@@ -1249,7 +1249,7 @@ class TestExploreCategoricalPlots:
         assert widget.disabled is False
 
         expected_plot_code = (
-            "seismometer.controls.categorical.ordinal_categorical_plot(['Metric1', 'Metric2'], "
+            "seismometer.controls.categorical.plot_ordinal_categorical_metrics(['Metric1', 'Metric2'], "
             + "{}, title='Unit Test Title')"
         )
         assert widget.current_plot_code == expected_plot_code
@@ -1480,7 +1480,7 @@ class TestExploreSingleCategoricalPlots:
         assert widget.disabled is False
 
         expected_plot_code = (
-            "seismometer.controls.categorical_single_column.ordinal_categorical_single_col_plot"
+            "seismometer.controls.categorical_single_column.plot_cohort_ordinal_categorical_metric"
             + "('Metric1', {'Age': ('20-30', '30-40')}, title='Unit Test Title: Display 1')"
         )
         assert widget.current_plot_code == expected_plot_code

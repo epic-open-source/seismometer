@@ -6,7 +6,7 @@ from IPython.display import HTML, SVG
 
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
-from seismometer.controls.categorical import OrdinalCategoricalPlot, ordinal_categorical_plot
+from seismometer.controls.categorical import OrdinalCategoricalPlot, plot_ordinal_categorical_metrics
 from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import Seismogram
 
@@ -235,10 +235,10 @@ class TestOrdinalCategoricalPlot:
 
 
 class TestOrdinalCategoricalPlotFunction:
-    def test_ordinal_categorical_plot(self, fake_seismo):
+    def test_plot_ordinal_categorical(self, fake_seismo):
         metrics = ["Metric1", "Metric2"]
         cohort_dict = {"Cohort": ["C1"]}
-        html = ordinal_categorical_plot(metrics, cohort_dict, title="Test Plot")
+        html = plot_ordinal_categorical_metrics(metrics, cohort_dict, title="Test Plot")
         assert isinstance(html, HTML)
 
 

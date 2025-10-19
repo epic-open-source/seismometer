@@ -313,6 +313,7 @@ def _record_fairness_metrics(
         metrics=metric_list + [renamer(x) for x in metric_list],
         attributes=attribute_info,
         attribute_cols=[cohort_column],
+        source="FairnessTable",
     )
 
 
