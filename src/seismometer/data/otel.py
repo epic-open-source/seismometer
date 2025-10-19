@@ -27,7 +27,14 @@ except ImportError:
 @export
 class ExportManager(object, metaclass=Singleton):
     def __new__(cls, export_config: Optional[ExportConfig] = None):
-        if not OTEL_AVAILABLE or export_config is None or not export_config.is_exporting_possible():
+        if not OTEL_AVAILABLE:
+            logger.info("Telementry not installed, export manager disabled.")
+            return NoOpExportManager()
+        elif export_config is None:
+            logger.info("No export configured, export manager disabled.")
+            return NoOpExportManager()
+        elif not export_config.is_exporting_possible():
+            logger.info("No export locations specified, export manager disabled.")
             return NoOpExportManager()
         return RealExportManager(export_config)
 
@@ -37,10 +44,10 @@ class NoOpExportManager:
         self.active = False
 
     def deactivate_exports(self):
-        logger.warning("Telemetry packages have not been installed! Exports are already deactivated.")
+        pass
 
     def activate_exports(self):
-        logger.warning("Telemetry packages have not been installed! Exports cannot be activated.")
+        logger.warning("Telemetry disabled! Exports cannot be activated.")
 
 
 # Class which stores info about exporting metrics.
