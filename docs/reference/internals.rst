@@ -118,7 +118,7 @@ OpenTelemetry output
    deactivate_exports
    activate_exports
 
-.. currentmodule:: seismometer.data.metric_apis
+.. currentmodule:: seismometer.data.telemetry
 .. autosummary::
    :toctree: api/
 
