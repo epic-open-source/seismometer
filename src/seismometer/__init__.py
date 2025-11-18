@@ -9,8 +9,9 @@ from typing import Optional
 
 import pandas as pd
 
-# API
 from seismometer.api import *
+
+# API
 from seismometer.core.autometrics import *
 
 __version__ = importlib.metadata.version("seismometer")

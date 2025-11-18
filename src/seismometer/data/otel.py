@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from seismometer.configuration.export_config import ExportConfig
+from seismometer.configuration.telemetry_config import TelemetryConfig
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
 
@@ -25,21 +25,21 @@ except ImportError:
 
 
 @export
-class ExportManager(object, metaclass=Singleton):
-    def __new__(cls, export_config: Optional[ExportConfig] = None):
+class MetricTelemetryManager(object, metaclass=Singleton):
+    def __new__(cls, telemetry_config: Optional[TelemetryConfig] = None):
         if not OTEL_AVAILABLE:
             logger.info("Telementry not installed, export manager disabled.")
-            return NoOpExportManager()
-        elif export_config is None:
+            return NoOpMetricTelemetryManager()
+        elif telemetry_config is None:
             logger.info("No export configured, export manager disabled.")
-            return NoOpExportManager()
-        elif not export_config.is_exporting_possible():
+            return NoOpMetricTelemetryManager()
+        elif not telemetry_config.is_exporting_possible():
             logger.info("No export locations specified, export manager disabled.")
-            return NoOpExportManager()
-        return RealExportManager(export_config)
+            return NoOpMetricTelemetryManager()
+        return RealMetricTelemetryManager(telemetry_config)
 
 
-class NoOpExportManager:
+class NoOpMetricTelemetryManager:
     def __init__(self):
         self.active = False
 
@@ -51,21 +51,21 @@ class NoOpExportManager:
 
 
 # Class which stores info about exporting metrics.
-class RealExportManager:
-    def __init__(self, export_config: ExportConfig):
+class RealMetricTelemetryManager:
+    def __init__(self, telemetry_config: TelemetryConfig):
         """Create a place to export files.
 
         Parameters
         ----------
-        export_config: ExportConfig
+        telemetry_config: TelemetryConfig
             Configuration for exports: files, hostnames/ports, or logging to stdout
         """
-        if not export_config.is_exporting_possible():
+        if not telemetry_config.is_exporting_possible():
             self.deactivate_exports()
             return  # We're done already!
         self.readers = []
         self.otlp_exhausts = []
-        for file_output_path in export_config.otel_files:
+        for file_output_path in telemetry_config.otel_files:
             file_path = Path(file_output_path)
             file_path.parent.mkdir(parents=True, exist_ok=True)
             file_exhaust = open(file_path, "a")  # Does not overwrite existing data
@@ -73,12 +73,14 @@ class RealExportManager:
                 PeriodicExportingMetricReader(ConsoleMetricExporter(out=file_exhaust), export_interval_millis=5000)
             )
             self.otlp_exhausts.append(file_exhaust)
-        for export_port in export_config.otel_ports:
-            if self._can_connect_to_socket(host=export_config.hostname, port=export_port):
-                otlp_exporter = OTLPMetricExporter(endpoint=f"{export_config.hostname}:{export_port}", insecure=True)
+        for export_port in telemetry_config.otel_ports:
+            if self._can_connect_to_socket(host=telemetry_config.hostname, port=export_port):
+                otlp_exporter = OTLPMetricExporter(
+                    endpoint=f"{telemetry_config.hostname}:{export_port}", insecure=True
+                )
                 otel_collector_reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=5000)
                 self.readers.append(otel_collector_reader)
-        if export_config.otel_stdout:
+        if telemetry_config.otel_stdout:
             self.readers.append(
                 PeriodicExportingMetricReader(ConsoleMetricExporter(out=sys.stdout), export_interval_millis=5000)
             )
@@ -138,10 +140,10 @@ class RealExportManager:
 @export
 def deactivate_exports():
     """Make it so that all metric emission calls are no-ops."""
-    ExportManager().deactivate_exports()
+    MetricTelemetryManager().deactivate_exports()
 
 
 @export
 def activate_exports():
     """Revert to the default state of allowing metric emission."""
-    ExportManager().activate_exports()
+    MetricTelemetryManager().activate_exports()

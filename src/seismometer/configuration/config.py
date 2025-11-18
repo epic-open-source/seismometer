@@ -3,8 +3,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from seismometer.configuration.export_config import ExportConfig
 from seismometer.configuration.metrics import MetricConfig
+from seismometer.configuration.telemetry_config import TelemetryConfig
 from seismometer.core.io import load_yaml
 
 from .model import CohortHierarchy, DataUsage, Event, EventDictionary, Metric, OtherInfo, PredictionDictionary
@@ -66,7 +66,7 @@ class ConfigProvider:
         self._metric_types: dict = None
         self._automation_config: dict = {}
         self._metric_config: MetricConfig = None
-        self.export_config: ExportConfig = None
+        self.telemetry_config: TelemetryConfig = None
 
         if definitions is not None:
             self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
@@ -126,7 +126,7 @@ class ConfigProvider:
 
         self.config = OtherInfo(**raw_config["other_info"])
 
-        self.export_config = ExportConfig(raw_config)
+        self.telemetry_config = TelemetryConfig(raw_config)
 
     def _resolve_other_paths(
         self,

@@ -12,8 +12,8 @@ from seismometer.controls.explore import ExplorationWidget, ModelOptionsWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from seismometer.core.autometrics import store_call_parameters
-from seismometer.data import metric_apis
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data import telemetry
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
 
@@ -308,7 +308,7 @@ def _record_fairness_metrics(
     all_metrics = fair_metrics.join(metric_data).reset_index()
     all_metrics = all_metrics.drop(columns=[COHORT]).rename(columns={CLASS: cohort_column})
 
-    metric_apis.record_dataframe_metrics(
+    telemetry.record_dataframe_metrics(
         all_metrics,
         metrics=metric_list + [renamer(x) for x in metric_list],
         attributes=attribute_info,

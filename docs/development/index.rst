@@ -26,6 +26,29 @@ Contributors must fork our repository and make pull requests to it with
 their changes. These pull requests will go through an internal review by
 at least two Epic software development staff before being accepted.
 
+Documenting API Changes
+------------------------
+
+When making breaking changes to the API, such as changing function signatures
+or return types, use the Sphinx ``.. versionchanged::`` directive with the
+placeholder token ``NEXT_VERSION_PLACEHOLDER``. This token will be replaced
+with the actual version number during the release process.xample::
+
+   def my_function() -> tuple:
+       """
+       Brief description of the function.
+       
+       .. versionchanged:: NEXT_VERSION_PLACEHOLDER
+          Changed return type from list to tuple to prevent changing length.
+       
+       Parameters
+       ----------
+       ...
+       """
+
+This ensures that breaking changes are properly documented for users while
+allowing the version number to be automatically updated during release.
+
 Epic Contributor License Agreement
 ----------------------------------
 

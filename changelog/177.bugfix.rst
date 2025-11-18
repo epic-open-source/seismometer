@@ -1,1 +1,1 @@
-Cleaned up dependencies between AutomationManager, ExportManager, and OpenTelemetryRecorder. 
+Cleaned up dependencies between AutomationManager, MetricTelemetryManager, and OpenTelemetryRecorder. 

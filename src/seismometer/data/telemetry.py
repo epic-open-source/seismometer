@@ -7,14 +7,14 @@ import pandas as pd
 from seismometer.core.autometrics import AutomationManager
 from seismometer.core.io import slugify
 from seismometer.data.filter import FilterRule
-from seismometer.data.otel import ExportManager
+from seismometer.data.otel import MetricTelemetryManager
 
 logger = logging.getLogger("seismometer.telemetry")
 
 
 class OpenTelemetryRecorder:
     def __new__(cls, metric_names: List[str], name: str):
-        if ExportManager().active:
+        if MetricTelemetryManager().active:
             return RealOpenTelemetryRecorder(metric_names, name)
         return NoOpOpenTelemetryRecorder()
 
@@ -39,7 +39,7 @@ class RealOpenTelemetryRecorder:
             These are the kinds of metrics we want to be collecting. E.g. fairness, accuracy.
         """
 
-        export_manager = ExportManager()
+        export_manager = MetricTelemetryManager()
 
         # If we are not recording metrics, don't bother.
         if not export_manager.active:
@@ -97,7 +97,7 @@ class RealOpenTelemetryRecorder:
             The actual data we are populating.
         """
 
-        if not ExportManager().active:
+        if not MetricTelemetryManager().active:
             return
 
         # OTel doesn't like fancy Unicode characters.
@@ -192,10 +192,11 @@ def record_dataframe_metrics(
         Column name(s) in the DataFrame that contain metric values to record.
     attribute_cols : Optional[List[str]], optional
         Column names in the DataFrame to use as attributes (labels) for metrics.
-        Each row's values in these columns become attributes for that metric recording.
+        Column names act as labels, row values become label values for that metric recording.
     attributes : Optional[Dict[str, Any]], optional
         Base attributes to apply to all metric recordings. These are merged with
-        per-row attributes from attribute_cols.
+        per-row label/value pairs from attribute_cols. Keys will be additional label names, and values
+        will be label values.
     filter_rule : Optional[FilterRule], optional
         Filter to apply to the DataFrame before recording metrics. If None,
         all rows are processed. If any metric has log_all=True in AutomationManager
@@ -287,13 +288,13 @@ def record_dataframe_quantiles(
     attributes: Optional[Dict[str, Any]] = None,
     filter_rule: Optional[FilterRule] = None,
     source: str = "DataFrameQuantiles",
-) -> pd.DataFrame:
+):
     """Record quantile metrics from a DataFrame with OpenTelemetry.
 
-    This function computes quantiles for one or more metric columns, optionally grouped by
-    specified columns, and records them using the core record_dataframe_metrics API.
-    Quantiles are determined per-metric from AutomationManager configuration, supporting
-    both integer (evenly spaced) and custom quantile specifications.
+    This function computes quantiles for one or more metric columns, grouped by attribute_cols,
+    and records per group quantiles using the core record_dataframe_metrics API.
+    Quantiles are calculated per attribute_cols group and per metric using AutomationManager
+    configuration, which allows for custom quantile specifications.
 
     Parameters
     ----------
@@ -302,7 +303,6 @@ def record_dataframe_quantiles(
     metrics : Union[str, List[str]]
         Column name(s) containing the metric values to compute quantiles for.
         Each metric can have its own quantile configuration from AutomationManager:
-        - Integer: evenly spaced quantiles (e.g., 4 -> [0.25, 0.5, 0.75])
         - List: custom quantile values (e.g., [0.5, 0.9, 0.95, 0.99])
     attribute_cols : Optional[List[str]], optional
         Column names to group by before computing quantiles. Each group will
@@ -314,19 +314,11 @@ def record_dataframe_quantiles(
     source : str, optional
         Source name for the OpenTelemetry recorder, by default "DataFrameQuantiles".
 
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the computed quantiles. Columns include attribute columns
-        (if any) and quantile columns named like '{metric}_quantile_{q}' for each
-        metric and quantile combination. Different metrics may have different
-        numbers of quantile columns based on their AutomationManager configuration.
-
     Examples
     --------
     Simple quantiles for entire dataset:
     >>> df = pd.DataFrame({'latency': [100, 200, 150, 300, 250]})
-    >>> result = record_dataframe_quantiles(df, 'latency')
+    >>> record_dataframe_quantiles(df, 'latency')
 
     Multiple metrics with different quantile configurations:
     >>> df = pd.DataFrame({
@@ -334,7 +326,7 @@ def record_dataframe_quantiles(
     ...     'throughput': [50, 45, 60, 40, 55, 58],
     ...     'model': ['A', 'A', 'B', 'B', 'A', 'B']
     ... })
-    >>> result = record_dataframe_quantiles(
+    >>> record_dataframe_quantiles(
     ...     df, ['latency', 'throughput'],
     ...     attribute_cols=['model'],
     ...     attributes={'experiment': 'test_1'}
@@ -433,18 +425,22 @@ def record_dataframe_quantiles(
     return quantile_df
 
 
-def record_dataframe_counts(
+def record_dataframe_matrix(
     df: pd.DataFrame,
     metric: str,
     *,
     attributes: Optional[Dict[str, Any]] = None,
     source: str = "DataFrameCounts",
 ) -> None:
-    """Record count metrics from a DataFrame with OpenTelemetry.
+    """Record metrics from a matrix-structured DataFrame with OpenTelemetry.
 
-    A counts DataFrame uses row indices to represent subgroups and columns to
-    represent score categories. This means we record rows × columns entries
-    to the specified metric name.
+    This function is designed for DataFrames where:
+    - Row indices represent one dimension (e.g., cohort groups)
+    - Columns represent another dimension (e.g., score categories, response options)
+    - Cell values are the metrics to record
+
+    Each cell is recorded as a separate metric observation with attributes
+    derived from both the row index and column name.
 
     Parameters
     ----------
@@ -471,7 +467,7 @@ def record_dataframe_counts(
     ...     'Agree': [35, 45]
     ... }, index=[('A', 'C'), ('B', 'D')])
     >>> df.index.names = ['Group1', 'Group2']
-    >>> record_dataframe_counts(df, 'likes_cats')
+    >>> record_dataframe_matrix(df, 'likes_cats')
 
     This records 6 values:
     - likes_cats{Group1="A", Group2="C", score="Disagree"} 10

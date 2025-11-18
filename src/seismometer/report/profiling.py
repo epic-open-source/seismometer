@@ -14,7 +14,7 @@ from seaborn.utils import relative_luminance
 
 import seismometer.report
 from seismometer.core.io import slugify
-from seismometer.data import metric_apis
+from seismometer.data import telemetry
 
 from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
 
@@ -201,7 +201,7 @@ class SingleReportWrapper(ReportWrapper):
             self._deserialize_alerts()
 
         for alert in self._parsed_alerts.alerts:
-            metric_apis.record_single_metric(
+            telemetry.record_single_metric(
                 name=f"profiling_alert{alert.name.lower()}",
                 value=alert.percentage,
                 attributes={"variable": alert.variable},

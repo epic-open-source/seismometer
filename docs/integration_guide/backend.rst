@@ -171,7 +171,7 @@ To do an export of the current call settings:
 
 .. code-block:: python
   
-  sm.export_config()
+  sm.telemetry_config()
 
 This will export to the path given in ``config.yml`` under ``other_info: automation_config:``.
 The parameter ``overwrite_existing`` specifies whether existing config will be overwritten if

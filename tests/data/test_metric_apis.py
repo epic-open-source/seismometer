@@ -12,8 +12,8 @@ except ImportError:
 
 from seismometer.configuration.metrics import MetricConfig, SingleMetricConfig
 from seismometer.core.autometrics import AutomationManager
-from seismometer.data import metric_apis
-from seismometer.data.otel import ExportConfig, ExportManager
+from seismometer.data import telemetry
+from seismometer.data.otel import MetricTelemetryManager, TelemetryConfig
 
 # We will mock it so that all metrics that are "logged"
 # actually just end up going here.
@@ -27,11 +27,13 @@ def mock_set_one_datapoint(_, attributes, instrument, data):
 @pytest.fixture
 def recorder(tmp_path):
     RECEIVED_METRICS.clear()
-    ExportManager.kill()
-    ExportManager(ExportConfig({"otel_export": {"files": [tmp_path / "test_metrics.txt"], "stdout": True}}))
+    MetricTelemetryManager.kill()
+    MetricTelemetryManager(
+        TelemetryConfig({"otel_export": {"files": [tmp_path / "test_metrics.txt"], "stdout": True}})
+    )
     AutomationManager.kill()
     AutomationManager(fake_config(tmp_path))
-    r = metric_apis.OpenTelemetryRecorder(metric_names=[], name="Test")
+    r = telemetry.OpenTelemetryRecorder(metric_names=[], name="Test")
     r.instruments = {"A": "A", "B": "B", "C": "C", "D": "D"}
     r.metric_names = ["A", "B", "C", "D"]
     return r
@@ -55,8 +57,8 @@ def fake_config(tmp_path):
 
 # We want recorder and exporter init methods to do nothing, so we don't actually have to
 # open any files or make anything.
-@patch.object(metric_apis.OpenTelemetryRecorder, "__init__", new=lambda self: None)
-@patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint", new=mock_set_one_datapoint)
+@patch.object(telemetry.OpenTelemetryRecorder, "__init__", new=lambda self: None)
+@patch.object(telemetry.RealOpenTelemetryRecorder, "_set_one_datapoint", new=mock_set_one_datapoint)
 class TestMetricLogging:
     def test_log_to_instrument(self, recorder):
         """We're just testing some basic logging outside of the context of any widget."""

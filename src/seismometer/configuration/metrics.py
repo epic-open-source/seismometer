@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Union
 
 from pydantic import BaseModel, field_validator
 
@@ -14,21 +14,20 @@ class SingleMetricConfig(BaseModel):
     log_all : bool, optional
         Whether to log all values for this metric, rather than those at specified value (usually thresholds).
         Default is False.
-    quantiles : Union[int, List[float]], optional
-        Quantiles for this metric. If int, evenly spread quantiles (e.g., 4 -> [0.25, 0.5, 0.75]).
-        If list, use the values directly. Default is 4.
+    quantiles : list[float], optional
+        Quantiles for this metric. Default is [0.25, 0.5, 0.75].
     measurement_type : str, optional
         Type of measurement (e.g., 'Gauge'). Default is 'Gauge'.
     """
 
     output_metrics: bool = True
     log_all: bool = False
-    quantiles: Union[int, List[float]] = [0.25, 0.5, 0.75]  # Default to transformed list
+    quantiles: list[float] = [0.25, 0.5, 0.75]  # Default transformed list
     measurement_type: str = "Gauge"
 
-    @field_validator("quantiles")
+    @field_validator("quantiles", mode="before")
     @classmethod
-    def transform_quantiles(cls, v: Union[int, List[float]]) -> List[float]:
+    def transform_quantiles(cls, v: Union[int, list[float]]) -> list[float]:
         """
         Transform quantiles configuration to a list of float values.
 
@@ -70,7 +69,7 @@ class MetricConfig(BaseModel):
         Dictionary mapping metric names to their configurations.
     """
 
-    metric_configs: Dict[str, SingleMetricConfig]
+    metric_configs: dict[str, SingleMetricConfig]
 
     def __contains__(self, key: str) -> bool:
         """

@@ -9,8 +9,9 @@ import seismometer.plot as plot
 from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.core.autometrics import store_call_parameters
 from seismometer.core.decorators import export
-from seismometer.data import get_cohort_data, get_cohort_performance_data, metric_apis
+from seismometer.data import get_cohort_data, get_cohort_performance_data
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data import telemetry
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import (
     STATNAMES,
@@ -303,7 +304,7 @@ def _plot_leadtime_enc(
     summary_data["lead_time_hours"] = (summary_data[ref_time] - summary_data[target_zero]).dt.total_seconds() / 3600
 
     # Use new API to record quantiles
-    metric_apis.record_dataframe_quantiles(
+    telemetry.record_dataframe_quantiles(
         summary_data,
         metrics="lead_time_hours",
         attribute_cols=[cohort_col],
@@ -442,7 +443,7 @@ def _plot_cohort_evaluation(
     threshold_filter = FilterRule.isin("Threshold", threshold_values)
 
     # Use API to record performance metrics
-    metric_apis.record_dataframe_metrics(
+    telemetry.record_dataframe_metrics(
         plot_data.rename(columns={"cohort": cohort_col}),
         metrics=[col for col in plot_data.columns if col in STATNAMES],
         attributes={"target": target, "score": output},
@@ -602,7 +603,7 @@ def _model_evaluation(
     threshold_values = [int(t * 100) for t in thresholds]
     threshold_filter = FilterRule.isin("Threshold", threshold_values)
 
-    metric_apis.record_dataframe_metrics(
+    telemetry.record_dataframe_metrics(
         stats,
         metrics=[col for col in stats.columns if col in STATNAMES],
         attributes=params | cohort,
@@ -922,7 +923,7 @@ def plot_model_score_comparison(
     )
 
     # Use new API to record performance metrics
-    metric_apis.record_dataframe_metrics(
+    telemetry.record_dataframe_metrics(
         plot_data.rename(columns={"cohort": "ScoreName"}),
         metrics=[col for col in plot_data.columns if col in STATNAMES],
         attributes={"Target Column": target} | cohort_dict,
@@ -994,7 +995,7 @@ def plot_model_target_comparison(
     )
 
     # Use new API to record performance metrics
-    metric_apis.record_dataframe_metrics(
+    telemetry.record_dataframe_metrics(
         plot_data.rename(columns={"cohort": "TargetName"}),
         metrics=[col for col in plot_data.columns if col in STATNAMES],
         attributes={"Score Column": score} | cohort_dict,
@@ -1071,7 +1072,7 @@ def plot_binary_classifier_metrics(
 
     # Reset index to make Threshold available as a column for metric recording
     stats = stats.reset_index()
-    metric_apis.record_dataframe_metrics(
+    telemetry.record_dataframe_metrics(
         stats,
         metrics=metrics,
         attributes=attributes | cohort_dict,
@@ -1124,6 +1125,10 @@ def binary_classifier_metric_evaluation(
 ) -> tuple[pd.DataFrame, HTML]:
     """
     plots common model evaluation metrics
+
+    .. versionchanged:: NEXT_VERSION_PLACEHOLDER
+       Changed return type from HTML to tuple[pd.DataFrame, HTML] to provide
+       programmatic access to computed metrics alongside visualization.
 
     Parameters
     ----------

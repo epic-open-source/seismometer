@@ -14,8 +14,8 @@ from seismometer.controls.explore import ExplorationWidget, _combine_scores_chec
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.controls.thresholds import MonotonicProbabilitySliderListWidget
-from seismometer.data import metric_apis
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data import telemetry
 from seismometer.data.binary_performance import GENERATED_COLUMNS, generate_analytics_data
 from seismometer.data.performance import MONOTONIC_METRICS, OVERALL_PERFORMANCE, STATNAMES, THRESHOLD
 from seismometer.html import template
@@ -419,7 +419,7 @@ class AnalyticsTable:
         global_metrics = [m for m in OVERALL_PERFORMANCE if m in data.columns]
         if not global_metrics:
             return
-        metric_apis.record_dataframe_metrics(
+        telemetry.record_dataframe_metrics(
             data,
             metrics=global_metrics,
             attributes=self.cohort_dict,
@@ -449,7 +449,7 @@ class AnalyticsTable:
         # Add pegged metric as a column for attribute_cols
         local_df[pegged_metric] = pegged_value
         attribute_cols = ["Score", "Target", pegged_metric]
-        metric_apis.record_dataframe_metrics(
+        telemetry.record_dataframe_metrics(
             local_df,
             metrics=metrics,
             attributes=self.cohort_dict,
