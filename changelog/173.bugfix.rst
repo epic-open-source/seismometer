@@ -1,1 +1,0 @@
-Improve User Guide Fairness Audit documentation and update default fairness threshold to 0.25.

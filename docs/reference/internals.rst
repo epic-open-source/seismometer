@@ -109,37 +109,6 @@ Summaries
    summaries.default_cohort_summaries
    summaries.score_target_cohort_summaries
 
-OpenTelemetry output
-~~~~~~~~~~~~~~~~~~~~
-.. currentmodule:: seismometer.data.otel
-.. autosummary::
-   :toctree: api/
-
-   get_metric_creator
-   deactivate_exports
-   activate_exports
-
-.. currentmodule:: seismometer.data.metric_apis
-.. autosummary::
-   :toctree: api/
-
-.. autoclass:: RealOpenTelemetryRecorder
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. currentmodule:: seismometer.core.autometrics
-.. autosummary::
-   :toctree: api/
-
-   store_call_parameters
-   initialize_otel_config
-   export_automated_metrics
-
-.. autoclass:: AutomationManager
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 Low-level patterns
 ------------------

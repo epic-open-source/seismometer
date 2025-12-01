@@ -9,6 +9,33 @@ Breaking changes may occur between minor versions prior to the v1 release; after
 
 .. towncrier release notes start
 
+0.5.0
+-----
+
+Features
+~~~~~~~~
+
+- Added detailed info/debug logging throughout event merging and post-processing to aid observability and traceability. (`#149 <https://github.com/epic-open-source/seismometer/issues/149>`__)
+- In Likert plots, support merging multiple consistent value orders across metrics into a unified order. (`#154 <https://github.com/epic-open-source/seismometer/issues/154>`__)
+- Support reading CSV and TSV files as data input (`#159 <https://github.com/epic-open-source/seismometer/issues/159>`__)
+- Add support for global data filtering and cohort hierarchy-driven widget layout and logic (`#160 <https://github.com/epic-open-source/seismometer/issues/160>`__)
+- Added F1, F0.5, F2 metrics (`#171 <https://github.com/epic-open-source/seismometer/issues/171>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Fix warning message for missing times to display count instead of bool. (`#158 <https://github.com/epic-open-source/seismometer/issues/158>`__)
+- Refactored performance metrics unit tests to improve modularity and make adding new metrics easier (`#170 <https://github.com/epic-open-source/seismometer/issues/170>`__)
+- Improve User Guide Fairness Audit documentation and update default fairness threshold to 0.25. (`#173 <https://github.com/epic-open-source/seismometer/issues/173>`__)
+
+
+Misc
+~~~~
+
+- `#165 <https://github.com/epic-open-source/seismometer/issues/165>`__
+
+
 0.4.0
 -----
 

@@ -4,13 +4,6 @@
 Integration Guide
 =================
 
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-
-    backend
-    metrics
-
 This guide contains references to systems and packages that integrate with Seismometer. If you are interested in including your content here, either open a pull request or reach out to OpenSourceContributions-Python@epic.com
 
 Vendor Specific Resources
@@ -37,8 +30,6 @@ tools and links to relevant code/documentation.
 | Package name               | Description                                                 | Link                                                        |
 +============================+=============================================================+=============================================================+
 | APLUSML                    | A Python Library for Usefulness Simulations of ML Models    | `Example notebook integrating seismometer`_                 |
-+----------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
-| Prometheus                 | A place for metrics to be collected for later visualization | :doc:`Collector/Prometheus/Grafana example setup <backend>` |
 +----------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
 
 .. _Example notebook integrating seismometer: https://github.com/som-shahlab/aplusml/blob/main/tutorials/synthetic_pad_seismometer.ipynb

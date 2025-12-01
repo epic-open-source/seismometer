@@ -1,1 +1,0 @@
-In Likert plots, support merging multiple consistent value orders across metrics into a unified order.
