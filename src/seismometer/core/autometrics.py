@@ -55,7 +55,6 @@ def _call_transform(call: dict) -> dict:
     return {k: _transform_item(v) for k, v in call.items()}
 
 
-@export
 class AutomationManager(object, metaclass=Singleton):
     _call_history: dict[str, dict]
     """ plot function name -> {"args": args, "kwargs": kwargs } """
