@@ -9,10 +9,10 @@ from typing import Optional
 
 import pandas as pd
 
-from seismometer.api import *
+from seismometer.core.autometrics import initialize_otel_config
 
-# API
-from seismometer.core.autometrics import *
+# isort: split
+from seismometer.api import *
 
 __version__ = importlib.metadata.version("seismometer")
 logger = logging.getLogger("seismometer")

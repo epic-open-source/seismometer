@@ -356,7 +356,7 @@ def record_dataframe_quantiles(
 
     # Handle empty DataFrame gracefully - this is a common case and shouldn't be an error
     if df.empty:
-        return pd.DataFrame()
+        return
 
     # Validate metric columns exist
     missing_metrics = [col for col in metrics if col not in df.columns]
@@ -392,7 +392,7 @@ def record_dataframe_quantiles(
 
         if not quantile_data:
             logger.warning("No quantile data computed")
-            return pd.DataFrame()
+            return
 
         # Create DataFrame with quantile results
         quantile_df = pd.DataFrame(quantile_data)
@@ -409,7 +409,7 @@ def record_dataframe_quantiles(
 
         if not row_data:
             logger.warning("No quantile data computed")
-            return pd.DataFrame()
+            return
 
         # Create DataFrame with quantile results (single row)
         quantile_df = pd.DataFrame([row_data])
@@ -422,7 +422,7 @@ def record_dataframe_quantiles(
         quantile_df, metric_columns, attribute_cols=attribute_cols, attributes=attributes, source=source
     )
 
-    return quantile_df
+    return
 
 
 def record_dataframe_matrix(
