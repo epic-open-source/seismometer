@@ -111,34 +111,12 @@ Summaries
 
 OpenTelemetry output
 ~~~~~~~~~~~~~~~~~~~~
-.. currentmodule:: seismometer.data.otel
 .. autosummary::
    :toctree: api/
 
-   deactivate_exports
-   activate_exports
-
-.. currentmodule:: seismometer.data.telemetry
-.. autosummary::
-   :toctree: api/
-
-.. autoclass:: RealOpenTelemetryRecorder
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. currentmodule:: seismometer.core.autometrics
-.. autosummary::
-   :toctree: api/
-
-   store_call_parameters
-   initialize_otel_config
-   export_automated_metrics
-
-.. autoclass:: AutomationManager
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   otel.deactivate_exports
+   otel.activate_exports
+   telemetry.RealOpenTelemetryRecorder
 
 Low-level patterns
 ------------------
