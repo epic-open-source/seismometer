@@ -225,13 +225,13 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
 
 def _infer_datetime(dataframe, cols=None, override_categories=None):
-    """Infers datetime columns based on column name and casts to pandas.datatime."""
+    """Infers datetime columns based on column name and casts to pandas.datetime."""
+    dataframe = dataframe.copy()
     if cols is None:
         cols = dataframe.columns
     for col in cols:
         if "Time" in col:
             dataframe[col] = pd.to_datetime(dataframe[col])
-            continue
     return dataframe
 
 
