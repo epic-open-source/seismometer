@@ -221,10 +221,10 @@ def _plot_leadtime_enc(
     target_event: str,
     target_zero: str,
     score: str,
-    threshold: list[float],
+    threshold: float,
     ref_time: str,
     cohort_col: str,
-    subgroups: list[any],
+    subgroups: list[Any],
     max_hours: int,
     x_label: str,
     censor_threshold: int = 10,
@@ -240,7 +240,7 @@ def _plot_leadtime_enc(
         event column
     target_zero : str
         event value
-    threshold : str
+    threshold : float
         score thresholds
     score : str
         score column
@@ -250,7 +250,7 @@ def _plot_leadtime_enc(
         entity key column
     cohort_col : str
         cohort column name
-    subgroups : list[any]
+    subgroups : list[Any]
         cohort groups from the cohort column
     x_label : str
         label for the x axis of the plot
@@ -540,7 +540,7 @@ def _model_evaluation(
     censor_threshold : int, optional
         minimum rows to allow in a plot, by default 10
     per_context_id : bool, optional
-        report only the max score for a given entity context, by default False
+        If True, aggregate scores per (entity_id, context_id) context, by default False
     aggregation_method : str, optional
         method to reduce multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
@@ -596,7 +596,7 @@ def _model_evaluation(
                 attributes=params | cohort,
                 metrics={metric: stats[[metric, "Threshold"]].set_index("Threshold").to_dict()},
             )
-    title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
+    title = f"Overall Performance for {target_event} (Per {'Context' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
         ci_data=ci_data,
@@ -1101,7 +1101,7 @@ def binary_classifier_metric_evaluation(
     censor_threshold : int, optional
         minimum rows to allow in a plot, by default 10
     per_context_id : bool, optional
-        report only the max score for a given entity context, by default False
+        If True, combine scores per (entity_id, context_id) as defined in usage_config.yml
     aggregation_method : str, optional
         method to reduce multiple scores into a single value before calculation of performance, by default "max"
         ignored if per_context_id is False
