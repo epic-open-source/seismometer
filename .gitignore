@@ -96,4 +96,3 @@ example-notebooks/binary-classifier/data/*
 example-notebooks/binary-classifier/outputs/*
 
 .seismometer_cache/
-.venv/
