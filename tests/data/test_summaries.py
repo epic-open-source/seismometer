@@ -113,3 +113,58 @@ class Test_Summaries:
 
         # Ensuring they produce the same number of entities for each score-target-cohort group
         assert entities_event_score.tolist() == entities_summary.tolist()
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_default_summaries_adds_contexts_when_context_id_col_provided(self, mock_seismo, prediction_data):
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        df = prediction_data.copy()
+
+        # create multiple contexts per ID so Contexts >= Entities can actually happen
+        df["Context"] = df.groupby("ID").cumcount() % 2
+
+        actual = undertest.default_cohort_summaries(df, "Has_ECG", [1, 2, 3, 4, 5], "ID", context_id_col="Context")
+
+        assert "Contexts" in actual.columns
+
+        ctx = (
+            event_score(df, ["ID", "Context"], "Score", "Target", "Target", "max")["Has_ECG"]
+            .value_counts()
+            .rename("Contexts")
+        )
+        pd.testing.assert_series_equal(
+            actual["Contexts"].dropna(),
+            ctx.reindex([1, 2, 3, 4, 5]).dropna(),
+            check_names=False,
+        )
+
+        # contexts >= entities (where both are present)
+        both = actual[["Entities", "Contexts"]].dropna()
+        assert (both["Contexts"] >= both["Entities"]).all()
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_score_target_summaries_adds_contexts_when_context_id_col_provided(
+        self, mock_seismo, prediction_data, expected_score_target_summary_cuts
+    ):
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        df = prediction_data.copy()
+        df["Context"] = df.groupby("ID").cumcount() % 2
+
+        groupby_groups = ["Has_ECG", expected_score_target_summary_cuts]
+        grab_groups = ["Has_ECG", "Score"]
+
+        actual = undertest.score_target_cohort_summaries(
+            df, groupby_groups, grab_groups, "ID", context_id_col="Context"
+        )
+
+        assert "Contexts" in actual.columns
+        assert (actual["Contexts"] >= actual["Entities"]).all()
