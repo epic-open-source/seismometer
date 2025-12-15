@@ -1,4 +1,5 @@
 import logging
+import warnings
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -9,9 +10,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 from conftest import tmp_as_current  # noqa
-import warnings
 from pandas.errors import SettingWithCopyWarning
-
 
 import seismometer.data.loader.prediction as undertest
 from seismometer.configuration import ConfigProvider
@@ -366,7 +365,7 @@ class TestDictionaryTypes:
         assert "bad_col1" in str(cerr.value)
         assert "bad_col2" in str(cerr.value)
         assert "keep_col" not in str(cerr.value)
-   
+
     def test_dictionary_types_no_settingwithcopywarning(self):
         config = Mock(spec=ConfigProvider)
         config.output_list = []
