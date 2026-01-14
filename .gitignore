@@ -73,11 +73,14 @@ docs/example_notebooks/notebooks
 # virtualenv
 venv/
 ENV/
+.venv/
 
 # IDE settings
 .vscode/
 .vs/
 
+# macOS
+.DS_Store
 
 # Repository development directories
 .Trash-1000/
