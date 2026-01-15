@@ -72,6 +72,7 @@ docs/example_notebooks/notebooks
 
 # virtualenv
 venv/
+.venv/
 ENV/
 .venv/
 

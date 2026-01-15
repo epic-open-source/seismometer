@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -41,7 +41,7 @@ def fake_seismo(tmp_path):
 @patch.object(seismometer.data.loader, "loader_factory", new=fake_data_loader)
 class TestStartup:
     def test_debug_logs_with_formatter(self, capsys):
-        expected_date_str = "[" + datetime.now().strftime("%Y-%m-%d")
+        expected_date_str = "[" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         run_startup(log_level=logging.DEBUG)
 

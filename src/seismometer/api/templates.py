@@ -172,13 +172,14 @@ def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str,
         The dictionary, indexed by cohort attribute (e.g. Race), of summary dataframes.
     """
     sg = Seismogram()
+    context_id = getattr(sg.config, "context_id", None)
 
     dfs: dict[str, list[str]] = {}
 
     available_cohort_groups = sg.available_cohort_groups
 
     for attribute, options in available_cohort_groups.items():
-        df = default_cohort_summaries(sg.dataframe, attribute, options, sg.config.entity_id)
+        df = default_cohort_summaries(sg.dataframe, attribute, options, sg.config.entity_id, context_id)
         styled = _style_cohort_summaries(df, attribute)
 
         dfs[attribute] = [styled.to_html()]
@@ -186,7 +187,9 @@ def _get_cohort_summary_dataframes(by_target: bool, by_score: bool) -> dict[str,
         if by_score or by_target:
             groupby_groups, grab_groups, index_rename = _score_target_levels_and_index(attribute, by_target, by_score)
 
-            results = score_target_cohort_summaries(sg.dataframe, groupby_groups, grab_groups, sg.config.entity_id)
+            results = score_target_cohort_summaries(
+                sg.dataframe, groupby_groups, grab_groups, sg.config.entity_id, context_id
+            )
             results_styled = _style_score_target_cohort_summaries(results, index_rename, attribute)
 
             dfs[attribute].append(results_styled.to_html())

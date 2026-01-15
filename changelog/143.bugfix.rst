@@ -1,0 +1,1 @@
+Updated per-context visualizations to label combined-score results as “Per Context” (instead of “Per Encounter”) and clarified how “combine scores” aggregates across (entity_id, context_id); cohort summaries now optionally include a “Contexts” count when a context_id is configured.

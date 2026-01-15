@@ -7,7 +7,7 @@ from .decorators import export
 
 @export
 def default_cohort_summaries(
-    dataframe: pd.DataFrame, attribute: str, options: list[str], entity_id_col: str
+    dataframe: pd.DataFrame, attribute: str, options: list[str], entity_id_col: str, context_id_col: str | None = None
 ) -> pd.DataFrame:
     """
     Generate a dataframe of summary counts from the input dataframe.
@@ -40,7 +40,23 @@ def default_cohort_summaries(
         .rename("Entities")
     )
 
-    return pd.concat([left, right], axis=1).reindex(options)
+    pieces = [left, right]
+    if context_id_col and context_id_col in dataframe.columns:
+        contexts = (
+            pdh.event_score(
+                dataframe,
+                [entity_id_col, context_id_col],
+                sg.output,
+                sg.predict_time,
+                sg.target,
+                sg.event_aggregation_method(sg.target),
+            )[attribute]
+            .value_counts()
+            .rename("Contexts")
+        )
+        pieces.append(contexts)
+
+    return pd.concat(pieces, axis=1).reindex(options)
 
 
 @export
@@ -49,6 +65,7 @@ def score_target_cohort_summaries(
     groupby_groups: list[str],
     grab_groups: list[str],
     entity_id_col: str,
+    context_id_col: str | None = None,
 ) -> pd.DataFrame:
     """
     Generate a dataframe of summary counts from the input dataframe.
@@ -79,4 +96,19 @@ def score_target_cohort_summaries(
     )
     entities = df[grab_groups].groupby(groupby_groups, observed=False).size().rename("Entities").astype("Int64")
 
-    return pd.DataFrame(pd.concat([predictions, entities], axis=1)).fillna(0)
+    pieces = [predictions, entities]
+    if context_id_col and context_id_col in dataframe.columns:
+        ctx_df = pdh.event_score(
+            dataframe,
+            [entity_id_col, context_id_col],
+            sg.output,
+            sg.predict_time,
+            sg.target,
+            sg.event_aggregation_method(sg.target),
+        )
+        contexts = (
+            ctx_df[grab_groups].groupby(groupby_groups, observed=False).size().rename("Contexts").astype("Int64")
+        )
+        pieces.append(contexts)
+
+    return pd.DataFrame(pd.concat(pieces, axis=1)).fillna(0)
