@@ -64,6 +64,7 @@ class ConfigProvider:
         self._metrics: dict[str, Metric] = None
         self._metric_groups: dict = None
         self._metric_types: dict = None
+        self.export_config: ExportConfig = None
 
         if definitions is not None:
             self._prediction_defs = PredictionDictionary(predictions=definitions.pop("predictions", []))
