@@ -226,6 +226,145 @@ class TestFilterRuleConstructors:
         result = rule.filter(df)
         assert sorted(result["Cat"].unique()) == expected_cats
 
+    def test_from_filter_config_include_with_values(self, monkeypatch):
+        """Test action='include' with values parameter creates isin rule."""
+        from seismometer.configuration.model import FilterConfig
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Cat": ["A", "B", "C", "D", "E"]})
+        config = FilterConfig(source="Cat", action="include", values=["A", "B"])
+        rule = FilterRule.from_filter_config(config)
+
+        assert rule.relation == "isin"
+        assert rule.left == "Cat"
+        assert set(rule.right) == {"A", "B"}
+
+        result = rule.filter(df)
+        assert sorted(result["Cat"].unique()) == ["A", "B"]
+
+    def test_from_filter_config_exclude_with_values(self, monkeypatch):
+        """Test action='exclude' with values parameter creates negated isin rule."""
+        from seismometer.configuration.model import FilterConfig
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Cat": ["A", "B", "C", "D", "E"]})
+        config = FilterConfig(source="Cat", action="exclude", values=["A", "B"])
+        rule = FilterRule.from_filter_config(config)
+
+        assert rule.relation == "notin"
+        assert rule.left == "Cat"
+
+        result = rule.filter(df)
+        assert sorted(result["Cat"].unique()) == ["C", "D", "E"]
+
+    def test_from_filter_config_include_with_range_both_bounds(self, monkeypatch):
+        """Test action='include' with range (min and max) creates compound rule."""
+        from seismometer.configuration.model import FilterConfig, FilterRange
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Val": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+        config = FilterConfig(source="Val", action="include", range=FilterRange(min=3, max=8))
+        rule = FilterRule.from_filter_config(config)
+
+        result = rule.filter(df)
+        assert list(result["Val"]) == [3, 4, 5, 6, 7]  # min inclusive, max exclusive
+
+    def test_from_filter_config_include_with_range_min_only(self, monkeypatch):
+        """Test action='include' with range (min only) creates >= rule."""
+        from seismometer.configuration.model import FilterConfig, FilterRange
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Val": [1, 2, 3, 4, 5]})
+        config = FilterConfig(source="Val", action="include", range=FilterRange(min=3))
+        rule = FilterRule.from_filter_config(config)
+
+        result = rule.filter(df)
+        assert list(result["Val"]) == [3, 4, 5]
+
+    def test_from_filter_config_include_with_range_max_only(self, monkeypatch):
+        """Test action='include' with range (max only) creates < rule."""
+        from seismometer.configuration.model import FilterConfig, FilterRange
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Val": [1, 2, 3, 4, 5]})
+        config = FilterConfig(source="Val", action="include", range=FilterRange(max=3))
+        rule = FilterRule.from_filter_config(config)
+
+        result = rule.filter(df)
+        assert list(result["Val"]) == [1, 2]
+
+    def test_from_filter_config_exclude_with_range(self, monkeypatch):
+        """Test action='exclude' with range negates the range rule."""
+        from seismometer.configuration.model import FilterConfig, FilterRange
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Val": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+        config = FilterConfig(source="Val", action="exclude", range=FilterRange(min=3, max=8))
+        rule = FilterRule.from_filter_config(config)
+
+        result = rule.filter(df)
+        # Should exclude [3,4,5,6,7], keep [1,2,8,9,10]
+        assert list(result["Val"]) == [1, 2, 8, 9, 10]
+
+    def test_from_filter_config_invalid_action_raises(self):
+        """Test invalid action raises ValidationError from Pydantic."""
+        from pydantic import ValidationError
+
+        from seismometer.configuration.model import FilterConfig
+
+        # Pydantic validates action field, so invalid values raise ValidationError at creation
+        with pytest.raises(ValidationError, match="Input should be 'include', 'exclude' or 'keep_top'"):
+            FilterConfig(source="Col", action="invalid_action")
+
+    def test_from_filter_config_topk_with_none_maximum_returns_all(self, monkeypatch):
+        """Test keep_top with MAXIMUM_NUM_COHORTS=None and count=None returns all() rule."""
+        from seismometer.configuration.model import FilterConfig
+
+        monkeypatch.setattr(FilterRule, "MAXIMUM_NUM_COHORTS", None)
+        config = FilterConfig(source="Cat", action="keep_top", count=None)
+        rule = FilterRule.from_filter_config(config)
+
+        assert rule == FilterRule.all()
+
+    def test_from_filter_config_list_with_none(self):
+        """Test from_filter_config_list with None returns all() rule."""
+        rule = FilterRule.from_filter_config_list(None)
+        assert rule == FilterRule.all()
+
+    def test_from_filter_config_list_with_empty_list(self):
+        """Test from_filter_config_list with empty list returns all() rule."""
+        rule = FilterRule.from_filter_config_list([])
+        assert rule == FilterRule.all()
+
+    def test_from_filter_config_list_with_single_config(self, monkeypatch):
+        """Test from_filter_config_list with single config creates that rule."""
+        from seismometer.configuration.model import FilterConfig
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Cat": ["A", "B", "C"]})
+        config = FilterConfig(source="Cat", action="include", values=["A"])
+        rule = FilterRule.from_filter_config_list([config])
+
+        result = rule.filter(df)
+        assert list(result["Cat"]) == ["A"]
+
+    def test_from_filter_config_list_with_multiple_configs(self, monkeypatch):
+        """Test from_filter_config_list with multiple configs combines with AND logic."""
+        from seismometer.configuration.model import FilterConfig, FilterRange
+
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "B", "C"], "Val": [1, 5, 2, 6, 3]})
+        config1 = FilterConfig(source="Cat", action="include", values=["A", "B"])
+        config2 = FilterConfig(source="Val", action="include", range=FilterRange(min=2, max=6))
+        rule = FilterRule.from_filter_config_list([config1, config2])
+
+        result = rule.filter(df)
+        # Should keep rows where Cat in ["A","B"] AND Val in [2,6)
+        # That's: B,2 and A,5
+        assert len(result) == 2
+        assert set(result["Cat"]) == {"A", "B"}
+        assert all((result["Val"] >= 2) & (result["Val"] < 6))
+
 
 class TestFilterRuleCombinationLogic:
     @pytest.mark.parametrize(
@@ -427,3 +566,158 @@ class TestFilterRuleFromCohortDictionary:
     def test_matches_default_cohort(self):
         rule = filter_rule_from_cohort_dictionary()
         assert rule == FilterRule.all()
+
+
+class TestHelperFunctions:
+    """Test helper functions that are exported but not directly tested elsewhere."""
+
+    def test_apply_column_comparison_error_handling(self):
+        """Test apply_column_comparison error handling with incompatible types."""
+        from seismometer.data.filter import apply_column_comparison
+
+        df = pd.DataFrame({"Col": ["a", "b", "c"]})
+
+        # String column compared with integer should raise ValueError
+        with pytest.raises(ValueError, match="Values in 'Col' must be comparable to '5'"):
+            apply_column_comparison(df, "Col", 5, "<")
+
+    def test_apply_column_comparison_with_valid_comparison(self):
+        """Test apply_column_comparison works with valid comparisons."""
+        from seismometer.data.filter import apply_column_comparison
+
+        df = pd.DataFrame({"Val": [1, 2, 3, 4, 5]})
+        result = apply_column_comparison(df, "Val", 3, "<")
+
+        assert result.equals(df["Val"] < 3)
+        assert result.sum() == 2  # Only 1 and 2 are < 3
+
+    def test_apply_topk_filter_with_k_greater_than_unique_values(self):
+        """Test topk with k > number of unique values returns all True mask."""
+        from seismometer.data.filter import apply_topk_filter
+
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "B", "C"]})
+        # Only 3 unique values, but ask for top 5
+        mask = apply_topk_filter(df, "Cat", 5)
+
+        assert isinstance(mask, pd.Series)
+        assert mask.all()  # All rows should be True
+        assert len(mask) == 5
+
+    def test_apply_topk_filter_with_k_equal_to_unique_values(self):
+        """Test topk with k == number of unique values returns all True mask."""
+        from seismometer.data.filter import apply_topk_filter
+
+        df = pd.DataFrame({"Cat": ["A", "A", "B", "B", "C"]})
+        # Exactly 3 unique values, ask for top 3
+        mask = apply_topk_filter(df, "Cat", 3)
+
+        assert isinstance(mask, pd.Series)
+        assert mask.all()  # All rows should be True
+
+    def test_apply_topk_filter_with_single_unique_value(self):
+        """Test topk with DataFrame containing single unique value."""
+        from seismometer.data.filter import apply_topk_filter
+
+        df = pd.DataFrame({"Cat": ["A", "A", "A", "A"]})
+        mask = apply_topk_filter(df, "Cat", 2)
+
+        assert isinstance(mask, pd.Series)
+        assert mask.all()  # All rows should be True since only one unique value
+        assert len(mask) == 4
+
+    def test_apply_topk_filter_with_empty_dataframe(self):
+        """Test topk with empty DataFrame doesn't crash."""
+        from seismometer.data.filter import apply_topk_filter
+
+        df = pd.DataFrame({"Cat": []})
+        mask = apply_topk_filter(df, "Cat", 2)
+
+        assert isinstance(mask, pd.Series)
+        assert len(mask) == 0
+
+
+class TestEdgeCases:
+    """Test edge cases and error conditions not covered elsewhere."""
+
+    def test_filter_with_missing_column_raises_keyerror(self):
+        """Test filtering with non-existent column raises KeyError."""
+        df = pd.DataFrame({"Col1": [1, 2, 3]})
+        rule = FilterRule("NonExistentColumn", "==", 1)
+
+        with pytest.raises(KeyError):
+            rule.filter(df)
+
+    def test_mask_with_missing_column_raises_keyerror(self):
+        """Test mask with non-existent column raises KeyError."""
+        df = pd.DataFrame({"Col1": [1, 2, 3]})
+        rule = FilterRule("NonExistentColumn", "==", 1)
+
+        with pytest.raises(KeyError):
+            rule.mask(df)
+
+    def test_filter_with_empty_dataframe(self, monkeypatch):
+        """Test filter on empty DataFrame returns empty DataFrame."""
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Col": []})
+        rule = FilterRule("Col", "==", 1)
+
+        result = rule.filter(df)
+        assert len(result) == 0
+        assert list(result.columns) == ["Col"]
+
+    def test_filter_with_single_row_dataframe(self, monkeypatch):
+        """Test filter on single-row DataFrame works correctly."""
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", None)
+        df = pd.DataFrame({"Col": [1]})
+        rule = FilterRule("Col", "==", 1)
+
+        result = rule.filter(df)
+        assert len(result) == 1
+        assert result["Col"].iloc[0] == 1
+
+    def test_str_with_numeric_isin_values(self):
+        """Test __str__ with numeric isin values doesn't crash."""
+        rule = FilterRule("Col", "isin", [1, 2, 3])
+
+        # Should not raise AttributeError from .join()
+        result = str(rule)
+        assert "Col" in result
+        assert "is in" in result
+
+    def test_str_with_mixed_type_isin_values(self):
+        """Test __str__ with mixed type isin values doesn't crash."""
+        rule = FilterRule("Col", "isin", [1, "A", 2.5])
+
+        # Should not raise AttributeError
+        result = str(rule)
+        assert "Col" in result
+
+    def test_min_rows_boundary_exact_equal(self, monkeypatch):
+        """Test MIN_ROWS boundary when len(df) == MIN_ROWS returns empty (exclusive threshold)."""
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", 10)
+        df = pd.DataFrame({"Col": [1] * 10})  # Exactly 10 rows
+        rule = FilterRule("Col", "==", 1)
+
+        result = rule.filter(df)
+        # MIN_ROWS uses > comparison, so len == MIN_ROWS returns empty
+        assert len(result) == 0
+
+    def test_min_rows_boundary_just_below(self, monkeypatch):
+        """Test MIN_ROWS boundary when len(df) < MIN_ROWS returns empty."""
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", 10)
+        df = pd.DataFrame({"Col": [1] * 9})  # 9 rows, below threshold
+        rule = FilterRule("Col", "==", 1)
+
+        result = rule.filter(df)
+        # Should return empty because below MIN_ROWS
+        assert len(result) == 0
+
+    def test_min_rows_boundary_just_above(self, monkeypatch):
+        """Test MIN_ROWS boundary when len(df) > MIN_ROWS returns data."""
+        monkeypatch.setattr(FilterRule, "MIN_ROWS", 10)
+        df = pd.DataFrame({"Col": [1] * 11})  # 11 rows, above threshold
+        rule = FilterRule("Col", "==", 1)
+
+        result = rule.filter(df)
+        # Should return the filtered result (11 rows match)
+        assert len(result) == 11
