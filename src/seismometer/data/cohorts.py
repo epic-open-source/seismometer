@@ -275,7 +275,7 @@ def label_cohorts_categorical(series: SeriesOrArray, cat_values: Optional[list] 
         List of string labels for each bin; which is the list of categories.
     """
     series.name = "cohort"
-    series.cat._name = "cohort"  # CategoricalAccessors have a different name..
+    series.cat._name = "cohort"  # CategoricalAccessors have a different name.
 
     # If no splits specified, restrict to observed values
     if cat_values is None:

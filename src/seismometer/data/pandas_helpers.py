@@ -259,9 +259,9 @@ def post_process_event(
     # cast after imputation - supports nonnullable types
     try_casting(dataframe, label_col, column_dtype)
 
-    # Log how many rows were imputed/changed
-    imputed_with_time = ((label_na_map & ~time_na_map) & dataframe[label_col].notna()).sum()
-    imputed_no_time = (dataframe[label_col].isna()).sum()
+    # Log how many rows were imputed
+    imputed_with_time = (label_na_map & ~time_na_map).sum()
+    imputed_no_time = (label_na_map & time_na_map).sum()
     logger.debug(
         f"Post-processing of events for {label_col} and {time_col} complete. "
         f"Imputed {imputed_with_time} rows with time, {imputed_no_time} rows with no time."
@@ -443,13 +443,15 @@ def _merge_with_strategy(
         if merge_strategy == "first":
             logger.debug(f"Updating events to only keep the first occurrence for each {event_display}.")
             one_event_filtered = one_event.groupby(pks).first().reset_index()
-        if merge_strategy == "last":
+        elif merge_strategy == "last":
             logger.debug(f"Updating events to only keep the last occurrence for each {event_display}.")
             one_event_filtered = one_event.groupby(pks).last().reset_index()
 
     except ValueError as e:
         logger.warning(e)
-        pass
+        # Only continue with fallback merge if one_event_filtered was set
+        if "one_event_filtered" not in locals():
+            raise
 
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
@@ -778,14 +780,15 @@ def _resolve_score_col(dataframe: pd.DataFrame, score: str) -> str:
 
 
 def analytics_metric_name(metric_names: list[str], existing_metric_starts: list[str], column_name: str) -> str:
-    """In the analytics table, often the provided column name is not the actual
+    """
+    In the analytics table, often the provided column name is not the actual
     metric name that we want to log. Here, we extract the desired metric name.
 
     Parameters
     ----------
     metric_names : list[str]
         What metrics already exist.
-    existing_metric_values : list[str]
+    existing_metric_starts : list[str]
         What strings can start the mangled column name.
     column_name : str
         The name of the column we are trying to make into a metric.
@@ -800,7 +803,7 @@ def analytics_metric_name(metric_names: list[str], existing_metric_starts: list[
     else:
         for value in existing_metric_starts:
             if column_name.startswith(f"{value}_"):
-                return column_name.lstrip(f"{value}_")
+                return column_name.removeprefix(f"{value}_")
     return None
 
 

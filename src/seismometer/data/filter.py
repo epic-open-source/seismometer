@@ -211,9 +211,9 @@ class FilterRule(object):
             case "notna":
                 return f"{self.left} has a value"
             case "isin":
-                return f"{self.left} is in: {', '.join(self.right)}"
+                return f"{self.left} is in: {', '.join(map(str, self.right))}"
             case "notin":
-                return f"{self.left} not in: {', '.join(self.right)}"
+                return f"{self.left} not in: {', '.join(map(str, self.right))}"
             case "topk":
                 return f"{self.left} in top {self.right} values"
             case "nottopk":
