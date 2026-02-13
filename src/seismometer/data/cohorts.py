@@ -151,20 +151,21 @@ def get_cohort_performance_data(
     return frame
 
 
-def resolve_col_data(df: pd.DataFrame, feature: Union[str, pd.Series]) -> pd.Series:
+def resolve_col_data(df: pd.DataFrame, feature: Union[str, SeriesOrArray]) -> pd.Series:
     """
-    Handles resolving feature from either being a series or specifying a series in the dataframe.
+    Handles resolving feature from either being a series, array, or specifying a series in the dataframe.
 
     Parameters
     ----------
     df : pd.DataFrame
         Containing a column of name feature if feature is passed in as a string.
-    feature : Union[str, pd.Series]
-        Either a pandas.Series or a column name in the dataframe.
+    feature : Union[str, SeriesOrArray]
+        Either a pandas.Series, numpy array, or a column name in the dataframe.
 
     Returns
     -------
-    pd.Series.
+    pd.Series
+        Always returns a pandas Series, with index matching df.index for array inputs.
     """
 
     if isinstance(feature, str):
@@ -172,13 +173,16 @@ def resolve_col_data(df: pd.DataFrame, feature: Union[str, pd.Series]) -> pd.Ser
             return df[feature].copy()
         else:
             raise KeyError(f"Feature {feature} was not found in dataframe")
+    elif isinstance(feature, pd.Series):
+        return feature  # Already a Series, preserve its index
     elif hasattr(feature, "ndim"):
+        # Convert arrays to Series with df's index for proper alignment
         if feature.ndim > 1:  # probas from sklearn is nx2 with second column being the positive predictions
-            return feature[:, 1]
+            return pd.Series(feature[:, 1], index=df.index)
         else:
-            return feature
+            return pd.Series(feature, index=df.index)
     else:
-        raise TypeError("Feature must be a string or pandas.Series, was given a ", type(feature))
+        raise TypeError(f"Feature must be a string, pandas.Series, or numpy.ndarray, was given {type(feature)}")
 
 
 # endregion
@@ -232,7 +236,11 @@ def label_cohorts_numeric(series: SeriesOrArray, splits: Optional[List] = None) 
     labels = [f"{bins[i]}-{bins[i+1]}" for i in range(len(bins) - 1)] + [f">={bins[-1]}"]
     labels[0] = f"<{bins[1]}"
     cat = pd.Categorical.from_codes(bin_ixs - 1, labels)
-    return pd.Series(cat)
+    # Preserve the input series index for proper alignment in pd.concat
+    if isinstance(series, pd.Series):
+        return pd.Series(cat, index=series.index)
+    else:
+        return pd.Series(cat)
 
 
 def has_good_binning(bin_ixs: List, bin_edges: List) -> None:
