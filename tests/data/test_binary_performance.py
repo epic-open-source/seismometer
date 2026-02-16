@@ -229,9 +229,10 @@ class TestCalculateStatsErrorHandling:
         df = pd.DataFrame({"target": [np.nan, np.nan, np.nan, np.nan], "score": [0.1, 0.4, 0.35, 0.8]})
         metric_values = [0.5, 0.7]
 
-        # BUG #5: All NaN target raises IndexError instead of helpful validation error
-        # Error occurs in performance.py:209 when trying to access stats["TP"].iloc[-1] on empty DataFrame
-        with pytest.raises(IndexError, match="single positional indexer is out-of-bounds"):
+        # FIXED BUG #5: Now raises helpful ValueError instead of cryptic IndexError
+        with pytest.raises(
+            ValueError, match="Cannot calculate statistics: all values in target column 'target' are NaN"
+        ):
             calculate_stats(df, "target", "score", "Sensitivity", metric_values)
 
     def test_all_nan_score_column(self):
@@ -239,9 +240,22 @@ class TestCalculateStatsErrorHandling:
         df = pd.DataFrame({"target": [0, 1, 0, 1], "score": [np.nan, np.nan, np.nan, np.nan]})
         metric_values = [0.5, 0.7]
 
-        # BUG #5: All NaN scores raises IndexError instead of helpful validation error
-        # Error occurs in performance.py:209 when trying to access stats["TP"].iloc[-1] on empty DataFrame
-        with pytest.raises(IndexError, match="single positional indexer is out-of-bounds"):
+        # FIXED BUG #5: Now raises helpful ValueError instead of cryptic IndexError
+        with pytest.raises(
+            ValueError, match="Cannot calculate statistics: all values in score column 'score' are NaN"
+        ):
+            calculate_stats(df, "target", "score", "Sensitivity", metric_values)
+
+    def test_no_valid_paired_rows(self):
+        """Test calculate_stats() when no valid paired rows remain after filtering NaN."""
+        # Each row has at least one NaN, so after filtering, zero valid rows remain
+        df = pd.DataFrame({"target": [1, np.nan, 0, np.nan], "score": [np.nan, 0.5, np.nan, 0.8]})
+        metric_values = [0.5]
+
+        # ENHANCED BUG #5 FIX: Also catches when filtering leaves zero valid rows
+        with pytest.raises(
+            ValueError, match="Cannot calculate statistics: no valid rows remain after removing NaN values"
+        ):
             calculate_stats(df, "target", "score", "Sensitivity", metric_values)
 
     def test_mixed_nan_values(self):

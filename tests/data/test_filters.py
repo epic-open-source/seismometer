@@ -37,67 +37,65 @@ class TestFilterRulesFiltering:
         assert len(FilterRule.none().filter(test_dataframe)) == 0
         assert all(FilterRule.none().filter(test_dataframe).columns == test_dataframe.columns)
 
-    def test_filter_base_rule_equals(self, test_dataframe):
+    @pytest.mark.parametrize(
+        "column,operator,value,expected_mask_expr,expected_filter_expr",
+        [
+            # Comparison operators
+            ("T/F", "==", 0, lambda df: df["T/F"] == 0, lambda df: df[df["T/F"] == 0]),
+            ("T/F", "!=", 0, lambda df: df["T/F"] != 0, lambda df: df[df["T/F"] != 0]),
+            ("Val", "<", 20, lambda df: df["Val"] < 20, lambda df: df[df["Val"] < 20]),
+            ("Val", ">", 20, lambda df: df["Val"] > 20, lambda df: df[df["Val"] > 20]),
+            ("Val", "<=", 20, lambda df: df["Val"] <= 20, lambda df: df[df["Val"] <= 20]),
+            ("Val", ">=", 20, lambda df: df["Val"] >= 20, lambda df: df[df["Val"] >= 20]),
+            # Set operators
+            (
+                "Cat",
+                "isin",
+                ["A", "B"],
+                lambda df: df["Cat"].isin(["A", "B"]),
+                lambda df: df[df["Cat"].isin(["A", "B"])],
+            ),
+            (
+                "Cat",
+                "notin",
+                ["A", "B"],
+                lambda df: ~df["Cat"].isin(["A", "B"]),
+                lambda df: df[~df["Cat"].isin(["A", "B"])],
+            ),
+            # Null operators
+            ("T/F", "isna", None, lambda df: df["T/F"].isna(), lambda df: df[df["T/F"].isna()]),
+            ("T/F", "notna", None, lambda df: ~df["T/F"].isna(), lambda df: df[~df["T/F"].isna()]),
+        ],
+        ids=[
+            "equals",
+            "not_equals",
+            "less_than",
+            "greater_than",
+            "less_than_or_eq",
+            "greater_than_or_eq",
+            "isin",
+            "notin",
+            "isna",
+            "notna",
+        ],
+    )
+    def test_filter_base_rule_operators(
+        self, test_dataframe, column, operator, value, expected_mask_expr, expected_filter_expr
+    ):
+        """Test FilterRule operators with parametrization to reduce code duplication."""
         FilterRule.MIN_ROWS = None
-        assert FilterRule("T/F", "==", 0).mask(test_dataframe).equals(test_dataframe["T/F"] == 0)
-        assert FilterRule("T/F", "==", 0).filter(test_dataframe).equals(test_dataframe[test_dataframe["T/F"] == 0])
 
-    def test_filter_base_rule_not_equals(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert FilterRule("T/F", "!=", 0).mask(test_dataframe).equals(test_dataframe["T/F"] != 0)
-        assert FilterRule("T/F", "!=", 0).filter(test_dataframe).equals(test_dataframe[test_dataframe["T/F"] != 0])
+        # Create the rule (handle operators that don't need a value)
+        if operator in ["isna", "notna"]:
+            rule = FilterRule(column, operator)
+        else:
+            rule = FilterRule(column, operator, value)
 
-    def test_filter_base_rule_isin(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert (
-            FilterRule("Cat", "isin", ["A", "B"]).mask(test_dataframe).equals(test_dataframe["Cat"].isin(["A", "B"]))
-        )
-        assert (
-            FilterRule("Cat", "isin", ["A", "B"])
-            .filter(test_dataframe)
-            .equals(test_dataframe[test_dataframe["Cat"].isin(["A", "B"])])
-        )
+        # Test mask
+        assert rule.mask(test_dataframe).equals(expected_mask_expr(test_dataframe))
 
-    def test_filter_base_rule_notin(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert (
-            FilterRule("Cat", "notin", ["A", "B"]).mask(test_dataframe).equals(~test_dataframe["Cat"].isin(["A", "B"]))
-        )
-        assert (
-            FilterRule("Cat", "notin", ["A", "B"])
-            .filter(test_dataframe)
-            .equals(test_dataframe[~test_dataframe["Cat"].isin(["A", "B"])])
-        )
-
-    def test_filter_base_rule_less_than(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert FilterRule("Val", "<", 20).mask(test_dataframe).equals(test_dataframe["Val"] < 20)
-        assert FilterRule("Val", "<", 20).filter(test_dataframe).equals(test_dataframe[test_dataframe["Val"] < 20])
-
-    def test_filter_base_rule_greater_then(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert FilterRule("Val", ">", 20).mask(test_dataframe).equals(test_dataframe["Val"] > 20)
-        assert FilterRule("Val", ">", 20).filter(test_dataframe).equals(test_dataframe[test_dataframe["Val"] > 20])
-
-    def test_filter_base_rule_less_than_or_eq(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert FilterRule("Val", "<=", 20).mask(test_dataframe).equals(test_dataframe["Val"] <= 20)
-        assert FilterRule("Val", "<=", 20).filter(test_dataframe).equals(test_dataframe[test_dataframe["Val"] <= 20])
-
-    def test_filter_base_rule_greater_then_or_eq(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert FilterRule("Val", ">=", 20).mask(test_dataframe).equals(test_dataframe["Val"] >= 20)
-        assert FilterRule("Val", ">=", 20).filter(test_dataframe).equals(test_dataframe[test_dataframe["Val"] >= 20])
-
-    def test_filter_base_rule_isna(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert FilterRule("T/F", "isna").mask(test_dataframe).equals(test_dataframe["T/F"].isna())
-        assert FilterRule("T/F", "isna").filter(test_dataframe).equals(test_dataframe[test_dataframe["T/F"].isna()])
-
-    def test_filter_base_rule_notna(self, test_dataframe):
-        FilterRule.MIN_ROWS = None
-        assert FilterRule("T/F", "notna").mask(test_dataframe).equals(~test_dataframe["T/F"].isna())
-        assert FilterRule("T/F", "notna").filter(test_dataframe).equals(test_dataframe[~test_dataframe["T/F"].isna()])
+        # Test filter
+        assert rule.filter(test_dataframe).equals(expected_filter_expr(test_dataframe))
 
     @pytest.mark.parametrize(
         "k, expected_values",

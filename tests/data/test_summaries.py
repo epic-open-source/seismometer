@@ -53,28 +53,62 @@ def expected_score_target_summary_cuts(res):
 
 class Test_Summaries:
     @patch.object(seismogram, "Seismogram", return_value=Mock())
-    def test_default_summaries(self, mock_seismo, prediction_data, expected_default_summary):
+    @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
+    def test_default_summaries(self, mock_seismo, aggregation_method, prediction_data, expected_default_summary):
+        """Test default_cohort_summaries with different aggregation methods.
+
+        Note: expected_default_summary is based on 'max' aggregation.
+        For other methods, we verify the function runs without error and returns valid structure.
+        """
         fake_seismo = mock_seismo()
         fake_seismo.output = "Score"
         fake_seismo.target = "Target"
-        fake_seismo.event_aggregation_method = lambda x: "max"
+        fake_seismo.predict_time = "Target_Time"  # Required for first/last aggregation
+        fake_seismo.event_aggregation_method = lambda x: aggregation_method
         actual = undertest.default_cohort_summaries(prediction_data, "Has_ECG", [1, 2, 3, 4, 5], "ID")
-        pd.testing.assert_frame_equal(actual, expected_default_summary, check_names=False)
+
+        # Verify structure regardless of aggregation method
+        assert len(actual) == 5
+        assert actual.index.tolist() == [1, 2, 3, 4, 5]
+        assert "Entities" in actual.columns
+        assert "Predictions" in actual.columns
+
+        # For 'max' method, also verify exact values match expected
+        if aggregation_method == "max":
+            pd.testing.assert_frame_equal(actual, expected_default_summary, check_names=False)
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
+    @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
     def test_score_target_summaries(
-        self, mock_seismo, prediction_data, expected_score_target_summary, expected_score_target_summary_cuts
+        self,
+        mock_seismo,
+        aggregation_method,
+        prediction_data,
+        expected_score_target_summary,
+        expected_score_target_summary_cuts,
     ):
+        """Test score_target_cohort_summaries with different aggregation methods.
+
+        Note: expected_score_target_summary is based on 'max' aggregation.
+        For other methods, we verify the function runs without error and returns valid structure.
+        """
         fake_seismo = mock_seismo()
         fake_seismo.output = "Score"
         fake_seismo.target = "Target"
-        fake_seismo.event_aggregation_method = lambda x: "max"
+        fake_seismo.predict_time = "Target_Time"  # Required for first/last aggregation
+        fake_seismo.event_aggregation_method = lambda x: aggregation_method
         groupby_groups = ["Has_ECG", expected_score_target_summary_cuts]
         grab_groups = ["Has_ECG", "Score"]
-        pd.testing.assert_frame_equal(
-            undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID"),
-            expected_score_target_summary,
-        )
+        actual = undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID")
+
+        # Verify structure regardless of aggregation method
+        assert isinstance(actual, pd.DataFrame)
+        assert "Entities" in actual.columns
+        assert len(actual) > 0
+
+        # For 'max' method, also verify exact values match expected
+        if aggregation_method == "max":
+            pd.testing.assert_frame_equal(actual, expected_score_target_summary)
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
