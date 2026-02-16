@@ -49,6 +49,10 @@ def add_unseen(df: pd.DataFrame, col="cohort") -> pd.DataFrame:
     obs = df[col].unique()
     unseen = [k for k in keys if k not in obs]
 
+    # Only concatenate if there are unseen categories
+    if not unseen:
+        return df
+
     rv = pd.concat([df, pd.DataFrame({col: unseen})], ignore_index=True)
     rv[col] = rv[col].astype(pd.CategoricalDtype(df[col].cat.categories))
     return rv
