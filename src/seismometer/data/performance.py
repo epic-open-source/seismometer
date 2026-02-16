@@ -192,9 +192,24 @@ class BinaryClassifierMetricGenerator(MetricGenerator):
         """
         y_true = dataframe[target_col]
         y_pred = dataframe[score_col]
+
+        # Validate that not all values are NaN
+        if y_true.isna().all():
+            raise ValueError(f"Cannot calculate statistics: all values in target column '{target_col}' are NaN")
+        if y_pred.isna().all():
+            raise ValueError(f"Cannot calculate statistics: all values in score column '{score_col}' are NaN")
+
         logger.info(f"data before using calculating stats has {len(y_true)} rows.")
         keep = ~(np.isnan(y_true) | np.isnan(y_pred))
         logger.info(f"Calculating stats drops {len(y_true)-len(y_true[keep])} rows.")
+
+        # Validate that at least some valid rows remain after filtering NaN values
+        if keep.sum() == 0:
+            raise ValueError(
+                f"Cannot calculate statistics: no valid rows remain after removing NaN values from "
+                f"'{target_col}' and '{score_col}' columns"
+            )
+
         stats = (
             calculate_bin_stats(y_true, y_pred, rho=self.rho, threshold_precision=threshold_precision)
             .round(5)
