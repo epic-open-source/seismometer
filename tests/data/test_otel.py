@@ -1,12 +1,13 @@
-from seismometer.data.otel import RealExportManager
+from seismometer.data.otel import RealMetricTelemetryManager, TelemetryConfig
 
 
-class TestExportManager:
+class TestMetricTelemetryManager:
     def test_class_activate(self):
         try:
             from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter  # noqa: F401
 
-            r = RealExportManager(hostname="", file_output_paths=[], export_ports=[], dump_to_stdout=True)
+            config = TelemetryConfig({"otel_export": {"stdout": True}})
+            r = RealMetricTelemetryManager(config)
             r.activate_exports()
             assert r.active
         except ModuleNotFoundError:
@@ -16,7 +17,8 @@ class TestExportManager:
         try:
             from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter  # noqa: F401
 
-            r = RealExportManager(hostname="", file_output_paths=[], export_ports=[], dump_to_stdout=True)
+            config = TelemetryConfig({"otel_export": {"stdout": True}})
+            r = RealMetricTelemetryManager(config)
             r.deactivate_exports()
             assert not r.active
         except ModuleNotFoundError:

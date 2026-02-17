@@ -13,7 +13,9 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
-from seismometer.data import metric_apis
+from seismometer.core.autometrics import store_call_parameters
+from seismometer.core.decorators import export
+from seismometer.data import telemetry
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
@@ -53,16 +55,14 @@ class OrdinalCategoricalPlot:
         self.plot_type = plot_type
         self.title = title
         self.plot_functions = self.initialize_plot_functions()
+        self.cohort_dict = cohort_dict or {}
 
         sg = Seismogram()
-        cohort_filter = FilterRule.from_cohort_dictionary(cohort_dict)
+        cohort_filter = FilterRule.from_cohort_dictionary(self.cohort_dict)
         self.dataframe = cohort_filter.filter(sg.dataframe)
         self.censor_threshold = sg.censor_threshold
 
         self.values = self._extract_metric_values()
-
-        readable_metric_names = [sg.metrics[metric].display_name for metric in self.metrics]
-        self.recorder = metric_apis.OpenTelemetryRecorder(metric_names=readable_metric_names, name=self.plot_type)
 
     def _extract_metric_values(self):
         """
@@ -373,8 +373,20 @@ class OrdinalCategoricalPlot:
         counts_df.set_index("Feedback Metrics", inplace=True)
         counts_df = counts_df[counts_df.sum(axis=1) >= self.censor_threshold]
 
-        self.recorder.populate_metrics(
-            attributes={}, metrics={name: counts_df.loc[name].to_dict() for name in self.recorder.metric_names}
+        # Metrics are now in the form
+        #  [Metric Name]
+        # .                 Agree Neutral Disagree
+        #  Likes Cats         5    10      0
+        #  Likes Dogs         3     8      2
+        #
+        # To record these, we just need to transpose
+        # Use new API to record metrics
+        metrics_df = counts_df.T
+        metric_columns = metrics_df.columns.tolist()
+        metrics_df = metrics_df.reset_index(names="score")
+
+        telemetry.record_dataframe_metrics(
+            metrics_df, metrics=metric_columns, attributes=self.cohort_dict, attribute_cols=["score"]
         )
 
         return counts_df
@@ -408,8 +420,10 @@ class OrdinalCategoricalPlot:
 # region Plots Wrapper
 
 
+@export
+@store_call_parameters(cohort_dict="cohort_dict")
 @disk_cached_html_segment
-def ordinal_categorical_plot(
+def plot_ordinal_categorical_metrics(
     metrics: list[str],
     cohort_dict: dict[str, tuple],
     *,
@@ -443,8 +457,6 @@ def ordinal_categorical_plot(
 
 # endregion
 # region Plot Controls
-
-
 class ExploreCategoricalPlots(ExplorationWidget):
     def __init__(self, group_key: Optional[str] = None, title: Optional[str] = None):
         """
@@ -467,7 +479,7 @@ class ExploreCategoricalPlots(ExplorationWidget):
                 cohort_dict=sg.available_cohort_groups,
                 title=title,
             ),
-            plot_function=ordinal_categorical_plot,
+            plot_function=plot_ordinal_categorical_metrics,
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:

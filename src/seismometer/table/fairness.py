@@ -12,8 +12,8 @@ from seismometer.controls.explore import ExplorationWidget, ModelOptionsWidget
 from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelectionListWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from seismometer.core.autometrics import store_call_parameters
-from seismometer.data import metric_apis
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data import telemetry
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
 
@@ -194,7 +194,11 @@ def fairness_table(
     if not cohort_dict:
         raise ValueError("No cohorts provided for fairness evaluation")
 
-    recorder = metric_apis.OpenTelemetryRecorder(metric_names=metric_list, name="Fairness Table Metric Generator")
+    # Add all of the information we can reasonably find.
+    attribute_info = {"fairness_ratio": fairness_ratio}
+    for attr in "score_threshold", "target_col", "score_col":
+        if attr in kwargs:
+            attribute_info |= {attr: kwargs[attr]}
 
     for cohort_column in cohort_dict:
         cohort_indices = []
@@ -206,16 +210,9 @@ def fairness_table(
             cohort_dataframe = cohort_filter.filter(dataframe)
 
             index_value = {COUNT: len(cohort_dataframe)}
-            # Add all of the information we can reasonably find.
-            attribute_info = {"fairness_ratio": fairness_ratio}
-            for attr in "score_threshold", "target_col", "score_col":
-                if attr in kwargs:
-                    attribute_info |= {attr: kwargs[attr]}
-            rho_info = {"rho": rho}
-            metrics = metric_fn(cohort_dataframe, metric_list, **kwargs)
-            recorder.populate_metrics({cohort_column: cohort_class} | attribute_info | rho_info, metrics)
-            index_value.update(metrics)
 
+            metrics = metric_fn(cohort_dataframe, metric_list, **kwargs)
+            index_value.update(metrics)
             cohort_values.append(index_value)
         cohort_data = pd.DataFrame.from_records(
             cohort_values, index=pd.MultiIndex.from_tuples(cohort_indices, names=[COHORT, CLASS])
@@ -225,6 +222,9 @@ def fairness_table(
         cohort_icons = cohort_ratios.drop(COUNT, axis=1).map(
             lambda ratio: FairnessIcons.get_fairness_icon(ratio, fairness_ratio)
         )
+
+        _record_fairness_metrics(cohort_ratios, cohort_data, metric_list, cohort_column, attribute_info)
+
         cohort_icons[COUNT] = cohort_data[COUNT]
 
         fairness_groups.append(cohort_ratios)
@@ -275,6 +275,46 @@ def fairness_table(
         .cols_align(align="right", columns=[COUNT])
     ).as_raw_html()
     return HTML(table_html, layout=Layout(max_height="800px"))
+
+
+def _record_fairness_metrics(
+    fairness_data: pd.DataFrame,
+    metric_data: pd.DataFrame,
+    metric_list: list[str],
+    cohort_column: str,
+    attribute_info: dict[str, Any],
+):
+    """
+    Records fairness metrics using the OpenTelemetry API.
+
+    Parameters
+    ----------
+    fairness_data : pd.DataFrame
+        DataFrame containing fairness ratios.
+    metric_data : pd.DataFrame
+        DataFrame containing raw metric values.
+    metric_list : list[str]
+        List of metrics to record.
+    cohort_column : str
+        Name of the cohort column.
+    attribute_info : dict[str, Any]
+        Additional attributes to record with the metrics.
+    """
+
+    def renamer(x: str) -> str:
+        return f"fairness_ratio_{x}" if x in metric_list else x
+
+    fair_metrics = fairness_data[metric_list].rename(columns=renamer)
+    all_metrics = fair_metrics.join(metric_data).reset_index()
+    all_metrics = all_metrics.drop(columns=[COHORT]).rename(columns={CLASS: cohort_column})
+
+    telemetry.record_dataframe_metrics(
+        all_metrics,
+        metrics=metric_list + [renamer(x) for x in metric_list],
+        attributes=attribute_info,
+        attribute_cols=[cohort_column],
+        source="FairnessTable",
+    )
 
 
 def _autometric_plot_binary_classifier_metrics(

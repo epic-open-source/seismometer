@@ -240,7 +240,7 @@ class FilterRule(object):
             case _:  # relation is checked in __init__, this should never be reached
                 raise ValueError(f"Unknown relation {self.relation}")
 
-    def filter(self, data: pd.DataFrame) -> pd.DataFrame:
+    def filter(self, data: pd.DataFrame, ignore_min_rows: bool = False) -> pd.DataFrame:
         """
         Filters a dataframe to only the rows matching the FilterRule.
 
@@ -248,6 +248,9 @@ class FilterRule(object):
         ----------
         data : pd.DataFrame
             DataFrame to filter.
+        ignore_min_rows : bool, optional
+            If True, skip the minimum row count check and return all matching rows
+            regardless of how few there are. Defaults to False.
 
         Returns
         -------
@@ -255,7 +258,7 @@ class FilterRule(object):
             Filtered DataFrame.
         """
         df = data.loc[self.mask(data)]
-        if (not self.MIN_ROWS) or (len(df) > self.MIN_ROWS):
+        if ignore_min_rows or (not self.MIN_ROWS) or (len(df) > self.MIN_ROWS):
             return df
         else:
             return df[pd.Series(False, index=df.index)]

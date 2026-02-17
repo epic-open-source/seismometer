@@ -1,7 +1,7 @@
 from typing import Any
 
 
-class ExportConfig:
+class TelemetryConfig:
     otel_files: list[str]
     """Which files we are sending our OTel data to."""
     otel_ports: list[int]

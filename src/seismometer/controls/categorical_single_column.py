@@ -10,7 +10,9 @@ from seismometer.controls.decorators import disk_cached_html_segment
 from seismometer.controls.explore import ExplorationWidget
 from seismometer.controls.selection import DisjointSelectionListsWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
-from seismometer.data import metric_apis
+from seismometer.core.autometrics import store_call_parameters
+from seismometer.core.decorators import export
+from seismometer.data import telemetry
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
 from seismometer.plot.mpl.likert import likert_plot
@@ -54,10 +56,6 @@ class OrdinalCategoricalSinglePlot:
         self.plot_functions = self.initialize_plot_functions()
 
         self.values = self._extract_metric_values()
-
-        self.recorder = metric_apis.OpenTelemetryRecorder(
-            metric_names=[sg.metrics[metric_col].display_name], name=self.plot_type
-        )
 
     def _extract_metric_values(self):
         """
@@ -126,12 +124,17 @@ class OrdinalCategoricalSinglePlot:
         df = df[available_values].astype(int)
         df = df[df.sum(axis=1) >= self.censor_threshold]
         df = df.iloc[::-1]
-        # Instrument name (in other words, type of metric we are logging)
-        instr_name = Seismogram().metrics[self.metric_col].display_name
-        for cohort in df.index:
-            self.recorder.populate_metrics(
-                attributes={self.cohort_col: cohort}, metrics={instr_name: df.loc[cohort].to_dict()}
-            )
+
+        # Dataframe now looks like
+        # Metric: Likes Cats
+        #    [Group]     Disagree  Neutral  Agree
+        #    Group 1           10       15     35
+        #    Group 2           5        10     45
+        #
+        # The columns are metrics and the rows are cohort groups.
+        # This means we need to record this metric 6 times, using both
+        # the columns and rows as attributes.
+        telemetry.record_dataframe_matrix(df, metric=self.metric_col, source="CohortCategoricalMetric")
 
         return df
 
@@ -164,8 +167,10 @@ class OrdinalCategoricalSinglePlot:
 # region Plots Wrapper
 
 
+@export
+@store_call_parameters(cohort_dict="cohort_dict")
 @disk_cached_html_segment
-def ordinal_categorical_single_col_plot(
+def plot_cohort_ordinal_categorical_metric(
     metric_col: str,
     cohort_dict: dict[str, tuple],
     *,
@@ -235,7 +240,7 @@ class ExploreSingleCategoricalPlots(ExplorationWidget):
                 cohort_groups=sg.available_cohort_groups,
                 title=title,
             ),
-            plot_function=ordinal_categorical_single_col_plot,
+            plot_function=plot_cohort_ordinal_categorical_metric,
         )
 
     def generate_plot_args(self) -> tuple[tuple, dict]:

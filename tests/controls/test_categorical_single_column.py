@@ -8,7 +8,7 @@ from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Cohort, Event, Metric, MetricDetails
 from seismometer.controls.categorical_single_column import (
     OrdinalCategoricalSinglePlot,
-    ordinal_categorical_single_col_plot,
+    plot_cohort_ordinal_categorical_metric,
 )
 from seismometer.data.loader import SeismogramLoader
 from seismometer.seismogram import Seismogram
@@ -200,8 +200,8 @@ class TestOrdinalCategoricalSinglePlot:
 
 
 class TestOrdinalCategoricalSinglePlotFunction:
-    def test_ordinal_categorical_single_plot(self, fake_seismo):
+    def test_plot_cohort_ordinal_categorical_metric(self, fake_seismo):
         metric_col = "Metric1"
         cohort_dict = {"Cohort": ["C1"]}
-        html = ordinal_categorical_single_col_plot(metric_col, cohort_dict, title="Test Plot")
+        html = plot_cohort_ordinal_categorical_metric(metric_col, cohort_dict, title="Test Plot")
         assert isinstance(html, HTML)

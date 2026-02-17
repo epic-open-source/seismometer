@@ -109,6 +109,14 @@ Summaries
    summaries.default_cohort_summaries
    summaries.score_target_cohort_summaries
 
+OpenTelemetry output
+~~~~~~~~~~~~~~~~~~~~
+.. autosummary::
+   :toctree: api/
+
+   otel.deactivate_exports
+   otel.activate_exports
+   telemetry.RealOpenTelemetryRecorder
 
 Low-level patterns
 ------------------
