@@ -7,10 +7,11 @@ from IPython.display import HTML, SVG
 
 import seismometer.plot as plot
 from seismometer.controls.decorators import disk_cached_html_segment
-from seismometer.core.autometrics import AutomationManager, store_call_parameters
+from seismometer.core.autometrics import store_call_parameters
 from seismometer.core.decorators import export
-from seismometer.data import get_cohort_data, get_cohort_performance_data, metric_apis
+from seismometer.data import get_cohort_data, get_cohort_performance_data
 from seismometer.data import pandas_helpers as pdh
+from seismometer.data import telemetry
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import (
     STATNAMES,
@@ -298,8 +299,16 @@ def _plot_leadtime_enc(
     good_groups = counts.loc[counts > censor_threshold].index
     summary_data = summary_data.loc[summary_data[cohort_col].isin(good_groups)]
 
-    metric_apis.log_quantiles(
-        summary_data, "Time Lead", score, target_zero, ref_time, cohort_col, good_groups, threshold
+    # Calculate lead time in hours for quantile analysis
+    summary_data = summary_data.copy()
+    summary_data["lead_time_hours"] = (summary_data[ref_time] - summary_data[target_zero]).dt.total_seconds() / 3600
+
+    # Use new API to record quantiles
+    telemetry.record_dataframe_quantiles(
+        summary_data,
+        metrics="lead_time_hours",
+        attribute_cols=[cohort_col],
+        attributes={"from": score, "to": target_zero, "threshold": threshold, "metric_name": "Lead Time"},
     )
 
     if len(summary_data.index) == 0:
@@ -427,16 +436,20 @@ def _plot_cohort_evaluation(
     plot_data = get_cohort_performance_data(
         data, cohort_col, proba=output, true=target, splits=subgroups, censor_threshold=censor_threshold
     )
-    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name=f"Performance split by {cohort_col}")
-    base_attributes = {"target": target, "score": output}
-    # Go through all cohort values, by means of:
-    cohort_categories = list(set(plot_data["cohort"]))
-    recorder.log_by_column(
-        df=plot_data,
-        col_name=threshold_col,
-        cohorts={"cohort": cohort_categories},
-        base_attributes=base_attributes,
-        col_values=[t * 100 for t in thresholds],
+
+    # Log metrics using new API
+    # Allow filtering by preconfigured thresholds if desired
+    threshold_values = [int(t * 100) for t in thresholds]
+    threshold_filter = FilterRule.isin("Threshold", threshold_values)
+
+    # Use API to record performance metrics
+    telemetry.record_dataframe_metrics(
+        plot_data.rename(columns={"cohort": cohort_col}),
+        metrics=[col for col in plot_data.columns if col in STATNAMES],
+        attributes={"target": target, "score": output},
+        attribute_cols=[threshold_col, cohort_col],
+        filter_rule=threshold_filter,
+        source="ModelCohortEvaluation",
     )
     try:
         assert_valid_performance_metrics_df(plot_data)
@@ -582,20 +595,22 @@ def _model_evaluation(
     # stats and ci handle percentile/percentage independently - evaluation wants 0-100 for displays
     stats = calculate_bin_stats(data[target], data[score_col])
     ci_data = calculate_eval_ci(stats, data[target], data[score_col], conf=0.95, force_percentages=True)
-    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Performance")
+
+    # Log metrics using new API
+    # The record_dataframe_metrics will automatically split metrics into log_all vs log_some
+    # and apply the threshold filter only to log_some metrics
     params = {"target_column": target, "score_column": score_col}
-    for t in thresholds:
-        recorder.populate_metrics(
-            attributes=params | cohort | {"threshold": t}, metrics=stats[stats["Threshold"] == t * 100]
-        )
-    am = AutomationManager()
-    for metric in stats.columns:
-        log_all = am.get_metric_config(metric)["log_all"]
-        if log_all:
-            recorder.populate_metrics(
-                attributes=params | cohort,
-                metrics={metric: stats[[metric, "Threshold"]].set_index("Threshold").to_dict()},
-            )
+    threshold_values = [int(t * 100) for t in thresholds]
+    threshold_filter = FilterRule.isin("Threshold", threshold_values)
+
+    telemetry.record_dataframe_metrics(
+        stats,
+        metrics=[col for col in stats.columns if col in STATNAMES],
+        attributes=params | cohort,
+        attribute_cols=["Threshold"],
+        filter_rule=threshold_filter,
+        source="ModelEvaluation",
+    )
     title = f"Overall Performance for {target_event} (Per {'Encounter' if per_context_id else 'Observation'})"
     svg = plot.evaluation(
         stats,
@@ -906,9 +921,14 @@ def plot_model_score_comparison(
         splits=list(scores),
         censor_threshold=sg.censor_threshold,
     )
-    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
-    recorder.log_by_column(
-        df=plot_data, col_name="Threshold", cohorts={"cohort": scores}, base_attributes={"Target Column": target}
+
+    # Use new API to record performance metrics
+    telemetry.record_dataframe_metrics(
+        plot_data.rename(columns={"cohort": "ScoreName"}),
+        metrics=[col for col in plot_data.columns if col in STATNAMES],
+        attributes={"Target Column": target} | cohort_dict,
+        attribute_cols=["Threshold", "ScoreName"],
+        source="ModelScoreComparison",
     )
     try:
         assert_valid_performance_metrics_df(plot_data)
@@ -973,9 +993,14 @@ def plot_model_target_comparison(
         splits=list(targets),
         censor_threshold=sg.censor_threshold,
     )
-    recorder = metric_apis.OpenTelemetryRecorder(metric_names=STATNAMES, name="Model Score Comparison")
-    recorder.log_by_column(
-        df=plot_data, col_name="Threshold", cohorts={"cohort": targets}, base_attributes={"Score Column": score}
+
+    # Use new API to record performance metrics
+    telemetry.record_dataframe_metrics(
+        plot_data.rename(columns={"cohort": "TargetName"}),
+        metrics=[col for col in plot_data.columns if col in STATNAMES],
+        attributes={"Score Column": score} | cohort_dict,
+        attribute_cols=["Threshold", "TargetName"],
+        source="ModelTargetComparison",
     )
     try:
         assert_valid_performance_metrics_df(plot_data)
@@ -1030,7 +1055,7 @@ def plot_binary_classifier_metrics(
     data = cohort_filter.filter(sg.dataframe)
     target_event = pdh.event_value(target)
     target_data = FilterRule.isin(target_event, (0, 1)).filter(data)
-    return binary_classifier_metric_evaluation(
+    stats, content = binary_classifier_metric_evaluation(
         metric_generator,
         metrics,
         target_data,
@@ -1043,6 +1068,19 @@ def plot_binary_classifier_metrics(
         sg.predict_time,
         table_only=table_only,
     )
+    attributes = {"score_col": score_column, "target": target, "per_context": per_context}
+
+    # Reset index to make Threshold available as a column for metric recording
+    stats = stats.reset_index()
+    telemetry.record_dataframe_metrics(
+        stats,
+        metrics=metrics,
+        attributes=attributes | cohort_dict,
+        attribute_cols=["Threshold"],
+        source="BinaryClassifierMetrics",
+    )
+
+    return content
 
 
 def _autometric_plot_binary_classifier_metrics(
@@ -1084,9 +1122,13 @@ def binary_classifier_metric_evaluation(
     aggregation_method: str = "max",
     ref_time: str = None,
     table_only: bool = False,
-) -> HTML:
+) -> tuple[pd.DataFrame, HTML]:
     """
     plots common model evaluation metrics
+
+    .. versionchanged:: NEXT_VERSION_PLACEHOLDER
+       Changed return type from HTML to tuple[pd.DataFrame, HTML] to provide
+       programmatic access to computed metrics alongside visualization.
 
     Parameters
     ----------
@@ -1128,24 +1170,18 @@ def binary_classifier_metric_evaluation(
     requirements = FilterRule.isin(target, (0, 1)) & FilterRule.notna(score_col)
     data = requirements.filter(data)
     if len(data.index) < censor_threshold:
-        return template.render_censored_plot_message(censor_threshold)
+        return pd.DataFrame(), template.render_censored_plot_message(censor_threshold)
     if (lcount := data[target].nunique()) != 2:
-        return template.render_title_message(
+        return pd.DataFrame(), template.render_title_message(
             "Evaluation Error", f"Model Evaluation requires exactly two classes but found {lcount}"
         )
     if isinstance(metrics, str):
         metrics = [metrics]
     stats = metric_generator.calculate_binary_stats(data, target, score_col, metrics)[0]
-    recorder = metric_apis.OpenTelemetryRecorder(name="Binary Classifier Evaluations", metric_names=metrics)
-    attributes = {"score_col": score_col, "target": target}
-    am = AutomationManager()
-    for metric in metrics:
-        log_all = am.get_metric_config(metric)["log_all"]
-        if log_all:
-            recorder.populate_metrics(attributes=attributes, metrics={metric: stats[metric].to_dict()})
+
     if table_only:
-        return HTML(stats[metrics].T.to_html())
-    return plot.binary_classifier.plot_metric_list(stats, metrics)
+        return stats, HTML(stats[metrics].T.to_html())
+    return stats, plot.binary_classifier.plot_metric_list(stats, metrics)
 
 
 # endregion

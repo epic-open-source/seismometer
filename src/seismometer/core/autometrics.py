@@ -10,8 +10,10 @@ from typing import Any, Callable
 import yaml
 
 from seismometer.configuration.config import ConfigProvider
+from seismometer.configuration.metrics import MetricConfig, SingleMetricConfig
 from seismometer.core.decorators import export
 from seismometer.core.patterns import Singleton
+from seismometer.data.otel import MetricTelemetryManager
 from seismometer.data.performance import BinaryClassifierMetricGenerator
 
 logger = logging.getLogger("seismometer.telemetry")
@@ -53,7 +55,6 @@ def _call_transform(call: dict) -> dict:
     return {k: _transform_item(v) for k, v in call.items()}
 
 
-@export
 class AutomationManager(object, metaclass=Singleton):
     _call_history: dict[str, dict]
     """ plot function name -> {"args": args, "kwargs": kwargs } """
@@ -61,6 +62,8 @@ class AutomationManager(object, metaclass=Singleton):
     """ Mapping function names to the corresponding automation settings. """
     automation_file_path: Path
     """ Where we are reading or dumping automation data. """
+    _metric_info: MetricConfig
+    """ Mapping metric names to their configuration. """
 
     def __init__(self, config_provider: ConfigProvider):
         """
@@ -162,7 +165,7 @@ class AutomationManager(object, metaclass=Singleton):
         call_history = dict(self._call_history)
         yaml.dump(call_history, sys.stdout)
 
-    def export_config(self, overwrite_existing=False):
+    def telemetry_config(self, overwrite_existing=False):
         """Produce a configuration file specifying which metrics to export,
         based on which functions have been run in the notebook.
 
@@ -184,7 +187,7 @@ class AutomationManager(object, metaclass=Singleton):
             call_history = dict(self._call_history)
             yaml.dump(call_history, automation_file)
 
-    def get_metric_config(self, metric_name: str) -> dict:
+    def get_metric_config(self, metric_name: str) -> SingleMetricConfig:
         """Get the settings from otel_metric_override for a given metric.
 
         Parameters
@@ -194,19 +197,10 @@ class AutomationManager(object, metaclass=Singleton):
 
         Returns
         -------
-        dict
-            The configuration, as described in RFC #4 as a dictionary.
-            E.g. {"output_metrics": True}, etc.
+        SingleMetricConfig
+            The configuration for the metric
         """
-
-        METRIC_DEFAULTS = {"output_metrics": True, "log_all": False, "quantiles": 4, "measurement_type": "Gauge"}
-
-        if metric_name in self._metric_info:
-            ret = self._metric_info[metric_name]
-        else:
-            ret = {}
-        # Overwrite defaults with whatever is in the dictionary.
-        return METRIC_DEFAULTS | ret
+        return self._metric_info[metric_name]
 
 
 # Internal implementation -- stored separately here for mocking purposes.
@@ -282,6 +276,7 @@ def initialize_otel_config(config: ConfigProvider):
     config : OtherInfo
         The configuration object handed in during Seismogram initialization.
     """
+    MetricTelemetryManager(config.telemetry_config)
     am = AutomationManager(config_provider=config)
     am.load_automation_config(config)
     am.load_metric_config(config)
@@ -478,7 +473,7 @@ def export_automated_metrics() -> None:
 
 
 @export
-def export_config(overwrite_existing=False) -> None:
+def telemetry_config(overwrite_existing=False) -> None:
     """Wrapper around the export config method in the automation manager.
 
     Parameters
@@ -486,7 +481,7 @@ def export_config(overwrite_existing=False) -> None:
     overwrite_existing : bool, optional
         Whether to overwrite pre-existing config in the same location.
     """
-    AutomationManager().export_config(overwrite_existing=overwrite_existing)
+    AutomationManager().telemetry_config(overwrite_existing=overwrite_existing)
 
 
 @export

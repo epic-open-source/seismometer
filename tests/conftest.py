@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 from pytest import fixture
 
 from seismometer.core import autometrics
-from seismometer.data import metric_apis
+from seismometer.data import telemetry
 
 TEST_ROOT = Path(__file__).parent
 
@@ -45,7 +45,7 @@ def working_dir_as(path: Path) -> Generator:
 
 @fixture(scope="module", autouse=True)
 def export_manager_mock():
-    class ExportManagerMock:
+    class MetricTelemetryManagerMock:
         def __init__(self, *args, **kwargs):
             self.active = True
             self.meter_provider = Mock()
@@ -53,13 +53,13 @@ def export_manager_mock():
         def activate_exports(self):
             pass
 
-    with patch("seismometer.data.otel.RealExportManager", ExportManagerMock):
+    with patch("seismometer.data.otel.RealMetricTelemetryManager", MetricTelemetryManagerMock):
         yield
 
 
 @fixture(scope="module", autouse=True)
 def set_datapoint_mock():
-    with patch.object(metric_apis.RealOpenTelemetryRecorder, "_set_one_datapoint"):
+    with patch.object(telemetry.RealOpenTelemetryRecorder, "_set_one_datapoint"):
         yield
 
 

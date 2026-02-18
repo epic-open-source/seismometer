@@ -11,4 +11,5 @@ Closes #xxx
 - [ ] Linting passes; run early with [pre-commit hook](https://pre-commit.com/#install).
 - [ ] Tests added for new code and issue being fixed.
 - [ ] Added type annotations and full numpy-style docstrings for new methods.
+- [ ] For breaking API changes, added `.. versionchanged:: NEXT_VERSION_PLACEHOLDER` directive to affected docstrings.
 - [ ] Draft your news fragment in new `changelog/ISSUE.TYPE.rst` files; see [changelog/README.md](https://github.com/epic-open-source/seismometer/blob/main/changelog/README.md).

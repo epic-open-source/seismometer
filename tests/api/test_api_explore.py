@@ -252,7 +252,7 @@ class TestExploreBinaryModelMetrics:
     )
     @patch("seismometer.data.performance.BinaryClassifierMetricGenerator.calculate_binary_stats")
     def test_plot_binary_classifier_metrics_basic(self, mock_calc, mock_plot, fake_seismo):
-        mock_stats = pd.DataFrame({"Accuracy": [0.9], "PPV": [0.8]}, index=["value"])
+        mock_stats = pd.DataFrame({"Accuracy": [0.9], "PPV": [0.8]}, index=pd.Index([50], name="Threshold"))
         mock_calc.return_value = (mock_stats, None)
 
         result = plot_binary_classifier_metrics(
@@ -270,7 +270,7 @@ class TestExploreBinaryModelMetrics:
 
     @patch("seismometer.data.performance.BinaryClassifierMetricGenerator.calculate_binary_stats")
     def test_plot_binary_classifier_metrics_table_only(self, mock_calc, fake_seismo):
-        mock_stats = pd.DataFrame({"Sensitivity": [0.88]}, index=["value"])
+        mock_stats = pd.DataFrame({"Sensitivity": [0.88]}, index=pd.Index([50], name="Threshold"))
         mock_calc.return_value = (mock_stats, None)
 
         result = plot_binary_classifier_metrics(
