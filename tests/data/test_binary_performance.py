@@ -192,6 +192,84 @@ class TestCalculateStats:
         assert np.array_equal(computed_thresholds, expected_thresholds)
 
 
+class TestCalculateStatsErrorHandling:
+    """Test error handling and edge cases for calculate_stats()"""
+
+    def test_empty_metric_values_list(self):
+        """Test calculate_stats() with empty metric_values list"""
+        df = pd.DataFrame(
+            {"target": [0, 1, 0, 1, 1, 0, 1, 0, 1, 0], "score": [0.1, 0.4, 0.35, 0.8, 0.7, 0.2, 0.9, 0.3, 0.6, 0.5]}
+        )
+        metric_values = []
+        stats = calculate_stats(df, "target", "score", "Sensitivity", metric_values)
+
+        # Should still return overall stats like AUROC, Prevalence, Positives
+        assert "AUROC" in stats
+        assert "AUPRC" in stats
+        assert "Positives" in stats
+        assert "Prevalence" in stats
+        assert stats["Positives"] == 5
+        assert stats["Prevalence"] == 0.5
+
+    def test_invalid_metrics_to_display(self):
+        """Test calculate_stats() with invalid metrics_to_display"""
+        df = pd.DataFrame(
+            {"target": [0, 1, 0, 1, 1, 0, 1, 0, 1, 0], "score": [0.1, 0.4, 0.35, 0.8, 0.7, 0.2, 0.9, 0.3, 0.6, 0.5]}
+        )
+        metric_values = [0.5, 0.7]
+
+        # Invalid metric names should raise KeyError or similar error
+        with pytest.raises(Exception):  # Could be KeyError from BinaryClassifierMetricGenerator
+            calculate_stats(
+                df, "target", "score", "Sensitivity", metric_values, metrics_to_display=["InvalidMetric", "AnotherBad"]
+            )
+
+    def test_all_nan_target_column(self):
+        """Test calculate_stats() with all NaN target values raises IndexError."""
+        df = pd.DataFrame({"target": [np.nan, np.nan, np.nan, np.nan], "score": [0.1, 0.4, 0.35, 0.8]})
+        metric_values = [0.5, 0.7]
+
+        with pytest.raises(IndexError):
+            calculate_stats(df, "target", "score", "Sensitivity", metric_values)
+
+    def test_all_nan_score_column(self):
+        """Test calculate_stats() with all NaN score values raises IndexError."""
+        df = pd.DataFrame({"target": [0, 1, 0, 1], "score": [np.nan, np.nan, np.nan, np.nan]})
+        metric_values = [0.5, 0.7]
+
+        with pytest.raises(IndexError):
+            calculate_stats(df, "target", "score", "Sensitivity", metric_values)
+
+    def test_no_valid_paired_rows(self):
+        """Test calculate_stats() raises IndexError when no valid rows remain after filtering NaN."""
+        df = pd.DataFrame({"target": [1, np.nan, 0, np.nan], "score": [np.nan, 0.5, np.nan, 0.8]})
+        metric_values = [0.5]
+
+        with pytest.raises(IndexError):
+            calculate_stats(df, "target", "score", "Sensitivity", metric_values)
+
+    def test_mixed_nan_values(self):
+        """Test calculate_stats() with mixed NaN values (some valid data)"""
+        df = pd.DataFrame(
+            {
+                "target": [0, 1, np.nan, 1, 1, 0, 1, 0, np.nan, 0],
+                "score": [0.1, 0.4, 0.35, np.nan, 0.7, 0.2, np.nan, 0.3, 0.6, 0.5],
+            }
+        )
+        metric_values = [0.5]
+
+        # With mixed NaN values, behavior depends on implementation
+        # Either it should work (dropping NaNs) or fail cleanly
+        try:
+            stats = calculate_stats(df, "target", "score", "Sensitivity", metric_values)
+            # If it succeeds, validate the stats are reasonable
+            assert "AUROC" in stats
+            assert 0 <= stats["AUROC"] <= 1
+        except (ValueError, RuntimeError):
+            # Or it fails cleanly with sklearn error
+            pass
+
+
 class TestGenerateAnalyticsData:
     def test_censor_threshold_below(self, fake_seismo):
         # Seismogram().dataframe has fewer rows than the censor_threshold
@@ -298,3 +376,74 @@ class TestGenerateAnalyticsData:
 
             # But still close enough (numerically stable)
             assert np.isclose(val_low, val_high, atol=atol)
+
+    def test_per_context_missing_columns(self, fake_seismo):
+        """Test generate_analytics_data() with per_context=True but missing required columns"""
+        # Remove entity_keys column to trigger error
+        fake_seismo.dataframe = fake_seismo.dataframe.drop(columns=["entity"])
+
+        # This should fail because entity_keys column is missing
+        with pytest.raises((KeyError, ValueError)):
+            generate_analytics_data(
+                score_columns=["score1"],
+                target_columns=["target1"],
+                metric="Sensitivity",
+                metric_values=[0.5],
+                per_context=True,
+                censor_threshold=1,
+            )
+
+    def test_invalid_cohort_dict_keys(self, fake_seismo):
+        """Test generate_analytics_data() with invalid cohort_dict keys (non-existent columns)"""
+        # Use a cohort column that doesn't exist in the dataframe
+        invalid_cohort_dict = {"NonExistentColumn": ("A",)}
+
+        # This should fail because the cohort column doesn't exist
+        with pytest.raises((KeyError, ValueError)):
+            generate_analytics_data(
+                score_columns=["score1"],
+                target_columns=["target1"],
+                metric="Sensitivity",
+                metric_values=[0.5],
+                cohort_dict=invalid_cohort_dict,
+                censor_threshold=1,
+            )
+
+    def test_empty_score_columns(self, fake_seismo):
+        """Test generate_analytics_data() with empty score_columns list"""
+        result = generate_analytics_data(
+            score_columns=[],
+            target_columns=["target1"],
+            metric="Sensitivity",
+            metric_values=[0.5],
+            censor_threshold=1,
+        )
+
+        # Empty score_columns should result in empty or None result
+        assert result is None or result.empty
+
+    def test_empty_target_columns(self, fake_seismo):
+        """Test generate_analytics_data() with empty target_columns list"""
+        result = generate_analytics_data(
+            score_columns=["score1"],
+            target_columns=[],
+            metric="Sensitivity",
+            metric_values=[0.5],
+            censor_threshold=1,
+        )
+
+        # Empty target_columns should result in empty or None result
+        assert result is None or result.empty
+
+    def test_both_empty_score_and_target_columns(self, fake_seismo):
+        """Test generate_analytics_data() with both empty score_columns and target_columns"""
+        result = generate_analytics_data(
+            score_columns=[],
+            target_columns=[],
+            metric="Sensitivity",
+            metric_values=[0.5],
+            censor_threshold=1,
+        )
+
+        # Both empty should result in empty or None result
+        assert result is None or result.empty

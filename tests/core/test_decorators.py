@@ -1,3 +1,4 @@
+import builtins
 from io import StringIO
 from pathlib import Path
 
@@ -6,6 +7,18 @@ import pandas as pd
 import pytest
 
 from seismometer.core.decorators import DiskCachedFunction, export
+
+
+@pytest.fixture(autouse=True)
+def restore_builtins_print():
+    """Ensure builtins.print is restored after each test.
+
+    This is needed because indented_function decorator modifies builtins.print,
+    and if an exception is raised, it may not be restored (decorator has no try/finally).
+    """
+    original_print = builtins.print
+    yield
+    builtins.print = original_print
 
 
 def get_test_function():
@@ -370,3 +383,386 @@ class Test_DiskCachedFunction_With_Pandas:
         assert count == 1
         assert first_value(pd.Series(["C", "B", "A"], index=pd.Index([1, 2, 3]))) == "C"
         assert count == 2
+
+
+# ============================================================================
+# ADDITIONAL EDGE CASE TESTS
+# ============================================================================
+
+
+class TestDiskCachedFunctionCacheManagement:
+    """Test DiskCachedFunction cache file management."""
+
+    def test_cache_files_created_in_subdirectory(self, disk_cached_str):
+        """Test that cache files are created in function-specific subdirectories."""
+
+        @disk_cached_str
+        def foo(x: str) -> str:
+            return x.upper()
+
+        # First call creates cache
+        assert foo("hello") == "HELLO"
+
+        # Cache structure: cache_dir/function_name/hash
+        cache_files = list(disk_cached_str.cache_dir.glob("**/*"))
+        cache_files = [f for f in cache_files if f.is_file()]
+        assert len(cache_files) >= 1
+
+    def test_cache_deleted_file_causes_recomputation(self, disk_cached_str):
+        """Test that deleted cache file causes re-computation."""
+        global call_count
+        call_count = 0
+
+        @disk_cached_str
+        def foo(x: str) -> str:
+            global call_count
+            call_count += 1
+            return x.upper()
+
+        # First call creates cache
+        assert foo("world") == "WORLD"
+        assert call_count == 1
+
+        # Delete the cache file
+        cache_files = list(disk_cached_str.cache_dir.glob("**/*"))
+        cache_files = [f for f in cache_files if f.is_file()]
+        assert len(cache_files) >= 1
+        cache_files[0].unlink()
+
+        # Should re-compute since cache is missing
+        result = foo("world")
+        assert result == "WORLD"
+        assert call_count == 2
+
+
+class TestDiskCachedFunctionConcurrentAccess:
+    """Test DiskCachedFunction with simulated concurrent access."""
+
+    def test_multiple_calls_same_args(self, disk_cached_str):
+        """Test multiple calls with same arguments hit cache."""
+        global call_count
+        call_count = 0
+
+        @disk_cached_str
+        def foo(x: str) -> str:
+            global call_count
+            call_count += 1
+            return x.upper()
+
+        # Multiple calls with same args
+        results = [foo("test") for _ in range(10)]
+
+        # All should return same result
+        assert all(r == "TEST" for r in results)
+        # Only computed once (cached for rest)
+        assert call_count == 1
+
+    def test_interleaved_calls_different_args(self, disk_cached_str):
+        """Test interleaved calls with different arguments."""
+        global call_count
+        call_count = 0
+
+        @disk_cached_str
+        def foo(x: str) -> str:
+            global call_count
+            call_count += 1
+            return x.upper()
+
+        # Interleaved calls
+        results = []
+        for i in range(5):
+            results.append(foo("a"))
+            results.append(foo("b"))
+
+        # Should have correct results
+        assert results == ["A", "B", "A", "B", "A", "B", "A", "B", "A", "B"]
+        # Only 2 unique computations (a and b)
+        assert call_count == 2
+
+    def test_cache_survives_multiple_function_calls(self, disk_cached_str):
+        """Test that cache persists across multiple function invocations."""
+        global call_count
+        call_count = 0
+
+        @disk_cached_str
+        def foo(x: str) -> str:
+            global call_count
+            call_count += 1
+            return x.upper()
+
+        # First batch
+        for _ in range(3):
+            foo("test")
+
+        first_count = call_count
+
+        # Second batch (should use cache)
+        for _ in range(3):
+            foo("test")
+
+        # Call count should not increase
+        assert call_count == first_count
+
+
+class TestDiskCachedFunctionSymlinkHandling:
+    """Test DiskCachedFunction with symlinks."""
+
+    @pytest.mark.skipif(not hasattr(Path, "symlink_to"), reason="Symlinks not supported on this platform")
+    def test_cache_dir_as_symlink(self, tmp_path):
+        """Test that cache works when cache_dir is a symlink."""
+        # Create actual directory
+        actual_dir = tmp_path / "actual_cache"
+        actual_dir.mkdir()
+
+        # Create symlink to it
+        symlink_dir = tmp_path / "symlink_cache"
+        symlink_dir.symlink_to(actual_dir)
+
+        # Create cache with symlink path
+        def save_fn(string, filepath: Path):
+            filepath.write_text(string)
+
+        def load_fn(filepath: Path):
+            return filepath.read_text()
+
+        cache_decorator = DiskCachedFunction(cache_name="test", save_fn=save_fn, load_fn=load_fn, return_type=str)
+        cache_decorator.SEISMOMETER_CACHE_DIR = symlink_dir
+        cache_decorator.enable()
+
+        @cache_decorator
+        def foo(x: str) -> str:
+            return x.upper()
+
+        # Should work through symlink
+        result = foo("hello")
+        assert result == "HELLO"
+
+        # Cache file should exist in actual directory (cache files have no extension)
+        cache_files = [f for f in actual_dir.glob("**/*") if f.is_file()]
+        assert len(cache_files) >= 1
+
+        cache_decorator.clear_all()
+
+
+class TestIndentedFunctionDecorator:
+    """Test indented_function() decorator (completely untested)."""
+
+    def test_indented_function_basic_usage(self, capsys):
+        """Test that indented_function adds indentation to print statements."""
+        from seismometer.core.decorators import indented_function
+
+        @indented_function
+        def foo():
+            print("Hello")
+            print("World")
+
+        foo()
+
+        captured = capsys.readouterr()
+        # Output should be indented with ">  " prefix
+        assert ">  Hello" in captured.out
+        assert ">  World" in captured.out
+
+    def test_indented_function_with_arguments(self, capsys):
+        """Test indented_function with function arguments."""
+        from seismometer.core.decorators import indented_function
+
+        @indented_function
+        def foo(name, greeting="Hello"):
+            print(f"{greeting}, {name}!")
+
+        foo("Alice")
+
+        captured = capsys.readouterr()
+        assert ">  Hello, Alice!" in captured.out
+
+    def test_indented_function_with_return_value(self):
+        """Test indented_function preserves return values."""
+        from seismometer.core.decorators import indented_function
+
+        @indented_function
+        def foo(x):
+            print(f"Processing {x}")
+            return x * 2
+
+        result = foo(5)
+        assert result == 10
+
+    def test_indented_function_with_no_prints(self):
+        """Test indented_function with function that doesn't print."""
+        from seismometer.core.decorators import indented_function
+
+        @indented_function
+        def foo(x, y):
+            return x + y
+
+        result = foo(3, 4)
+        assert result == 7
+
+    def test_indented_function_nested_calls(self, capsys):
+        """Test indented_function with nested function calls."""
+        from seismometer.core.decorators import indented_function
+
+        @indented_function
+        def inner():
+            print("Inner function")
+
+        @indented_function
+        def outer():
+            print("Outer function")
+            inner()
+
+        outer()
+
+        captured = capsys.readouterr()
+        # Both should be indented
+        assert ">  Outer function" in captured.out
+        assert ">  Inner function" in captured.out
+
+    def test_indented_function_preserves_function_name(self):
+        """Test that indented_function preserves function metadata."""
+        from seismometer.core.decorators import indented_function
+
+        @indented_function
+        def my_function():
+            """My docstring."""
+            pass
+
+        assert my_function.__name__ == "my_function"
+        assert my_function.__doc__ == "My docstring."
+
+    def test_indented_function_with_exception(self, capsys):
+        """Test indented_function when function raises exception."""
+        from seismometer.core.decorators import indented_function
+
+        @indented_function
+        def foo():
+            print("Before error")
+            raise ValueError("Test error")
+
+        with pytest.raises(ValueError, match="Test error"):
+            foo()
+
+        captured = capsys.readouterr()
+        # Print before error should still be indented
+        assert ">  Before error" in captured.out
+
+    def test_indented_function_multiple_decorators(self):
+        """Test indented_function combined with other decorators."""
+        from seismometer.core.decorators import indented_function
+
+        def multiply_by_two(func):
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs) * 2
+
+            return wrapper
+
+        @multiply_by_two
+        @indented_function
+        def foo(x):
+            return x + 1
+
+        result = foo(5)
+        assert result == 12  # (5 + 1) * 2
+
+
+class TestExportDecoratorEdgeCases:
+    """Test export decorator with additional edge cases."""
+
+    def test_export_with_lambda(self):
+        """Test export decorator with lambda function."""
+        global __all__
+        __all__ = []
+
+        # Lambdas don't have proper __name__, so this should handle gracefully
+        lambda_fn = lambda x: x + 1  # noqa: E731
+        exported_fn = export(lambda_fn)
+
+        assert exported_fn(5) == 6
+
+    def test_export_preserves_docstring(self):
+        """Test that export decorator preserves docstring."""
+        global __all__
+        __all__ = []
+
+        def documented_function():
+            """This is a docstring."""
+            return 42
+
+        exported_fn = export(documented_function)
+
+        assert exported_fn.__doc__ == "This is a docstring."
+        assert exported_fn() == 42
+
+    def test_export_with_class_method(self):
+        """Test export decorator with class methods."""
+        global __all__
+        __all__ = []
+
+        class MyClass:
+            @staticmethod
+            def my_method():
+                return "method result"
+
+        exported_method = export(MyClass.my_method)
+
+        assert exported_method() == "method result"
+
+
+class TestDiskCachedFunctionEdgeCases:
+    """Test DiskCachedFunction with additional edge cases."""
+
+    def test_cache_with_none_argument(self, disk_cached_str):
+        """Test caching with None as argument."""
+
+        @disk_cached_str
+        def foo(x) -> str:
+            return str(x)
+
+        result = foo(None)
+        assert result == "None"
+
+        # Should cache None argument
+        result2 = foo(None)
+        assert result2 == "None"
+
+    def test_cache_with_empty_string_argument(self, disk_cached_str):
+        """Test caching with empty string argument."""
+
+        @disk_cached_str
+        def foo(x: str) -> str:
+            return f"[{x}]"
+
+        result = foo("")
+        assert result == "[]"
+
+        # Should cache empty string
+        result2 = foo("")
+        assert result2 == "[]"
+
+    def test_cache_recreated_after_manual_deletion(self, disk_cached_str):
+        """Test that cache works after manual file deletion."""
+        global call_count
+        call_count = 0
+
+        @disk_cached_str
+        def foo(x: str) -> str:
+            global call_count
+            call_count += 1
+            return x.upper()
+
+        # Create cache
+        result1 = foo("test")
+        assert result1 == "TEST"
+        assert call_count == 1
+
+        # Manually delete cache files (simulating corruption or cleanup)
+        cache_files = list(disk_cached_str.cache_dir.glob("**/*"))
+        cache_files = [f for f in cache_files if f.is_file()]
+        for f in cache_files:
+            f.unlink()
+
+        # Should re-compute after cache deletion
+        result2 = foo("test")
+        assert result2 == "TEST"
+        assert call_count == 2

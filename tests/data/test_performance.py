@@ -350,3 +350,171 @@ class TestBinaryMetricGenerator:
         assert abs(auc_fine - true_auc) < abs(auc_coarse - true_auc)
         assert abs(auc_fine - true_auc) < 0.001
         assert abs(auc_coarse - true_auc) < 0.01
+
+
+class TestCalculateBinStatsErrorHandling:
+    """Test error handling and edge cases for calculate_bin_stats()."""
+
+    def test_empty_arrays(self):
+        """Test calculate_bin_stats with empty arrays."""
+        y_true = pd.Series([], dtype=float)
+        y_pred = pd.Series([], dtype=float)
+
+        result = undertest.calculate_bin_stats(y_true, y_pred)
+
+        # Should return empty DataFrame with correct columns
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+        assert undertest.THRESHOLD in result.columns
+        assert all(stat in result.columns for stat in undertest.STATNAMES)
+
+    def test_all_nan_inputs(self):
+        """Test calculate_bin_stats with all-NaN inputs."""
+        y_true = pd.Series([np.nan, np.nan, np.nan])
+        y_pred = pd.Series([np.nan, np.nan, np.nan])
+
+        result = undertest.calculate_bin_stats(y_true, y_pred)
+
+        # Should return empty DataFrame when all values are NaN
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+
+    def test_extreme_thresholds(self):
+        """Test calculate_bin_stats with extreme threshold values (all 0s or all 1s)."""
+        # All predictions are 0
+        y_true = pd.Series([0, 1, 0, 1])
+        y_pred = pd.Series([0.0, 0.0, 0.0, 0.0])
+
+        result = undertest.calculate_bin_stats(y_true, y_pred)
+
+        assert len(result) > 0
+        assert undertest.THRESHOLD in result.columns
+
+        # All predictions are 1
+        y_pred_ones = pd.Series([1.0, 1.0, 1.0, 1.0])
+        result_ones = undertest.calculate_bin_stats(y_true, y_pred_ones)
+
+        assert len(result_ones) > 0
+
+    def test_keep_score_values_parameter(self):
+        """Test calculate_bin_stats with keep_score_values=True."""
+        y_true = pd.Series([0, 1, 0, 1])
+        y_pred = pd.Series([0.1, 0.8, 0.3, 0.9])  # Raw probabilities [0, 1]
+
+        # With keep_score_values=False (default), scores are converted to percentages
+        result_default = undertest.calculate_bin_stats(y_true, y_pred, keep_score_values=False)
+
+        # With keep_score_values=True, scores stay as-is [0, 1] (but thresholds are still 0-100)
+        result_keep = undertest.calculate_bin_stats(y_true, y_pred, keep_score_values=True)
+
+        # Both should produce valid results with 0-100 threshold range
+        # keep_score_values affects internal processing, not output threshold range
+        assert result_default[undertest.THRESHOLD].max() <= 100
+        assert result_keep[undertest.THRESHOLD].max() <= 100
+        assert len(result_default) > 0
+        assert len(result_keep) > 0
+
+    def test_not_point_thresholds_parameter(self):
+        """Test calculate_bin_stats with not_point_thresholds=True."""
+        y_true = pd.Series([0, 1, 0, 1, 1, 0])
+        y_pred = pd.Series([0.1, 0.8, 0.3, 0.9, 0.7, 0.2])
+
+        # With not_point_thresholds=False (default), uses 0-100 point thresholds
+        result_points = undertest.calculate_bin_stats(y_true, y_pred, not_point_thresholds=False)
+
+        # With not_point_thresholds=True, uses actual prediction values as thresholds
+        result_no_points = undertest.calculate_bin_stats(y_true, y_pred, not_point_thresholds=True)
+
+        # not_point_thresholds=True should have fewer thresholds (only unique prediction values)
+        # not_point_thresholds=False should have more (101 point thresholds: 0, 1, ..., 100)
+        assert len(result_no_points) < len(result_points)
+
+
+class TestCalculateNntErrorHandling:
+    """Test error handling and edge cases for calculate_nnt()."""
+
+    def test_rho_edge_case_zero(self):
+        """Test calculate_nnt with rho=0 (gets replaced with DEFAULT_RHO)."""
+        arr = np.array([0.5, 0.3, 0.1])
+
+        # rho=0 is falsy, so it gets replaced with DEFAULT_RHO (1/3)
+        result_zero = undertest.calculate_nnt(arr, rho=0)
+        result_default = undertest.calculate_nnt(arr, rho=undertest.DEFAULT_RHO)
+
+        # Should be the same since rho=0 gets replaced
+        np.testing.assert_array_almost_equal(result_zero, result_default)
+
+    def test_rho_edge_case_one(self):
+        """Test calculate_nnt with rho=1 (perfect risk reduction)."""
+        arr = np.array([0.5, 0.3, 0.1])
+
+        result = undertest.calculate_nnt(arr, rho=1)
+
+        # With rho=1: NNT = 1/arr
+        expected = 1 / arr
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_rho_negative(self):
+        """Test calculate_nnt with negative rho (invalid but should handle gracefully)."""
+        arr = np.array([0.5, 0.3, 0.1])
+
+        result = undertest.calculate_nnt(arr, rho=-0.5)
+
+        # Should produce negative NNT values (mathematically valid but unusual)
+        assert len(result) == len(arr)
+        assert np.all(result < 0)
+
+    def test_empty_array(self):
+        """Test calculate_nnt with empty array."""
+        arr = np.array([])
+
+        result = undertest.calculate_nnt(arr, rho=0.333)
+
+        assert len(result) == 0
+        assert isinstance(result, np.ndarray)
+
+
+class TestMetricGeneratorKwargsValidation:
+    """Test kwargs validation for MetricGenerator."""
+
+    def test_invalid_metric_names_in_call(self):
+        """Test MetricGenerator raises ValueError for invalid metric names."""
+
+        def metric_fn(data, names):
+            return {name: 1.0 for name in names}
+
+        generator = undertest.MetricGenerator(["metric1", "metric2"], metric_fn)
+
+        df = pd.DataFrame({"col1": [1, 2, 3]})
+
+        # Requesting invalid metric should raise ValueError
+        with pytest.raises(ValueError, match="Invalid metric names"):
+            generator(df, metric_names=["invalid_metric"])
+
+    def test_empty_dataframe_returns_nan(self):
+        """Test MetricGenerator returns NaN for empty dataframe."""
+
+        def metric_fn(data, names):
+            return {name: data["col1"].sum() for name in names}
+
+        generator = undertest.MetricGenerator(["metric1"], metric_fn)
+
+        empty_df = pd.DataFrame({"col1": []})
+
+        result = generator(empty_df, metric_names=["metric1"])
+
+        assert result == {"metric1": np.nan}
+
+    def test_kwargs_passed_to_metric_fn(self):
+        """Test that kwargs are properly passed to the metric function."""
+
+        def metric_fn_with_kwargs(data, names, multiplier=1):
+            return {name: data["col1"].sum() * multiplier for name in names}
+
+        generator = undertest.MetricGenerator(["metric1"], metric_fn_with_kwargs)
+        df = pd.DataFrame({"col1": [1, 2, 3]})
+
+        # Call with custom kwarg
+        result = generator(df, metric_names=["metric1"], multiplier=10)
+
+        assert result == {"metric1": 60}  # sum([1,2,3]) * 10 = 60

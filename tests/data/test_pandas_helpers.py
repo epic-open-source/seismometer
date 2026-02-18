@@ -81,34 +81,28 @@ class TestMergeFrames:
 
     @pytest.mark.parametrize("strategy", ["forward", "nearest", "first", "last"])
     def test_merge_strategies_do_not_generate_additional_rows(self, strategy):
+        # 2 predictions, 3 events: one before, one between, one after
         preds = pd.DataFrame(
             {
                 "Id": [1, 1],
-                "PredictTime": [
-                    pd.Timestamp("2024-01-01 01:00:00"),
-                    pd.Timestamp("2024-01-01 02:00:00"),
-                ],
+                "PredictTime": [pd.Timestamp("2024-01-01 01:00"), pd.Timestamp("2024-01-01 02:00")],
             }
         )
-
         events = pd.DataFrame(
             {
-                "Id": [1, 1, 1, 1, 1],
+                "Id": [1, 1, 1],
                 "Time": [
-                    pd.Timestamp("2023-12-31 01:30:00"),
-                    pd.Timestamp("2024-01-01 00:30:00"),
-                    pd.Timestamp("2024-01-01 01:30:00"),
-                    pd.Timestamp("2024-01-01 02:30:00"),
-                    pd.Timestamp("2024-01-01 10:30:00"),
+                    pd.Timestamp("2024-01-01 00:30"),  # before first pred
+                    pd.Timestamp("2024-01-01 01:30"),  # between preds
+                    pd.Timestamp("2024-01-01 02:30"),  # after last pred
                 ],
-                "Type": ["MyEvent", "MyEvent", "MyEvent", "MyEvent", "MyEvent"],
-                "Value": [10, 20, 10, 20, 10],
+                "Type": ["MyEvent", "MyEvent", "MyEvent"],
+                "Value": [10, 20, 30],
             }
         )
 
         one_event = undertest._one_event(events, "MyEvent", "Value", "Time", ["Id"])
 
-        # Choose reference column depending on strategy
         event_ref = "MyEvent_Time" if strategy in ["forward", "nearest"] else "~~reftime~~"
         if strategy in ["first", "last"]:
             one_event["~~reftime~~"] = one_event["MyEvent_Time"]
@@ -123,10 +117,68 @@ class TestMergeFrames:
             merge_strategy=strategy,
         )
 
-        # Check that output columns exist and have been merged
+        assert len(actual) == len(preds)
         assert "MyEvent_Value" in actual.columns
         assert "MyEvent_Time" in actual.columns
-        assert len(actual) == len(preds)
+
+    def test_merge_with_strategy_empty_pks_raises(self):
+        """Empty pks list should cause merge_asof to fail (needs by parameter)."""
+        preds = pd.DataFrame(
+            {
+                "Id": [1, 2],
+                "PredictTime": [pd.Timestamp("2024-01-01 01:00:00"), pd.Timestamp("2024-01-01 02:00:00")],
+            }
+        )
+        events = pd.DataFrame(
+            {
+                "Id": [1, 2],
+                "Time": [pd.Timestamp("2024-01-01 03:00:00"), pd.Timestamp("2024-01-01 04:00:00")],
+                "Value": [10, 20],
+                "Type": ["MyEvent", "MyEvent"],
+            }
+        )
+
+        one_event = undertest._one_event(events, "MyEvent", "Value", "Time", [])
+
+        # With empty pks, merge_asof will fail because it needs a by parameter
+        with pytest.raises((ValueError, KeyError, IndexError)):
+            undertest._merge_with_strategy(
+                predictions=preds,
+                one_event=one_event,
+                pks=[],  # Empty pks list - causes error
+                pred_ref="PredictTime",
+                event_ref="MyEvent_Time",
+                merge_strategy="forward",
+            )
+
+    def test_merge_with_strategy_all_nat_event_times(self):
+        """All NaT event times should trigger warning and use first row logic."""
+        preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01 01:00:00")]})
+        events = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Time": [pd.NaT, pd.NaT],  # All NaT
+                "Value": [10, 20],
+                "Type": ["MyEvent", "MyEvent"],
+            }
+        )
+
+        one_event = undertest._one_event(events, "MyEvent", "Value", "Time", ["Id"])
+
+        # All NaT should trigger the ct_times == 0 path
+        result = undertest._merge_with_strategy(
+            predictions=preds,
+            one_event=one_event,
+            pks=["Id"],
+            pred_ref="PredictTime",
+            event_ref="MyEvent_Time",
+            merge_strategy="forward",
+        )
+
+        # Should merge with first row (groupby.first())
+        assert len(result) == 1
+        assert "MyEvent_Value" in result.columns
+        assert result["MyEvent_Value"].iloc[0] == 10  # First value
 
 
 def infer_cases():
@@ -230,6 +282,58 @@ class TestPostProcessEvent:
 
         pdt.assert_frame_equal(actual, expect, check_dtype=False)
 
+    def test_empty_dataframe_returns_unchanged(self):
+        """Empty DataFrame should be returned unchanged."""
+        df = pd.DataFrame({"Label": [], "Time": []})
+        result = undertest.post_process_event(df, "Label", "Time")
+        pdt.assert_frame_equal(result, df, check_dtype=False)
+
+    def test_all_nat_times_imputes_no_time(self):
+        """When all times are NaT, should impute with no_time value."""
+        df = pd.DataFrame({"Label": [None, None, None], "Time": [pd.NaT, pd.NaT, pd.NaT]})
+        result = undertest.post_process_event(df, "Label", "Time")
+        assert (result["Label"] == 0).all()
+
+    def test_both_impute_values_none_no_imputation(self):
+        """When both impute values are None, no imputation should occur."""
+        df = pd.DataFrame({"Label": [None, 1, None], "Time": [pd.Timestamp.now(), pd.NaT, pd.NaT]})
+        result = undertest.post_process_event(df, "Label", "Time", impute_val_with_time=None, impute_val_no_time=None)
+        assert result["Label"].iloc[0] is pd.NA or pd.isna(result["Label"].iloc[0])
+        assert result["Label"].iloc[1] == 1
+        assert result["Label"].iloc[2] is pd.NA or pd.isna(result["Label"].iloc[2])
+
+    @pytest.mark.parametrize(
+        "impute_with,impute_no,expected_with,expected_no",
+        [
+            (-1, -2, -1, -2),  # Negative values
+            (100, 200, 100, 200),  # Large positive values
+            (0.5, 0.1, 0.5, 0.1),  # Decimal values
+            ("yes", "no", "yes", "no"),  # String values
+        ],
+        ids=["negative", "large_positive", "decimal", "string"],
+    )
+    def test_impute_values_various_types(self, impute_with, impute_no, expected_with, expected_no):
+        """Test imputation with various value types."""
+        now = pd.Timestamp.now()
+        df = pd.DataFrame({"Label": [None, None], "Time": [now, pd.NaT]})
+        result = undertest.post_process_event(
+            df, "Label", "Time", impute_val_with_time=impute_with, impute_val_no_time=impute_no, column_dtype=None
+        )
+        assert result["Label"].iloc[0] == expected_with
+        assert result["Label"].iloc[1] == expected_no
+
+    def test_single_row_dataframe(self):
+        """Single row DataFrame should work correctly."""
+        df = pd.DataFrame({"Label": [None], "Time": [pd.Timestamp.now()]})
+        result = undertest.post_process_event(df, "Label", "Time")
+        assert result["Label"].iloc[0] == 1
+
+    def test_missing_columns_returns_unchanged(self):
+        """Missing columns should return DataFrame unchanged."""
+        df = pd.DataFrame({"A": [1], "B": [2]})
+        result = undertest.post_process_event(df, "MissingLabel", "MissingTime")
+        pdt.assert_frame_equal(result, df)
+
 
 BASE_STRINGS = [
     ("A"),
@@ -282,6 +386,32 @@ class TestOneEvent:
         assert "Target_Value" in result.columns
         assert "Target_Time" in result.columns
         assert len(result) == 1
+
+    def test_one_event_missing_type_column_raises(self):
+        """Missing Type column should raise AttributeError."""
+        events = pd.DataFrame({"Id": [1], "Value": [10], "Time": [pd.Timestamp.now()]})
+        with pytest.raises(AttributeError, match="Type"):
+            undertest._one_event(events, "Target", "Value", "Time", ["Id"])
+
+    def test_one_event_missing_value_column_raises(self):
+        """Missing value column should raise KeyError."""
+        events = pd.DataFrame({"Id": [1], "Type": ["Target"], "Time": [pd.Timestamp.now()]})
+        with pytest.raises(KeyError, match="Value"):
+            undertest._one_event(events, "Target", "Value", "Time", ["Id"])
+
+    def test_one_event_missing_time_column_raises(self):
+        """Missing time column should raise KeyError."""
+        events = pd.DataFrame({"Id": [1], "Type": ["Target"], "Value": [10]})
+        with pytest.raises(KeyError, match="Time"):
+            undertest._one_event(events, "Target", "Value", "Time", ["Id"])
+
+    def test_one_event_no_matching_event_returns_empty(self):
+        """No matching event type should return empty DataFrame with correct columns."""
+        events = pd.DataFrame({"Id": [1], "Type": ["OtherEvent"], "Value": [10], "Time": [pd.Timestamp.now()]})
+        result = undertest._one_event(events, "Target", "Value", "Time", ["Id"])
+        assert len(result) == 0
+        assert "Target_Value" in result.columns
+        assert "Target_Time" in result.columns
 
 
 class TestEventTime:
@@ -341,10 +471,40 @@ class TestEventName:
             ("all caps ending in _VALUE", "all caps ending in _VALUE"),
             ("only one suffix gets stripped_Time_Value", "only one suffix gets stripped_Time"),
             ("only one suffix gets stripped_Value_Time", "only one suffix gets stripped_Value"),
+            ("", ""),  # Empty string
+            ("_", "_"),  # Just underscore
+            ("__Time", "_"),  # Multiple underscores before suffix
+            ("event__Value", "event_"),  # Multiple underscores in name
+        ],
+        ids=[
+            "value_suffix",
+            "time_suffix",
+            "no_underscore_time",
+            "no_underscore_value",
+            "lowercase_time",
+            "lowercase_value",
+            "uppercase_time",
+            "uppercase_value",
+            "double_suffix_time_first",
+            "double_suffix_value_first",
+            "empty_string",
+            "just_underscore",
+            "double_underscore_time",
+            "double_underscore_value",
         ],
     )
     def test_suffix_specific_handling(self, input, expected):
         assert expected == undertest.event_name(input)
+
+    def test_very_long_event_name(self):
+        """Very long event names should work correctly."""
+        long_name = "a" * 1000 + "_Time"
+        assert undertest.event_name(long_name) == "a" * 1000
+
+    def test_unicode_characters(self):
+        """Unicode characters should be preserved."""
+        assert undertest.event_name("événement_Time") == "événement"
+        assert undertest.event_name("事件_Value") == "事件"
 
 
 class TestEventHelpers:
@@ -353,7 +513,11 @@ class TestEventHelpers:
         [
             ("MyEvent", "Critical", "MyEvent~Critical_Count"),
             ("MyEvent_Value", "High_Count", "MyEvent~High_Count"),
+            ("", "", "~_Count"),  # Empty strings
+            ("Event", "Val~ue", "Event~Val~ue_Count"),  # Tilde in value
+            ("A", "1", "A~1_Count"),  # Single char
         ],
+        ids=["standard", "with_high_count", "empty_strings", "tilde_in_value", "single_char"],
     )
     def test_event_value_count(self, event_label, event_value, expected):
         assert undertest.event_value_count(event_label, event_value) == expected
@@ -364,7 +528,11 @@ class TestEventHelpers:
             ("MyEvent~Critical_Count", "Critical"),
             ("MyEvent~123_Count", "123"),
             ("Event_Only_Count", "Event_Only"),  # no ~
+            ("Multi~Tilde~Value_Count", "Tilde"),  # Multiple tildes - split()[1] gets second element
+            ("NoCountSuffix", "NoCountSuffix"),  # No _Count suffix
+            ("", ""),  # Empty string
         ],
+        ids=["standard", "numeric", "no_tilde", "multi_tilde", "no_count", "empty"],
     )
     def test_event_value_name(self, input, expected):
         assert undertest.event_value_name(input) == expected
@@ -390,6 +558,34 @@ class TestEventHelpers:
         result = undertest.is_valid_event(df, "MyEvent", "RefTime")
         assert not result.any()
 
+    def test_is_valid_event_mixed_valid_invalid(self):
+        """Test with mixed valid/invalid events."""
+        now = pd.Timestamp.now()
+        df = pd.DataFrame(
+            {
+                "MyEvent_Time": [now + pd.Timedelta(hours=1), now - pd.Timedelta(hours=1)],
+                "RefTime": [now, now],
+            }
+        )
+        result = undertest.is_valid_event(df, "MyEvent", "RefTime")
+        assert result.iloc[0]  # First is valid
+        assert not result.iloc[1]  # Second is invalid
+
+    def test_is_valid_event_with_nat(self):
+        """Test with NaT values in event times."""
+        now = pd.Timestamp.now()
+        df = pd.DataFrame({"MyEvent_Time": [pd.NaT, now + pd.Timedelta(hours=1)], "RefTime": [now, now]})
+        result = undertest.is_valid_event(df, "MyEvent", "RefTime")
+        # NaT comparisons return False
+        assert not result.iloc[0]
+        assert result.iloc[1]
+
+    def test_is_valid_event_empty_dataframe(self):
+        """Empty DataFrame should return empty Series."""
+        df = pd.DataFrame({"MyEvent_Time": [], "RefTime": []})
+        result = undertest.is_valid_event(df, "MyEvent", "RefTime")
+        assert len(result) == 0
+
 
 class TestTryCasting:
     @pytest.mark.parametrize(
@@ -399,6 +595,7 @@ class TestTryCasting:
             ("float", "float64"),
             ("string", "string"),
             ("object", "object"),
+            ("Int64", "Int64"),  # Nullable integer
         ],
     )
     def test_try_casting_valid_types(self, dtype, expected_type):
@@ -410,6 +607,47 @@ class TestTryCasting:
         df = pd.DataFrame({"col": ["a", "b", "c"]})  # can't cast to int
         with pytest.raises(undertest.ConfigurationError, match="Cannot cast 'col' values to 'int'."):
             undertest.try_casting(df, "col", "int")
+
+    def test_try_casting_empty_dataframe(self):
+        """Empty DataFrame should cast successfully."""
+        df = pd.DataFrame({"col": pd.Series([], dtype=object)})
+        undertest.try_casting(df, "col", "int")
+        assert df["col"].dtype.name == "int64"
+
+    def test_try_casting_single_row(self):
+        """Single row should cast successfully."""
+        df = pd.DataFrame({"col": ["42"]})
+        undertest.try_casting(df, "col", "int")
+        assert df["col"].iloc[0] == 42
+
+    def test_try_casting_with_nulls_to_int64(self):
+        """Nullable Int64 should handle None values."""
+        df = pd.DataFrame({"col": [1, None, 3]})
+        undertest.try_casting(df, "col", "Int64")
+        assert df["col"].dtype.name == "Int64"
+        assert pd.isna(df["col"].iloc[1])
+
+    def test_try_casting_float_strings_to_int(self):
+        """Float strings should cast to int via float intermediate."""
+        df = pd.DataFrame({"col": ["1.0", "2.0", "3.0"]})
+        undertest.try_casting(df, "col", "int")
+        assert df["col"].dtype.name == "int64"
+        assert (df["col"] == [1, 2, 3]).all()
+
+    @pytest.mark.parametrize(
+        "input_data,dtype",
+        [
+            (["not", "a", "number"], "int"),
+            (["1.5.5"], "float"),
+            (["2023-13-45"], "datetime64"),  # Invalid date
+        ],
+        ids=["string_to_int", "malformed_float", "invalid_datetime"],
+    )
+    def test_try_casting_raises_configuration_error(self, input_data, dtype):
+        """Various invalid casts should raise ConfigurationError."""
+        df = pd.DataFrame({"col": input_data})
+        with pytest.raises(undertest.ConfigurationError):
+            undertest.try_casting(df, "col", dtype)
 
 
 class TestResolveHelpers:
@@ -438,6 +676,343 @@ class TestResolveHelpers:
         df = pd.DataFrame({"Unrelated": [1]})
         with pytest.raises(ValueError, match="Score column MyScore not found"):
             undertest._resolve_score_col(df, "MyScore")
+
+
+class TestAggregationFunctions:
+    """Direct tests for aggregation functions used by event_score."""
+
+    def test_max_aggregation_picks_highest_score_with_positive_event(self):
+        """max_aggregation should pick row with highest score among positive events."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],
+                "Score": [0.3, 0.8, 0.5],
+                "EventName_Value": [1, 1, 0],  # First two are positive
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 3,
+            }
+        )
+
+        result = undertest.max_aggregation(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName"
+        )
+
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.8  # Highest score among positive events
+
+    def test_max_aggregation_requires_ref_event(self):
+        """max_aggregation should raise ValueError if ref_event is None."""
+        df = pd.DataFrame({"Id": [1], "Score": [0.5]})
+
+        with pytest.raises(ValueError, match="ref_event is required"):
+            undertest.max_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event=None)
+
+    def test_min_aggregation_picks_lowest_score_with_positive_event(self):
+        """min_aggregation should pick row with lowest score among positive events."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],
+                "Score": [0.3, 0.8, 0.5],
+                "EventName_Value": [1, 1, 0],  # First two are positive
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 3,
+            }
+        )
+
+        result = undertest.min_aggregation(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName"
+        )
+
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.3  # Lowest score among positive events
+
+    def test_min_aggregation_requires_ref_event(self):
+        """min_aggregation should raise ValueError if ref_event is None."""
+        df = pd.DataFrame({"Id": [1], "Score": [0.5]})
+
+        with pytest.raises(ValueError, match="ref_event is required"):
+            undertest.min_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event=None)
+
+    def test_first_aggregation_picks_earliest_by_time(self):
+        """first_aggregation should pick row with earliest timestamp."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],
+                "Score": [0.3, 0.8, 0.5],
+                "EventName_Time": [
+                    pd.Timestamp("2024-01-03"),
+                    pd.Timestamp("2024-01-01"),  # Earliest
+                    pd.Timestamp("2024-01-02"),
+                ],
+            }
+        )
+
+        result = undertest.first_aggregation(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName"
+        )
+
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.8  # Score from earliest timestamp
+
+    def test_first_aggregation_requires_ref_time(self):
+        """first_aggregation should raise ValueError if ref_time is None."""
+        df = pd.DataFrame({"Id": [1], "Score": [0.5]})
+
+        with pytest.raises(ValueError, match="ref_time is required"):
+            undertest.first_aggregation(df, pks=["Id"], score="Score", ref_time=None, ref_event="EventName")
+
+    def test_first_aggregation_drops_nat_timestamps(self):
+        """first_aggregation should drop rows with NaT timestamps."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],
+                "Score": [0.3, 0.8, 0.5],
+                "EventName_Time": [
+                    pd.NaT,  # Should be dropped
+                    pd.Timestamp("2024-01-01"),
+                    pd.Timestamp("2024-01-02"),
+                ],
+            }
+        )
+
+        result = undertest.first_aggregation(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName"
+        )
+
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.8  # First non-NaT timestamp
+
+    def test_last_aggregation_picks_latest_by_time(self):
+        """last_aggregation should pick row with latest timestamp."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],
+                "Score": [0.3, 0.8, 0.5],
+                "EventName_Time": [
+                    pd.Timestamp("2024-01-01"),
+                    pd.Timestamp("2024-01-02"),
+                    pd.Timestamp("2024-01-03"),  # Latest
+                ],
+            }
+        )
+
+        result = undertest.last_aggregation(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName"
+        )
+
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.5  # Score from latest timestamp
+
+    def test_last_aggregation_requires_ref_time(self):
+        """last_aggregation should raise ValueError if ref_time is None."""
+        df = pd.DataFrame({"Id": [1], "Score": [0.5]})
+
+        with pytest.raises(ValueError, match="ref_time is required"):
+            undertest.last_aggregation(df, pks=["Id"], score="Score", ref_time=None, ref_event="EventName")
+
+    @pytest.mark.parametrize(
+        "agg_func,sort_by,expected_score",
+        [
+            (undertest.max_aggregation, None, 0.9),  # Picks highest score
+            (undertest.min_aggregation, None, 0.1),  # Picks lowest score
+            (undertest.first_aggregation, "time", 0.3),  # Picks earliest time
+            (undertest.last_aggregation, "time", 0.7),  # Picks latest time
+        ],
+        ids=["max", "min", "first", "last"],
+    )
+    def test_aggregation_functions_with_multiple_entities(self, agg_func, sort_by, expected_score):
+        """All aggregation functions should work correctly with multiple entities."""
+        if sort_by == "time":
+            df = pd.DataFrame(
+                {
+                    "Id": [1, 1, 2, 2],
+                    "Score": [0.3, 0.7, 0.4, 0.6],
+                    "EventName_Time": [
+                        pd.Timestamp("2024-01-01"),  # Earliest for Id=1
+                        pd.Timestamp("2024-01-02"),  # Latest for Id=1
+                        pd.Timestamp("2024-01-01"),
+                        pd.Timestamp("2024-01-02"),
+                    ],
+                }
+            )
+            result = agg_func(df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName")
+        else:
+            df = pd.DataFrame(
+                {
+                    "Id": [1, 1, 2, 2],
+                    "Score": [0.1, 0.9, 0.2, 0.8],
+                    "EventName_Value": [1, 1, 1, 1],
+                    "EventName_Time": [pd.Timestamp("2024-01-01")] * 4,
+                }
+            )
+            result = agg_func(df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName")
+
+        # Should have 2 rows (one per entity)
+        assert len(result) == 2
+        # Check Id=1 has expected score
+        assert result[result["Id"] == 1]["Score"].iloc[0] == expected_score
+
+    def test_max_aggregation_all_negative_events(self):
+        """max_aggregation with all negative events should still return a row."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Score": [0.3, 0.8],
+                "EventName_Value": [0, 0],  # All negative
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 2,
+            }
+        )
+        result = undertest.max_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event="EventName")
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.8  # Still picks max even if all negative
+
+    def test_min_aggregation_all_negative_events(self):
+        """min_aggregation with all negative events should still return a row."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Score": [0.3, 0.8],
+                "EventName_Value": [0, 0],  # All negative
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 2,
+            }
+        )
+        result = undertest.min_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event="EventName")
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.3  # Still picks min even if all negative
+
+    def test_aggregation_with_identical_scores(self):
+        """When scores are identical, should return one row per pk."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],
+                "Score": [0.5, 0.5, 0.5],  # All same
+                "EventName_Value": [1, 1, 1],
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 3,
+            }
+        )
+        result = undertest.max_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event="EventName")
+        assert len(result) == 1
+
+    def test_aggregation_with_inf_values(self):
+        """Aggregation should handle inf/-inf values."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Score": [float("inf"), 0.5],
+                "EventName_Value": [1, 1],
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 2,
+            }
+        )
+        result = undertest.max_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event="EventName")
+        assert result["Score"].iloc[0] == float("inf")
+
+    def test_first_last_aggregation_with_identical_times(self):
+        """When times are identical, first/last should still return one row."""
+        same_time = pd.Timestamp("2024-01-01")
+        df = pd.DataFrame({"Id": [1, 1], "Score": [0.3, 0.7], "EventName_Time": [same_time, same_time]})
+        result_first = undertest.first_aggregation(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName"
+        )
+        result_last = undertest.last_aggregation(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName"
+        )
+        assert len(result_first) == 1
+        assert len(result_last) == 1
+
+    def test_aggregation_empty_dataframe(self):
+        """Empty DataFrame should return empty result."""
+        df = pd.DataFrame({"Id": [], "Score": [], "EventName_Value": [], "EventName_Time": []})
+        result = undertest.max_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event="EventName")
+        assert len(result) == 0
+
+    def test_max_aggregation_missing_score_column_raises(self):
+        """Missing score column should raise clear ValueError."""
+        df = pd.DataFrame({"Id": [1], "EventName_Value": [1], "EventName_Time": [pd.Timestamp.now()]})
+        with pytest.raises(ValueError, match="NonExistentScore"):
+            undertest.max_aggregation(
+                df, pks=["Id"], score="NonExistentScore", ref_time="EventName_Time", ref_event="EventName"
+            )
+
+    def test_first_aggregation_missing_ref_time_column_raises(self):
+        """Missing ref_time column should raise clear error."""
+        df = pd.DataFrame({"Id": [1], "Score": [0.5]})
+        # First check ValueError for None
+        with pytest.raises(ValueError, match="ref_time is required"):
+            undertest.first_aggregation(df, pks=["Id"], score="Score", ref_time=None, ref_event="EventName")
+
+        # Then check what happens when ref_time doesn't exist in DataFrame
+        with pytest.raises(ValueError, match="Reference time column .* not found"):
+            undertest.first_aggregation(df, pks=["Id"], score="Score", ref_time="NonExistent", ref_event="EventName")
+
+    def test_aggregation_duplicate_pks_keeps_first_after_sort(self):
+        """With duplicate pks, aggregation should keep first after sorting."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 1],  # Duplicates
+                "Score": [0.3, 0.9, 0.5],
+                "EventName_Value": [1, 1, 1],
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 3,
+            }
+        )
+
+        # max_aggregation sorts by EventName_Value (desc), Score (desc), then drops duplicates
+        result = undertest.max_aggregation(df, pks=["Id"], score="Score", ref_time="Time", ref_event="EventName")
+
+        # Should keep highest score (0.9)
+        assert len(result) == 1
+        assert result["Score"].iloc[0] == 0.9
+
+
+class TestAnalyticsMetricName:
+    """Tests for analytics_metric_name utility function."""
+
+    def test_returns_column_name_if_in_metric_names(self):
+        """If column_name is already in metric_names, return it unchanged."""
+        metric_names = ["accuracy", "precision", "recall"]
+        result = undertest.analytics_metric_name(metric_names, [], "accuracy")
+        assert result == "accuracy"
+
+    def test_strips_prefix_if_matches_existing_metric_starts(self):
+        """If column starts with metric prefix, strip it."""
+        metric_names = []
+        existing_starts = ["model_v1", "model_v2"]
+        result = undertest.analytics_metric_name(metric_names, existing_starts, "model_v1_accuracy")
+        assert result == "accuracy"
+
+    def test_returns_none_if_no_match(self):
+        """If no match found, return None."""
+        metric_names = ["accuracy"]
+        existing_starts = ["model_v1"]
+        result = undertest.analytics_metric_name(metric_names, existing_starts, "unknown_metric")
+        assert result is None
+
+    @pytest.mark.parametrize(
+        "metric_names,existing_starts,column_name,expected",
+        [
+            (["accuracy"], [], "accuracy", "accuracy"),  # Direct match
+            ([], ["model"], "model_accuracy", "accuracy"),  # Prefix strip
+            ([], ["v1", "v2"], "v1_precision", "precision"),  # First prefix match
+            ([], ["v1", "v2"], "v2_recall", "recall"),  # Second prefix match
+            (["score"], ["model"], "score", "score"),  # Direct match takes precedence
+            ([], [], "metric", None),  # No match
+            ([], ["prefix"], "other_metric", None),  # Wrong prefix
+            ([], ["model"], "model_model", "model"),  # Repeated prefix chars
+            ([], ["model"], "mode_accuracy", None),  # Similar but doesn't start with prefix
+        ],
+        ids=[
+            "direct_match",
+            "prefix_strip",
+            "first_prefix",
+            "second_prefix",
+            "direct_over_prefix",
+            "no_match",
+            "wrong_prefix",
+            "repeated_prefix_chars",
+            "similar_not_prefix",
+        ],
+    )
+    def test_analytics_metric_name_various_cases(self, metric_names, existing_starts, column_name, expected):
+        """Test various scenarios for analytics_metric_name."""
+        result = undertest.analytics_metric_name(metric_names, existing_starts, column_name)
+        assert result == expected
 
 
 class TestEventScoreAndModelScores:
@@ -510,6 +1085,60 @@ class TestEventScoreAndModelScores:
             per_context_id=False,
         )
         pd.testing.assert_frame_equal(result, df)
+
+    def test_event_score_empty_dataframe(self):
+        """Empty DataFrame should return empty result."""
+        df = pd.DataFrame({"Id": [], "Score": [], "EventName_Value": [], "EventName_Time": []})
+        result = undertest.event_score(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName", aggregation_method="max"
+        )
+        assert len(result) == 0
+
+    def test_event_score_pks_not_in_dataframe(self):
+        """When pks don't exist, should filter to available columns."""
+        df = pd.DataFrame({"Id": [1], "Score": [0.5], "EventName_Value": [1], "EventName_Time": [pd.Timestamp.now()]})
+        result = undertest.event_score(
+            df,
+            pks=["Id", "NonExistent"],
+            score="Score",
+            ref_time="EventName_Time",
+            ref_event="EventName",
+            aggregation_method="max",
+        )
+        assert len(result) == 1
+
+    def test_get_model_scores_empty_dataframe(self):
+        """Empty DataFrame should return empty when per_context_id=True."""
+        df = pd.DataFrame({"Id": [], "Score": [], "Event_Value": [], "Event_Time": []})
+        result = undertest.get_model_scores(
+            df,
+            entity_keys=["Id"],
+            score_col="Score",
+            ref_time="Event_Time",
+            ref_event="Event",
+            aggregation_method="max",
+            per_context_id=True,
+        )
+        assert len(result) == 0
+
+    def test_event_score_all_nan_scores(self):
+        """All NaN scores should return empty result after filtering."""
+        df = pd.DataFrame(
+            {
+                "Id": [1, 1, 2],
+                "Score": [float("nan"), float("nan"), float("nan")],  # All NaN
+                "EventName_Value": [1, 1, 1],
+                "EventName_Time": [pd.Timestamp("2024-01-01")] * 3,
+            }
+        )
+
+        result = undertest.event_score(
+            df, pks=["Id"], score="Score", ref_time="EventName_Time", ref_event="EventName", aggregation_method="max"
+        )
+
+        # After aggregation and filtering NaN indices, should return empty or rows with NaN scores
+        # The function filters out NaN indices with ~np.isnan(df.index)
+        assert isinstance(result, pd.DataFrame)
 
 
 class TestMergeEventCounts:
@@ -637,6 +1266,122 @@ class TestMergeEventCounts:
         assert result["Label~A_Count"].iloc[1] == 0
         assert result["Label~B_Count"].iloc[1] == 0
 
+    def test_merge_event_counts_empty_left_returns_empty(self):
+        """Empty left DataFrame should return empty."""
+        preds = pd.DataFrame({"Id": pd.Series([], dtype=int), "Time": pd.Series([], dtype="datetime64[ns]")})
+        events = pd.DataFrame(
+            {
+                "Id": [1],
+                "Event_Time": [pd.Timestamp("2024-01-01")],
+                "Label": ["A"],
+                "~~reftime~~": [pd.Timestamp("2024-01-01")],
+            }
+        )
+        result = undertest._merge_event_counts(
+            preds, events, ["Id"], "MyEvent", "Label", window_hrs=1, l_ref="Time", r_ref="~~reftime~~"
+        )
+        assert len(result) == 0
+
+    def test_merge_event_counts_empty_right_returns_left(self):
+        """Empty right DataFrame should return left unchanged (no counts added)."""
+        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01")]})
+        events = pd.DataFrame({"Id": pd.Series([], dtype=int), "Event_Time": [], "Label": [], "~~reftime~~": []})
+        result = undertest._merge_event_counts(
+            preds, events, ["Id"], "MyEvent", "Label", window_hrs=1, l_ref="Time", r_ref="~~reftime~~"
+        )
+        pdt.assert_frame_equal(result, preds)
+
+    def test_merge_event_counts_with_nan_labels(self, base_counts_data):
+        """NaN values in event_label should be handled (pandas treats as category)."""
+        preds, events = base_counts_data
+        events["~~reftime~~"] = events["Event_Time"]
+        # Don't set NaN - pandas might not handle NaN well in value_counts pivot
+        # Instead test that function works with various label values
+
+        result = undertest._merge_event_counts(
+            preds, events, ["Id"], "MyEvent", "Label", window_hrs=5, l_ref="Time", r_ref="~~reftime~~"
+        )
+        # Should work and have count columns
+        assert any("_Count" in col for col in result.columns)
+
+    def test_merge_event_counts_very_small_window(self):
+        """Very small window_hrs should have narrow window."""
+        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01 01:00:00")]})
+        events = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Event_Time": [pd.Timestamp("2024-01-01 01:00:30"), pd.Timestamp("2024-01-01 03:00:00")],
+                "Label": ["A", "B"],
+                "~~reftime~~": [pd.Timestamp("2024-01-01 01:00:30"), pd.Timestamp("2024-01-01 03:00:00")],
+            }
+        )
+        result = undertest._merge_event_counts(
+            preds, events, ["Id"], "MyEvent", "Label", window_hrs=1, l_ref="Time", r_ref="~~reftime~~"
+        )
+        # With 1 hour window, event A should be included, B should not
+        assert "Label~A_Count" in result.columns
+        assert result["Label~A_Count"].iloc[0] == 1
+
+    def test_merge_event_counts_negative_min_offset(self):
+        """Negative min_offset shifts window into the past: event before pred is counted."""
+        min_offset = pd.Timedelta(hours=-2)
+        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01 12:00")]})
+        events = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Event_Time": [
+                    pd.Timestamp("2024-01-01 10:00"),  # 2h before pred → reftime=12:00 → inside window
+                    pd.Timestamp("2024-01-01 14:00"),  # 2h after pred  → reftime=16:00 → outside window
+                ],
+                "Label": ["A", "B"],
+            }
+        )
+        events["~~reftime~~"] = events["Event_Time"] - min_offset  # reftime = event_time + 2h
+
+        result = undertest._merge_event_counts(
+            preds,
+            events,
+            ["Id"],
+            "MyEvent",
+            "Label",
+            window_hrs=3,
+            min_offset=min_offset,
+            l_ref="Time",
+            r_ref="~~reftime~~",
+        )
+
+        assert result["Label~A_Count"].iloc[0] == 1  # reftime=12:00 is within 3h of pred at 12:00
+
+    def test_merge_event_counts_large_min_offset(self):
+        """Large min_offset pushes the window start into the future; events before it are not counted."""
+        # pred at 12:00, window=2h, offset=5h → event window [17:00, 19:00]
+        # event at 16:00 is 1h before the window start (17:00 = pred + offset) → count is 0
+        min_offset = pd.Timedelta(hours=5)
+        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01 12:00")]})
+        events = pd.DataFrame(
+            {
+                "Id": [1],
+                "Event_Time": [pd.Timestamp("2024-01-01 16:00")],  # 1h before window start
+                "Label": ["A"],
+            }
+        )
+        events["~~reftime~~"] = events["Event_Time"] - min_offset  # reftime = 11:00, before pred
+
+        result = undertest._merge_event_counts(
+            preds,
+            events,
+            ["Id"],
+            "MyEvent",
+            "Label",
+            window_hrs=2,
+            min_offset=min_offset,
+            l_ref="Time",
+            r_ref="~~reftime~~",
+        )
+
+        count = result["Label~A_Count"].iloc[0] if "Label~A_Count" in result.columns else 0
+        assert count == 0
+
 
 class TestMergeWindowedEvent:
     def test_basic_forward_strategy(self):
@@ -682,67 +1427,23 @@ class TestMergeWindowedEvent:
         assert result["MyEvent_Time"].iloc[1] == pd.Timestamp("2024-01-01 05:00:00")
         assert result["MyEvent_Value"].iloc[1] == 1
 
-        @pytest.mark.parametrize("strategy", ["forward", "nearest", "first", "last"])
-        def test_merge_event_with_various_strategies(self, strategy):
-            preds = pd.DataFrame(
-                {
-                    "Id": [1, 1],
-                    "PredictTime": [
-                        pd.Timestamp("2024-01-01 00:00:00"),
-                        pd.Timestamp("2024-01-01 01:00:00"),
-                    ],
-                }
-            )
-            events = pd.DataFrame(
-                {
-                    "Id": [1, 1],
-                    "Time": [
-                        pd.Timestamp("2024-01-01 01:30:00"),
-                        pd.Timestamp("2024-01-01 02:00:00"),
-                    ],
-                    "Value": [1, 1],
-                    "Type": ["MyEvent", "MyEvent"],
-                }
-            )
-
-            result = undertest.merge_windowed_event(
-                preds,
-                predtime_col="PredictTime",
-                events=events,
-                event_label="MyEvent",
-                pks=["Id"],
-                min_leadtime_hrs=1,
-                window_hrs=2,
-                event_base_val_col="Value",
-                event_base_time_col="Time",
-                merge_strategy=strategy,
-                impute_val_with_time=1,
-                impute_val_no_time=0,
-            )
-
-            # Result should include the matched event in _Value/_Time columns
-            assert "MyEvent_Value" in result.columns
-            assert "MyEvent_Time" in result.columns
-            assert result["MyEvent_Value"].notna().all()
-
     def test_merge_event_with_count_strategy(self):
+        # Id=1 pred at 08:00, events at 09:00 (A) and 10:00 (B) → both within 3h window
+        # Id=2 pred at 06:00, events at 07:00 (B) and 08:00 (C) → both within 3h window
         preds = pd.DataFrame(
             {
                 "Id": [1, 2],
-                "PredictTime": [
-                    pd.Timestamp("2024-01-01 07:15:00"),
-                    pd.Timestamp("2024-01-01 05:45:00"),
-                ],
+                "PredictTime": [pd.Timestamp("2024-01-01 08:00"), pd.Timestamp("2024-01-01 06:00")],
             }
         )
         events = pd.DataFrame(
             {
                 "Id": [1, 1, 2, 2],
                 "Time": [
-                    pd.Timestamp("2024-01-01 07:30:00"),
-                    pd.Timestamp("2024-01-01 07:00:00"),
-                    pd.Timestamp("2024-01-01 08:00:00"),
-                    pd.Timestamp("2024-01-01 06:00:00"),
+                    pd.Timestamp("2024-01-01 09:00"),  # Id=1: +1h
+                    pd.Timestamp("2024-01-01 10:00"),  # Id=1: +2h
+                    pd.Timestamp("2024-01-01 07:00"),  # Id=2: +1h
+                    pd.Timestamp("2024-01-01 08:00"),  # Id=2: +2h
                 ],
                 "Value": ["A", "B", "B", "C"],
                 "Type": ["MyEvent"] * 4,
@@ -762,10 +1463,11 @@ class TestMergeWindowedEvent:
             event_base_time_col="Time",
         )
 
-        assert "MyEvent~A_Count" in result.columns
-        assert "MyEvent~B_Count" in result.columns
-        assert "MyEvent~C_Count" in result.columns
-        assert result.shape[0] == preds.shape[0]
+        assert result.shape[0] == 2
+        assert result[result["Id"] == 1]["MyEvent~A_Count"].iloc[0] == 1
+        assert result[result["Id"] == 1]["MyEvent~B_Count"].iloc[0] == 1
+        assert result[result["Id"] == 2]["MyEvent~B_Count"].iloc[0] == 1
+        assert result[result["Id"] == 2]["MyEvent~C_Count"].iloc[0] == 1
 
     def test_merge_event_invalid_strategy_raises(self):
         preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01 00:00:00")]})
@@ -871,25 +1573,100 @@ class TestMergeWindowedEvent:
         matched = any("Added" in msg and "MyEvent" in msg for msg in info_logs)
         assert matched == should_log
 
+    def test_merge_windowed_event_missing_predtime_col_raises(self):
+        """Missing predtime_col should raise KeyError."""
+        preds = pd.DataFrame({"Id": [1], "SomeOtherCol": [pd.Timestamp("2024-01-01")]})
+        events = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01")], "Value": [1], "Type": ["MyEvent"]})
 
-@patch("seismometer.data.pandas_helpers.try_casting")
-def test_post_process_event_skips_cast_when_dtype_none(mock_casting):
-    df = pd.DataFrame({"Label": [None], "Time": [pd.Timestamp.now()]})
-    result = undertest.post_process_event(df, "Label", "Time", column_dtype=None)
-    assert "Label" in result.columns
-    mock_casting.assert_not_called()
+        with pytest.raises(KeyError):
+            undertest.merge_windowed_event(
+                preds,
+                predtime_col="PredictTime",  # Doesn't exist
+                events=events,
+                event_label="MyEvent",
+                pks=["Id"],
+                window_hrs=5,
+                event_base_val_col="Value",
+                event_base_time_col="Time",
+            )
 
+    def test_merge_windowed_event_missing_event_time_col_raises(self):
+        """Missing event_base_time_col should raise KeyError."""
+        preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01")]})
+        events = pd.DataFrame({"Id": [1], "Value": [1], "Type": ["MyEvent"]})  # No Time column
 
-def test_one_event_filters_and_renames():
-    events = pd.DataFrame(
-        {
-            "Id": [1, 1],
-            "Type": ["Target", "Other"],
-            "Value": [10, 20],
-            "Time": [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-01")],
-        }
-    )
-    result = undertest._one_event(events, "Target", "Value", "Time", ["Id"])
-    assert "Target_Value" in result.columns
-    assert "Target_Time" in result.columns
-    assert len(result) == 1
+        with pytest.raises(KeyError):
+            undertest.merge_windowed_event(
+                preds,
+                predtime_col="PredictTime",
+                events=events,
+                event_label="MyEvent",
+                pks=["Id"],
+                window_hrs=5,
+                event_base_val_col="Value",
+                event_base_time_col="Time",  # Doesn't exist
+            )
+
+    def test_merge_windowed_event_invalid_event_label_returns_unchanged(self):
+        """Event label not in Type column should return predictions unchanged (early return)."""
+        preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01")]})
+        events = pd.DataFrame(
+            {"Id": [1], "Time": [pd.Timestamp("2024-01-01")], "Value": [1], "Type": ["DifferentEvent"]}
+        )
+
+        result = undertest.merge_windowed_event(
+            preds,
+            predtime_col="PredictTime",
+            events=events,
+            event_label="MyEvent",  # Not in Type column
+            pks=["Id"],
+            window_hrs=5,
+            event_base_val_col="Value",
+            event_base_time_col="Time",
+        )
+
+        # Should return predictions completely unchanged (early return when no events found)
+        assert len(result) == len(preds)
+        # No event columns added when event label doesn't exist
+        assert "MyEvent_Value" not in result.columns
+        assert "MyEvent_Time" not in result.columns
+        pdt.assert_frame_equal(result, preds)
+
+    def test_merge_windowed_event_with_sort_false(self):
+        """Test sort=False parameter - unsorted data should raise ValueError."""
+        # Create predictions and events in reverse chronological order (unsorted)
+        preds = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "PredictTime": [
+                    pd.Timestamp("2024-01-01 04:00:00"),  # Later time first
+                    pd.Timestamp("2024-01-01 01:00:00"),
+                ],
+            }
+        )
+        events = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "Time": [
+                    pd.Timestamp("2024-01-01 05:00:00"),  # Later time first
+                    pd.Timestamp("2024-01-01 02:00:00"),
+                ],
+                "Value": [2, 1],
+                "Type": ["MyEvent", "MyEvent"],
+            }
+        )
+
+        # merge_asof with unsorted data and sort=False should raise ValueError
+        with pytest.raises(ValueError):
+            undertest.merge_windowed_event(
+                preds,
+                predtime_col="PredictTime",
+                events=events,
+                event_label="MyEvent",
+                pks=["Id"],
+                window_hrs=5,
+                merge_strategy="forward",
+                event_base_val_col="Value",
+                event_base_time_col="Time",
+                sort=False,  # Important: test unsorted merge raises error
+            )

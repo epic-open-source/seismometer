@@ -53,28 +53,62 @@ def expected_score_target_summary_cuts(res):
 
 class Test_Summaries:
     @patch.object(seismogram, "Seismogram", return_value=Mock())
-    def test_default_summaries(self, mock_seismo, prediction_data, expected_default_summary):
+    @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
+    def test_default_summaries(self, mock_seismo, aggregation_method, prediction_data, expected_default_summary):
+        """Test default_cohort_summaries with different aggregation methods.
+
+        Note: expected_default_summary is based on 'max' aggregation.
+        For other methods, we verify the function runs without error and returns valid structure.
+        """
         fake_seismo = mock_seismo()
         fake_seismo.output = "Score"
         fake_seismo.target = "Target"
-        fake_seismo.event_aggregation_method = lambda x: "max"
+        fake_seismo.predict_time = "Target_Time"  # Required for first/last aggregation
+        fake_seismo.event_aggregation_method = lambda x: aggregation_method
         actual = undertest.default_cohort_summaries(prediction_data, "Has_ECG", [1, 2, 3, 4, 5], "ID")
-        pd.testing.assert_frame_equal(actual, expected_default_summary, check_names=False)
+
+        # Verify structure regardless of aggregation method
+        assert len(actual) == 5
+        assert actual.index.tolist() == [1, 2, 3, 4, 5]
+        assert "Entities" in actual.columns
+        assert "Predictions" in actual.columns
+
+        # For 'max' method, also verify exact values match expected
+        if aggregation_method == "max":
+            pd.testing.assert_frame_equal(actual, expected_default_summary, check_names=False)
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
+    @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
     def test_score_target_summaries(
-        self, mock_seismo, prediction_data, expected_score_target_summary, expected_score_target_summary_cuts
+        self,
+        mock_seismo,
+        aggregation_method,
+        prediction_data,
+        expected_score_target_summary,
+        expected_score_target_summary_cuts,
     ):
+        """Test score_target_cohort_summaries with different aggregation methods.
+
+        Note: expected_score_target_summary is based on 'max' aggregation.
+        For other methods, we verify the function runs without error and returns valid structure.
+        """
         fake_seismo = mock_seismo()
         fake_seismo.output = "Score"
         fake_seismo.target = "Target"
-        fake_seismo.event_aggregation_method = lambda x: "max"
+        fake_seismo.predict_time = "Target_Time"  # Required for first/last aggregation
+        fake_seismo.event_aggregation_method = lambda x: aggregation_method
         groupby_groups = ["Has_ECG", expected_score_target_summary_cuts]
         grab_groups = ["Has_ECG", "Score"]
-        pd.testing.assert_frame_equal(
-            undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID"),
-            expected_score_target_summary,
-        )
+        actual = undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID")
+
+        # Verify structure regardless of aggregation method
+        assert isinstance(actual, pd.DataFrame)
+        assert "Entities" in actual.columns
+        assert len(actual) > 0
+
+        # For 'max' method, also verify exact values match expected
+        if aggregation_method == "max":
+            pd.testing.assert_frame_equal(actual, expected_score_target_summary)
 
     @patch.object(seismogram, "Seismogram", return_value=Mock())
     @pytest.mark.parametrize("aggregation_method", ["min", "max", "first", "last"])
@@ -113,3 +147,98 @@ class Test_Summaries:
 
         # Ensuring they produce the same number of entities for each score-target-cohort group
         assert entities_event_score.tolist() == entities_summary.tolist()
+
+
+class TestDefaultCohortSummariesErrorHandling:
+    """Test error handling for default_cohort_summaries()."""
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_missing_entity_id_col(self, mock_seismo, prediction_data):
+        """Test default_cohort_summaries with missing entity_id_col."""
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        # Missing entity_id_col causes ValueError in pandas drop_duplicates
+        with pytest.raises(ValueError):
+            undertest.default_cohort_summaries(prediction_data, "Has_ECG", [1, 2, 3], "ID_MISSING")
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_invalid_attribute_column(self, mock_seismo, prediction_data):
+        """Test default_cohort_summaries with invalid attribute column."""
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        with pytest.raises(KeyError, match="INVALID_ATTR"):
+            undertest.default_cohort_summaries(prediction_data, "INVALID_ATTR", [1, 2, 3], "ID")
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_empty_dataframe(self, mock_seismo):
+        """Test default_cohort_summaries with empty dataframe."""
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target_Time"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        empty_df = pd.DataFrame(
+            {"ID": [], "Has_ECG": [], "Score": [], "Target": [], "Target_Time": [], "Target_Value": []}
+        )
+        result = undertest.default_cohort_summaries(empty_df, "Has_ECG", [1, 2, 3], "ID")
+
+        # Should return a dataframe with options as index but NaN values
+        assert len(result) == 3
+        assert result.index.tolist() == [1, 2, 3]
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_seismogram_none_values(self, mock_seismo, prediction_data):
+        """Test default_cohort_summaries with sg.output/sg.target = None."""
+        fake_seismo = mock_seismo()
+        fake_seismo.output = None  # This will cause AttributeError in event_value()
+        fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target_Time"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        # event_score will fail when trying to call .endswith() on None
+        with pytest.raises(AttributeError):
+            undertest.default_cohort_summaries(prediction_data, "Has_ECG", [1, 2, 3], "ID")
+
+
+class TestScoreTargetCohortSummariesErrorHandling:
+    """Test error handling for score_target_cohort_summaries()."""
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_misaligned_groups(self, mock_seismo, prediction_data):
+        """Test score_target_cohort_summaries with misaligned groupby and grab groups."""
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        # groupby_groups contains column that's not in grab_groups
+        groupby_groups = ["Has_ECG", "Target_Value"]
+        grab_groups = ["Has_ECG"]  # Missing Target_Value
+
+        # This should fail because groupby references columns not in grab
+        with pytest.raises((KeyError, ValueError)):
+            undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID")
+
+    @patch.object(seismogram, "Seismogram", return_value=Mock())
+    def test_missing_columns(self, mock_seismo, prediction_data):
+        """Test score_target_cohort_summaries with missing columns in dataframe."""
+        fake_seismo = mock_seismo()
+        fake_seismo.output = "Score"
+        fake_seismo.target = "Target"
+        fake_seismo.predict_time = "Target"
+        fake_seismo.event_aggregation_method = lambda x: "max"
+
+        groupby_groups = ["MISSING_COL"]
+        grab_groups = ["MISSING_COL"]
+
+        with pytest.raises(KeyError, match="MISSING_COL"):
+            undertest.score_target_cohort_summaries(prediction_data, groupby_groups, grab_groups, "ID")

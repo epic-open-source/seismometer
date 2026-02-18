@@ -6,7 +6,19 @@ from IPython.display import HTML, SVG
 from ipywidgets import HTML as WidgetHTML
 
 from seismometer import Seismogram
-from seismometer.api.explore import ExplorationWidget, ExploreBinaryModelMetrics, cohort_list_details
+from seismometer.api.explore import (
+    ExplorationWidget,
+    ExploreBinaryModelMetrics,
+    ExploreCohortEvaluation,
+    ExploreCohortHistograms,
+    ExploreCohortLeadTime,
+    ExploreCohortOutcomeInterventionTimes,
+    ExploreModelEvaluation,
+    ExploreModelScoreComparison,
+    ExploreModelTargetComparison,
+    ExploreSubgroups,
+    cohort_list_details,
+)
 from seismometer.api.plots import (
     _model_evaluation,
     _plot_cohort_evaluation,
@@ -18,6 +30,7 @@ from seismometer.api.plots import (
     plot_cohort_lead_time,
     plot_intervention_outcome_timeseries,
     plot_leadtime_enc,
+    plot_model_evaluation,
     plot_model_score_comparison,
     plot_model_target_comparison,
     plot_trend_intervention_outcome,
@@ -770,3 +783,198 @@ class TestExplorationWidgetErrorHandling:
         assert isinstance(result, WidgetHTML)
         assert "Traceback" in result.value
         assert "kaboom" in result.value
+
+
+# ============================================================================
+# WIDGET INITIALIZATION TESTS
+# ============================================================================
+
+
+class TestWidgetClassInitialization:
+    """Test that all widget classes can be initialized successfully."""
+
+    def test_explore_subgroups_initialization(self, fake_seismo):
+        """Test ExploreSubgroups widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreSubgroups()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+            assert widget.plot_function == cohort_list_details
+
+    def test_explore_model_evaluation_initialization(self, fake_seismo):
+        """Test ExploreModelEvaluation widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreModelEvaluation()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+            assert widget.plot_function == plot_model_evaluation
+
+    def test_explore_model_score_comparison_initialization(self, fake_seismo):
+        """Test ExploreModelScoreComparison widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreModelScoreComparison()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+            assert widget.plot_function == plot_model_score_comparison
+
+    def test_explore_model_target_comparison_initialization(self, fake_seismo):
+        """Test ExploreModelTargetComparison widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreModelTargetComparison()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+            assert widget.plot_function == plot_model_target_comparison
+
+    def test_explore_cohort_evaluation_initialization(self, fake_seismo):
+        """Test ExploreCohortEvaluation widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreCohortEvaluation()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+            # Note: plot_function is wrapped by the parent class
+
+    def test_explore_cohort_histograms_initialization(self, fake_seismo):
+        """Test ExploreCohortHistograms widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreCohortHistograms()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+
+    def test_explore_cohort_lead_time_initialization(self, fake_seismo):
+        """Test ExploreCohortLeadTime widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreCohortLeadTime()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+
+    def test_explore_cohort_outcome_intervention_times_initialization(self, fake_seismo):
+        """Test ExploreCohortOutcomeInterventionTimes widget initialization."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreCohortOutcomeInterventionTimes()
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+            assert widget.plot_function == plot_intervention_outcome_timeseries
+
+    @pytest.mark.parametrize("rho,expected_rho", [(None, 1 / 3), (0.0, 1 / 3), (0.5, 0.5), (1.0, 1.0)])
+    def test_explore_binary_model_metrics_initialization_with_rho(self, fake_seismo, rho, expected_rho):
+        """Test ExploreBinaryModelMetrics widget initialization with different rho values."""
+        with patch("seismometer.seismogram.Seismogram", return_value=fake_seismo):
+            widget = ExploreBinaryModelMetrics(rho=rho)
+            assert widget is not None
+            assert hasattr(widget, "plot_function")
+            assert hasattr(widget, "metric_generator")
+            assert isinstance(widget.metric_generator, BinaryClassifierMetricGenerator)
+            # Verify rho is set correctly (0.0 and None use default 1/3)
+            assert abs(widget.metric_generator.rho - expected_rho) < 1e-10
+
+
+# ============================================================================
+# cohort_list() EDGE CASES
+# ============================================================================
+
+
+class TestCohortListFunction:
+    """Test edge cases and error handling for cohort_list_details function.
+
+    Note: cohort_list() widget creation is already tested in TestExploreSubgroups.test_cohort_list_widget_rendering
+    """
+
+    @patch("seismometer.html.template.render_title_message", return_value=HTML("summary"))
+    @patch("seismometer.data.filter.filter_rule_from_cohort_dictionary")
+    @patch("seismometer.seismogram.Seismogram")
+    def test_cohort_list_details_with_empty_cohort_dict(self, mock_seismo, mock_filter, mock_render, fake_seismo):
+        """Test cohort_list_details with empty cohort dictionary."""
+        mock_seismo.return_value = fake_seismo
+
+        # Empty dictionary should use all data (no filtering)
+        rule = MagicMock()
+        rule.filter.return_value = fake_seismo.dataframe
+        mock_filter.return_value = rule
+
+        result = cohort_list_details({})
+
+        assert isinstance(result, HTML)
+        mock_filter.assert_called_once_with({})
+
+    @patch("seismometer.data.filter.filter_rule_from_cohort_dictionary")
+    @patch("seismometer.seismogram.Seismogram")
+    def test_cohort_list_details_exception_handling(self, mock_seismo, mock_filter, fake_seismo):
+        """Test cohort_list_details exception handling when filtering fails."""
+        mock_seismo.return_value = fake_seismo
+
+        # Simulate filter failure
+        mock_filter.side_effect = KeyError("Invalid cohort column")
+
+        with pytest.raises(KeyError, match="Invalid cohort column"):
+            cohort_list_details({"InvalidColumn": ["Value"]})
+
+    @patch("seismometer.html.template.render_censored_plot_message", return_value=HTML("censored"))
+    @patch("seismometer.data.filter.filter_rule_from_cohort_dictionary")
+    @patch("seismometer.seismogram.Seismogram")
+    def test_cohort_list_details_below_censor_threshold(self, mock_seismo, mock_filter, mock_render, fake_seismo):
+        """Test cohort_list_details when data is below censor threshold."""
+        fake_seismo.config.censor_min_count = 100
+        mock_seismo.return_value = fake_seismo
+
+        rule = MagicMock()
+        rule.filter.return_value = fake_seismo.dataframe
+        mock_filter.return_value = rule
+
+        result = cohort_list_details({"Cohort": ["C1"]})
+
+        assert "censored" in result.data.lower()
+        mock_render.assert_called_once()
+
+    @patch("seismometer.html.template.render_title_message", return_value=HTML("summary"))
+    @patch("seismometer.data.filter.filter_rule_from_cohort_dictionary")
+    @patch("seismometer.seismogram.Seismogram")
+    def test_cohort_list_details_with_no_context_id(self, mock_seismo, mock_filter, mock_render, fake_seismo):
+        """Test cohort_list_details when context_id is None."""
+        fake_seismo.config.context_id = None
+        mock_seismo.return_value = fake_seismo
+
+        rule = MagicMock()
+        rule.filter.return_value = fake_seismo.dataframe
+        mock_filter.return_value = rule
+
+        result = cohort_list_details({"Cohort": ["C1", "C2"]})
+
+        assert isinstance(result, HTML)
+        mock_render.assert_called_once()
+
+    @patch("seismometer.html.template.render_title_message", return_value=HTML("summary"))
+    @patch("seismometer.data.filter.filter_rule_from_cohort_dictionary")
+    @patch("seismometer.seismogram.Seismogram")
+    def test_cohort_list_details_with_multiple_targets(self, mock_seismo, mock_filter, mock_render, fake_seismo):
+        """Test cohort_list_details with multiple target events."""
+        fake_seismo.config.targets = ["event1", "event2", "event3"]
+        mock_seismo.return_value = fake_seismo
+
+        rule = MagicMock()
+        rule.filter.return_value = fake_seismo.dataframe
+        mock_filter.return_value = rule
+
+        result = cohort_list_details({"Cohort": ["C1", "C2"]})
+
+        assert isinstance(result, HTML)
+        assert "summary" in result.data
+
+    @patch("seismometer.html.template.render_title_message", return_value=HTML("summary"))
+    @patch("seismometer.data.filter.filter_rule_from_cohort_dictionary")
+    @patch("seismometer.seismogram.Seismogram")
+    def test_cohort_list_details_with_no_interventions_or_outcomes(
+        self, mock_seismo, mock_filter, mock_render, fake_seismo
+    ):
+        """Test cohort_list_details when interventions/outcomes are empty."""
+        fake_seismo.config.interventions = {}
+        fake_seismo.config.outcomes = {}
+        mock_seismo.return_value = fake_seismo
+
+        rule = MagicMock()
+        rule.filter.return_value = fake_seismo.dataframe
+        mock_filter.return_value = rule
+
+        result = cohort_list_details({"Cohort": ["C1"]})
+
+        assert isinstance(result, HTML)
+        assert "summary" in result.data

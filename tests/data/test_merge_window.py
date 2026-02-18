@@ -1067,6 +1067,138 @@ class TestMergeWindowedEvent:
                 merge_strategy=merge_strat,
             )
 
+    @pytest.mark.parametrize(
+        "min_leadtime,window,expected_val",
+        [
+            (0, 1, 1),  # Very narrow window - gets first event
+            (0, 24, 1),  # Standard day window - gets first event
+            (0, 168, 1),  # Week window - gets first event
+            (-1, 2, 1),  # Negative leadtime (look into past) - gets first event
+            (12, 12, 0),  # Large offset, narrow window - no events, imputed to 0
+        ],
+        ids=["narrow_1hr", "day_24hr", "week_168hr", "negative_leadtime", "large_offset"],
+    )
+    def test_merge_forward_various_windows(self, min_leadtime, window, expected_val):
+        """Test forward merge with various window and offset combinations."""
+        predictions = create_prediction_table([1], [1], ["2024-01-01 12:00:00"])
+        events = create_event_table(
+            [1, 1, 1],
+            [1, 1, 1],
+            "TestEvent",
+            event_times=[
+                pd.Timestamp("2024-01-01 13:00:00"),  # 1hr after
+                pd.Timestamp("2024-01-02 00:00:00"),  # 12hr after
+                pd.Timestamp("2024-01-04 12:00:00"),  # 3 days after
+            ],
+            event_values=[1, 2, 3],
+        )
+
+        result = undertest.merge_windowed_event(
+            predictions,
+            "PredictTime",
+            events,
+            "TestEvent",
+            ["Id"],
+            min_leadtime_hrs=min_leadtime,
+            window_hrs=window,
+            merge_strategy="forward",
+        )
+
+        assert result["TestEvent_Value"].iloc[0] == expected_val
+
+    def test_merge_with_very_large_window(self):
+        """Very large window should include all events."""
+        predictions = create_prediction_table([1], [1], ["2024-01-01 00:00:00"])
+        events = create_event_table(
+            [1], [1], "TestEvent", event_times=[pd.Timestamp("2025-01-01 00:00:00")], event_values=[1]
+        )
+
+        result = undertest.merge_windowed_event(
+            predictions,
+            "PredictTime",
+            events,
+            "TestEvent",
+            ["Id"],
+            window_hrs=10000,  # Very large
+            merge_strategy="forward",
+        )
+
+        assert result["TestEvent_Value"].iloc[0] == 1
+
+    def test_merge_with_duplicate_primary_keys(self):
+        """Duplicate pks in predictions should all get merged."""
+        predictions = create_prediction_table([1, 1], [1, 1], ["2024-01-01 01:00:00", "2024-01-01 02:00:00"])
+        events = create_event_table(
+            [1], [1], "TestEvent", event_times=[pd.Timestamp("2024-01-01 03:00:00")], event_values=[1]
+        )
+
+        result = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, "TestEvent", ["Id"], window_hrs=12, merge_strategy="forward"
+        )
+
+        assert len(result) == 2
+        assert result["TestEvent_Value"].iloc[0] == 1
+        assert result["TestEvent_Value"].iloc[1] == 1
+
+    def test_merge_preserves_other_columns(self):
+        """Merge should preserve all original columns in predictions."""
+        predictions = pd.DataFrame(
+            {
+                "Id": ["1"],  # String to match create_event_table
+                "CtxId": [1],
+                "PredictTime": [pd.Timestamp("2024-01-01 01:00:00")],
+                "Score": [0.75],
+                "Extra": ["data"],
+            }
+        )
+        events = create_event_table(
+            [1], [1], "TestEvent", event_times=[pd.Timestamp("2024-01-01 02:00:00")], event_values=[1]
+        )
+
+        result = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, "TestEvent", ["Id"], window_hrs=12, merge_strategy="forward"
+        )
+
+        assert "Score" in result.columns
+        assert "Extra" in result.columns
+        assert result["Score"].iloc[0] == 0.75
+        assert result["Extra"].iloc[0] == "data"
+
+    def test_merge_with_all_events_before_prediction(self):
+        """All events before prediction should result in NaT/0."""
+        predictions = create_prediction_table([1], [1], ["2024-01-10 00:00:00"])
+        events = create_event_table(
+            [1, 1],
+            [1, 1],
+            "TestEvent",
+            event_times=[pd.Timestamp("2024-01-01 00:00:00"), pd.Timestamp("2024-01-02 00:00:00")],
+            event_values=[1, 1],
+        )
+
+        result = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, "TestEvent", ["Id"], window_hrs=24, merge_strategy="forward"
+        )
+
+        assert pd.isna(result["TestEvent_Time"].iloc[0])
+        assert result["TestEvent_Value"].iloc[0] == 0
+
+    def test_empty_predictions_dataframe(self):
+        """Empty predictions should return empty result with expected columns."""
+        predictions = pd.DataFrame({"Id": [], "CtxId": [], "PredictTime": []})
+        predictions["Id"] = predictions["Id"].astype(str)
+        predictions["PredictTime"] = pd.to_datetime(predictions["PredictTime"])
+
+        events = create_event_table([1], [1], "TestEvent", event_times=[pd.Timestamp("2024-01-01")], event_values=[1])
+
+        result = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, "TestEvent", ["Id"], window_hrs=24, merge_strategy="forward"
+        )
+
+        assert len(result) == 0
+        # Should have the event columns even if empty
+        assert "TestEvent_Value" in result.columns
+        assert "TestEvent_Time" in result.columns
+
     def test_impute_value(self):
         # Test merge_windowed_event with impute_val specified
         ids = [1, 2, 3, 4]
