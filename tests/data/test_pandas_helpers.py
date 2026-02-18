@@ -81,34 +81,28 @@ class TestMergeFrames:
 
     @pytest.mark.parametrize("strategy", ["forward", "nearest", "first", "last"])
     def test_merge_strategies_do_not_generate_additional_rows(self, strategy):
+        # 2 predictions, 3 events: one before, one between, one after
         preds = pd.DataFrame(
             {
                 "Id": [1, 1],
-                "PredictTime": [
-                    pd.Timestamp("2024-01-01 01:00:00"),
-                    pd.Timestamp("2024-01-01 02:00:00"),
-                ],
+                "PredictTime": [pd.Timestamp("2024-01-01 01:00"), pd.Timestamp("2024-01-01 02:00")],
             }
         )
-
         events = pd.DataFrame(
             {
-                "Id": [1, 1, 1, 1, 1],
+                "Id": [1, 1, 1],
                 "Time": [
-                    pd.Timestamp("2023-12-31 01:30:00"),
-                    pd.Timestamp("2024-01-01 00:30:00"),
-                    pd.Timestamp("2024-01-01 01:30:00"),
-                    pd.Timestamp("2024-01-01 02:30:00"),
-                    pd.Timestamp("2024-01-01 10:30:00"),
+                    pd.Timestamp("2024-01-01 00:30"),  # before first pred
+                    pd.Timestamp("2024-01-01 01:30"),  # between preds
+                    pd.Timestamp("2024-01-01 02:30"),  # after last pred
                 ],
-                "Type": ["MyEvent", "MyEvent", "MyEvent", "MyEvent", "MyEvent"],
-                "Value": [10, 20, 10, 20, 10],
+                "Type": ["MyEvent", "MyEvent", "MyEvent"],
+                "Value": [10, 20, 30],
             }
         )
 
         one_event = undertest._one_event(events, "MyEvent", "Value", "Time", ["Id"])
 
-        # Choose reference column depending on strategy
         event_ref = "MyEvent_Time" if strategy in ["forward", "nearest"] else "~~reftime~~"
         if strategy in ["first", "last"]:
             one_event["~~reftime~~"] = one_event["MyEvent_Time"]
@@ -123,10 +117,9 @@ class TestMergeFrames:
             merge_strategy=strategy,
         )
 
-        # Check that output columns exist and have been merged
+        assert len(actual) == len(preds)
         assert "MyEvent_Value" in actual.columns
         assert "MyEvent_Time" in actual.columns
-        assert len(actual) == len(preds)
 
     def test_merge_with_strategy_empty_pks_raises(self):
         """Empty pks list should cause merge_asof to fail (needs by parameter)."""
@@ -1330,24 +1323,21 @@ class TestMergeEventCounts:
         assert result["Label~A_Count"].iloc[0] == 1
 
     def test_merge_event_counts_negative_min_offset(self):
-        """Negative min_offset allows looking into past - valid use case."""
-        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01 12:00:00")]})
+        """Negative min_offset shifts window into the past: event before pred is counted."""
+        min_offset = pd.Timedelta(hours=-2)
+        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01 12:00")]})
         events = pd.DataFrame(
             {
                 "Id": [1, 1],
                 "Event_Time": [
-                    pd.Timestamp("2024-01-01 10:00:00"),  # 2 hours before pred
-                    pd.Timestamp("2024-01-01 14:00:00"),  # 2 hours after pred
+                    pd.Timestamp("2024-01-01 10:00"),  # 2h before pred → reftime=12:00 → inside window
+                    pd.Timestamp("2024-01-01 14:00"),  # 2h after pred  → reftime=16:00 → outside window
                 ],
                 "Label": ["A", "B"],
-                "~~reftime~~": [
-                    pd.Timestamp("2024-01-01 12:00:00"),  # Adjusted by negative offset
-                    pd.Timestamp("2024-01-01 16:00:00"),
-                ],
             }
         )
+        events["~~reftime~~"] = events["Event_Time"] - min_offset  # reftime = event_time + 2h
 
-        # Negative offset of -2 hours means we look 2 hours into the past
         result = undertest._merge_event_counts(
             preds,
             events,
@@ -1355,30 +1345,28 @@ class TestMergeEventCounts:
             "MyEvent",
             "Label",
             window_hrs=3,
-            min_offset=pd.Timedelta(hours=-2),  # Negative: look into past
+            min_offset=min_offset,
             l_ref="Time",
             r_ref="~~reftime~~",
         )
 
-        # Both events should be counted with the negative offset
-        assert "Label~A_Count" in result.columns
-        assert result["Label~A_Count"].iloc[0] == 1
+        assert result["Label~A_Count"].iloc[0] == 1  # reftime=12:00 is within 3h of pred at 12:00
 
     def test_merge_event_counts_large_min_offset(self):
-        """Large min_offset (larger than window) should work correctly."""
-        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01 12:00:00")]})
+        """Large min_offset pushes the window start into the future; events before it are not counted."""
+        # pred at 12:00, window=2h, offset=5h → event window [17:00, 19:00]
+        # event at 16:00 is 1h before the window start (17:00 = pred + offset) → count is 0
+        min_offset = pd.Timedelta(hours=5)
+        preds = pd.DataFrame({"Id": [1], "Time": [pd.Timestamp("2024-01-01 12:00")]})
         events = pd.DataFrame(
             {
                 "Id": [1],
-                "Event_Time": [pd.Timestamp("2024-01-01 20:00:00")],  # 8 hours after
+                "Event_Time": [pd.Timestamp("2024-01-01 16:00")],  # 1h before window start
                 "Label": ["A"],
-                "~~reftime~~": [pd.Timestamp("2024-01-01 20:00:00")],
             }
         )
+        events["~~reftime~~"] = events["Event_Time"] - min_offset  # reftime = 11:00, before pred
 
-        # min_offset of 5 hours with window of 2 hours
-        # Window is [pred+5hrs, pred+7hrs] = [17:00, 19:00]
-        # Event at 20:00 is outside window
         result = undertest._merge_event_counts(
             preds,
             events,
@@ -1386,14 +1374,13 @@ class TestMergeEventCounts:
             "MyEvent",
             "Label",
             window_hrs=2,
-            min_offset=pd.Timedelta(hours=5),
+            min_offset=min_offset,
             l_ref="Time",
             r_ref="~~reftime~~",
         )
 
-        # Event should not be counted (outside window)
-        if "Label~A_Count" in result.columns:
-            assert result["Label~A_Count"].iloc[0] == 0
+        count = result["Label~A_Count"].iloc[0] if "Label~A_Count" in result.columns else 0
+        assert count == 0
 
 
 class TestMergeWindowedEvent:
@@ -1441,23 +1428,22 @@ class TestMergeWindowedEvent:
         assert result["MyEvent_Value"].iloc[1] == 1
 
     def test_merge_event_with_count_strategy(self):
+        # Id=1 pred at 08:00, events at 09:00 (A) and 10:00 (B) → both within 3h window
+        # Id=2 pred at 06:00, events at 07:00 (B) and 08:00 (C) → both within 3h window
         preds = pd.DataFrame(
             {
                 "Id": [1, 2],
-                "PredictTime": [
-                    pd.Timestamp("2024-01-01 07:15:00"),
-                    pd.Timestamp("2024-01-01 05:45:00"),
-                ],
+                "PredictTime": [pd.Timestamp("2024-01-01 08:00"), pd.Timestamp("2024-01-01 06:00")],
             }
         )
         events = pd.DataFrame(
             {
                 "Id": [1, 1, 2, 2],
                 "Time": [
-                    pd.Timestamp("2024-01-01 07:30:00"),
-                    pd.Timestamp("2024-01-01 07:00:00"),
-                    pd.Timestamp("2024-01-01 08:00:00"),
-                    pd.Timestamp("2024-01-01 06:00:00"),
+                    pd.Timestamp("2024-01-01 09:00"),  # Id=1: +1h
+                    pd.Timestamp("2024-01-01 10:00"),  # Id=1: +2h
+                    pd.Timestamp("2024-01-01 07:00"),  # Id=2: +1h
+                    pd.Timestamp("2024-01-01 08:00"),  # Id=2: +2h
                 ],
                 "Value": ["A", "B", "B", "C"],
                 "Type": ["MyEvent"] * 4,
@@ -1477,10 +1463,11 @@ class TestMergeWindowedEvent:
             event_base_time_col="Time",
         )
 
-        assert "MyEvent~A_Count" in result.columns
-        assert "MyEvent~B_Count" in result.columns
-        assert "MyEvent~C_Count" in result.columns
-        assert result.shape[0] == preds.shape[0]
+        assert result.shape[0] == 2
+        assert result[result["Id"] == 1]["MyEvent~A_Count"].iloc[0] == 1
+        assert result[result["Id"] == 1]["MyEvent~B_Count"].iloc[0] == 1
+        assert result[result["Id"] == 2]["MyEvent~B_Count"].iloc[0] == 1
+        assert result[result["Id"] == 2]["MyEvent~C_Count"].iloc[0] == 1
 
     def test_merge_event_invalid_strategy_raises(self):
         preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01 00:00:00")]})
