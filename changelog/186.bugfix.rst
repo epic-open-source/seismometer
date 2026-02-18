@@ -1,0 +1,1 @@
+Fixed build issue with missing pkg_resources module during import
