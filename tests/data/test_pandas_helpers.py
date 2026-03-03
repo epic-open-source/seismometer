@@ -158,6 +158,38 @@ class TestMergeFrames:
                 merge_strategy="forward",
             )
 
+    def test_merge_with_strategy_raises_when_one_event_filtered_not_set(self):
+        """ValueError re-raises when one_event_filtered is not in locals."""
+        preds = pd.DataFrame(
+            {
+                "Id": [1, 1],
+                "PredictTime": [
+                    pd.Timestamp("2024-01-01 02:00:00"),  # Intentionally unsorted
+                    pd.Timestamp("2024-01-01 01:00:00"),
+                ],
+            }
+        )
+        events = pd.DataFrame(
+            {
+                "Id": [1],
+                "Time": [pd.Timestamp("2024-01-01 03:00:00")],
+                "Value": [10],
+                "Type": ["MyEvent"],
+            }
+        )
+
+        one_event = undertest._one_event(events, "MyEvent", "Value", "Time", ["Id"])
+
+        with pytest.raises(ValueError, match="one_event_filtered"):
+            undertest._merge_with_strategy(
+                predictions=preds,
+                one_event=one_event,
+                pks=["Id"],
+                pred_ref="PredictTime",
+                event_ref="MyEvent_Time",
+                merge_strategy="forward",
+            )
+
     def test_merge_with_strategy_all_nat_event_times(self):
         """All NaT event times should trigger warning and use first row logic."""
         preds = pd.DataFrame({"Id": [1], "PredictTime": [pd.Timestamp("2024-01-01 01:00:00")]})
@@ -966,60 +998,6 @@ class TestAggregationFunctions:
         # Should keep highest score (0.9)
         assert len(result) == 1
         assert result["Score"].iloc[0] == 0.9
-
-
-class TestAnalyticsMetricName:
-    """Tests for analytics_metric_name utility function."""
-
-    def test_returns_column_name_if_in_metric_names(self):
-        """If column_name is already in metric_names, return it unchanged."""
-        metric_names = ["accuracy", "precision", "recall"]
-        result = undertest.analytics_metric_name(metric_names, [], "accuracy")
-        assert result == "accuracy"
-
-    def test_strips_prefix_if_matches_existing_metric_starts(self):
-        """If column starts with metric prefix, strip it."""
-        metric_names = []
-        existing_starts = ["model_v1", "model_v2"]
-        result = undertest.analytics_metric_name(metric_names, existing_starts, "model_v1_accuracy")
-        assert result == "accuracy"
-
-    def test_returns_none_if_no_match(self):
-        """If no match found, return None."""
-        metric_names = ["accuracy"]
-        existing_starts = ["model_v1"]
-        result = undertest.analytics_metric_name(metric_names, existing_starts, "unknown_metric")
-        assert result is None
-
-    @pytest.mark.parametrize(
-        "metric_names,existing_starts,column_name,expected",
-        [
-            (["accuracy"], [], "accuracy", "accuracy"),  # Direct match
-            ([], ["model"], "model_accuracy", "accuracy"),  # Prefix strip
-            ([], ["v1", "v2"], "v1_precision", "precision"),  # First prefix match
-            ([], ["v1", "v2"], "v2_recall", "recall"),  # Second prefix match
-            (["score"], ["model"], "score", "score"),  # Direct match takes precedence
-            ([], [], "metric", None),  # No match
-            ([], ["prefix"], "other_metric", None),  # Wrong prefix
-            ([], ["model"], "model_model", "model"),  # Repeated prefix chars
-            ([], ["model"], "mode_accuracy", None),  # Similar but doesn't start with prefix
-        ],
-        ids=[
-            "direct_match",
-            "prefix_strip",
-            "first_prefix",
-            "second_prefix",
-            "direct_over_prefix",
-            "no_match",
-            "wrong_prefix",
-            "repeated_prefix_chars",
-            "similar_not_prefix",
-        ],
-    )
-    def test_analytics_metric_name_various_cases(self, metric_names, existing_starts, column_name, expected):
-        """Test various scenarios for analytics_metric_name."""
-        result = undertest.analytics_metric_name(metric_names, existing_starts, column_name)
-        assert result == expected
 
 
 class TestEventScoreAndModelScores:

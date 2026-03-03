@@ -451,7 +451,9 @@ def _merge_with_strategy(
         logger.warning(e)
         # Only continue with fallback merge if one_event_filtered was set
         if "one_event_filtered" not in locals():
-            raise
+            raise ValueError(
+                f"Unhandled ValueError for merge strategy '{merge_strategy}'; one_event_filtered was not set."
+            ) from e
 
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
 
@@ -777,34 +779,6 @@ def _resolve_score_col(dataframe: pd.DataFrame, score: str) -> str:
             raise ValueError(f"Score column {score} not found in dataframe.")
         score = event_value(score)
     return score
-
-
-def analytics_metric_name(metric_names: list[str], existing_metric_starts: list[str], column_name: str) -> str:
-    """
-    In the analytics table, often the provided column name is not the actual
-    metric name that we want to log. Here, we extract the desired metric name.
-
-    Parameters
-    ----------
-    metric_names : list[str]
-        What metrics already exist.
-    existing_metric_starts : list[str]
-        What strings can start the mangled column name.
-    column_name : str
-        The name of the column we are trying to make into a metric.
-
-    Returns
-    -------
-    str
-        The resulting metric name, or none if no match was found.
-    """
-    if column_name in metric_names:
-        return column_name
-    else:
-        for value in existing_metric_starts:
-            if column_name.startswith(f"{value}_"):
-                return column_name.removeprefix(f"{value}_")
-    return None
 
 
 # endregion
