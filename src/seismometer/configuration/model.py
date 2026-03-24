@@ -496,7 +496,7 @@ class DataUsage(BaseModel):
     """A list of all metrics to load."""
     load_time_filters: list[FilterConfig] = []
     """A list of filters to apply at load time to reduce the working dataset."""
-    censor_min_count: int = Field(10, ge=10)
+    censor_min_count: int = Field(10, ge=0)
     """ The minimum size of a cohort to be considered displayable. """
 
     @field_validator("comparison_time")
