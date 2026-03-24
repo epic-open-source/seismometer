@@ -1,0 +1,1 @@
+Relaxed ``censor_min_count`` lower bound from 10 to 0 to support small-n workflows such as synthetic data, debugging, and LLM feedback visualizations (e.g. Likert plots). Default remains 10. (`#182 <https://github.com/epic-open-source/seismometer/issues/182>`__)
