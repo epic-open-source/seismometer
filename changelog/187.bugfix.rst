@@ -1,0 +1,1 @@
+Fixed array handling and index alignment in cohorts, non-string value representation in filter rules, imputation row counting in pandas helpers, and pandas ``FutureWarning`` in ``add_unseen``.
