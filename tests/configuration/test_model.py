@@ -479,3 +479,331 @@ class TestCohortHierarchy:
     def test_invalid_hierarchy_raises(self, column_order, expected_error):
         with pytest.raises(ValueError, match=expected_error):
             undertest.CohortHierarchy(name="Invalid", column_order=column_order)
+
+
+# ============================================================================
+# ADDITIONAL VALIDATOR AND CONSTRAINT TESTS
+# ============================================================================
+
+
+class TestEventCoerceSourceListValidator:
+    """Test Event.coerce_source_list validator with edge cases."""
+
+    def test_coerce_single_string_to_list(self):
+        """Test that a single string source is coerced to a list."""
+        event = undertest.Event(source="event1")
+        assert event.source == ["event1"]
+        assert isinstance(event.source, list)
+
+    def test_list_source_remains_list(self):
+        """Test that a list source remains a list."""
+        event = undertest.Event(source=["event1", "event2"], display_name="Combined")
+        assert event.source == ["event1", "event2"]
+        assert isinstance(event.source, list)
+
+    def test_empty_string_coerced_to_list(self):
+        """Test that an empty string is coerced to a single-item list."""
+        event = undertest.Event(source="")
+        assert event.source == [""]
+        assert isinstance(event.source, list)
+        assert len(event.source) == 1
+
+    @pytest.mark.parametrize(
+        "source_value",
+        [
+            123,  # integer
+            123.45,  # float
+            True,  # boolean
+            {"key": "value"},  # dict
+        ],
+    )
+    def test_invalid_source_types_raise_error(self, source_value):
+        """Test that invalid source types raise ValidationError."""
+        with pytest.raises(ValidationError):
+            undertest.Event(source=source_value)
+
+    def test_list_with_empty_strings(self):
+        """Test list containing empty strings."""
+        event = undertest.Event(source=["event1", "", "event2"], display_name="Combined")
+        assert event.source == ["event1", "", "event2"]
+        assert len(event.source) == 3
+
+
+class TestDataUsageValidateHierarchiesDisjoint:
+    """Test DataUsage.validate_hierarchies_disjoint validator."""
+
+    def test_disjoint_hierarchies_are_valid(self):
+        """Test that disjoint hierarchies are accepted."""
+        hierarchies = [
+            undertest.CohortHierarchy(name="Geo", column_order=["country", "state", "city"]),
+            undertest.CohortHierarchy(name="Org", column_order=["department", "team"]),
+        ]
+        data_usage = undertest.DataUsage(cohort_hierarchies=hierarchies)
+        assert len(data_usage.cohort_hierarchies) == 2
+
+    def test_duplicate_columns_across_hierarchies_raise_error(self):
+        """Test that duplicate columns across hierarchies raise ValueError."""
+        hierarchies = [
+            undertest.CohortHierarchy(name="Geo", column_order=["country", "state"]),
+            undertest.CohortHierarchy(name="Org", column_order=["state", "department"]),  # 'state' duplicated
+        ]
+        with pytest.raises(ValueError, match="must be disjoint.*found duplicates.*state"):
+            undertest.DataUsage(cohort_hierarchies=hierarchies)
+
+    def test_multiple_duplicate_columns_across_hierarchies(self):
+        """Test that multiple duplicate columns are reported."""
+        hierarchies = [
+            undertest.CohortHierarchy(name="H1", column_order=["col_a", "col_b"]),
+            undertest.CohortHierarchy(name="H2", column_order=["col_b", "col_c"]),
+            undertest.CohortHierarchy(name="H3", column_order=["col_a", "col_d"]),
+        ]
+        with pytest.raises(ValueError, match="must be disjoint.*found duplicates"):
+            undertest.DataUsage(cohort_hierarchies=hierarchies)
+
+    def test_empty_hierarchies_list_is_valid(self):
+        """Test that an empty hierarchies list is valid."""
+        data_usage = undertest.DataUsage(cohort_hierarchies=[])
+        assert data_usage.cohort_hierarchies == []
+
+
+class TestMetricDetails:
+    """Test MetricDetails class initialization."""
+
+    def test_default_initialization(self):
+        """Test MetricDetails with all defaults."""
+        details = undertest.MetricDetails()
+        assert details.min is None
+        assert details.max is None
+        assert details.handle_na is None
+        assert details.values is None
+
+    def test_initialization_with_min_max(self):
+        """Test MetricDetails with min and max values."""
+        details = undertest.MetricDetails(min=0, max=100)
+        assert details.min == 0
+        assert details.max == 100
+        assert details.handle_na is None
+
+    def test_initialization_with_float_values(self):
+        """Test MetricDetails with float min and max."""
+        details = undertest.MetricDetails(min=0.0, max=1.0)
+        assert details.min == 0.0
+        assert details.max == 1.0
+
+    def test_initialization_with_handle_na(self):
+        """Test MetricDetails with handle_na strategy."""
+        details = undertest.MetricDetails(handle_na="drop")
+        assert details.handle_na == "drop"
+
+    def test_initialization_with_values_list(self):
+        """Test MetricDetails with a list of possible values."""
+        values_list = [0, 1, 2, 3, 4]
+        details = undertest.MetricDetails(values=values_list)
+        assert details.values == values_list
+
+    def test_initialization_with_mixed_type_values(self):
+        """Test MetricDetails with mixed type values (int, float, str)."""
+        values_list = [0, 1.5, "low", "medium", "high"]
+        details = undertest.MetricDetails(values=values_list)
+        assert details.values == values_list
+
+    def test_initialization_with_all_fields(self):
+        """Test MetricDetails with all fields specified."""
+        details = undertest.MetricDetails(min=0, max=10, handle_na="impute", values=[0, 5, 10])
+        assert details.min == 0
+        assert details.max == 10
+        assert details.handle_na == "impute"
+        assert details.values == [0, 5, 10]
+
+
+class TestMetricMetricDetailsField:
+    """Test Metric.metric_details field validation."""
+
+    def test_metric_with_default_metric_details(self):
+        """Test that Metric initializes with default MetricDetails."""
+        metric = undertest.Metric(source="score", display_name="Score")
+        assert isinstance(metric.metric_details, undertest.MetricDetails)
+        assert metric.metric_details.min is None
+        assert metric.metric_details.max is None
+
+    def test_metric_with_custom_metric_details(self):
+        """Test Metric with custom MetricDetails."""
+        details = undertest.MetricDetails(min=0, max=100, handle_na="drop")
+        metric = undertest.Metric(source="score", display_name="Score", metric_details=details)
+        assert metric.metric_details.min == 0
+        assert metric.metric_details.max == 100
+        assert metric.metric_details.handle_na == "drop"
+
+    def test_metric_with_inline_metric_details(self):
+        """Test Metric with inline MetricDetails dict."""
+        metric = undertest.Metric(
+            source="score", display_name="Score", metric_details={"min": 0, "max": 1, "values": [0, 0.5, 1]}
+        )
+        assert metric.metric_details.min == 0
+        assert metric.metric_details.max == 1
+        assert metric.metric_details.values == [0, 0.5, 1]
+
+
+class TestCensorMinCountConstraint:
+    """Test censor_min_count constraint (ge=10) validation."""
+
+    def test_censor_min_count_default_is_10(self):
+        """Test that default censor_min_count is 10."""
+        data_usage = undertest.DataUsage()
+        assert data_usage.censor_min_count == 10
+
+    def test_censor_min_count_accepts_valid_values(self):
+        """Test that values >= 10 are accepted."""
+        data_usage = undertest.DataUsage(censor_min_count=10)
+        assert data_usage.censor_min_count == 10
+
+        data_usage = undertest.DataUsage(censor_min_count=20)
+        assert data_usage.censor_min_count == 20
+
+        data_usage = undertest.DataUsage(censor_min_count=100)
+        assert data_usage.censor_min_count == 100
+
+    @pytest.mark.parametrize("invalid_value", [9, 5, 1, 0, -1, -10])
+    def test_censor_min_count_rejects_values_below_10(self, invalid_value):
+        """Test that values < 10 raise ValidationError."""
+        with pytest.raises(ValidationError, match="greater than or equal to 10"):
+            undertest.DataUsage(censor_min_count=invalid_value)
+
+
+class TestCohortSplitsValidation:
+    """Test Cohort.splits validation for continuous data."""
+
+    def test_cohort_with_numeric_splits(self):
+        """Test Cohort with numeric splits for continuous data."""
+        cohort = undertest.Cohort(source="age", splits=[18, 35, 50, 65])
+        assert cohort.splits == [18, 35, 50, 65]
+
+    def test_cohort_with_categorical_splits(self):
+        """Test Cohort with categorical splits (list of strings)."""
+        cohort = undertest.Cohort(source="region", splits=["North", "South", "East", "West"])
+        assert cohort.splits == ["North", "South", "East", "West"]
+
+    def test_cohort_with_empty_splits(self):
+        """Test Cohort with empty splits list."""
+        cohort = undertest.Cohort(source="category")
+        assert cohort.splits == []
+
+    def test_cohort_with_mixed_type_splits(self):
+        """Test Cohort with mixed type splits (int, float, str)."""
+        cohort = undertest.Cohort(source="mixed", splits=[1, 2.5, "high"])
+        assert cohort.splits == [1, 2.5, "high"]
+
+    def test_cohort_with_float_splits(self):
+        """Test Cohort with float splits for continuous data."""
+        cohort = undertest.Cohort(source="score", splits=[0.0, 0.25, 0.5, 0.75, 1.0])
+        assert cohort.splits == [0.0, 0.25, 0.5, 0.75, 1.0]
+
+
+class TestFilterRangeMinMaxValidation:
+    """Test FilterRange with min > max."""
+
+    def test_filter_range_with_valid_min_max(self):
+        """Test FilterRange with valid min < max."""
+        filter_range = undertest.FilterRange(min=0, max=100)
+        assert filter_range.min == 0
+        assert filter_range.max == 100
+
+    def test_filter_range_with_equal_min_max(self):
+        """Test FilterRange with min == max (edge case, allowed by Pydantic)."""
+        filter_range = undertest.FilterRange(min=50, max=50)
+        assert filter_range.min == 50
+        assert filter_range.max == 50
+
+    def test_filter_range_with_min_greater_than_max(self):
+        """Test FilterRange with min > max (no validation, allowed by model)."""
+        # Note: The model doesn't validate min < max, so this is allowed
+        filter_range = undertest.FilterRange(min=100, max=0)
+        assert filter_range.min == 100
+        assert filter_range.max == 0
+
+    def test_filter_range_with_only_min(self):
+        """Test FilterRange with only min specified."""
+        filter_range = undertest.FilterRange(min=10)
+        assert filter_range.min == 10
+        assert filter_range.max is None
+
+    def test_filter_range_with_only_max(self):
+        """Test FilterRange with only max specified."""
+        filter_range = undertest.FilterRange(max=100)
+        assert filter_range.min is None
+        assert filter_range.max == 100
+
+    def test_filter_range_with_negative_values(self):
+        """Test FilterRange with negative values."""
+        filter_range = undertest.FilterRange(min=-100, max=-10)
+        assert filter_range.min == -100
+        assert filter_range.max == -10
+
+    def test_filter_range_with_float_values(self):
+        """Test FilterRange with float values."""
+        filter_range = undertest.FilterRange(min=0.5, max=99.5)
+        assert filter_range.min == 0.5
+        assert filter_range.max == 99.5
+
+
+class TestEventWindowOffsetCombinations:
+    """Test Event.window_hr / offset_hr invalid combinations."""
+
+    def test_event_with_valid_window_and_offset(self):
+        """Test Event with valid window_hr and offset_hr."""
+        event = undertest.Event(source="event1", window_hr=24, offset_hr=0)
+        assert event.window_hr == 24
+        assert event.offset_hr == 0
+
+    def test_event_with_none_window_and_zero_offset(self):
+        """Test Event with None window_hr (default) and zero offset_hr (default)."""
+        event = undertest.Event(source="event1")
+        assert event.window_hr is None
+        assert event.offset_hr == 0
+
+    def test_event_with_none_window_and_positive_offset(self):
+        """Test Event with None window_hr and positive offset_hr."""
+        event = undertest.Event(source="event1", window_hr=None, offset_hr=12)
+        assert event.window_hr is None
+        assert event.offset_hr == 12
+
+    def test_event_with_window_and_negative_offset(self):
+        """Test Event with window_hr and negative offset_hr."""
+        event = undertest.Event(source="event1", window_hr=48, offset_hr=-24)
+        assert event.window_hr == 48
+        assert event.offset_hr == -24
+
+    def test_event_with_zero_window(self):
+        """Test Event with zero window_hr (edge case)."""
+        event = undertest.Event(source="event1", window_hr=0, offset_hr=0)
+        assert event.window_hr == 0
+        assert event.offset_hr == 0
+
+    def test_event_with_negative_window(self):
+        """Test Event with negative window_hr (edge case, no validation prevents this)."""
+        # Note: Model doesn't validate window_hr >= 0, so negative values are allowed
+        event = undertest.Event(source="event1", window_hr=-10, offset_hr=0)
+        assert event.window_hr == -10
+        assert event.offset_hr == 0
+
+    def test_event_with_float_window_and_offset(self):
+        """Test Event with float window_hr and offset_hr."""
+        event = undertest.Event(source="event1", window_hr=24.5, offset_hr=12.25)
+        assert event.window_hr == 24.5
+        assert event.offset_hr == 12.25
+
+    @pytest.mark.parametrize(
+        "window_hr,offset_hr",
+        [
+            (24, 0),
+            (48, -12),
+            (None, 6),
+            (168, 24),
+            (0.5, 0.25),
+        ],
+    )
+    def test_event_various_window_offset_combinations(self, window_hr, offset_hr):
+        """Test Event with various valid window_hr and offset_hr combinations."""
+        event = undertest.Event(source="event1", window_hr=window_hr, offset_hr=offset_hr)
+        assert event.window_hr == window_hr
+        assert event.offset_hr == offset_hr

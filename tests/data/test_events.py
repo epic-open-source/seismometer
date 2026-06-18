@@ -269,4 +269,141 @@ class Test_Event_Score:
         with pytest.raises(ValueError, match=f"With aggregation_method '{agg_method}', {ref_col} is required."):
             _ = undertest.event_score(input_frame, ["Id", "CtxId"], "ModelScore", None, None, agg_method)
 
+
+class TestEventScoreErrorHandling:
+    """Test error handling and edge cases for event_score and aggregation functions"""
+
+    def test_missing_entity_keys_column(self):
+        """Test event_score() with missing entity_keys column"""
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4],
+                "Target_Value": [0, 1, 0, 1],
+            }
+        )
+        # Request a column that doesn't exist - should silently filter it out
+        # (line 627: pks = [c for c in pks if c in merged_frame.columns])
+        result = undertest.event_score(
+            input_frame, ["Id", "NonExistentColumn"], "ModelScore", None, "Target", "max"
+        )
+        # Should still work, just using the columns that do exist
+        assert result is not None
+        assert len(result) == 2  # One row per Id
+
+    def test_all_entity_keys_missing(self):
+        """Test event_score() when all entity_keys columns are missing"""
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4],
+                "Target_Value": [0, 1, 0, 1],
+            }
+        )
+        # EDGE CASE: When all requested columns don't exist, pks becomes empty list
+        # This causes drop_duplicates(subset=[]) to fail with confusing error
+        # Better error message would be helpful here
+        with pytest.raises(ValueError, match="not enough values to unpack"):
+            _ = undertest.event_score(
+                input_frame, ["NonExistent1", "NonExistent2"], "ModelScore", None, "Target", "max"
+            )
+
+    def test_case_sensitivity_aggregation_method(self):
+        """Test event_score() case sensitivity for aggregation_method"""
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4],
+                "Target_Value": [0, 1, 0, 1],
+            }
+        )
+        # "Max" (capitalized) should not match "max"
+        with pytest.raises(ValueError, match="Unknown aggregation method: Max"):
+            _ = undertest.event_score(input_frame, ["Id"], "ModelScore", None, "Target", "Max")
+
+    def test_event_score_both_ref_none_with_max(self):
+        """Test event_score() with both ref_time and ref_event = None using max aggregation"""
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4],
+            }
+        )
+        # max_aggregation requires ref_event
+        with pytest.raises(ValueError, match="With aggregation_method 'max', ref_event is required."):
+            _ = undertest.event_score(input_frame, ["Id"], "ModelScore", None, None, "max")
+
+    def test_event_score_both_ref_none_with_min(self):
+        """Test event_score() with both ref_time and ref_event = None using min aggregation"""
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4],
+            }
+        )
+        # min_aggregation requires ref_event
+        with pytest.raises(ValueError, match="With aggregation_method 'min', ref_event is required."):
+            _ = undertest.event_score(input_frame, ["Id"], "ModelScore", None, None, "min")
+
+    def test_max_aggregation_with_nan_in_target(self):
+        """Test max_aggregation() with NaN values in Target column"""
+        import numpy as np
+
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4, 5],
+                "Target_Value": [np.nan, 1, 0, np.nan, np.nan],
+            }
+        )
+        # NaN values in target should be handled gracefully (sorted to end by pandas)
+        result = undertest.max_aggregation(input_frame, ["Id"], "ModelScore", None, "Target")
+
+        # Should return one row per Id
+        assert len(result) == 2
+        # For Id=1, should select row with Target=1 (highest target, then highest score)
+        assert result[result["Id"] == 1]["ModelScore"].iloc[0] == 2
+        # For Id=2, all targets are NaN, should select highest score
+        assert result[result["Id"] == 2]["ModelScore"].iloc[0] == 5
+
+    def test_min_aggregation_with_nan_in_target(self):
+        """Test min_aggregation() with NaN values in Target column"""
+        import numpy as np
+
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4, 5],
+                "Target_Value": [np.nan, 0, 1, np.nan, np.nan],
+            }
+        )
+        # NaN values in target should be handled gracefully
+        result = undertest.min_aggregation(input_frame, ["Id"], "ModelScore", None, "Target")
+
+        # Should return one row per Id
+        assert len(result) == 2
+        # For Id=1, should select row with Target=1 (highest target, then lowest score among Target=1)
+        assert result[result["Id"] == 1]["ModelScore"].iloc[0] == 3
+        # For Id=2, all targets are NaN, should select lowest score
+        assert result[result["Id"] == 2]["ModelScore"].iloc[0] == 4
+
+    def test_all_nan_targets_max_aggregation(self):
+        """Test max_aggregation() when all Target values are NaN"""
+        import numpy as np
+
+        input_frame = pd.DataFrame(
+            {
+                "Id": [1, 1, 2, 2],
+                "ModelScore": [1, 2, 3, 4],
+                "Target_Value": [np.nan, np.nan, np.nan, np.nan],
+            }
+        )
+        # Should still work, selecting max score when all targets are NaN
+        result = undertest.max_aggregation(input_frame, ["Id"], "ModelScore", None, "Target")
+
+        assert len(result) == 2
+        # Should select highest scores (2 for Id=1, 4 for Id=2)
+        assert result[result["Id"] == 1]["ModelScore"].iloc[0] == 2
+        assert result[result["Id"] == 2]["ModelScore"].iloc[0] == 4
+
 # fmt: on
