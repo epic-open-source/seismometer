@@ -322,6 +322,18 @@ class TestDataUsage:
         data_usage = undertest.DataUsage(censor_min_count=value)
         assert data_usage.censor_min_count == value
 
+    @pytest.mark.parametrize("value", [0, 1, 9])
+    def test_censor_min_count_below_floor_warns(self, value, caplog):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            undertest.DataUsage(censor_min_count=value)
+        assert "below the recommended minimum" in caplog.text
+
+    @pytest.mark.parametrize("value", [10, 20])
+    def test_censor_min_count_at_or_above_floor_does_not_warn(self, value, caplog):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            undertest.DataUsage(censor_min_count=value)
+        assert "below the recommended minimum" not in caplog.text
+
     def test_reduce_events_eliminates_source_display_collision(self, caplog):
         events = [
             undertest.Event(source="event1"),
