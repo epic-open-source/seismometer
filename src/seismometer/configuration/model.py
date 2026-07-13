@@ -496,9 +496,21 @@ class DataUsage(BaseModel):
     """A list of all metrics to load."""
     load_time_filters: list[FilterConfig] = []
     """A list of filters to apply at load time to reduce the working dataset."""
-    censor_min_count: int = Field(10, ge=10)
+    censor_min_count: int = Field(10, ge=0)
     """ The minimum size of a cohort to be considered displayable. """
 
+    @field_validator("censor_min_count")
+    def warn_below_recommended_floor(cls, censor_min_count: int) -> int:
+        """Warn when censoring is configured below the recommended minimum."""
+        if censor_min_count < 10:
+            logger.warning(
+                f"censor_min_count is set to {censor_min_count}, below the recommended minimum of 10. "
+                "This weakens small-cell suppression, which guards against re-identifying individuals "
+                "in small cohorts. Only use values below 10 with data that does not identify real "
+                "individuals (e.g., synthetic data)."
+            )
+        return censor_min_count
+    
     @field_validator("comparison_time")
     def default_comparison(cls, comparison_time: str, values: dict) -> str:
         """Return the default comparison_time."""
