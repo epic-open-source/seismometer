@@ -264,6 +264,10 @@ class TestDataUsage:
         data_usage = undertest.DataUsage()
         assert getattr(data_usage, key) == value
 
+    def test_censor_min_count_rejects_negative(self):
+        with pytest.raises(ValidationError):
+            undertest.DataUsage(censor_min_count=-1)
+
     @pytest.mark.parametrize(
         "key,value",
         [
@@ -312,6 +316,23 @@ class TestDataUsage:
         data_usage.events[0].display_name == "Event 1"
         data_usage.events[1].source == "event2"
         data_usage.events[1].display_name == "Event 2"
+
+    @pytest.mark.parametrize("value", [0, 1, 5, 9])
+    def test_censor_min_count_allows_below_10(self, value):
+        data_usage = undertest.DataUsage(censor_min_count=value)
+        assert data_usage.censor_min_count == value
+
+    @pytest.mark.parametrize("value", [0, 1, 9])
+    def test_censor_min_count_below_floor_warns(self, value, caplog):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            undertest.DataUsage(censor_min_count=value)
+        assert "below the recommended minimum" in caplog.text
+
+    @pytest.mark.parametrize("value", [10, 20])
+    def test_censor_min_count_at_or_above_floor_does_not_warn(self, value, caplog):
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            undertest.DataUsage(censor_min_count=value)
+        assert "below the recommended minimum" not in caplog.text
 
     def test_reduce_events_eliminates_source_display_collision(self, caplog):
         events = [
