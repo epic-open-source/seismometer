@@ -510,7 +510,7 @@ class DataUsage(BaseModel):
                 "individuals (e.g., synthetic data)."
             )
         return censor_min_count
-    
+
     @field_validator("comparison_time")
     def default_comparison(cls, comparison_time: str, values: dict) -> str:
         """Return the default comparison_time."""
