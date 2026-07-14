@@ -566,6 +566,94 @@ class TestSeismogramLoadData:
         assert sg.thresholds == [0.8, 0.5]
         assert "No thresholds set in metadata.json" in caplog.text
 
+    def test_load_data_with_predictions_parameter(self, fake_seismo):
+        """Test load_data with predictions parameter passes it to dataloader."""
+        sg = Seismogram()
+        predictions_df = pd.DataFrame({"entity": [1, 2], "time": pd.to_datetime(["2022-01-01", "2022-01-02"])})
+
+        with patch.object(sg, "_load_metadata"), patch.object(
+            sg, "_apply_load_time_filters"
+        ) as mock_filter, patch.object(sg, "create_cohorts"), patch.object(
+            sg, "_build_cohort_hierarchy_combinations"
+        ), patch.object(
+            sg, "_set_df_counts"
+        ), patch.object(
+            sg.dataloader, "load_data"
+        ) as mock_loader:
+            mock_loader.return_value = predictions_df
+            mock_filter.return_value = predictions_df
+            sg.load_data(predictions=predictions_df, reset=True)
+
+            # Verify predictions was passed to dataloader (positional argument)
+            mock_loader.assert_called_once_with(predictions_df, None)
+
+    def test_load_data_with_events_parameter(self, fake_seismo):
+        """Test load_data with events parameter passes it to dataloader."""
+        sg = Seismogram()
+        events_df = pd.DataFrame({"Id": [1], "Type": ["event1"], "Time": pd.to_datetime(["2022-01-01"])})
+        predictions_df = pd.DataFrame({"entity": [1], "time": pd.to_datetime(["2022-01-01"])})
+
+        with patch.object(sg, "_load_metadata"), patch.object(
+            sg, "_apply_load_time_filters"
+        ) as mock_filter, patch.object(sg, "create_cohorts"), patch.object(
+            sg, "_build_cohort_hierarchy_combinations"
+        ), patch.object(
+            sg, "_set_df_counts"
+        ), patch.object(
+            sg.dataloader, "load_data"
+        ) as mock_loader:
+            mock_loader.return_value = predictions_df
+            mock_filter.return_value = predictions_df
+            sg.load_data(events=events_df, reset=True)
+
+            # Verify events was passed to dataloader (positional argument)
+            mock_loader.assert_called_once_with(None, events_df)
+
+    def test_load_data_with_both_predictions_and_events(self, fake_seismo):
+        """Test load_data with both predictions and events parameters."""
+        sg = Seismogram()
+        predictions_df = pd.DataFrame({"entity": [1], "time": pd.to_datetime(["2022-01-01"])})
+        events_df = pd.DataFrame({"Id": [1], "Type": ["event1"], "Time": pd.to_datetime(["2022-01-01"])})
+
+        with patch.object(sg, "_load_metadata"), patch.object(
+            sg, "_apply_load_time_filters"
+        ) as mock_filter, patch.object(sg, "create_cohorts"), patch.object(
+            sg, "_build_cohort_hierarchy_combinations"
+        ), patch.object(
+            sg, "_set_df_counts"
+        ), patch.object(
+            sg.dataloader, "load_data"
+        ) as mock_loader:
+            mock_loader.return_value = predictions_df
+            mock_filter.return_value = predictions_df
+            sg.load_data(predictions=predictions_df, events=events_df, reset=True)
+
+            # Verify both were passed to dataloader (positional arguments)
+            mock_loader.assert_called_once_with(predictions_df, events_df)
+
+
+class TestSeismogramConstructorValidation:
+    """Test constructor validation and error handling."""
+
+    def test_constructor_with_none_config_raises(self):
+        """Test Seismogram constructor with config=None raises ValueError."""
+        from seismometer.data.loader import SeismogramLoader
+
+        loader = Mock(spec=SeismogramLoader)
+        with pytest.raises(ValueError, match="Seismogram has not been initialized"):
+            Seismogram(config=None, dataloader=loader)
+
+    def test_constructor_with_none_dataloader_raises(self):
+        """Test Seismogram constructor with dataloader=None raises ValueError."""
+        config = Mock(spec=ConfigProvider)
+        with pytest.raises(ValueError, match="Seismogram has not been initialized"):
+            Seismogram(config=config, dataloader=None)
+
+    def test_constructor_with_both_none_raises(self):
+        """Test Seismogram constructor with both None raises ValueError."""
+        with pytest.raises(ValueError, match="Seismogram has not been initialized"):
+            Seismogram(config=None, dataloader=None)
+
 
 @pytest.mark.usefixtures("disable_min_rows_for_filterrule")
 class TestSeismogramFilterConfigs:
