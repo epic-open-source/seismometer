@@ -153,11 +153,17 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
         .drop_duplicates(subset=config.entity_keys + [config.predict_time])
         .dropna(subset=[config.predict_time])
     )
+    # The index merge_asof would return; keeps the cached key codes aligned across merges.
+    dataframe.index = pd.RangeIndex(len(dataframe))
     logger.debug(
         f"Sorted predictions dataframe by {config.predict_time}, dropping duplicate (entity time, prediction time) "
         "and dropping predictions with Null prediction time."
     )
     event_frame = event_frame.sort_values("Time", kind="mergesort")
+    event_frame.index = pd.RangeIndex(len(event_frame))
+    pks = [key for key in config.entity_keys if key in dataframe and key in event_frame]
+    uses_asof = any(event.merge_strategy in ("forward", "nearest") for event in config.events.values())
+    key_codes = pdh.factorize_keys(dataframe, event_frame, pks) if pks and uses_asof else None
 
     for one_event in config.events.values():
         logger.debug(f"Processing event {one_event.display_name} with sources {one_event.source}")
@@ -181,6 +187,7 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 display=one_event.display_name,
                 sort=False,
                 impute_pos=one_event.impute_val,
+                key_codes=key_codes,
             )
         else:  # No lookback
             logger.debug(f"Merging event {one_event.display_name}")
@@ -193,6 +200,7 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
                 display=one_event.display_name,
                 sort=False,
                 impute_pos=one_event.impute_val,
+                key_codes=key_codes,
             )
 
         # Impute no event
@@ -220,6 +228,7 @@ def _merge_event(
     sort=True,
     impute_pos=1,
     impute_neg=0,
+    key_codes=None,
 ) -> pd.DataFrame:
     """Wrapper for calling merge_windowed_event with the correct event column names."""
     disp_event = display if display else event_cols[0]
@@ -239,6 +248,7 @@ def _merge_event(
         merge_strategy=config.events[disp_event].merge_strategy,
         impute_val_with_time=impute_pos,
         impute_val_no_time=impute_neg,
+        key_codes=key_codes,
     )
 
 
