@@ -848,7 +848,7 @@ def _plot_ts_cohort(
 
     counts = None
     if plot_counts:
-        counts = plotdata.groupby([reftime, cohort_col]).count()
+        counts = plotdata.groupby([reftime, cohort_col], observed=False).count()
 
     if ylabel is None:
         ylabel = pdh.event_name(event_col)

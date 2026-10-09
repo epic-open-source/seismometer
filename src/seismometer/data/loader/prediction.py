@@ -98,7 +98,7 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FutureWarning)
-            present_columns = set(pq.ParquetDataset(config.prediction_path, use_legacy_dataset=False).schema.names)
+            present_columns = set(pq.ParquetDataset(config.prediction_path).schema.names)
 
         if config.target in present_columns:
             desired_columns.add(config.target)
