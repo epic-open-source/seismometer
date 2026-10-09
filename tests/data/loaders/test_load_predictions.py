@@ -10,11 +10,13 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 from conftest import tmp_as_current  # noqa
-from pandas.errors import SettingWithCopyWarning
 
 import seismometer.data.loader.prediction as undertest
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import DictionaryItem
+
+# Removed in pandas 3, where copy-on-write makes the warning obsolete
+SettingWithCopyWarning = getattr(pd.errors, "SettingWithCopyWarning", None)
 
 
 # region Fakes and Data Prep
@@ -379,7 +381,8 @@ class TestDictionaryTypes:
         )
 
         with warnings.catch_warnings():
-            warnings.simplefilter("error", SettingWithCopyWarning)
+            if SettingWithCopyWarning is not None:
+                warnings.simplefilter("error", SettingWithCopyWarning)
             out = undertest.dictionary_types(config, df)
 
         assert pd.api.types.is_datetime64_any_dtype(out["Time"])

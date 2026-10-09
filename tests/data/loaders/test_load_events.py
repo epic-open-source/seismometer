@@ -157,6 +157,7 @@ class TestPredictionLoad:
         # the post_transform_fn will convert the Time column to a datetime64[ns] type,
         # so we need to mock that functionality
         actual["Time"] = actual["Time"].astype("<M8[ns]")
+        expected["Time"] = expected["Time"].astype("<M8[ns]")  # pandas 3 defaults to [us]
 
         pdt.assert_frame_equal(actual, expected)
 
