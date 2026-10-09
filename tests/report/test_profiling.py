@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import re
 from pathlib import Path
@@ -16,6 +17,11 @@ from seismometer.report.profiling import (
     ReportWrapper,
     SingleReportWrapper,
     filter_unsupported_columns,
+)
+
+# ydata-profiling is an optional extra; these tests patch objects inside it
+requires_ydata = pytest.mark.skipif(
+    importlib.util.find_spec("ydata_profiling") is None, reason="requires seismometer[profiling]"
 )
 
 
@@ -147,6 +153,7 @@ class TestComparisonReportWrapper:
         mock_generate.assert_not_called()
         mock_save.assert_not_called()
 
+    @requires_ydata
     @patch("ydata_profiling.ProfileReport")
     def test_generate_report_excludes_columns(self, mock_profile, example_dfs, tmp_path):
         l_df, r_df = example_dfs
@@ -250,6 +257,7 @@ class TestSingleReportWrapper:
         assert alert_path.exists()
         assert "alerts" in alert_path.read_text()
 
+    @requires_ydata
     @patch("ydata_profiling.ProfileReport")
     def test_generate_report_success(self, mock_profile):
         df = pd.DataFrame({"col1": [1, 2, 3], "drop": [4, 5, 6]})
@@ -291,6 +299,7 @@ class TestSingleReportWrapper:
         assert wrapper._parsed_alerts.alerts == []
         mock_serialize.assert_not_called()
 
+    @requires_ydata
     @patch("ydata_profiling.report.presentation.flavours.html.templates")
     @patch.object(SingleReportWrapper, "_serialize_alerts")
     def test_parse_alerts_skips_rejected(self, mock_serialize, mock_templates):
@@ -307,6 +316,7 @@ class TestSingleReportWrapper:
         assert wrapper._parsed_alerts.alerts == []
         mock_serialize.assert_called_once()
 
+    @requires_ydata
     @patch("ydata_profiling.report.presentation.flavours.html.templates")
     @patch.object(SingleReportWrapper, "_serialize_alerts")
     def test_parse_alerts_valid_alert(self, mock_serialize, mock_templates):

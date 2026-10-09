@@ -128,7 +128,7 @@ class ComparisonReportWrapper(ReportWrapper):
         except ImportError:
             raise ImportError(
                 "Error: ydata-profiling or one of its required packages is not installed. Install with "
-                "`pip install ydata-profiling`."
+                "`pip install seismometer[profiling]`."
             )
 
         dfs = [self._l_df, self._r_df]
@@ -214,7 +214,7 @@ class SingleReportWrapper(ReportWrapper):
         except ImportError:
             raise ImportError(
                 "Error: ydata-profiling or one of its required packages is not installed. "
-                "Install with `pip install ydata-profiling`."
+                "Install with `pip install seismometer[profiling]`."
             )
 
         self._df = self._df.loc[:, [col for col in self._df.columns if col not in self._exclude_cols]]
@@ -236,7 +236,7 @@ class SingleReportWrapper(ReportWrapper):
         except ImportError:
             raise ImportError(
                 "Error: ydata-profiling or one of its required packages is not installed. "
-                "Install with `pip install ydata-profiling`."
+                "Install with `pip install seismometer[profiling]`."
             )
 
         alert: Alert
