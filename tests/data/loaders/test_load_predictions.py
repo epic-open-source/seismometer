@@ -299,6 +299,30 @@ class TestAssumedTypes:
 
 
 class TestDictionaryTypes:
+    @pytest.mark.parametrize("memory_efficient", [True, False])
+    def test_memory_efficient_keeps_arrow_strings(self, memory_efficient):
+        config = Mock(spec=ConfigProvider)
+        config.output_list = []
+        config.memory_efficient = memory_efficient
+        config.prediction_types = {"id": "object", "count": "object"}
+        dataframe = pd.DataFrame(
+            {
+                "id": pd.Series(["a", "b", None], dtype=object),
+                "count": [1, 2, 3],
+                "label": pd.Series(["x", None, "y"], dtype=object),
+                "mixed": pd.Series(["x", 1, None], dtype=object),
+            }
+        )
+
+        actual = undertest.dictionary_types(config, dataframe)
+
+        strings = undertest._arrow_string_dtype() if memory_efficient else object
+        assert actual["id"].dtype == strings
+        assert actual["label"].dtype == (strings if memory_efficient else dataframe["label"].dtype)
+        assert actual["count"].dtype == object  # not strings: cast as defined
+        assert actual["mixed"].dtype == object
+        assert actual["id"].isna().tolist() == [False, False, True]
+
     @pytest.mark.parametrize(
         "defined_types,expected_dtypes",
         [
