@@ -28,6 +28,7 @@ def run_startup(
     definitions: Optional[dict] = None,
     log_level: int = logging.WARN,
     reset: bool = False,
+    memory_efficient: bool = False,
 ):
     """
     Runs the required startup for instantiating seismometer.
@@ -55,6 +56,10 @@ def run_startup(
         The log level to set. by default, logging.WARN.
     reset : bool, optional
         A flag when True, will reset the Seismogram instance before loading configuration and data, by default False.
+    memory_efficient : bool, optional
+        A flag when True, lowers the memory and time to load data, by default False. String columns stay
+        arrow-backed even where the data dictionary says ``object``, and if polars is installed
+        (``pip install seismometer[perf]``) events are merged with it. The loaded values are the same.
     """
 
     _ = init_logger()
@@ -65,7 +70,15 @@ def run_startup(
         Seismogram.kill()
 
     config = config_provider or ConfigProvider(config_path, output_path=output_path, definitions=definitions)
+    config.memory_efficient = memory_efficient
     loader = loader_factory(config)
+    if memory_efficient:
+        from seismometer.data.loader import polars_merge  # only import polars when asked to
+
+        if polars_merge.available():
+            loader.merge_fn = polars_merge.merge_onto_predictions
+        else:
+            logger.info("memory_efficient: polars is not installed; merging events with pandas.")
     sg = Seismogram(config, loader)
 
     sg.load_data(predictions=predictions_frame, events=events_frame)

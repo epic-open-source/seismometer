@@ -58,3 +58,16 @@ class TestStartup:
 
         logger = logging.getLogger("seismometer")
         assert logger.getEffectiveLevel() == log_level
+
+    @pytest.mark.parametrize("memory_efficient", [True, False])
+    def test_memory_efficient_merges_with_polars(self, memory_efficient, mock_config):
+        pytest.importorskip("polars")
+        from seismometer.data.loader import event, polars_merge
+
+        loader = Mock(merge_fn=event.merge_onto_predictions)
+        with patch.object(seismometer, "loader_factory", return_value=loader):
+            run_startup(config_path="new_config", memory_efficient=memory_efficient)
+
+        assert mock_config.return_value.memory_efficient is memory_efficient
+        expected = polars_merge.merge_onto_predictions if memory_efficient else event.merge_onto_predictions
+        assert loader.merge_fn is expected

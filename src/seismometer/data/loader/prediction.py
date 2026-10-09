@@ -162,9 +162,13 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
     defined_types = config.prediction_types
     unspecified_columns = []
     value_error_columns = []
+    keep_arrow_strings = getattr(config, "memory_efficient", False) is True
 
     for col in dataframe.columns:
         if col in defined_types:
+            if keep_arrow_strings and defined_types[col] == "object" and _holds_strings(dataframe[col]):
+                dataframe[col] = dataframe[col].astype(_arrow_string_dtype())
+                continue
             try:
                 pdh.try_casting(dataframe, col, defined_types[col])
             except ConfigurationError:
@@ -180,6 +184,11 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
 
     # Default to assumed types
     dataframe[unspecified_columns] = assumed_types(config, dataframe[unspecified_columns])
+
+    if keep_arrow_strings:
+        for col in dataframe.columns:
+            if dataframe[col].dtype == object and _holds_strings(dataframe[col]):
+                dataframe[col] = dataframe[col].astype(_arrow_string_dtype())
     return dataframe
 
 
@@ -222,6 +231,23 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
 
 # other
+
+
+def _holds_strings(series: pd.Series) -> bool:
+    """Whether every non-missing value is a string."""
+    return pd.api.types.infer_dtype(series, skipna=True) == "string"
+
+
+def _arrow_string_dtype() -> pd.StringDtype:
+    """
+    Arrow-backed strings with NaN for missing values, the default string dtype in pandas 3.
+
+    A fraction of the memory of Python string objects, with the same missing-value behavior.
+    """
+    try:
+        return pd.StringDtype("pyarrow", na_value=np.nan)
+    except TypeError:  # pandas < 2.3
+        return pd.StringDtype("pyarrow_numpy")
 
 
 def _infer_datetime(dataframe, cols=None, override_categories=None):

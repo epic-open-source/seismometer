@@ -44,12 +44,12 @@ jobs:
         if: ${{ matrix.otel }}
         run: |
           pip install --upgrade pip
-          pip install -e .[dev,metrics]
+          pip install -e .[dev,metrics,perf]
       - name: Install dependencies (without metrics)
         if: ${{ !matrix.otel }}
         run: |
           pip install --upgrade pip
-          pip install -e .[dev]
+          pip install -e .[dev,perf]
       - name: Run tests
         run: |
           coverage run -m pytest
