@@ -2,10 +2,13 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 import yaml
-from ydata_profiling.model.alerts import Alert, AlertType
 
 from seismometer.report.alerting import AlertConfigProvider, AlertDef
+
+alerts = pytest.importorskip("ydata_profiling.model.alerts")
+Alert, AlertType = alerts.Alert, alerts.AlertType
 
 
 class Test_Alert_Thresholding:

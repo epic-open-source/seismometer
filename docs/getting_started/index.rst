@@ -51,6 +51,13 @@ following at your command line:
 
    pip install seismometer
 
+The feature profiling reports use ``ydata-profiling``, which is an optional
+extra. It requires pandas 2 and Python 3.13 or older:
+
+.. code-block:: bash
+
+   pip install seismometer[profiling]
+
 For additional details on installing Python packages, refer to the
 `Python Packaging User
 Guide <https://packaging.python.org/en/latest/tutorials/installing-packages/>`__.
