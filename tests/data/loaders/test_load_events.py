@@ -224,6 +224,28 @@ class TestMergeOntoPredictions:
 
         pdt.assert_frame_equal(actual, expected)
 
+    def test_merge_returns_fresh_index(self):
+        config = fake_config("unused_file")
+        config.events = [Event(source="a")]
+
+        event_df = event_frame(rename=True)
+        # out of time order, with a non-default index
+        predictions = pd.DataFrame(
+            {
+                "id": ["2", "0", "1"],
+                "Time": EVENT_DATES[0] - pd.to_timedelta([8, 10, 9], unit="D"),
+                "Prediction": [6, 4, 5],
+            },
+            index=[10, 20, 30],
+        )
+
+        actual = undertest.merge_onto_predictions(config, event_df, predictions)
+
+        pdt.assert_index_equal(actual.index, pd.RangeIndex(3))
+        assert actual["id"].tolist() == ["0", "1", "2"]
+        assert actual["Prediction"].tolist() == [4, 5, 6]
+        assert actual["a_Value"].tolist() == [7.0, 9.0, 12.0]
+
     @pytest.mark.parametrize(
         "event,str_inclusions",
         [

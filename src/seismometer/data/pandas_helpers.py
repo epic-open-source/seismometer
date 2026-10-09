@@ -1,6 +1,6 @@
 import logging
 from numbers import Number
-from typing import Optional, get_args
+from typing import NamedTuple, Optional, get_args
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,14 @@ from seismometer.configuration.model import MergeStrategies
 logger = logging.getLogger("seismometer")
 
 MAXIMUM_COUNT_CATS = 15
+
+
+class KeyCodes(NamedTuple):
+    """Integer ids for each row's key combination, shared between a predictions and an events frame."""
+
+    pks: tuple[str, ...]
+    predictions: pd.Series  # aligned to the predictions index
+    events: pd.Series  # aligned to the events index
 
 
 def merge_windowed_event(
@@ -29,6 +37,7 @@ def merge_windowed_event(
     merge_strategy: str = "forward",
     impute_val_with_time: Optional[Number | str] = 1,
     impute_val_no_time: Optional[Number | str] = 0,
+    key_codes: Optional[KeyCodes] = None,
 ) -> pd.DataFrame:
     """
     Merges a single windowed event into a predictions dataframe
@@ -81,6 +90,9 @@ def merge_windowed_event(
         The value to impute for the label if timestamp exists, defaults to 1.
     impute_val_no_time : Optional[Number|str], optional
         The value to impute for the label if no timestamp exists, defaults to 0.
+    key_codes : Optional[KeyCodes], optional
+        Precomputed key ids for predictions and events, from factorize_keys, by default None.
+        Lets repeated merges onto the same predictions skip re-encoding the keys.
 
     Returns
     -------
@@ -151,6 +163,7 @@ def merge_windowed_event(
         event_ref=event_ref,
         event_display=event_label,
         merge_strategy=merge_strategy,
+        key_codes=key_codes,
     )
 
     # Note that filtering happens after merging.
@@ -379,6 +392,7 @@ def _merge_with_strategy(
     event_ref: str = "Time",
     event_display: str = "an event",
     merge_strategy: str = "forward",
+    key_codes: Optional[KeyCodes] = None,
 ) -> pd.DataFrame:
     """
     Merges the right frame into the left based on a set of exact match primary keys and merge strategy.
@@ -399,6 +413,8 @@ def _merge_with_strategy(
         The name of the event to display in warning messages, by default "an event"
     merge_strategy : str
         The method to use when merging the event data, by default 'forward'.
+    key_codes : Optional[KeyCodes], optional
+        Precomputed key ids for predictions and events, from factorize_keys, by default None.
 
     Returns
     -------
@@ -420,14 +436,28 @@ def _merge_with_strategy(
             one_event = one_event.dropna(subset=[event_ref])
 
         if merge_strategy == "forward" or merge_strategy == "nearest":
-            predictions_with_events = pd.merge_asof(
-                predictions,
-                one_event.dropna(subset=[event_ref]),
-                left_on=pred_ref,
-                right_on=event_ref,
-                by=pks,
-                direction=merge_strategy,
-            )
+            right = one_event.dropna(subset=[event_ref])
+            carry_cols = [col for col in right.columns if col not in pks]
+            if _can_merge_on_codes(predictions, right, pks, carry_cols):
+                predictions_with_events = _merge_asof_on_codes(
+                    predictions,
+                    right,
+                    pks,
+                    carry_cols,
+                    pred_ref=pred_ref,
+                    event_ref=event_ref,
+                    merge_strategy=merge_strategy,
+                    key_codes=key_codes,
+                )
+            else:
+                predictions_with_events = pd.merge_asof(
+                    predictions,
+                    right,
+                    left_on=pred_ref,
+                    right_on=event_ref,
+                    by=pks,
+                    direction=merge_strategy,
+                )
             event_val_col = event_value(event_display)
             if logger.isEnabledFor(logging.INFO) and event_val_col in predictions_with_events:
                 added_events_count = predictions_with_events[event_val_col].eq(1).sum()
@@ -456,6 +486,122 @@ def _merge_with_strategy(
             ) from e
 
     return pd.merge(predictions, one_event_filtered, on=pks, how="left")
+
+
+def factorize_keys(predictions: pd.DataFrame, events: pd.DataFrame, pks: list[str]) -> KeyCodes:
+    """
+    Encodes the key columns of both frames as one integer id per row, so repeated merges can reuse them.
+
+    Equal key combinations get equal ids across the two frames, including missing values (which merge_asof also
+    matches to each other).
+
+    Parameters
+    ----------
+    predictions : pd.DataFrame
+        The predictions frame that events will be merged onto.
+    events : pd.DataFrame
+        The events frame.
+    pks : list[str]
+        The key columns, present in both frames.
+
+    Returns
+    -------
+    KeyCodes
+        The keys and the ids for each frame, aligned to the frames' indexes.
+    """
+    pred_codes, event_codes = _encode_keys(predictions, events, pks)
+    return KeyCodes(
+        tuple(pks), pd.Series(pred_codes, index=predictions.index), pd.Series(event_codes, index=events.index)
+    )
+
+
+def _encode_keys(left: pd.DataFrame, right: pd.DataFrame, pks: list[str]) -> tuple[np.ndarray, np.ndarray]:
+    """Jointly factorizes the key columns of two frames into one integer id per row."""
+    n_left = len(left)
+    combined = None
+    for pk in pks:
+        both = pd.concat([_as_arrow_strings(left[pk]), _as_arrow_strings(right[pk])], ignore_index=True)
+        codes = pd.factorize(both)[0]
+        if combined is None:
+            combined = codes
+        else:  # pair the ids; shift by one so missing values (-1) stay distinct
+            combined = pd.factorize(combined * (codes.max(initial=-1) + 2) + (codes + 1))[0]
+    combined = combined.astype(np.int32) if combined.max(initial=0) < np.iinfo(np.int32).max else combined
+    return combined[:n_left], combined[n_left:]
+
+
+def _as_arrow_strings(series: pd.Series) -> pd.Series:
+    """Arrow strings hash several times faster than Python objects; only columns holding just strings are cast."""
+    values = series.cat.categories if isinstance(series.dtype, pd.CategoricalDtype) else series
+    if pd.api.types.infer_dtype(values, skipna=True) == "string":
+        return series.astype("string[pyarrow]")
+    return series
+
+
+def _key_kind(series: pd.Series) -> str:
+    """Groups key dtypes that hold comparable values: all string-like dtypes match each other."""
+    dtype = series.dtype
+    if isinstance(dtype, pd.CategoricalDtype):
+        dtype = dtype.categories.dtype
+    if pd.api.types.is_object_dtype(dtype) or pd.api.types.is_string_dtype(dtype):
+        return "string"
+    return str(dtype)
+
+
+def _can_merge_on_codes(predictions: pd.DataFrame, right: pd.DataFrame, pks: list[str], carry_cols: list[str]) -> bool:
+    """
+    Whether _merge_asof_on_codes gives the same result as merge_asof on the full frames.
+
+    Not when an event column already exists in predictions (merge_asof would add suffixes), or when key dtypes differ
+    in kind (merge_asof raises).
+    """
+    if any(col in predictions.columns for col in carry_cols):
+        return False
+    return all(_key_kind(predictions[pk]) == _key_kind(right[pk]) for pk in pks)
+
+
+def _merge_asof_on_codes(
+    predictions: pd.DataFrame,
+    right: pd.DataFrame,
+    pks: list[str],
+    carry_cols: list[str],
+    *,
+    pred_ref: str,
+    event_ref: str,
+    merge_strategy: str,
+    key_codes: Optional[KeyCodes] = None,
+) -> pd.DataFrame:
+    """
+    Equivalent of merge_asof(predictions, right, by=pks), run on a slim frame keyed by one integer id.
+
+    Avoids re-encoding string keys inside every merge and copying every prediction column through it. merge_asof
+    keeps the left row order, so the event columns are attached back positionally. Integer keys also sidestep
+    merge_asof's requirement that both sides share one string dtype (object vs str on pandas 3).
+    """
+    left_codes = right_codes = None
+    if key_codes is not None and key_codes.pks == tuple(pks) and key_codes.predictions.index.equals(predictions.index):
+        right_codes = key_codes.events.reindex(right.index)
+        if right_codes.isna().any():  # right rows are not from the encoded events frame
+            right_codes = None
+        else:
+            left_codes = key_codes.predictions.to_numpy()
+            right_codes = right_codes.to_numpy(dtype=left_codes.dtype)
+    if right_codes is None:
+        left_codes, right_codes = _encode_keys(predictions, right, pks)
+
+    key_col = "~~key~~"
+    left_slim = pd.DataFrame({pred_ref: predictions[pred_ref].array, key_col: left_codes})
+    right_slim = right[carry_cols].reset_index(drop=True)
+    right_slim[key_col] = right_codes
+    merged = pd.merge_asof(
+        left_slim, right_slim, left_on=pred_ref, right_on=event_ref, by=key_col, direction=merge_strategy
+    )
+
+    predictions = predictions.copy(deep=False)
+    predictions.index = pd.RangeIndex(len(predictions))  # merge_asof returns a fresh index
+    for col in carry_cols:
+        predictions[col] = merged[col].array
+    return predictions
 
 
 def max_aggregation(df: pd.DataFrame, pks: list[str], score: str, ref_time: str, ref_event: str) -> pd.DataFrame:
