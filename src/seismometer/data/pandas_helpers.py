@@ -166,6 +166,35 @@ def merge_windowed_event(
         key_codes=key_codes,
     )
 
+    return _finish_windowed_event(
+        predictions,
+        predtime_col,
+        event_label,
+        r_ref,
+        window_hrs=window_hrs,
+        min_leadtime_hrs=min_leadtime_hrs,
+        event_base_val_dtype=event_base_val_dtype,
+        impute_val_with_time=impute_val_with_time,
+        impute_val_no_time=impute_val_no_time,
+    )
+
+
+def _finish_windowed_event(
+    predictions: pd.DataFrame,
+    predtime_col: str,
+    event_label: str,
+    r_ref: str,
+    *,
+    window_hrs: Optional[Number],
+    min_leadtime_hrs: Number,
+    event_base_val_dtype: str,
+    impute_val_with_time: Optional[Number | str],
+    impute_val_no_time: Optional[Number | str],
+) -> pd.DataFrame:
+    """Clears merged events outside the window, imputes and casts the values, and drops the reference time column."""
+    event_time_col = event_time(event_label)
+    event_val_col = event_value(event_label)
+
     # Note that filtering happens after merging.
     logger.debug(f"Starting post-processing of events for {event_label}. There are {len(predictions)} predictions.")
     if window_hrs is not None:  # Clear out events outside window
