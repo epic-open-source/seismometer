@@ -1,0 +1,207 @@
+{% macro value_header() %}
+{% if labels | length > 1 %}
+<thead><tr><th>&nbsp;</th>{% for label in labels %}<th style="color: {{ colors[loop.index0] }};">{{ label }}</th>{% endfor %}</tr></thead>
+{% endif %}
+{% endmacro %}
+{% macro table(item) %}
+<div class="table-block">
+  {% if item.name %}<p class="item-header">{{ item.name }}</p>{% endif %}
+  <table class="stats">
+    {{ value_header() }}
+    <tbody>
+      {% for row in item.rows %}
+      <tr{% if row.alert %} class="alert-row"{% endif %}>
+        <th>{{ row.name }}{% if row.help %} <span class="help" title="{{ row.help }}">?</span>{% endif %}</th>
+        {% for value in row["values"] %}<td>{{ value }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if item.caption %}<div class="caption">{{ item.caption }}</div>{% endif %}
+</div>
+{% endmacro %}
+{% macro freq_rows(rows, small, idx=0) %}
+<table class="freq table-{{ idx }}{% if small %} mini{% endif %}">
+  {% if not small %}<thead><tr><td>Value</td><td>Count</td><td>Frequency (%)</td></tr></thead>{% endif %}
+  <tbody>
+    {% for row in rows %}
+    <tr class="{{ row.extra }}">
+      {% if small %}<th title="{{ row.label | fmt }}">{{ row.label | fmt }}</th>{% else %}<td title="{{ row.label | fmt }}">{{ row.label | fmt }}</td>{% endif %}
+      {% if small %}
+      <td><div class="bar" style="width: {{ row.width | fmt_percent(edge_cases=False) }}">{% if row.width > 0.1 %}{{ row.count }}&nbsp;{% else %}&nbsp;{% endif %}</div>{% if row.width <= 0.1 %}{{ row.count }}{% endif %}</td>
+      {% else %}
+      <td>{{ row.count }}</td>
+      <td><div class="bar" style="width: {{ row.width | fmt_percent(edge_cases=False) }}">{% if row.width > 0.4 %}{{ row.percentage | fmt_percent }}{% else %}&nbsp;{% endif %}</div>{% if row.width <= 0.4 %}{{ row.percentage | fmt_percent }}{% endif %}</td>
+      {% endif %}
+    </tr>
+    {% else %}
+    <tr><td colspan="3">No values found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+{% macro dataset_label(idx) %}{% if labels | length > 1 %}<p class="dataset-label" style="color: {{ colors[idx] }};">{{ labels[idx] }}</p>{% endif %}{% endmacro %}
+{% macro item(it) %}
+{% if it.kind == "table" %}
+  {{ table(it) }}
+{% elif it.kind == "freq" %}
+  <div class="table-block">
+    {% if it.name %}<p class="item-header">{{ it.name }}</p>{% endif %}
+    {% if it.tables | length == 1 %}{{ freq_rows(it.tables[0], it.small) }}{% else %}
+    <div class="grid">{% for rows in it.tables %}<div>{{ dataset_label(loop.index0) }}{{ freq_rows(rows, it.small, loop.index0) }}</div>{% endfor %}</div>
+    {% endif %}
+  </div>
+{% elif it.kind == "image" %}
+  <div class="image-block">
+    {% if it.name %}<p class="item-header">{{ it.name }}</p>{% endif %}
+    {{ it.image }}
+    {% if it.caption %}<div class="caption">{{ it.caption }}</div>{% endif %}
+  </div>
+{% elif it.kind == "images" %}
+  <div class="image-block">
+    {% if it.name %}<p class="item-header">{{ it.name }}</p>{% endif %}
+    {% if it.images | length == 1 %}{{ it.images[0] or "" }}{% else %}
+    <div class="grid">{% for image in it.images %}<div>{{ dataset_label(loop.index0) }}{% if image %}{{ image }}{% else %}<em>Number of variable categories passes threshold</em>{% endif %}</div>{% endfor %}</div>
+    {% endif %}
+  </div>
+{% endif %}
+{% endmacro %}
+{% macro tabs(group, entries) %}
+<div class="tabs">
+  {% for name, items in entries %}
+  <input type="radio" name="{{ group }}" id="{{ group }}-{{ loop.index0 }}"{% if loop.first %} checked{% endif %}>
+  <label for="{{ group }}-{{ loop.index0 }}">{{ name }}</label>
+  {% endfor %}
+  {% for name, items in entries %}
+  <div class="panel">{{ caller(items) }}</div>
+  {% endfor %}
+</div>
+{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: #212529; margin: 0; background: #fff; }
+.navbar { background: #212529; color: #fff; padding: 10px 24px; position: sticky; top: 0; z-index: 10; }
+.navbar a { color: #dee2e6; margin-left: 20px; text-decoration: none; }
+.navbar .brand { font-size: 18px; font-weight: 600; color: #fff; margin-left: 0; }
+.content { max-width: 1400px; margin: 0 auto; padding: 0 24px 40px; }
+h1.section { font-size: 26px; font-weight: 400; border-bottom: 1px solid #dee2e6; padding: 24px 0 8px; margin: 0 0 16px; }
+.item-header { font-size: 18px; font-weight: 500; margin: 8px 0; }
+.grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.grid > div { flex: 1 1 300px; min-width: 0; }
+.table-block, .image-block { margin-bottom: 12px; }
+table { border-collapse: collapse; width: 100%; }
+table.stats th, table.stats td { text-align: left; padding: 4px 8px; white-space: nowrap; }
+table.stats tbody tr:nth-child(odd) { background: #f2f2f2; }
+table.stats thead th { border-bottom: 2px solid #dee2e6; }
+tr.alert-row th, tr.alert-row td { color: #dc3545; }
+table.freq td { padding: 4px 8px; vertical-align: middle; }
+table.freq thead td { font-weight: 600; border-bottom: 2px solid #dee2e6; }
+table.freq tbody tr:nth-child(odd) { background: #f9f9f9; }
+table.freq td:first-child { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.freq:not(.mini) td:nth-child(2) { text-align: right; width: 120px; }
+table.freq:not(.mini) td:nth-child(3) { width: 200px; }
+.bar { color: #fff; display: inline-block; min-height: 20px; line-height: 20px; padding: 0 3px; box-sizing: border-box; border-radius: 3px; text-align: center; }
+{% for color in colors %}table.freq.table-{{ loop.index0 }} .bar { background-color: {{ color }}; }
+{% endfor %}
+table.freq tr.other .bar { background-color: #6c757d; } table.freq tr.missing .bar { background-color: #dc3545; }
+table.freq.mini { border-collapse: separate; border-spacing: 4px; }
+table.freq.mini th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 5rem; font-weight: 400; text-align: right; }
+table.freq.mini td { width: 50%; }
+table.freq.mini tbody tr:nth-child(odd) { background: none; }
+.caption { text-align: center; color: #6c757d; margin-top: 4px; }
+.badge { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 4px; }
+.text-bg-primary { background: #0d6efd; color: #fff; } .text-bg-info { background: #0dcaf0; color: #000; }
+.text-bg-warning { background: #ffc107; color: #000; } .text-bg-danger { background: #dc3545; color: #fff; }
+.text-bg-secondary { background: #6c757d; color: #fff; }
+.help { display: inline-block; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 4px; background: #6c757d; color: #fff; font-size: 11px; cursor: help; }
+code { padding: 2px 4px; font-size: 90%; color: #c7254e; background-color: #f9f2f4; border-radius: 4px; }
+.alerts td { padding: 6px 8px; border-bottom: 1px solid #eee; } .alerts thead th { text-align: left; }
+.variable { border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+.variable .name { font-size: 22px; margin: 0; overflow-wrap: anywhere; }
+.variable .name a { color: #0d6efd; text-decoration: none; }
+.variable .type { color: #6c757d; font-size: 15px; }
+.variable .header p { margin: 6px 0; }
+.dataset-alerts td { vertical-align: top; padding-right: 24px; }
+.variable .top { display: grid; gap: 16px; align-items: start; margin-top: 8px; }
+details > summary { cursor: pointer; display: inline-block; margin: 8px 0; padding: 4px 10px; border: 1px solid #6c757d; border-radius: 4px; color: #6c757d; }
+.tabs { margin-top: 8px; }
+.tabs > input { display: none; }
+.tabs > label { display: inline-block; padding: 6px 14px; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: #0d6efd; }
+.tabs > input:checked + label { border-color: #dee2e6; border-radius: 4px 4px 0 0; color: #495057; background: #fff; }
+.tabs > .panel { display: none; border-top: 1px solid #dee2e6; padding-top: 12px; }
+{% for i in range(1, 7) %}.tabs > input:nth-of-type({{ i }}):checked ~ .panel:nth-of-type({{ i }}) { display: block; }
+{% endfor %}
+.dataset-label { font-weight: 600; margin: 4px 0; }
+img.plot { max-width: 100%; height: auto; }
+.footer { color: #6c757d; text-align: center; padding: 16px; }
+.compare .variable .top { grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
+.compare .grid > div { flex-basis: 440px; }
+.compare table.stats thead th, .compare .dataset-label { white-space: normal; overflow-wrap: anywhere; }
+</style>
+</head>
+<body{% if labels | length > 1 %} class="compare"{% endif %}>
+<div class="navbar"><a class="brand" href="#">{{ title }}</a><a href="#overview">Overview</a><a href="#variables">Variables</a></div>
+<div class="content">
+<h1 class="section" id="overview">Overview</h1>
+{% set alert_count = alerts | map("select") | map("list") | map("length") | sum %}
+{% call(items) tabs("overview", [("Overview", overview), ("Alerts (" ~ alert_count ~ ")", alerts), ("Reproduction", [reproduction])]) %}
+  {% if items is sameas alerts %}
+    <table class="alerts">
+      {{ value_header() }}
+      <tbody>
+        {% for row in alerts %}
+        <tr>
+          {% if labels | length > 1 %}<td>{{ row | select | map(attribute="badge") | first }}</td>{% endif %}
+          {% for alert in row %}<td>{% if alert %}{{ alert.html }}{% endif %}</td>{% endfor %}
+          {% if labels | length == 1 %}<td>{{ row[0].badge }}</td>{% endif %}
+        </tr>
+        {% else %}
+        <tr><td><em>No alerts</em></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="grid">{% for it in items %}<div>{{ item(it) }}</div>{% endfor %}</div>
+  {% endif %}
+{% endcall %}
+<h1 class="section" id="variables">Variables</h1>
+{% for var in variables %}
+<div class="variable" id="pp_var_{{ var.anchor }}">
+  {% for section in var.sections %}
+  {% set dataset = loop.index0 %}
+  <div class="header">
+    {% if loop.first %}<p class="name"><a href="#pp_var_{{ var.anchor }}">{{ var.name }}</a></p>{% endif %}
+    {% if var.sections | length > 1 %}
+      <span class="type" style="color: {{ colors[dataset] }};">{{ labels[dataset] }}: {{ var.types[dataset] }}</span>
+      <p>{% for badge in var.alerts[dataset] %}{{ badge }}{% else %}<em>No alerts</em>{% endfor %}</p>
+    {% else %}
+      <span class="type">{{ var.types | unique | join(" / ") }}</span>
+      {% if labels | length > 1 %}
+      <table class="dataset-alerts"><tbody><tr>{% for badges in var.alerts %}<td><span style="color: {{ colors[loop.index0] }};">{{ labels[loop.index0] }}</span><br>{% for badge in badges %}{{ badge }}{% else %}<em>No alerts</em>{% endfor %}</td>{% endfor %}</tr></tbody></table>
+      {% else %}
+      <p>{% for badge in var.alerts[0] %}{{ badge }}{% endfor %}</p>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class="top"{% if labels | length == 1 %} style="grid-template-columns: repeat({{ [section.top | length, 2] | max }}, minmax(0, 1fr));"{% endif %}>
+    {% for it in section.top %}<div>{{ item(it) }}</div>{% endfor %}
+  </div>
+  {% if section.tabs %}
+  <details>
+    <summary>More details</summary>
+    {% call(items) tabs("var-" ~ var.anchor ~ "-" ~ dataset, section.tabs) %}
+      <div class="grid">{% for it in items %}<div>{{ item(it) }}</div>{% endfor %}</div>
+    {% endcall %}
+  </details>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endfor %}
+<div class="footer">Report generated by seismometer.</div>
+</div>
+</body>
+</html>
