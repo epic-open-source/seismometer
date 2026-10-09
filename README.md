@@ -24,11 +24,6 @@ Install the base package with:
 
 `pip install seismometer`
 
-The feature profiling reports (`feature_summary`, `feature_alerts`, `target_feature_summary`,
-`cohort_comparison_report`) need the optional `profiling` extra, which requires pandas 2 and Python 3.13 or older:
-
-`pip install seismometer[profiling]`
-
 ## Getting Help
 
 For general usage questions, refer to our [User Guide](https://epic-open-source.github.io/seismometer/user_guide/index.html#user-guide).

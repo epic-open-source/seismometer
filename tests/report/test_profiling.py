@@ -1,8 +1,7 @@
-import importlib.util
 import json
 import re
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -10,18 +9,13 @@ from IPython.display import HTML as IPyHTML
 from IPython.display import IFrame
 
 from seismometer.core.io import slugify
+from seismometer.data.profile import Alert, AlertType
 from seismometer.report.alerting import ParsedAlert, ParsedAlertList
 from seismometer.report.profiling import (
-    PROFILING_CONFIG_PATH,
     ComparisonReportWrapper,
     ReportWrapper,
     SingleReportWrapper,
     filter_unsupported_columns,
-)
-
-# ydata-profiling is an optional extra; these tests patch objects inside it
-requires_ydata = pytest.mark.skipif(
-    importlib.util.find_spec("ydata_profiling") is None, reason="requires seismometer[profiling]"
 )
 
 
@@ -153,31 +147,24 @@ class TestComparisonReportWrapper:
         mock_generate.assert_not_called()
         mock_save.assert_not_called()
 
-    @requires_ydata
-    @patch("ydata_profiling.ProfileReport")
-    def test_generate_report_excludes_columns(self, mock_profile, example_dfs, tmp_path):
+    def test_generate_report_excludes_columns(self, example_dfs, tmp_path):
         l_df, r_df = example_dfs
 
-        # Force HTML file to not exist so init triggers generate_report
-        output_path = tmp_path
-        report_path = output_path / "feature-comparison-report-comparing-left-against-right.html"
-        if report_path.exists():
-            report_path.unlink()
-
-        _ = ComparisonReportWrapper(
+        wrapper = ComparisonReportWrapper(
             l_df=l_df,
             r_df=r_df,
-            output_path=output_path,
+            output_path=tmp_path,
             l_title="left",
             r_title="right",
             exclude_cols=["b"],
         )
 
-        # Should call ProfileReport twice
-        assert mock_profile.call_count == 2
-
-        # Should call compare exactly once
-        assert mock_profile.return_value.compare.call_count == 1
+        assert [list(p.variables) for p in wrapper._report.profiles] == [["a"], ["a"]]
+        assert wrapper._report.labels == ["left", "right"]
+        assert wrapper._html_path.parent == tmp_path
+        assert "Feature Comparison Report Comparing left against right" in wrapper._html_path.read_text(
+            encoding="utf-8"
+        )
 
 
 class TestSingleReportWrapper:
@@ -257,9 +244,7 @@ class TestSingleReportWrapper:
         assert alert_path.exists()
         assert "alerts" in alert_path.read_text()
 
-    @requires_ydata
-    @patch("ydata_profiling.ProfileReport")
-    def test_generate_report_success(self, mock_profile):
+    def test_generate_report_success(self):
         df = pd.DataFrame({"col1": [1, 2, 3], "drop": [4, 5, 6]})
         wrapper = SingleReportWrapper.__new__(SingleReportWrapper)  # avoid __init__
         wrapper._df = df
@@ -268,29 +253,30 @@ class TestSingleReportWrapper:
 
         wrapper.generate_report()
 
-        mock_profile.assert_called_once_with(ANY, title="TestReport", config_file=PROFILING_CONFIG_PATH)
+        assert wrapper._report.title == "TestReport"
+        assert list(wrapper._report.profiles[0].variables) == ["col1"]
+        pd.testing.assert_frame_equal(wrapper._df, df.drop(columns=["drop"]))
 
-        # Additional check: ensure correct columns were passed
-        called_df = mock_profile.call_args[0][0]
-        expected_df = df.drop(columns=["drop"])
-        pd.testing.assert_frame_equal(called_df, expected_df)
+    def test_end_to_end_report_and_alerts(self, tmp_path):
+        df = pd.DataFrame({"id": range(100), "zeros": [0] * 60 + [1] * 40})
+        alert_config = MagicMock()
+        alert_config.parse_alert.return_value = (True, "#FF0000")
 
-    def test_generate_report_import_error(self):
-        df = pd.DataFrame({"col1": [1, 2, 3]})
-        wrapper = SingleReportWrapper.__new__(SingleReportWrapper)
-        wrapper._df = df
-        wrapper._title = "TestReport"
-        wrapper._exclude_cols = []
+        wrapper = SingleReportWrapper(
+            df=df, output_path=tmp_path, exclude_cols=["id"], title="Report", alert_config=alert_config
+        )
 
-        with patch.dict("sys.modules", {"ydata_profiling": None}):
-            with pytest.raises(ImportError, match="ydata-profiling or one of its required packages"):
-                wrapper.generate_report()
+        assert (tmp_path / "report.html").is_file()
+        parsed = [(a.name, a.variable, a.percentage) for a in wrapper._parsed_alerts.alerts]
+        assert parsed == [("Zeros", "zeros", 0.6)]
+        saved = json.loads((tmp_path / "report_alerts.json").read_text())
+        assert saved["alerts"][0]["display_html"].endswith("has 60 (60.0%) zeros")
 
     @patch.object(SingleReportWrapper, "_serialize_alerts")
     def test_parse_alerts_empty(self, mock_serialize):
         wrapper = SingleReportWrapper.__new__(SingleReportWrapper)
         wrapper._report = MagicMock()
-        wrapper._report.description_set.alerts = []
+        wrapper._report.alerts = []
         wrapper._alert_config = MagicMock()
 
         wrapper._parse_alerts()
@@ -299,16 +285,13 @@ class TestSingleReportWrapper:
         assert wrapper._parsed_alerts.alerts == []
         mock_serialize.assert_not_called()
 
-    @requires_ydata
-    @patch("ydata_profiling.report.presentation.flavours.html.templates")
     @patch.object(SingleReportWrapper, "_serialize_alerts")
-    def test_parse_alerts_skips_rejected(self, mock_serialize, mock_templates):
-        alert = MagicMock()
-        alert.alert_type.name.lower.return_value = "rejected"
+    def test_parse_alerts_skips_rejected(self, mock_serialize):
+        alert = Alert(AlertType.REJECTED, column_name="unsupported")
 
         wrapper = SingleReportWrapper.__new__(SingleReportWrapper)
         wrapper._report = MagicMock()
-        wrapper._report.description_set.alerts = [alert]
+        wrapper._report.alerts = [alert]
         wrapper._alert_config = MagicMock()
 
         wrapper._parse_alerts()
@@ -316,33 +299,29 @@ class TestSingleReportWrapper:
         assert wrapper._parsed_alerts.alerts == []
         mock_serialize.assert_called_once()
 
-    @requires_ydata
-    @patch("ydata_profiling.report.presentation.flavours.html.templates")
     @patch.object(SingleReportWrapper, "_serialize_alerts")
-    def test_parse_alerts_valid_alert(self, mock_serialize, mock_templates):
-        mock_templates.template.return_value.render.return_value = "<b>Alert</b>"
-
-        alert = MagicMock()
-        alert.alert_type.name.lower.return_value = "missing"
-        alert.alert_type_name = "Missing Value"
-        alert.column_name = "test_column"
-        alert.values = {"imbalance": 42.0}
+    def test_parse_alerts_valid_alert(self, mock_serialize):
+        alert = Alert(AlertType.MISSING, {"n_missing": 3, "p_missing": 0.3}, column_name="test_column")
 
         alert_config = MagicMock()
         alert_config.parse_alert.return_value = (True, "#FF0000")
 
         wrapper = SingleReportWrapper.__new__(SingleReportWrapper)
         wrapper._report = MagicMock()
-        wrapper._report.description_set.alerts = [alert]
+        wrapper._report.alerts = [alert]
         wrapper._alert_config = alert_config
 
         wrapper._parse_alerts()
 
         parsed = wrapper._parsed_alerts.alerts
         assert len(parsed) == 1
-        assert parsed[0].name == "Missing Value"
+        assert parsed[0].name == "Missing"
         assert parsed[0].severity == "#FF0000"
-        assert parsed[0].display_html == "<b>Alert</b>"
+        assert parsed[0].variable == "test_column"
+        assert parsed[0].percentage == 0.3
+        assert parsed[0].display_html == (
+            '<a href="#pp_var_test_column"><code>test_column</code></a> has 3 (30.0%) missing values'
+        )
         mock_serialize.assert_called_once()
 
     @patch("seismometer.report.profiling.display")
