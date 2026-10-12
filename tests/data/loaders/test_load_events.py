@@ -224,6 +224,30 @@ class TestMergeOntoPredictions:
 
         pdt.assert_frame_equal(actual, expected)
 
+    def test_merge_event_includes_rows_named_display_name(self):
+        config = fake_config("unused_file")
+        config.events = [Event(source="c", display_name="ac")]
+
+        event_df = event_frame(rename=True)
+        event_df["Type"] = ["c", "b", "ac", "c", "b", "c"]
+
+        predictions = pd.DataFrame(
+            {
+                "id": ["0", "1", "2"],
+                # push backwards so all events are in the future
+                "Time": [EVENT_DATES[0] - pd.to_timedelta(10, unit="D")] * 3,
+                "Prediction": [4, 5, 6],
+            }
+        )
+
+        expected = predictions.copy()
+        expected[["ac_Value", "ac_Time"]] = event_df[["Value", "Time"]].values[[0, 2, 5]]
+        expected["ac_Value"] = expected["ac_Value"].astype(float)
+
+        actual = undertest.merge_onto_predictions(config, event_df, predictions)
+
+        pdt.assert_frame_equal(actual, expected)
+
     def test_merge_returns_fresh_index(self):
         config = fake_config("unused_file")
         config.events = [Event(source="a")]
