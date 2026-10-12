@@ -1,5 +1,7 @@
 import logging
+from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 import seismometer.data.pandas_helpers as pdh
@@ -148,22 +150,18 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
         The merged dataframe of predictions plus new event columns.
     """
     logger.debug("Merging events onto predictions dataframe.")
-    dataframe = (
-        dataframe.sort_values(config.predict_time, kind="mergesort")
-        .drop_duplicates(subset=config.entity_keys + [config.predict_time])
-        .dropna(subset=[config.predict_time])
-    )
-    # The index merge_asof would return; keeps the cached key codes aligned across merges.
+    dataframe = dataframe.sort_values(config.predict_time, kind="mergesort")
     dataframe.index = pd.RangeIndex(len(dataframe))
-    logger.debug(
-        f"Sorted predictions dataframe by {config.predict_time}, dropping duplicate (entity time, prediction time) "
-        "and dropping predictions with Null prediction time."
-    )
     event_frame = event_frame.sort_values("Time", kind="mergesort")
     event_frame.index = pd.RangeIndex(len(event_frame))
     pks = [key for key in config.entity_keys if key in dataframe and key in event_frame]
     uses_asof = any(event.merge_strategy in ("forward", "nearest") for event in config.events.values())
     key_codes = pdh.factorize_keys(dataframe, event_frame, pks) if pks and uses_asof else None
+    dataframe, key_codes = _drop_repeated_predictions(config, dataframe, event_frame, key_codes)
+    logger.debug(
+        f"Sorted predictions dataframe by {config.predict_time}, dropping duplicate (entity time, prediction time) "
+        "and dropping predictions with Null prediction time."
+    )
 
     for one_event in config.events.values():
         logger.debug(f"Processing event {one_event.display_name} with sources {one_event.source}")
@@ -214,6 +212,37 @@ def merge_onto_predictions(config: ConfigProvider, event_frame: pd.DataFrame, da
             dataframe[event_val] = dataframe[event_val].fillna(impute)
 
     return dataframe
+
+
+def _drop_repeated_predictions(
+    config: ConfigProvider, dataframe: pd.DataFrame, event_frame: pd.DataFrame, key_codes: Optional[pdh.KeyCodes]
+) -> tuple[pd.DataFrame, Optional[pdh.KeyCodes]]:
+    """
+    Keeps the first prediction for each entity keys + prediction time, dropping those without a prediction time.
+
+    Compares the integer key codes rather than the key columns when the codes cover every entity key, which is much
+    faster for string keys. Returns the frame with a fresh index and the codes for the kept rows.
+    """
+    predict_time = config.predict_time
+    if (
+        key_codes is not None
+        and key_codes.pks == tuple(config.entity_keys)
+        # the codes come from both frames' keys combined, so they only keep equality when the dtypes match in kind
+        and all(pdh._key_kind(dataframe[key]) == pdh._key_kind(event_frame[key]) for key in key_codes.pks)
+    ):
+        keys = pd.DataFrame({"key": key_codes.predictions.to_numpy(), "time": dataframe[predict_time].array})
+        repeated = keys.duplicated().to_numpy()
+    else:
+        repeated = dataframe.duplicated(subset=config.entity_keys + [predict_time]).to_numpy()
+    rows = np.flatnonzero(~repeated & dataframe[predict_time].notna().to_numpy())
+
+    dataframe = dataframe.take(rows)
+    # The index merge_asof would return; keeps the cached key codes aligned across merges.
+    dataframe.index = pd.RangeIndex(len(dataframe))
+    if key_codes is not None:
+        codes = pd.Series(key_codes.predictions.to_numpy()[rows], index=dataframe.index)
+        key_codes = key_codes._replace(predictions=codes)
+    return dataframe, key_codes
 
 
 def _merge_event(
