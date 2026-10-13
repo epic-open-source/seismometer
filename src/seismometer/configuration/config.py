@@ -43,9 +43,6 @@ class ConfigProvider:
         if a directory, the template notebook will be used with the prefix gen.
     """
 
-    # Set by run_startup; loads with lower memory, see run_startup
-    memory_efficient: bool = False
-
     def __init__(
         self,
         config_config: str | Path,

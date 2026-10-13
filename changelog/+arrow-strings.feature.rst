@@ -1,0 +1,1 @@
+Reduced the memory and time needed to load data by keeping string columns as Arrow-backed strings (pandas' ``str`` dtype) instead of ``object``, even where the data dictionary says ``object``, and by merging events on integer keys.

@@ -28,7 +28,6 @@ def run_startup(
     definitions: Optional[dict] = None,
     log_level: int = logging.WARN,
     reset: bool = False,
-    memory_efficient: bool = False,
 ):
     """
     Runs the required startup for instantiating seismometer.
@@ -56,9 +55,6 @@ def run_startup(
         The log level to set. by default, logging.WARN.
     reset : bool, optional
         A flag when True, will reset the Seismogram instance before loading configuration and data, by default False.
-    memory_efficient : bool, optional
-        A flag when True, keeps string columns arrow-backed even where the data dictionary says ``object``,
-        by default False. The loaded frame takes less memory and holds the same values.
     """
 
     _ = init_logger()
@@ -69,7 +65,6 @@ def run_startup(
         Seismogram.kill()
 
     config = config_provider or ConfigProvider(config_path, output_path=output_path, definitions=definitions)
-    config.memory_efficient = memory_efficient
     loader = loader_factory(config)
     sg = Seismogram(config, loader)
 
