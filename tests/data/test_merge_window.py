@@ -1599,6 +1599,29 @@ class TestMergeAsofOnCodes:
         assert actual["Id"].dtype == predictions["Id"].dtype
         pdt.assert_frame_equal(actual.astype({"Id": object}), expected)
 
+    def test_match_string_keys_keeps_non_string_values(self):
+        # casting object ints to strings would match 1 with "1", which the integer-code merge does not
+        predictions = pd.DataFrame({"Id": pd.Series(["1", "2"], dtype=_arrow_string_dtype())})
+        events = pd.DataFrame({"Id": pd.Series([1, 2], dtype=object)})
+
+        actual = undertest._match_string_keys(predictions, events, ["Id"])
+
+        assert actual["Id"].tolist() == [1, 2]
+
+    @pytest.mark.parametrize("strategy", ["first", "last", "count"])
+    def test_merges_keep_the_predictions_key_dtype(self, strategy):
+        predictions = create_prediction_table([1, 2], [1], ["2024-02-01 01:00:00", "2024-02-01 02:00:00"])
+        predictions["Id"] = predictions["Id"].astype(_arrow_string_dtype())
+        events = create_event_table([1, 2], [1], "TestEvent", event_values=[1, 0], event_times=[DEFAULT_TIME] * 2)
+        events["Id"] = events["Id"].astype(object)
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, "TestEvent", ["Id", "CtxId"], merge_strategy=strategy
+        )
+
+        assert actual["Id"].dtype == _arrow_string_dtype()
+        assert actual["Id"].tolist() == ["1", "2"]
+
     def test_mismatched_key_kinds_use_merge_asof(self):
         predictions, events = self.frames()
         events["Ctx"] = events["Ctx"].astype(str)
