@@ -549,7 +549,10 @@ def _encode_keys(left: pd.DataFrame, right: pd.DataFrame, pks: list[str]) -> tup
     n_left = len(left)
     combined = None
     for pk in pks:
-        both = pd.concat([_as_arrow_strings(left[pk]), _as_arrow_strings(right[pk])], ignore_index=True)
+        left_keys, right_keys = _as_arrow_strings(left[pk]), _as_arrow_strings(right[pk])
+        if left_keys.dtype != right_keys.dtype:  # concat can upcast mixed int keys to float, merging ids from 2**53
+            left_keys, right_keys = left_keys.astype(object), right_keys.astype(object)
+        both = pd.concat([left_keys, right_keys], ignore_index=True)
         codes = pd.factorize(both)[0]
         if combined is None:
             combined = codes

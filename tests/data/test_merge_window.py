@@ -1555,6 +1555,22 @@ class TestMergeAsofOnCodes:
 
         assert actual[undertest.event_value("TestEvent")].tolist() == [1, 0]
 
+    @pytest.mark.parametrize(
+        "event_keys",
+        [pd.Categorical([2**53 + 1, None]), pd.Series([2**53 + 1, None], dtype="Int64")],
+        ids=["categorical", "nullable"],
+    )
+    def test_large_int_keys_stay_distinct_with_other_key_dtypes(self, event_keys):
+        # concatenating these with int64 gives floats, where 2**53 + 1 == 2**53
+        predictions = pd.DataFrame({"Id": pd.Series([2**53, 2**53 + 1], dtype="int64")})
+        events = pd.DataFrame({"Id": event_keys})
+
+        pred_codes, event_codes = undertest._encode_keys(predictions, events, ["Id"])
+
+        assert pred_codes[0] != pred_codes[1]
+        assert pred_codes[1] == event_codes[0]
+        assert event_codes[1] not in pred_codes
+
     def test_existing_event_column_uses_merge_asof(self):
         predictions, events = self.frames()
         predictions["Event_Value"] = 0.0
