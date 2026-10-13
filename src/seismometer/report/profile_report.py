@@ -686,5 +686,6 @@ class ProfileReport:
 
     def to_file(self, path) -> None:
         """Writes the report as an HTML file."""
+        page = self.to_html()  # before opening, so a failed render leaves no empty file
         with open(path, "w", encoding="utf-8") as f:
-            f.write(self.to_html())
+            f.write(page)
