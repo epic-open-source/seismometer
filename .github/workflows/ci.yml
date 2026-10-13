@@ -87,6 +87,24 @@ jobs:
         run: |
           python -m build
           python -m twine check dist/*
+  test-min-versions:
+    name: Test minimum versions py3.10
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install dependencies at their minimum versions
+        run: |
+          pip install --upgrade pip
+          pip install -e .[dev] -c .github/constraints-min.txt
+      - name: Run tests
+        run: |
+          pytest
   test-versions:
     # Limit matrix to after base is passing
     needs: [test-coverage, linting, test-packaging]
