@@ -146,6 +146,17 @@ class TestProfileReport:
         undertest.ProfileReport([profile], title="T").to_file(path)
         assert path.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
 
+    def test_failed_render_leaves_no_file(self, profile, tmp_path, monkeypatch):
+        # an empty file would be reused as the report: comparison reports skip generation when the file exists
+        report = undertest.ProfileReport([profile], title="T")
+        monkeypatch.setattr(report, "to_html", lambda: 1 / 0)
+        path = tmp_path / "report.html"
+
+        with pytest.raises(ZeroDivisionError):
+            report.to_file(path)
+
+        assert not path.exists()
+
     def test_rejects_more_than_two_profiles(self, profile):
         with pytest.raises(ValueError):
             undertest.ProfileReport([profile] * 3, title="T")
