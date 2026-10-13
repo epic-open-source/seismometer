@@ -586,10 +586,10 @@ def _can_merge_on_codes(predictions: pd.DataFrame, right: pd.DataFrame, pks: lis
     """
     Whether _merge_asof_on_codes gives the same result as merge_asof on the full frames.
 
-    Not when an event column already exists in predictions (merge_asof would add suffixes), or when key dtypes differ
-    in kind (merge_asof raises).
+    Not when an event column already exists in predictions (merge_asof would add suffixes), or when there are no keys
+    or their dtypes differ in kind (merge_asof raises).
     """
-    if any(col in predictions.columns for col in carry_cols):
+    if not pks or any(col in predictions.columns for col in carry_cols):
         return False
     return all(_key_kind(predictions[pk]) == _key_kind(right[pk]) for pk in pks)
 
