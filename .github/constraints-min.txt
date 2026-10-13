@@ -1,0 +1,13 @@
+# The minimum versions in setup.cfg's install_requires, installed by the CI job that tests them.
+# Keep in step with setup.cfg; pyarrow's floor is exclusive (>14.0.0).
+numpy==1.26.0
+ipython==8.14.0
+ipywidgets==8.0.0
+jupyterlab==4.5.7
+matplotlib==3.7.0
+seaborn==0.13.2
+pandas==2.2.0
+scikit-learn==1.2.0
+pyarrow==14.0.1
+pydantic==2.6.3
+great-tables==0.13.0
