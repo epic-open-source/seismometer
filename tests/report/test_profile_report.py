@@ -141,6 +141,15 @@ class TestProfileReport:
 
         assert "birth_date" in page
 
+    def test_columns_with_the_same_slug_get_their_own_anchors(self):
+        profile = profile_dataframe(pd.DataFrame({"age": [1] * 10, "Age": [2] * 10, "age-2": [3] * 10}))
+        page = undertest.ProfileReport([profile], title="T").to_html()
+
+        ids = re.findall(r'id="(pp_var_[^"]+)"', page)
+        assert sorted(ids) == ["pp_var_age", "pp_var_age-2", "pp_var_age-2-2"]
+        links = dict(re.findall(r'<a href="#(pp_var_[^"]+)"><code>([^<]+)</code></a>', page))
+        assert links == {"pp_var_age": "age", "pp_var_age-2": "Age", "pp_var_age-2-2": "age-2"}
+
     def test_to_file(self, profile, tmp_path):
         path = tmp_path / "report.html"
         undertest.ProfileReport([profile], title="T").to_file(path)

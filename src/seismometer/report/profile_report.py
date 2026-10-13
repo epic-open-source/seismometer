@@ -185,9 +185,10 @@ _ALERT_TEMPLATES = {
 }
 
 
-def alert_html(alert: Alert) -> str:
-    """The alert's sentence, with the column name linked to its section of the report."""
-    name = Markup('<a href="#pp_var_{}"><code>{}</code></a>').format(_anchor(alert.column_name), alert.column_name)
+def alert_html(alert: Alert, anchor: Optional[str] = None) -> str:
+    """The alert's sentence, with the column name linked to its section of the report (at anchor, if given)."""
+    anchor = anchor or _anchor(alert.column_name)
+    name = Markup('<a href="#pp_var_{}"><code>{}</code></a>').format(anchor, alert.column_name)
     template = _env.from_string(_ALERT_TEMPLATES.get(alert.alert_type, "{{ name }}"))
     return str(template.render(name=name, values=alert.values))
 
@@ -567,7 +568,21 @@ def _anchor(column: Optional[str]) -> str:
         return f"col-{abs(hash(column))}"
 
 
-def _variable(column: str, profiles: list[DataProfile]) -> dict:
+def _unique_anchors(columns: list[str]) -> dict[str, str]:
+    """Anchors per column; names with the same slug, like age and Age, get numbered."""
+    anchors, used = {}, set()
+    for column in columns:
+        anchor = base = _anchor(column)
+        n = 1
+        while anchor in used:
+            n += 1
+            anchor = f"{base}-{n}"
+        anchors[column] = anchor
+        used.add(anchor)
+    return anchors
+
+
+def _variable(column: str, profiles: list[DataProfile], anchor: str) -> dict:
     alerts = [
         [a for a in p.alerts if a.column_name == column and a.alert_type != AlertType.REJECTED] for p in profiles
     ]
@@ -588,7 +603,7 @@ def _variable(column: str, profiles: list[DataProfile]) -> dict:
 
     return {
         "name": column,
-        "anchor": _anchor(column),
+        "anchor": anchor,
         "types": [Markup(TYPE_LABELS[s["type"]]) if s is not None else "(not present)" for s in summaries],
         "alerts": [[_alert_badge(a) for a in column_alerts] for column_alerts in alerts],
         "sections": [
@@ -642,6 +657,7 @@ class ProfileReport:
         """The report as a standalone HTML page."""
         profiles = self.profiles
         columns = list(dict.fromkeys(col for p in profiles for col in p.variables))
+        anchors = _unique_anchors(columns)
         tables = [p.table for p in profiles]
         types = list(dict.fromkeys(t for table in tables for t in table["types"]))
         overview = [
@@ -664,7 +680,8 @@ class ProfileReport:
             for alert in profile.alerts:
                 if alert.alert_type != AlertType.REJECTED:
                     row = alerts.setdefault((alert.alert_type, alert.column_name), [None] * len(profiles))
-                    row[idx] = {"badge": _alert_badge(alert), "html": Markup(alert_html(alert))}
+                    html = alert_html(alert, anchors.get(alert.column_name))
+                    row[idx] = {"badge": _alert_badge(alert), "html": Markup(html)}
         reproduction = _table(
             [
                 ("Analysis started", [str(p.started) for p in profiles]),
@@ -681,7 +698,7 @@ class ProfileReport:
             overview=overview,
             alerts=list(alerts.values()),
             reproduction=reproduction,
-            variables=[_variable(col, profiles) for col in columns],
+            variables=[_variable(col, profiles, anchors[col]) for col in columns],
         )
 
     def to_file(self, path) -> None:
