@@ -362,6 +362,7 @@ def _merge_event_counts(
         raise ValueError(
             f"`l_ref` and `r_ref` must be different to avoid column collisions during merge (both are '{l_ref}')."
         )
+    right = _match_string_keys(left, right, pks)
 
     if window_hrs is not None:
         # Filter out rows with missing times if checking window hours
@@ -457,7 +458,7 @@ def _merge_with_strategy(
         if ct_times == 0:
             # Set the filtered frame to the first row for each group and throw a value error
             # which is passed before merging.
-            one_event_filtered = one_event.groupby(pks).first()
+            one_event_filtered = _match_string_keys(predictions, one_event, pks).groupby(pks).first()
             raise ValueError(f"No times found for {event_display}, merging first row for each group.")
 
         if ct_times != len(one_event.index):
@@ -498,6 +499,7 @@ def _merge_with_strategy(
             )
             return predictions_with_events
 
+        one_event = _match_string_keys(predictions, one_event, pks)
         # Assume sorted on event_ref before being passed in
         if merge_strategy == "first":
             logger.debug(f"Updating events to only keep the first occurrence for each {event_display}.")
@@ -593,7 +595,12 @@ def _can_merge_on_codes(predictions: pd.DataFrame, right: pd.DataFrame, pks: lis
 
 
 def _match_string_keys(predictions: pd.DataFrame, right: pd.DataFrame, pks: list[str]) -> pd.DataFrame:
-    """merge_asof needs one dtype for string keys on both sides (object vs str); casts the event keys to match."""
+    """
+    Casts the event keys to the predictions' string dtype (object vs str) where that keeps their values.
+
+    merge_asof rejects string keys in two dtypes, and merge returns them as object on pandas 2. Object keys holding
+    other values stay as they are, so 1 never matches "1".
+    """
     casts = {
         pk: predictions[pk].dtype
         for pk in pks
@@ -601,6 +608,10 @@ def _match_string_keys(predictions: pd.DataFrame, right: pd.DataFrame, pks: list
         and not isinstance(predictions[pk].dtype, pd.CategoricalDtype)
         and not isinstance(right[pk].dtype, pd.CategoricalDtype)
         and _key_kind(predictions[pk]) == _key_kind(right[pk]) == "string"
+        and (
+            pd.api.types.is_object_dtype(predictions[pk].dtype)
+            or pd.api.types.infer_dtype(right[pk], skipna=True) in ("string", "empty")
+        )
     }
     return right.astype(casts) if casts else right
 
