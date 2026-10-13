@@ -481,7 +481,7 @@ def _merge_with_strategy(
             else:
                 predictions_with_events = pd.merge_asof(
                     predictions,
-                    right,
+                    _match_string_keys(predictions, right, pks),
                     left_on=pred_ref,
                     right_on=event_ref,
                     by=pks,
@@ -587,6 +587,19 @@ def _can_merge_on_codes(predictions: pd.DataFrame, right: pd.DataFrame, pks: lis
     if any(col in predictions.columns for col in carry_cols):
         return False
     return all(_key_kind(predictions[pk]) == _key_kind(right[pk]) for pk in pks)
+
+
+def _match_string_keys(predictions: pd.DataFrame, right: pd.DataFrame, pks: list[str]) -> pd.DataFrame:
+    """merge_asof needs one dtype for string keys on both sides (object vs str); casts the event keys to match."""
+    casts = {
+        pk: predictions[pk].dtype
+        for pk in pks
+        if predictions[pk].dtype != right[pk].dtype
+        and not isinstance(predictions[pk].dtype, pd.CategoricalDtype)
+        and not isinstance(right[pk].dtype, pd.CategoricalDtype)
+        and _key_kind(predictions[pk]) == _key_kind(right[pk]) == "string"
+    }
+    return right.astype(casts) if casts else right
 
 
 def _merge_asof_on_codes(

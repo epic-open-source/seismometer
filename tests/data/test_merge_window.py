@@ -6,6 +6,7 @@ import pandas.testing as pdt
 import pytest
 
 import seismometer.data.pandas_helpers as undertest
+from seismometer.data.loader.prediction import _arrow_string_dtype
 
 # region test helpers
 DEFAULT_PRED_TIME_STR = "2024-02-01 01:00:00"
@@ -1559,6 +1560,28 @@ class TestMergeAsofOnCodes:
         predictions["Event_Value"] = 0.0
 
         assert not undertest._can_merge_on_codes(predictions, events, ["Id", "Ctx"], ["Event_Value", "Event_Time"])
+
+    @pytest.mark.parametrize("event_key_dtype", ["object", "string"])
+    def test_existing_event_column_with_other_string_dtype_merges(self, event_key_dtype):
+        predictions, events = self.frames()
+        predictions["Id"] = predictions["Id"].fillna("c").astype(_arrow_string_dtype())
+        predictions["Event_Value"] = 0.0
+        events["Id"] = events["Id"].fillna("c").astype(event_key_dtype)
+        expected = pd.merge_asof(
+            predictions.astype({"Id": object}),
+            events.astype({"Id": object}),
+            left_on="PredictTime",
+            right_on="Event_Time",
+            by=["Id", "Ctx"],
+            direction="forward",
+        )
+
+        actual = undertest._merge_with_strategy(
+            predictions, events, ["Id", "Ctx"], pred_ref="PredictTime", event_ref="Event_Time"
+        )
+
+        assert actual["Id"].dtype == predictions["Id"].dtype
+        pdt.assert_frame_equal(actual.astype({"Id": object}), expected)
 
     def test_mismatched_key_kinds_use_merge_asof(self):
         predictions, events = self.frames()
