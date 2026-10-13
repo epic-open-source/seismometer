@@ -6,7 +6,7 @@ Keeps the sections, labels, number formatting, alert wording and plots of the yd
 import base64
 import math
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import StringIO
 from typing import Any, Optional
 
@@ -226,7 +226,7 @@ def _draw_histograms(histograms: list[Optional[tuple]], mini: bool, date: bool) 
         alpha = 0.6 if len(histograms) > 1 else None
         ax.bar(edges[:-1] + widths / 2, counts, widths, facecolor=COLORS[idx], alpha=alpha)
     if date:
-        ax.xaxis.set_major_formatter(lambda x, _: datetime.fromtimestamp(x).strftime("%Y-%m-%d"))
+        ax.xaxis.set_major_formatter(_date_tick)
     if mini:
         ax.set_facecolor("w")
         ax.yaxis.set_visible(False)
@@ -237,6 +237,11 @@ def _draw_histograms(histograms: list[Optional[tuple]], mini: bool, date: bool) 
     ax.xaxis.set_tick_params(rotation=90 if date else 45)
     figure.tight_layout()
     return _svg_image(figure)
+
+
+def _date_tick(seconds: float, _: Any = None) -> str:
+    """Label for a tick in seconds since 1970, of naive dates; fromtimestamp would apply the local time zone."""
+    return (datetime(1970, 1, 1) + timedelta(seconds=seconds)).strftime("%Y-%m-%d")
 
 
 def _category_plot(counts: pd.Series) -> Markup:

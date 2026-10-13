@@ -2,6 +2,7 @@ import html
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -61,6 +62,13 @@ class TestFormatting:
     )
     def test_fmt_timespan(self, seconds, expected):
         assert undertest.fmt_timespan(seconds) == expected
+
+    @pytest.mark.parametrize(
+        "seconds,expected", [(-86400 * 365, "1969-01-01"), (0, "1970-01-01"), (1709251200, "2024-03-01")]
+    )
+    def test_date_ticks_are_utc_and_allow_dates_before_1970(self, seconds, expected):
+        # the histograms bin naive dates as seconds since 1970; datetime.fromtimestamp fails before 1970 on Windows
+        assert undertest._date_tick(seconds) == expected
 
 
 class TestAlerts:
@@ -123,6 +131,15 @@ class TestProfileReport:
         page = undertest.ProfileReport([left, right], title="Compare").to_html()
         assert "Left: Real number (&Ropf;)" in page
         assert "Right: Unsupported" in page
+
+    def test_dates_before_1970(self):
+        dates = pd.Series([date(1950, 1, 1), date(1965, 6, 1), date(1985, 3, 3)] * 4, dtype=object)
+        profile = profile_dataframe(pd.DataFrame({"birth_date": dates}))
+        assert profile.variables["birth_date"]["type"] == "DateTime"
+
+        page = undertest.ProfileReport([profile], title="T").to_html()
+
+        assert "birth_date" in page
 
     def test_to_file(self, profile, tmp_path):
         path = tmp_path / "report.html"
