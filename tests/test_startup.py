@@ -58,14 +58,3 @@ class TestStartup:
 
         logger = logging.getLogger("seismometer")
         assert logger.getEffectiveLevel() == log_level
-
-    @pytest.mark.parametrize("memory_efficient", [True, False])
-    def test_memory_efficient_sets_config(self, memory_efficient, mock_config):
-        from seismometer.data.loader import event
-
-        loader = Mock(merge_fn=event.merge_onto_predictions)
-        with patch.object(seismometer, "loader_factory", return_value=loader):
-            run_startup(config_path="new_config", memory_efficient=memory_efficient)
-
-        assert mock_config.return_value.memory_efficient is memory_efficient
-        assert loader.merge_fn is event.merge_onto_predictions

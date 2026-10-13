@@ -139,7 +139,7 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
     Convert the loaded predictions dataframe to the expected types.
 
     Prioritizes the types defined in the configuration dictionary, then falls back to assumed_types.
-
+    Columns holding only strings become arrow-backed strings, even where the dictionary says object.
 
     Parameters
     ----------
@@ -162,11 +162,10 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
     defined_types = config.prediction_types
     unspecified_columns = []
     value_error_columns = []
-    keep_arrow_strings = getattr(config, "memory_efficient", False) is True
 
     for col in dataframe.columns:
         if col in defined_types:
-            if keep_arrow_strings and defined_types[col] == "object" and _holds_strings(dataframe[col]):
+            if defined_types[col] == "object" and _holds_strings(dataframe[col]):
                 dataframe[col] = dataframe[col].astype(_arrow_string_dtype())
                 continue
             try:
@@ -185,10 +184,9 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
     # Default to assumed types
     dataframe[unspecified_columns] = assumed_types(config, dataframe[unspecified_columns])
 
-    if keep_arrow_strings:
-        for col in dataframe.columns:
-            if dataframe[col].dtype == object and _holds_strings(dataframe[col]):
-                dataframe[col] = dataframe[col].astype(_arrow_string_dtype())
+    for col in dataframe.columns:
+        if dataframe[col].dtype == object and _holds_strings(dataframe[col]):
+            dataframe[col] = dataframe[col].astype(_arrow_string_dtype())
     return dataframe
 
 
