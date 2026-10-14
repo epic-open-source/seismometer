@@ -1,1 +1,0 @@
-Replaced ydata-profiling with a built-in profiler for the feature reports (``feature_summary``, ``feature_alerts``, ``target_feature_summary`` and ``cohort_comparison_report``). The reports keep ydata-profiling's statistics, alert rules and ``alert_config.yml`` settings, work with pandas 3, and build 2 to 2.5 times faster; ydata-profiling is no longer installed.
