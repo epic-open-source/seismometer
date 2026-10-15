@@ -10,7 +10,8 @@ N = 1000
 def make_profile_frame() -> pd.DataFrame:
     rng = np.random.default_rng(0)
 
-    float_mixed = rng.normal(2, 3, N)
+    # rng.normal(2, 3) uses a fused multiply-add on macOS, which changes the last bit of some values
+    float_mixed = 2 + 3 * rng.standard_normal(N)
     float_mixed[rng.choice(N, 50, replace=False)] = np.nan
     float_mixed[:15] = np.inf
     float_mixed[15:20] = -np.inf
