@@ -3,8 +3,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import yaml
-from ydata_profiling.model.alerts import Alert, AlertType
 
+from seismometer.data.profile import Alert, AlertType
 from seismometer.report.alerting import AlertConfigProvider, AlertDef
 
 

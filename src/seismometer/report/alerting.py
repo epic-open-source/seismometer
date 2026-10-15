@@ -36,6 +36,7 @@ from typing import Optional
 import yaml
 from pydantic import BaseModel, Field
 
+from seismometer.data.profile import Alert as ProfileAlert
 from seismometer.plot.mpl._ux import alert_colors
 
 logger = logging.getLogger("seismometer")
@@ -88,13 +89,13 @@ class AlertConfigProvider:
             with open(self.config_dir / self.config_file, "r") as f:
                 self._config = AlertDef(**yaml.safe_load(f))
 
-    def parse_alert(self, alert: "ydata_profiling.model.alerts.Alert") -> tuple[bool, str]:
+    def parse_alert(self, alert: ProfileAlert) -> tuple[bool, str]:
         """
-        Parses a single `ydata-profiling` Alert object.
+        Parses a single profile Alert.
 
         Parameters
         ----------
-        alert : ydata_profiling.model.alerts.Alert
+        alert : ProfileAlert
             The alert to parse.
 
         Returns
@@ -106,13 +107,13 @@ class AlertConfigProvider:
 
         return self._alert_threshold_met(alert), self._alert_style(alert)
 
-    def _alert_style(self, alert: "ydata_profiling.model.alerts.Alert") -> str:
+    def _alert_style(self, alert: ProfileAlert) -> str:
         """
         Returns the configured severity for an alert, or the default specified here.
 
         Parameters
         ----------
-        alert : ydata_profiling.model.alerts.Alert
+        alert : ProfileAlert
             The alert to return data for.
 
         Returns
@@ -148,13 +149,13 @@ class AlertConfigProvider:
 
         return config.severity
 
-    def _alert_threshold_met(self, alert: "ydata_profiling.model.alerts.Alert") -> bool:
+    def _alert_threshold_met(self, alert: ProfileAlert) -> bool:
         """
         Determines if an Alert meets its configured thresholds.
 
         Parameters
         ----------
-        alert : ydata_profiling.model.alerts.Alert
+        alert : ProfileAlert
             The alert to check.
 
         Returns
@@ -177,14 +178,14 @@ class AlertConfigProvider:
         else:
             return self._alert_threshold_met_col(alert, config.default)  # show if matches default config
 
-    def _alert_threshold_met_col(self, alert: "ydata_profiling.model.alerts.Alert", col_cfg: AlertThresholds) -> bool:
+    def _alert_threshold_met_col(self, alert: ProfileAlert, col_cfg: AlertThresholds) -> bool:
         """
         Helper API to determine if threshold is met for specific alert and specific alert threshold.
 
         Parameters
         ----------
-        alert : ydata_profiling.model.alerts.Alert
-            The `ydata-profiling` alert object.
+        alert : ProfileAlert
+            The profile alert.
         col_cfg : AlertThresholds
             The alert threshold object created from config.
 
