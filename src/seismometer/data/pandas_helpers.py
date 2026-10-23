@@ -93,6 +93,7 @@ def merge_windowed_event(
     key_codes : Optional[KeyCodes], optional
         Precomputed key ids for predictions and events, from factorize_keys, by default None.
         Lets repeated merges onto the same predictions skip re-encoding the keys.
+        Events are matched to their ids by index label, so they must keep the labels of the encoded frame.
 
     Returns
     -------
@@ -445,6 +446,7 @@ def _merge_with_strategy(
         The method to use when merging the event data, by default 'forward'.
     key_codes : Optional[KeyCodes], optional
         Precomputed key ids for predictions and events, from factorize_keys, by default None.
+        Events are matched to their ids by index label, so they must keep the labels of the encoded frame.
 
     Returns
     -------
