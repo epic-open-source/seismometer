@@ -554,7 +554,7 @@ def as_percentages(proba: np.ndarray) -> np.ndarray:
         array-like list of percentages.
     """
     if proba.max() < 2:
-        proba *= 100
+        proba = proba * 100
     return proba
 
 

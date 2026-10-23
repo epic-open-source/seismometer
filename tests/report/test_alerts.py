@@ -3,8 +3,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import yaml
-from ydata_profiling.model.alerts import Alert, AlertType
 
+from seismometer.data.profile import Alert, AlertType
 from seismometer.report.alerting import AlertConfigProvider, AlertDef
 
 
@@ -157,6 +157,21 @@ class Test_Alert_Thresholding:
         )
 
         assert not cfg._alert_threshold_met(alert)
+
+    @patch.object(AlertConfigProvider, "__init__", return_value=None)
+    def test_misconfigured_thresholds_warning_leaves_out_column_data(self, mock, caplog):
+        alert = Alert(AlertType.UNIQUE, {"n_unique": 100, "first_rows": "patient note"}, "note")
+
+        cfg = AlertConfigProvider()
+        cfg._config = AlertDef(
+            **{"alerts": {"unique": {"default": {"show": True, "thresholds": {"n_dinosaurs": 100}}}}}
+        )
+        with caplog.at_level("WARNING"):
+            cfg._alert_threshold_met(alert)
+
+        assert "n_dinosaurs" in caplog.text
+        assert "note" in caplog.text
+        assert "patient note" not in caplog.text
 
     @patch.object(AlertConfigProvider, "__init__", return_value=None)
     def test_misconfigured_thresholds_config_one_met(self, mock):

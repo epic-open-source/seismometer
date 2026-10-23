@@ -6,6 +6,7 @@ import pandas.testing as pdt
 import pytest
 
 import seismometer.data.pandas_helpers as undertest
+from seismometer.data.loader.prediction import _arrow_string_dtype
 
 # region test helpers
 DEFAULT_PRED_TIME_STR = "2024-02-01 01:00:00"
@@ -1415,3 +1416,214 @@ class TestMergeEventCounts:
 
         actual = actual.sort_values(by=["Id", "CtxId", "PredictTime"]).reset_index(drop=True)
         pdt.assert_frame_equal(actual[expected.columns], expected, check_dtype=False)
+
+
+class TestMergeAsofOnCodes:
+    @staticmethod
+    def frames(key_dtype="object"):
+        times = pd.to_datetime(["2024-01-01 00:00", "2024-01-01 06:00", "2024-01-02 00:00", "2024-01-03 00:00"])
+        predictions = pd.DataFrame(
+            {
+                "Id": pd.Series(["a", "b", None, "a"], dtype=key_dtype),
+                "Ctx": [1, 1, 1, 2],
+                "PredictTime": times,
+                "Score": [0.1, 0.2, 0.3, 0.4],
+            }
+        )
+        events = pd.DataFrame(
+            {
+                "Id": pd.Series(["a", "b", "zzz", None, "a"], dtype=key_dtype),
+                "Ctx": [1, 1, 1, 1, 2],
+                "Event_Value": [1.0, 4.0, 2.0, 3.0, 5.0],
+                "Event_Time": pd.to_datetime(
+                    ["2024-01-01 03:00", "2024-01-01 07:00", "2024-01-02 00:30", "2024-01-02 01:00", "2024-01-04"],
+                    format="ISO8601",
+                ),
+            }
+        )
+        return predictions, events
+
+    @pytest.mark.parametrize("direction", ["forward", "nearest"])
+    @pytest.mark.parametrize("key_dtype", ["object", "category"])
+    @pytest.mark.parametrize("cached", [True, False])
+    def test_matches_merge_asof(self, direction, key_dtype, cached):
+        predictions, events = self.frames(key_dtype)
+        pks = ["Id", "Ctx"]
+        expected = pd.merge_asof(
+            predictions.astype({"Id": object}),
+            events.astype({"Id": object}),
+            left_on="PredictTime",
+            right_on="Event_Time",
+            by=pks,
+            direction=direction,
+        )
+
+        key_codes = undertest.factorize_keys(predictions, events, pks) if cached else None
+        actual = undertest._merge_asof_on_codes(
+            predictions,
+            events,
+            pks,
+            ["Event_Value", "Event_Time"],
+            pred_ref="PredictTime",
+            event_ref="Event_Time",
+            merge_strategy=direction,
+            key_codes=key_codes,
+        )
+
+        pdt.assert_frame_equal(actual.astype({"Id": object}), expected)
+
+    def test_missing_keys_match_but_unknown_keys_do_not(self):
+        predictions, events = self.frames()
+        pks = ["Id", "Ctx"]
+        actual = undertest._merge_asof_on_codes(
+            predictions,
+            events,
+            pks,
+            ["Event_Value", "Event_Time"],
+            pred_ref="PredictTime",
+            event_ref="Event_Time",
+            merge_strategy="forward",
+            key_codes=undertest.factorize_keys(predictions, events, pks),
+        )
+        # row 2 has a missing Id: matches the event with a missing Id, never the "zzz" event
+        assert actual.loc[2, "Event_Value"] == 3.0
+
+    def test_ignores_codes_for_other_events(self):
+        predictions, events = self.frames()
+        pks = ["Id", "Ctx"]
+        key_codes = undertest.factorize_keys(predictions, events.iloc[:2], pks)
+        expected = pd.merge_asof(
+            predictions, events, left_on="PredictTime", right_on="Event_Time", by=pks, direction="forward"
+        )
+
+        actual = undertest._merge_asof_on_codes(
+            predictions,
+            events,
+            pks,
+            ["Event_Value", "Event_Time"],
+            pred_ref="PredictTime",
+            event_ref="Event_Time",
+            merge_strategy="forward",
+            key_codes=key_codes,
+        )
+
+        pdt.assert_frame_equal(actual, expected)
+
+    def test_keeps_timezones(self):
+        predictions, events = self.frames()
+        predictions["PredictTime"] = predictions["PredictTime"].dt.tz_localize("UTC")
+        events["Event_Time"] = events["Event_Time"].dt.tz_localize("UTC")
+        pks = ["Id", "Ctx"]
+        expected = pd.merge_asof(
+            predictions, events, left_on="PredictTime", right_on="Event_Time", by=pks, direction="forward"
+        )
+
+        actual = undertest._merge_asof_on_codes(
+            predictions,
+            events,
+            pks,
+            ["Event_Value", "Event_Time"],
+            pred_ref="PredictTime",
+            event_ref="Event_Time",
+            merge_strategy="forward",
+        )
+
+        pdt.assert_frame_equal(actual, expected)
+
+    def test_does_not_modify_input(self):
+        predictions, events = self.frames()
+        before = predictions.copy()
+        _ = undertest._merge_asof_on_codes(
+            predictions,
+            events,
+            ["Id", "Ctx"],
+            ["Event_Value", "Event_Time"],
+            pred_ref="PredictTime",
+            event_ref="Event_Time",
+            merge_strategy="forward",
+        )
+        pdt.assert_frame_equal(predictions, before)
+
+    def test_object_and_string_keys_merge(self):
+        # pandas 3 reads strings as str while dictionary casts can leave object; merge_asof rejects the mix
+        predictions = create_prediction_table([1, 2], [1], ["2024-02-01 01:00:00", "2024-02-01 02:00:00"])
+        predictions["Id"] = predictions["Id"].astype(object)
+        events = create_event_table([1, 2], [1], "TestEvent", event_values=[1, 0], event_times=[DEFAULT_TIME] * 2)
+        events["Id"] = events["Id"].astype("string")
+
+        actual = undertest.merge_windowed_event(predictions, "PredictTime", events, "TestEvent", ["Id", "CtxId"])
+
+        assert actual[undertest.event_value("TestEvent")].tolist() == [1, 0]
+
+    @pytest.mark.parametrize(
+        "event_keys",
+        [pd.Categorical([2**53 + 1, None]), pd.Series([2**53 + 1, None], dtype="Int64")],
+        ids=["categorical", "nullable"],
+    )
+    def test_large_int_keys_stay_distinct_with_other_key_dtypes(self, event_keys):
+        # concatenating these with int64 gives floats, where 2**53 + 1 == 2**53
+        predictions = pd.DataFrame({"Id": pd.Series([2**53, 2**53 + 1], dtype="int64")})
+        events = pd.DataFrame({"Id": event_keys})
+
+        pred_codes, event_codes = undertest._encode_keys(predictions, events, ["Id"])
+
+        assert pred_codes[0] != pred_codes[1]
+        assert pred_codes[1] == event_codes[0]
+        assert event_codes[1] not in pred_codes
+
+    def test_existing_event_column_uses_merge_asof(self):
+        predictions, events = self.frames()
+        predictions["Event_Value"] = 0.0
+
+        assert not undertest._can_merge_on_codes(predictions, events, ["Id", "Ctx"], ["Event_Value", "Event_Time"])
+
+    @pytest.mark.parametrize("event_key_dtype", ["object", "string"])
+    def test_existing_event_column_with_other_string_dtype_merges(self, event_key_dtype):
+        predictions, events = self.frames()
+        predictions["Id"] = predictions["Id"].fillna("c").astype(_arrow_string_dtype())
+        predictions["Event_Value"] = 0.0
+        events["Id"] = events["Id"].fillna("c").astype(event_key_dtype)
+        expected = pd.merge_asof(
+            predictions.astype({"Id": object}),
+            events.astype({"Id": object}),
+            left_on="PredictTime",
+            right_on="Event_Time",
+            by=["Id", "Ctx"],
+            direction="forward",
+        )
+
+        actual = undertest._merge_with_strategy(
+            predictions, events, ["Id", "Ctx"], pred_ref="PredictTime", event_ref="Event_Time"
+        )
+
+        assert actual["Id"].dtype == predictions["Id"].dtype
+        pdt.assert_frame_equal(actual.astype({"Id": object}), expected)
+
+    def test_match_string_keys_keeps_non_string_values(self):
+        # casting object ints to strings would match 1 with "1", which the integer-code merge does not
+        predictions = pd.DataFrame({"Id": pd.Series(["1", "2"], dtype=_arrow_string_dtype())})
+        events = pd.DataFrame({"Id": pd.Series([1, 2], dtype=object)})
+
+        actual = undertest._match_string_keys(predictions, events, ["Id"])
+
+        assert actual["Id"].tolist() == [1, 2]
+
+    @pytest.mark.parametrize("strategy", ["first", "last", "count"])
+    def test_merges_keep_the_predictions_key_dtype(self, strategy):
+        predictions = create_prediction_table([1, 2], [1], ["2024-02-01 01:00:00", "2024-02-01 02:00:00"])
+        predictions["Id"] = predictions["Id"].astype(_arrow_string_dtype())
+        events = create_event_table([1, 2], [1], "TestEvent", event_values=[1, 0], event_times=[DEFAULT_TIME] * 2)
+        events["Id"] = events["Id"].astype(object)
+
+        actual = undertest.merge_windowed_event(
+            predictions, "PredictTime", events, "TestEvent", ["Id", "CtxId"], merge_strategy=strategy
+        )
+
+        assert actual["Id"].dtype == _arrow_string_dtype()
+        assert actual["Id"].tolist() == ["1", "2"]
+
+    def test_mismatched_key_kinds_use_merge_asof(self):
+        predictions, events = self.frames()
+        events["Ctx"] = events["Ctx"].astype(str)
+
+        assert not undertest._can_merge_on_codes(predictions, events, ["Id", "Ctx"], ["Event_Value", "Event_Time"])

@@ -1,14 +1,13 @@
-numpy==2.0.2
-numba==0.60.0
+numpy==2.5.3
 
 # All python
-ipython==8.29.0
-ipywidgets==8.1.5
-jupyterlab==4.5.11
-matplotlib==3.9.2
-pandas==2.2.3
-pydantic==2.9.2
-pyarrow==23.0.1
-scikit-learn==1.5.2
+great-tables==1.0.0
+ipython==9.17.1
+ipywidgets==8.1.9
+jupyterlab==4.6.4
+matplotlib==3.11.2
+pandas==3.0.6
+pydantic==2.14.0
+pyarrow==25.0.1
+scikit-learn==1.9.1
 seaborn==0.13.2
-ydata-profiling==4.12.0

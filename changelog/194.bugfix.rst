@@ -1,0 +1,1 @@
+Fixed event merges failing when the predictions and events store the same string keys with different dtypes, such as ``object`` and ``str``. Fixed cohort columns not lining up with their rows when no events were merged onto predictions that were not sorted by time.
