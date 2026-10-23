@@ -70,6 +70,9 @@ class TestFormatting:
         # the histograms bin naive dates as seconds since 1970; datetime.fromtimestamp fails before 1970 on Windows
         assert undertest._date_tick(seconds) == expected
 
+    def test_date_ticks_past_year_9999_are_blank(self):
+        assert undertest._date_tick(3e11) == ""
+
 
 class TestAlerts:
     def test_wording_matches_ydata_profiling(self, profile):
@@ -140,6 +143,14 @@ class TestProfileReport:
         page = undertest.ProfileReport([profile], title="T").to_html()
 
         assert "birth_date" in page
+
+    def test_dates_at_the_ends_of_the_calendar(self):
+        dates = pd.Series([date(1, 1, 1), date(2020, 1, 1), date(9999, 12, 31)] * 4, dtype=object)
+        profile = profile_dataframe(pd.DataFrame({"end_date": dates}))
+
+        page = undertest.ProfileReport([profile], title="T").to_html()
+
+        assert "end_date" in page
 
     def test_columns_with_the_same_slug_get_their_own_anchors(self):
         profile = profile_dataframe(pd.DataFrame({"age": [1] * 10, "Age": [2] * 10, "age-2": [3] * 10}))

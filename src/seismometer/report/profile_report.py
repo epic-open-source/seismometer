@@ -242,7 +242,10 @@ def _draw_histograms(histograms: list[Optional[tuple]], mini: bool, date: bool) 
 
 def _date_tick(seconds: float, _: Any = None) -> str:
     """Label for a tick in seconds since 1970, of naive dates; fromtimestamp would apply the local time zone."""
-    return (datetime(1970, 1, 1) + timedelta(seconds=seconds)).strftime("%Y-%m-%d")
+    try:
+        return (datetime(1970, 1, 1) + timedelta(seconds=seconds)).strftime("%Y-%m-%d")
+    except OverflowError:  # matplotlib can place ticks past year 9999
+        return ""
 
 
 def _category_plot(counts: pd.Series) -> Markup:
