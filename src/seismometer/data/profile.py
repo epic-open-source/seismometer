@@ -288,7 +288,8 @@ def _describe_numeric(series: pd.Series, summary: dict) -> None:
 
     summary["mad"] = np.median(np.abs(present - np.median(present)))
     summary["range"] = summary["max"] - summary["min"]
-    summary.update({f"{q:.0%}": value for q, value in series.quantile(QUANTILES).to_dict().items()})
+    # pandas 3 gives NA instead of nan for nullable quantiles of infinite values
+    summary.update({f"{q:.0%}": value for q, value in series.quantile(QUANTILES).astype(float).to_dict().items()})
     summary["iqr"] = summary["75%"] - summary["25%"]
     summary["cv"] = summary["std"] / summary["mean"] if summary["mean"] else np.nan
     summary["p_zeros"] = summary["n_zeros"] / n

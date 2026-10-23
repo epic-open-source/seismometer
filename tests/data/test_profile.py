@@ -100,6 +100,13 @@ class TestProfile:
         assert alert.values is profile.variables[alert.column_name]
         assert alert.alert_type_name == "Zeros"
 
+    def test_nullable_floats_with_infinite_values_match_floats(self):
+        values = [1.0, 2.0, 3.0, np.inf, np.inf]
+        nullable = undertest.describe_series(pd.Series(values, dtype="Float64"))
+        plain = undertest.describe_series(pd.Series(values))
+        keys = ["5%", "25%", "50%", "75%", "95%", "iqr"]
+        assert [nullable[k] for k in keys] == pytest.approx([plain[k] for k in keys], nan_ok=True)
+
     def test_alert_type_name(self):
         assert undertest.Alert(AlertType.HIGH_CARDINALITY).alert_type_name == "High cardinality"
 
