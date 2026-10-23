@@ -51,7 +51,7 @@ class Alert:
     """An alert on a column, carrying that column's description as its values."""
 
     alert_type: AlertType
-    values: dict = field(default_factory=dict)
+    values: dict = field(default_factory=dict, repr=False)  # keeps column data out of logs
     column_name: Optional[str] = None
 
     @property
