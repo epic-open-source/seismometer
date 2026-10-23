@@ -93,9 +93,12 @@ class AlertConfigProvider:
         """
         Parses a single profile Alert.
 
+        .. versionchanged:: NEXT_VERSION_PLACEHOLDER
+           Takes seismometer.data.profile.Alert instead of ydata-profiling's Alert.
+
         Parameters
         ----------
-        alert : ProfileAlert
+        alert : seismometer.data.profile.Alert
             The alert to parse.
 
         Returns
