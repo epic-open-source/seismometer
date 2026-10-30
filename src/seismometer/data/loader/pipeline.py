@@ -149,6 +149,7 @@ class SeismogramLoader:
                 "No prediction_fn provided and no prediction_obj provided. A prediction frame must be provided."
             )
         if prediction_obj is None:
+            assert self.prediction_fn is not None
             return self.prediction_fn(self.config)
         return self.prediction_from_memory(self.config, prediction_obj)
 
@@ -170,6 +171,7 @@ class SeismogramLoader:
         if (event_obj is None) and (self.event_fn is None):
             return pd.DataFrame()
         if event_obj is None:
+            assert self.event_fn is not None
             return self.event_fn(self.config)
         return self.event_from_memory(self.config, event_obj)
 

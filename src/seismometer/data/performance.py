@@ -117,7 +117,7 @@ class MetricGenerator:
 
 @export
 class BinaryClassifierMetricGenerator(MetricGenerator):
-    def __init__(self, rho: float = None):
+    def __init__(self, rho: Optional[float] = None):
         """
         A class that generates Binary classifier metrics from a dataframe.
         Keeps track of available metric names as well as the function to call to generate them.

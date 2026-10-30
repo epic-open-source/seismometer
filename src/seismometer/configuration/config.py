@@ -52,7 +52,7 @@ class ConfigProvider:
         info_dir: str | Path = None,
         data_dir: str | Path = None,
         template_notebook: object = None,
-        definitions: dict = None,
+        definitions: dict | None = None,
         output_path: str | Path = None,
     ):
         self._config: OtherInfo = None

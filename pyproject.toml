@@ -14,6 +14,20 @@ issue_format = "`#{issue} <https://github.com/epic-open-source/seismometer/issue
 title_format = "{version}"
 underlines = ["-","~"]
 
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "ipywidgets.*",
+    "sklearn.*",
+    "scipy.*",
+    "seaborn.*",
+    "ydata_profiling.*",
+]
+ignore_missing_imports = true
+
 [tool.black]
 line-length = 119
 target-version = ["py310"]

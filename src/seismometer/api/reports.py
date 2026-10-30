@@ -125,7 +125,7 @@ def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = Fal
 
 
 @export
-def cohort_comparison_report(exclude_cols: list[str] = None):
+def cohort_comparison_report(exclude_cols: Optional[list[str]] = None):
     """
     Generates (or loads from disk) the `ydata-profiling` report stratified by the selected cohort variable.
 
@@ -151,7 +151,7 @@ def cohort_comparison_report(exclude_cols: list[str] = None):
 
 @store_call_parameters
 @export
-def target_feature_summary(exclude_cols: list[str] = None, inline=False):
+def target_feature_summary(exclude_cols: Optional[list[str]] = None, inline=False):
     """
     Generates (or loads from disk) the `ydata-profiling` report stratified by the target variable.
 

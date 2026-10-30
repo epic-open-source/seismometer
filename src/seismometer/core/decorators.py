@@ -70,9 +70,9 @@ class DiskCachedFunction(object):
     def __init__(
         self,
         cache_name: str,
-        save_fn: Callable[[Any], None],
+        save_fn: Callable[..., None],
         load_fn: Callable[[Path], Any],
-        return_type: tuple[type] = None,
+        return_type: Optional[type[Any]] = None,
     ) -> None:
         """
         Creates a new decorator that will store data to a cache folder on disk.
