@@ -13,13 +13,18 @@ In case your predictions dataset already includes a specified target, you can
 avoid merging in any events data and still leverage the model performance evaluations
 available in ``seismometer``.
 
-Update the ``usage_config.yml``'s ``data_usage`` section, removing any lines
-that reference the ``events`` or ``event_table`` definitions. Also validate that
-the ``primary_target`` matches the name of the target column in your dataset.
+Update the ``usage_config.yml``'s ``data_usage`` section, removing the ``event_table``
+definition and any events that would come from an events dataset. The ``events`` section
+itself is still required: since version 0.2.0, ``seismometer`` only offers the targets
+listed there with ``usage: target``. Keep one entry for the target column of your
+predictions dataset, and use the name of that column for its ``source``, its
+``display_name`` and the ``primary_target``, so ``seismometer`` uses the column as the
+target instead of looking for it in an events dataset. Leave out ``window_hr`` and
+``offset_hr``, which only apply when merging events.
 
 .. code-block:: yaml
-   :emphasize-removed: 19, 20, 21, 22, 23, 24, 25, 26, 27, 28
-   :emphasize-lines: 6
+   :emphasize-removed: 19, 20, 21, 22, 26, 27
+   :emphasize-lines: 6, 23, 24, 25, 28
 
    # usage_config.yml
    data_usage:
@@ -44,12 +49,21 @@ the ``primary_target`` matches the name of the target column in your dataset.
          time: EventTime
          value: Value
       events:
-         - source: TargetLabel
+         - source: Readmitted within 30 Days
            display_name: Readmitted within 30 Days
            window_hr: 6
            offset_hr: 0
            usage: target
       censor_min_count: 10
+
+After the removals, the ``events`` section is left with the target alone:
+
+.. code-block:: yaml
+
+   events:
+      - source: Readmitted within 30 Days
+        display_name: Readmitted within 30 Days
+        usage: target
 
 Then, adjust your ``config.yml`` to remove any reference to an ``events`` dataset.
 
@@ -70,8 +84,8 @@ Then, adjust your ``config.yml`` to remove any reference to an ``events`` datase
 
 .. note:: 
    You can still use an events dataset in combination with a target in your 
-   predictions dataset. Don't tag any events in the ``data_usage`` configuration
-   with ``usage: target`` and everything else should work as intended.
+   predictions dataset. Keep the target entry above as the only event with
+   ``usage: target``, and configure the other events as usual.
 
 .. seealso::
    :ref:`config-files`
