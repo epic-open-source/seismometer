@@ -444,7 +444,7 @@ class FilterRule(object):
         return cls(None, "none")
 
     @classmethod
-    def from_cohort_dictionary(cls, cohort_dict: dict[str, tuple[any]] | None = None) -> "FilterRule":
+    def from_cohort_dictionary(cls, cohort_dict: dict[str, tuple[Any, ...]] | None = None) -> "FilterRule":
         """
         For a given dictionary, generate a matching FilterRule
 
@@ -513,7 +513,7 @@ class FilterRule(object):
         return rule
 
 
-def filter_rule_from_cohort_dictionary(cohort: dict[str, tuple[any]] | None = None) -> FilterRule:
+def filter_rule_from_cohort_dictionary(cohort: dict[str, tuple[Any, ...]] | None = None) -> FilterRule:
     """
     For a given dictionary, generate a matching FilterRule
 

@@ -243,7 +243,7 @@ def _merge_event(
     )
 
 
-def _get_source_type(config: ConfigProvider, event: Event) -> str:
+def _get_source_type(config: ConfigProvider, event: Event) -> str | None:
     """Get the dtype of the first source of the specified event."""
     dtype = None
     multitypes = set()  # Aggregate woarning messages
@@ -266,6 +266,9 @@ def _get_source_type(config: ConfigProvider, event: Event) -> str:
             f"Multiple types found for event {event.display_name}. "
             + f"Will use the first source of type {dtype} and ignore others: {','.join(multitypes)}"
         )
+
+    if dtype is None:
+        return None
 
     return dtype
 

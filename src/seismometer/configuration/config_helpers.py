@@ -29,16 +29,13 @@ def generate_dictionary_from_parquet(
     if df.empty:
         raise ValueError("No data loaded; check the input file")
 
-    datadict = None
     match section:
         case "predictions":
-            datadict = _generate_prediction_dictionary(df)
+            write_yaml(_generate_prediction_dictionary(df).model_dump(), Path(outpath))
         case "events":
-            datadict = _generate_event_dictionary(df, column)
+            write_yaml(_generate_event_dictionary(df, column).model_dump(), Path(outpath))
         case _:
             raise ValueError(f"Section {section} not recognized; only supports predictions and events")
-
-    write_yaml(datadict.model_dump(), outpath)
 
 
 def _generate_prediction_dictionary(df: pd.DataFrame) -> PredictionDictionary:

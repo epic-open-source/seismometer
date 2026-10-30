@@ -225,7 +225,7 @@ def _plot_leadtime_enc(
     threshold: list[float],
     ref_time: str,
     cohort_col: str,
-    subgroups: list[any],
+    subgroups: list[Any],
     max_hours: int,
     x_label: str,
     censor_threshold: int = 10,
@@ -251,7 +251,7 @@ def _plot_leadtime_enc(
         entity key column
     cohort_col : str
         cohort column name
-    subgroups : list[any]
+    subgroups : list[Any]
         cohort groups from the cohort column
     x_label : str
         label for the x axis of the plot

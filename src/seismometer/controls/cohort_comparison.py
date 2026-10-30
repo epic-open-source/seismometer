@@ -1,10 +1,12 @@
 import logging
 from functools import partial
-from typing import Optional
+from typing import Any, Optional
 
+import pandas as pd
 from IPython.display import display
 from ipywidgets import Box, Button, Output, VBox
 
+from seismometer.configuration.model import CohortHierarchy
 from seismometer.data.filter import filter_rule_from_cohort_dictionary
 
 from .selection import MultiSelectionListWidget
@@ -19,10 +21,10 @@ GENERATING_REPORT = "Generating Report..."
 class ComparisonReportGenerator:
     def __init__(
         self,
-        selections: dict[str, tuple[any]],
+        selections: dict[str, tuple[Any, ...]],
         exclude_cols: Optional[list[str]] = None,
-        hierarchies: Optional[list["CohortHierarchy"]] = None,
-        hierarchy_combinations: Optional[dict[tuple[str], "pd.DataFrame"]] = None,
+        hierarchies: Optional[list[CohortHierarchy]] = None,
+        hierarchy_combinations: Optional[dict[tuple[str], pd.DataFrame]] = None,
     ):
         self.selectors: list[MultiSelectionListWidget] = []
         self.exclude_cols = exclude_cols or []

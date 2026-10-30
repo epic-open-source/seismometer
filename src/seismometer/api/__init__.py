@@ -5,6 +5,7 @@ from seismometer.core.logger import init_logger
 from seismometer.data.loader import loader_factory
 from seismometer.seismogram import Seismogram
 
+from . import explore, plots, reports, templates, utils
 from .explore import *
 from .plots import *
 from .reports import *
