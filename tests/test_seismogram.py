@@ -274,6 +274,21 @@ class TestSeismogramCreateCohorts:
         assert "card3" in caplog.text
         assert sg.cohort_cols == ["cohort1", "cohort2"]
 
+    @patch.object(seismometer.seismogram, "MAXIMUM_NUM_COHORTS", 2)
+    def test_unused_categories_are_not_counted(self, fake_seismo, tmp_path, caplog):
+        # a category column keeps the categories of values that load-time filters removed
+        sg = Seismogram()
+        sg.dataframe = get_test_data()
+        sg.dataframe["filtered"] = pd.Categorical([0, 1, 1, 0], categories=[0, 1, 2, 3])
+        sg.config.cohorts = sg.config.cohorts + [Cohort(source="filtered")]
+
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            sg.create_cohorts()
+
+        assert not caplog.records
+        assert sg.cohort_cols == ["cohort1", "cohort2", "filtered"]
+        assert sg.dataframe["filtered"].cat.categories.tolist() == [0, 1]
+
     def test_censor_limit_logs_warning_and_drops(self, fake_seismo, tmp_path, caplog):
         # Arrange
         sg = Seismogram()
@@ -515,6 +530,38 @@ class TestSeismogramLoadData:
         assert isinstance(sg.dataframe, pd.DataFrame)
         Seismogram.kill()
 
+    @patch.object(seismometer.seismogram, "MAXIMUM_NUM_COHORTS", 2)
+    def test_load_data_skips_hierarchy_with_a_dropped_cohort(self, tmp_path):
+        config = get_test_config(tmp_path)
+        loader = get_test_loader(config)
+        metadata_path = tmp_path / "metadata.json"
+        metadata_path.write_text('{"thresholds": [0.2, 0.8], "modelname": "TestModel"}')
+        config.metadata_path = metadata_path
+        config.cohorts = [Cohort(source="site", display_name="Site"), Cohort(source="unit", display_name="Unit")]
+        config.features = []
+        config.events = {"event1": Mock(window_hr=1)}
+        config.prediction_columns = ["entity", "time"]
+        config.usage.load_time_filters = None
+        config.cohort_hierarchies = [CohortHierarchy(name="Site hierarchy", column_order=["site", "unit"])]
+        loader.load_data.return_value = pd.DataFrame(
+            {
+                "entity": [1, 2, 3],
+                "time": pd.to_datetime(["2022-01-01", "2022-01-02", "2022-01-03"]),
+                "site": ["a", "a", "b"],
+                "unit": ["x", "y", "z"],  # more values than MAXIMUM_NUM_COHORTS, so its cohort is dropped
+                "event1_Value": [0, 1, 0],
+                "event1_Time": pd.to_datetime(["2022-01-01", "2022-01-02", "2022-01-03"]),
+            }
+        )
+        sg = Seismogram(config, loader)
+
+        sg.load_data()
+
+        assert sg.cohort_cols == ["Site"]
+        assert sg.cohort_hierarchies == []
+        assert sg.cohort_hierarchy_combinations == {}
+        Seismogram.kill()
+
     def test_load_data_does_not_reload_if_data_present(self, fake_seismo):
         sg = Seismogram()
         sg.dataframe = pd.DataFrame({"entity": [1]})
@@ -685,6 +732,7 @@ class TestSeismogramResolveCohortHierarchies:
             Cohort(source="cohort1", display_name="Cohort 1"),
             Cohort(source="cohort2", display_name="Cohort 2"),
         ]
+        sg.cohort_cols = ["Cohort 1", "Cohort 2"]
         sg.config.cohort_hierarchies = [CohortHierarchy(name="Test Hierarchy", column_order=["cohort1", "cohort2"])]
 
         sg._validate_and_resolve_cohort_hierarchies()
@@ -703,6 +751,21 @@ class TestSeismogramResolveCohortHierarchies:
 
         with pytest.raises(ValueError, match="references undefined cohort source: 'unknown'"):
             sg._validate_and_resolve_cohort_hierarchies()
+
+    def test_skips_hierarchy_with_a_cohort_that_was_not_created(self, fake_seismo, caplog):
+        sg = Seismogram()
+        sg._cohorts = [
+            Cohort(source="cohort1", display_name="Cohort 1"),
+            Cohort(source="cohort2", display_name="Cohort 2"),
+        ]
+        sg.cohort_cols = ["Cohort 1"]  # Cohort 2 was dropped, e.g. for having too many values
+        sg.config.cohort_hierarchies = [CohortHierarchy(name="Test Hierarchy", column_order=["cohort1", "cohort2"])]
+
+        with caplog.at_level(logging.WARNING, logger="seismometer"):
+            sg._validate_and_resolve_cohort_hierarchies()
+
+        assert sg.cohort_hierarchies == []
+        assert "Skipping cohort hierarchy 'Test Hierarchy'; cohorts not created: Cohort 2." in caplog.text
 
     def test_skips_when_no_hierarchies_configured(self, fake_seismo):
         sg = Seismogram()
@@ -764,6 +827,16 @@ class TestSeismogramBuildCohortHierarchyCombinations:
                 ),
                 {},
             ),
+            # Cohort not created (its source column exists, its cohort column doesn't)
+            (
+                [
+                    Cohort(source="c1", display_name="C1"),
+                    Cohort(source="c2", display_name="C2"),
+                ],
+                [CohortHierarchy(name="Dropped", column_order=["c1", "c2"])],
+                pd.DataFrame({"c1": ["a", "b"], "c2": ["x", "y"], "C1": ["a", "b"]}),
+                {},
+            ),
             # Multiple valid hierarchies
             (
                 [
@@ -794,7 +867,7 @@ class TestSeismogramBuildCohortHierarchyCombinations:
                 },
             ),
         ],
-        ids=["valid-hierarchy", "missing-column", "multiple-hierarchies"],
+        ids=["valid-hierarchy", "missing-column", "cohort-not-created", "multiple-hierarchies"],
     )
     def test_build_cohort_hierarchy_combinations(self, cohorts, hierarchies, df_data, expected_results, fake_seismo):
         sg = Seismogram()

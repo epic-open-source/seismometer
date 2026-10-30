@@ -3,7 +3,6 @@ import logging
 import os
 import re
 from abc import ABC
-from importlib.resources import files as _files
 from pathlib import Path
 
 from IPython.display import HTML as IPyHTML
@@ -12,19 +11,19 @@ from ipywidgets import HTML, Button, ButtonStyle, GridBox, Layout
 from pandas import DataFrame
 from seaborn.utils import relative_luminance
 
-import seismometer.report
 from seismometer.core.io import slugify
 from seismometer.data import telemetry
+from seismometer.data.profile import AlertType, profile_dataframe
 
 from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
+from .profile_report import ProfileReport, alert_html
 
-PROFILING_CONFIG_PATH = _files(seismometer.report) / "report_config.yml"
 logger = logging.getLogger("seismometer")
 
 
 def filter_unsupported_columns(df: DataFrame) -> DataFrame:
     """
-    Filters out columns that are not supported by ydata-profiling.
+    Filters out the datetime columns, which the feature reports do not profile.
 
     Parameters
     ----------
@@ -77,7 +76,7 @@ class ComparisonReportWrapper(ReportWrapper):
         base_title: str = "Feature Comparison Report",
     ) -> None:
         """
-        Creates a wrapper around a `ydata-profiling` comparison ProfileReport.
+        Creates a wrapper around a ProfileReport comparing two dataframes.
 
         Splits the `df` by `compare_col`, filters to the `first_groups` and `second_groups`,
         then compares the two datasets.
@@ -123,22 +122,12 @@ class ComparisonReportWrapper(ReportWrapper):
             logger.debug(f"Existing report found on disk: {self._html_path}")
 
     def generate_report(self):
-        try:
-            from ydata_profiling import ProfileReport
-        except ImportError:
-            raise ImportError(
-                "Error: ydata-profiling or one of its required packages is not installed. Install with "
-                "`pip install ydata-profiling`."
-            )
-
         dfs = [self._l_df, self._r_df]
         if self._exclude_cols is not None:
             dfs = [df.loc[:, [col for col in df.columns if col not in self._exclude_cols]] for df in dfs]
 
-        first_report = ProfileReport(dfs[0], config_file=PROFILING_CONFIG_PATH, title=self._l_title)
-        second_report = ProfileReport(dfs[1], config_file=PROFILING_CONFIG_PATH, title=self._r_title)
-
-        self._report = first_report.compare(second_report)
+        profiles = [profile_dataframe(dfs[0], self._l_title), profile_dataframe(dfs[1], self._r_title)]
+        self._report = ProfileReport(profiles, title=self._title, labels=[self._l_title, self._r_title])
 
 
 # What features of an alert object correspond to which types of alerts.
@@ -157,7 +146,7 @@ class SingleReportWrapper(ReportWrapper):
         alert_config: AlertConfigProvider = None,
     ):
         """
-        Creates a wrapper around a `ydata-profiling` ProfileReport.
+        Creates a wrapper around a ProfileReport of a dataframe.
         If an HTML report exists with the same name, it will not re-generate the report.
 
         Parameters
@@ -205,56 +194,33 @@ class SingleReportWrapper(ReportWrapper):
                 name=f"profiling_alert{alert.name.lower()}",
                 value=alert.percentage,
                 attributes={"variable": alert.variable},
-                source="ydata_profiling_alerts",
+                source="ydata_profiling_alerts",  # unchanged so existing telemetry queries still match
             )
 
     def generate_report(self) -> None:
-        try:
-            from ydata_profiling import ProfileReport
-        except ImportError:
-            raise ImportError(
-                "Error: ydata-profiling or one of its required packages is not installed. "
-                "Install with `pip install ydata-profiling`."
-            )
-
         self._df = self._df.loc[:, [col for col in self._df.columns if col not in self._exclude_cols]]
-        self._report = ProfileReport(self._df, title=self._title, config_file=PROFILING_CONFIG_PATH)
+        self._report = ProfileReport([profile_dataframe(self._df, self._title)], title=self._title)
 
     def _parse_alerts(self) -> None:
         """
-        Parses all of the alerts associated with the `ydata-profiling` ProfileReport.
+        Parses all of the alerts associated with the ProfileReport.
         """
         alerts = []
-        if len(self._report.description_set.alerts) == 0:
+        if len(self._report.alerts) == 0:
             self._parsed_alerts = ParsedAlertList(alerts=alerts)
             return
 
-        # else, parse raw alerts and template html
-        try:
-            from ydata_profiling.model.alerts import Alert
-            from ydata_profiling.report.presentation.flavours.html import templates
-        except ImportError:
-            raise ImportError(
-                "Error: ydata-profiling or one of its required packages is not installed. "
-                "Install with `pip install ydata-profiling`."
-            )
-
-        alert: Alert
-        for alert in self._report.description_set.alerts:
-            if alert.alert_type.name.lower() == "rejected":
-                continue  # rejected variables don't have alerts in ydata
+        for alert in self._report.alerts:
+            if alert.alert_type == AlertType.REJECTED:
+                continue  # only marks unsupported columns as excluded from the analysis
             threshold_met, severity = self._alert_config.parse_alert(alert)
             if threshold_met:
                 alerts.append(
                     ParsedAlert(
                         name=alert.alert_type_name,
                         severity=severity,
-                        display_html=str(
-                            templates.template(f"alerts/alert_{alert.alert_type.name.lower()}.html").render(
-                                alert=alert
-                            )
-                        ),
-                        variable=getattr(alert, "column_name", "unknown"),
+                        display_html=alert_html(alert),
+                        variable=alert.column_name,
                         percentage=alert.values.get(
                             percentage_attributes.get(alert.alert_type_name, "unknown"), float("nan")
                         ),
@@ -273,7 +239,7 @@ class SingleReportWrapper(ReportWrapper):
 
     def display_alerts(self) -> None:
         """
-        Returns the alerts produced by the `ydata-profiling` ProfileReport.
+        Returns the alerts produced by the ProfileReport.
         """
         if len(self._parsed_alerts.alerts) == 0:
             display(HTML("<p>No alerts to display</p>"))

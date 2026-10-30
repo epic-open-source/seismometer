@@ -374,7 +374,7 @@ def record_dataframe_quantiles(
         # Group by specified columns and compute quantiles for each group
         quantile_data = []
 
-        for group_values, group_df in df.groupby(attribute_cols):
+        for group_values, group_df in df.groupby(attribute_cols, observed=False):
             # Handle single attribute column case
             if len(attribute_cols) == 1:
                 group_values = (group_values,)

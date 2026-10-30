@@ -74,7 +74,7 @@ class ExploreCohortOrdinalMetrics(ExploreSingleCategoricalPlots):
 @export
 def feature_alerts(exclude_cols: Optional[list[str]] = None):
     """
-    Generates (or loads from disk) the `ydata-profiling` report feature quality alerts.
+    Generates (or loads from disk) the feature profiling report's data quality alerts.
 
     Note: Does not regenerate the report if one exists on disk.
 
@@ -100,7 +100,7 @@ def feature_alerts(exclude_cols: Optional[list[str]] = None):
 @export
 def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = False):
     """
-    Generates (or loads from disk) the `ydata-profiling` report.
+    Generates (or loads from disk) the feature profiling report.
 
     Note: Does not regenerate the report if one exists on disk.
 
@@ -110,7 +110,7 @@ def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = Fal
         Columns to exclude from profiling. If None, defaults to excluding the identifiers in the dataset,
         by default None.
     inline : bool, optional
-        If True, shows the `ydata-profiling` report inline, by default False; displaying a link instead.
+        If True, shows the report inline, by default False; displaying a link instead.
     """
     sg = Seismogram()
     exclude_cols = exclude_cols or sg.entity_keys
@@ -127,7 +127,7 @@ def feature_summary(exclude_cols: Optional[list[str]] = None, inline: bool = Fal
 @export
 def cohort_comparison_report(exclude_cols: list[str] = None):
     """
-    Generates (or loads from disk) the `ydata-profiling` report stratified by the selected cohort variable.
+    Generates (or loads from disk) the feature profiling report stratified by the selected cohort variable.
 
     Note: Does not regenerate the report if one exists on disk.
 
@@ -153,7 +153,7 @@ def cohort_comparison_report(exclude_cols: list[str] = None):
 @export
 def target_feature_summary(exclude_cols: list[str] = None, inline=False):
     """
-    Generates (or loads from disk) the `ydata-profiling` report stratified by the target variable.
+    Generates (or loads from disk) the feature profiling report stratified by the target variable.
 
     Note: Does not regenerate the report if one exists on disk.
 
@@ -163,7 +163,7 @@ def target_feature_summary(exclude_cols: list[str] = None, inline=False):
         Columns to exclude from profiling. If None, defaults to excluding the identifiers in the dataset,
         by default None.
     inline : bool, optional
-        True to show the `ydata-profiling` report inline, by default False; displaying a link instead.
+        True to show the report inline, by default False; displaying a link instead.
     """
     sg = Seismogram()
 

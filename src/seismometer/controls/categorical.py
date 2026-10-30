@@ -369,8 +369,7 @@ class OrdinalCategoricalPlot:
             data[value] = [col_counts[col].get(value, 0) for col in self.metrics]
 
         # Create a new DataFrame from the dictionary and set "Feedback Metrics" as index
-        counts_df = pd.DataFrame(data)
-        counts_df.set_index("Feedback Metrics", inplace=True)
+        counts_df = pd.DataFrame(data).set_index("Feedback Metrics")
         counts_df = counts_df[counts_df.sum(axis=1) >= self.censor_threshold]
 
         # Metrics are now in the form

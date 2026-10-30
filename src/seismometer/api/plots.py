@@ -848,7 +848,7 @@ def _plot_ts_cohort(
 
     counts = None
     if plot_counts:
-        counts = plotdata.groupby([reftime, cohort_col]).count()
+        counts = plotdata.groupby([reftime, cohort_col], observed=False).count()
 
     if ylabel is None:
         ylabel = pdh.event_name(event_col)
@@ -908,7 +908,7 @@ def plot_model_score_comparison(
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["ScoreName"] = score
-        one_score_data.rename(columns={score: "Score"}, inplace=True)
+        one_score_data = one_score_data.rename(columns={score: "Score"})
         data.append(one_score_data)
     data = pd.concat(data, axis=0, ignore_index=True)
     data["ScoreName"] = data["ScoreName"].astype("category")
@@ -980,7 +980,7 @@ def plot_model_target_comparison(
         else:
             one_score_data = dataframe[[score, target_event]].copy()
         one_score_data["TargetName"] = target
-        one_score_data.rename(columns={target_event: "Target"}, inplace=True)
+        one_score_data = one_score_data.rename(columns={target_event: "Target"})
         data.append(one_score_data)
     data = pd.concat(data, axis=0, ignore_index=True)
     data["TargetName"] = data["TargetName"].astype("category")

@@ -1,0 +1,238 @@
+{% macro value_header() %}
+{% if labels | length > 1 %}
+<thead><tr><th>&nbsp;</th>{% for label in labels %}<th style="color: {{ colors[loop.index0] }};">{{ label }}</th>{% endfor %}</tr></thead>
+{% endif %}
+{% endmacro %}
+{% macro table(item) %}
+<div class="table-block">
+  {% if item.name %}<p class="item-header">{{ item.name }}</p>{% endif %}
+  <table class="stats">
+    {{ value_header() }}
+    <tbody>
+      {% for row in item.rows %}
+      <tr{% if row.alert %} class="alert-row"{% endif %}>
+        <th>{{ row.name }}</th>
+        {% for value in row["values"] %}<td>{{ value }}{% if loop.last and row.help %} <span class="help" title="{{ row.help }}">?</span>{% endif %}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if item.caption %}<div class="caption">{{ item.caption }}</div>{% endif %}
+</div>
+{% endmacro %}
+{% macro freq_rows(rows, small, idx=0) %}
+<table class="freq table-{{ idx }}{% if small %} mini{% endif %}">
+  {% if not small %}<thead><tr><td>Value</td><td>Count</td><td>Frequency (%)</td></tr></thead>{% endif %}
+  <tbody>
+    {% for row in rows %}
+    <tr class="{{ row.extra }}">
+      {% if small %}<th title="{{ row.label | fmt }}">{{ row.label | fmt }}</th>{% else %}<td title="{{ row.label | fmt }}">{{ row.label | fmt }}</td>{% endif %}
+      {% if small %}
+      <td><div class="bar" style="width: {{ row.width | fmt_percent(edge_cases=False) }}">{% if row.width > 0.1 %}{{ row.count }}&nbsp;{% else %}&nbsp;{% endif %}</div>{% if row.width <= 0.1 %}{{ row.count }}{% endif %}</td>
+      {% else %}
+      <td>{{ row.count }}</td>
+      <td><div class="bar" style="width: {{ row.width | fmt_percent(edge_cases=False) }}">{% if row.width > 0.4 %}{{ row.percentage | fmt_percent }}{% else %}&nbsp;{% endif %}</div>{% if row.width <= 0.4 %}{{ row.percentage | fmt_percent }}{% endif %}</td>
+      {% endif %}
+    </tr>
+    {% else %}
+    <tr><td colspan="3">No values found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+{% macro dataset_label(idx) %}{% if labels | length > 1 %}<p class="dataset-label" style="color: {{ colors[idx] }};">{{ labels[idx] }}</p>{% endif %}{% endmacro %}
+{% macro item(it) %}
+{% if it.kind == "table" %}
+  {{ table(it) }}
+{% elif it.kind == "freq" %}
+  <div class="table-block">
+    {% if it.name %}<p class="item-header">{{ it.name }}</p>{% endif %}
+    {% if it.tables | length == 1 %}{{ freq_rows(it.tables[0], it.small) }}{% else %}
+    <div class="grid">{% for rows in it.tables %}<div>{% if not it.small %}{{ dataset_label(loop.index0) }}{% endif %}{{ freq_rows(rows, it.small, loop.index0) }}</div>{% endfor %}</div>
+    {% endif %}
+  </div>
+{% elif it.kind == "image" %}
+  <div class="image-block">
+    {% if it.name %}<p class="item-header">{{ it.name }}</p>{% endif %}
+    {{ it.image }}
+    {% if it.caption %}<div class="caption">{{ it.caption }}</div>{% endif %}
+  </div>
+{% elif it.kind == "images" %}
+  <div class="image-block">
+    {% if it.name %}<p class="item-header">{{ it.name }}</p>{% endif %}
+    {% if it.images | length == 1 %}{{ it.images[0] or "" }}{% else %}
+    <div class="grid">{% for image in it.images %}<div>{{ dataset_label(loop.index0) }}{% if image %}{{ image }}{% else %}<em>Number of variable categories passes threshold</em>{% endif %}</div>{% endfor %}</div>
+    {% endif %}
+  </div>
+{% endif %}
+{% endmacro %}
+{% macro tabs(group, entries) %}
+<div class="tabs">
+  {% for entry in entries %}
+  <input type="radio" name="{{ group }}" id="{{ group }}-{{ loop.index0 }}"{% if loop.first %} checked{% endif %}>
+  <label for="{{ group }}-{{ loop.index0 }}">{{ entry.name }}{% if entry.badge is defined %} <span class="badge text-bg-secondary">{{ entry.badge }}</span>{% endif %}</label>
+  {% endfor %}
+  {% for entry in entries %}
+  <div class="panel">{{ caller(entry, loop.index0) }}</div>
+  {% endfor %}
+</div>
+{% endmacro %}
+{% macro tab_items(group, tab) %}
+{% if tab.layout == "tabs" %}
+  {% call(sub, idx) tabs(group, tab["items"]) %}{{ tab_items(group ~ "-" ~ idx, sub) }}{% endcall %}
+{% elif tab.layout == "stack" %}
+  {% for it in tab["items"] %}<div>{{ item(it) }}</div>{% endfor %}
+{% else %}
+  <div class="grid">{% for it in tab["items"] %}<div>{{ item(it) }}</div>{% endfor %}</div>
+{% endif %}
+{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% if labels | length > 1 %}Comparing {{ labels[0] }} and {{ labels[1] }}{% else %}{{ title }}{% endif %}</title>
+<style>
+html { scroll-padding-top: 56px; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #212529; margin: 0; background: #fff; }
+a { color: #0d6efd; text-decoration: none; }
+.navbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; box-sizing: border-box; padding: 0 12px; background: #f8f9fa; position: sticky; top: 0; z-index: 10; }
+.navbar .brand { font-size: 20px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.navbar .links { white-space: nowrap; }
+.navbar .links a { color: rgba(0, 0, 0, 0.65); padding: 8px; }
+.content { padding: 0 12px 40px; }
+h1.section { font-size: calc(1.375rem + 1.5vw); font-weight: 500; line-height: 1.2; margin: 16px 0; }
+.item-header, .variable .name { font-size: calc(1.275rem + 0.3vw); font-weight: 500; line-height: 1.2; margin: 8px 0; }
+@media (min-width: 1200px) { h1.section { font-size: 40px; } .item-header, .variable .name { font-size: 24px; } }
+.card, .variable { border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+.grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.grid > div { flex: 1 1 300px; min-width: 0; }
+.table-block, .image-block { margin-bottom: 16px; }
+table { border-collapse: collapse; width: 100%; }
+table.stats th, table.stats td, table.alerts td, table.freq:not(.mini) td { padding: 8px; border-bottom: 1px solid #dee2e6; vertical-align: middle; }
+table.stats th, table.stats td { text-align: left; white-space: nowrap; }
+table.stats tbody tr:nth-child(odd), table.alerts tbody tr:nth-child(odd), table.freq:not(.mini) tbody tr:nth-child(odd) { background: #f2f2f2; }
+tr.alert-row th, tr.alert-row td { color: #dc3545; }
+table.freq td:first-child { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.freq:not(.mini) td:nth-child(2), table.freq:not(.mini) td:nth-child(3) { width: 200px; text-align: right; }
+.bar { float: left; color: #fff; min-height: 24px; line-height: 24px; margin-right: 4px; border-radius: 3px; text-align: center; }
+{% for color in colors %}table.freq.table-{{ loop.index0 }} .bar { background-color: {{ color }}; }
+{% endfor %}
+table.freq.mini { border-collapse: separate; border-spacing: 4px; }
+table.freq.mini th { width: 10%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 5rem; font-weight: 400; text-align: right; padding-right: 8px; }
+table.freq.mini td { width: 50%; }
+.caption { text-align: center; color: rgba(33, 37, 41, 0.75); margin-top: 4px; }
+.badge { display: inline-block; padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 6px; margin-right: 4px; }
+.tabs > label .badge { margin-right: 0; }
+.text-bg-primary { background: #0d6efd; color: #fff; } .text-bg-info { background: #0dcaf0; color: #000; }
+.text-bg-warning { background: #ffc107; color: #000; } .text-bg-danger { background: #dc3545; color: #fff; }
+.text-bg-secondary { background: #6c757d; color: #fff; }
+.help { float: right; padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 700; line-height: 1; border-radius: 6px; background: #6c757d; color: #fff; cursor: help; }
+code { font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.875em; color: #d63384; }
+.alerts code { color: #0d6efd; }
+.alerts thead th { text-align: left; padding: 8px; border-bottom: 1px solid #dee2e6; }
+.variable .name { overflow-wrap: anywhere; }
+.variable .type { display: block; color: rgba(33, 37, 41, 0.75); margin-bottom: 8px; }
+.variable .header p { margin: 0 0 16px; }
+.variable .header p.name { margin: 8px 0 0; }
+.dataset-alerts td { vertical-align: top; padding-right: 24px; }
+.variable .top { display: grid; gap: 16px; align-items: start; }
+details > summary { display: block; width: max-content; margin: 0 0 16px auto; padding: 6px 12px; border: 1px solid #f8f9fa; border-radius: 6px; background: #f8f9fa; color: #000; cursor: pointer; list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary:hover { background: #d3d4d5; border-color: #c6c7c8; }
+.tabs { display: flex; flex-wrap: wrap; }
+.tabs > input { display: none; }
+.tabs > label { position: relative; padding: 8px 16px; margin-bottom: -1px; border: 1px solid transparent; border-radius: 6px 6px 0 0; color: #0d6efd; cursor: pointer; }
+.tabs > input:checked + label { border-color: #dee2e6 #dee2e6 #fff; color: #000; background: #fff; }
+.tabs > .panel { display: none; flex: 0 0 100%; min-width: 0; border-top: 1px solid #dee2e6; padding-top: 16px; }
+{% for i in range(1, 7) %}.tabs > input:nth-of-type({{ i }}):checked ~ .panel:nth-of-type({{ i }}) { display: block; }
+{% endfor %}
+#variables-dropdown { display: block; margin: 16px 0; padding: 6px 36px 6px 12px; font: inherit; color: #212529; background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") no-repeat right 12px center / 16px 12px; border: 1px solid #dee2e6; border-radius: 6px; appearance: none; }
+.dataset-label { font-weight: 600; margin: 4px 0; }
+img.plot { display: block; max-width: 99%; height: auto; margin: 0 auto; }
+.footer { color: rgba(33, 37, 41, 0.75); text-align: center; padding: 16px; }
+.compare .variable .top { grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
+.compare .grid > div { flex-basis: 440px; }
+.compare table.stats thead th, .compare .dataset-label { white-space: normal; overflow-wrap: anywhere; }
+</style>
+</head>
+<body{% if labels | length > 1 %} class="compare"{% endif %}>
+<div class="navbar">
+  <a class="brand" href="#">{% if labels | length > 1 %}<em>Comparing</em> {{ labels[0] }} <em>and</em> {{ labels[1] }}{% else %}{{ title }}{% endif %}</a>
+  <div class="links"><a href="#overview">Overview</a><a href="#variables">Variables</a></div>
+</div>
+<div class="content">
+<h1 class="section" id="overview">Overview</h1>
+{% set alert_count = alerts | map("select") | map("list") | map("length") | sum %}
+<div class="card">
+{% call(entry, idx) tabs("overview", [{"name": "Overview", "items": overview}, {"name": "Alerts", "items": alerts, "badge": alert_count}, {"name": "Reproduction", "items": [reproduction]}]) %}
+  {% if entry["items"] is sameas alerts %}
+    <p class="item-header">Alerts</p>
+    <table class="alerts">
+      {{ value_header() }}
+      <tbody>
+        {% for row in alerts %}
+        <tr>
+          {% if labels | length > 1 %}<td>{{ row | select | map(attribute="badge") | first }}</td>{% endif %}
+          {% for alert in row %}<td>{% if alert %}{{ alert.html }}{% endif %}</td>{% endfor %}
+          {% if labels | length == 1 %}<td>{{ row[0].badge }}</td>{% endif %}
+        </tr>
+        {% else %}
+        <tr><td><em>No alerts</em></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="grid">{% for it in entry["items"] %}<div>{{ item(it) }}</div>{% endfor %}</div>
+  {% endif %}
+{% endcall %}
+</div>
+<h1 class="section" id="variables">Variables</h1>
+<select id="variables-dropdown" aria-label="Variables">
+  <option value="">Select Columns</option>
+  {% for var in variables %}
+  <option value="pp_var_{{ var.anchor }}">{{ var.name }}</option>
+  {% endfor %}
+</select>
+{% for var in variables %}
+<div class="variable" id="pp_var_{{ var.anchor }}">
+  {% for section in var.sections %}
+  {% set dataset = loop.index0 %}
+  <div class="header">
+    {% if loop.first %}<p class="name"><a href="#pp_var_{{ var.anchor }}">{{ var.name }}</a></p>{% endif %}
+    {% if var.sections | length > 1 %}
+      <span class="type" style="color: {{ colors[dataset] }};">{{ labels[dataset] }}: {{ var.types[dataset] }}</span>
+      <p>{% for badge in var.alerts[dataset] %}{{ badge }}{% else %}<em>No alerts</em>{% endfor %}</p>
+    {% else %}
+      <span class="type">{{ var.types | unique | join(" / ") }}</span>
+      {% if labels | length > 1 %}
+      <table class="dataset-alerts"><tbody><tr>{% for badges in var.alerts %}<td><span style="color: {{ colors[loop.index0] }};">{{ labels[loop.index0] }}</span><br>{% for badge in badges %}{{ badge }}{% else %}<em>No alerts</em>{% endfor %}</td>{% endfor %}</tr></tbody></table>
+      {% else %}
+      <p>{% for badge in var.alerts[0] %}{{ badge }}{% endfor %}</p>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class="top"{% if labels | length == 1 %} style="grid-template-columns: repeat({{ [section.top | length, 2] | max }}, minmax(0, 1fr));"{% endif %}>
+    {% for it in section.top %}<div>{{ item(it) }}</div>{% endfor %}
+  </div>
+  {% if section.tabs %}
+  <details>
+    <summary>More details</summary>
+    {% set group = "var-" ~ var.anchor ~ "-" ~ dataset %}
+    {% call(tab, idx) tabs(group, section.tabs) %}{{ tab_items(group ~ "-" ~ idx, tab) }}{% endcall %}
+  </details>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endfor %}
+<div class="footer">Report generated by seismometer.</div>
+</div>
+<script>
+// Shows only the chosen variable, or all of them for "Select Columns", like ydata-profiling's dropdown
+document.getElementById("variables-dropdown").addEventListener("change", (event) => {
+  document.querySelectorAll(".variable").forEach((variable) => {
+    variable.hidden = event.target.value !== "" && variable.id !== event.target.value;
+  });
+});
+</script>
+</body>
+</html>

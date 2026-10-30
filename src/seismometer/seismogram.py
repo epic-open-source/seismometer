@@ -404,7 +404,8 @@ class Seismogram(object, metaclass=Singleton):
                     logger.warning(f"Failed to resolve cohort {disp_attr}: {exc}")
                     continue
             else:
-                new_col = pd.Series(pd.Categorical(self.dataframe[cohort.source]))
+                # a category column keeps the categories of values that load-time filters removed
+                new_col = pd.Series(pd.Categorical(self.dataframe[cohort.source])).cat.remove_unused_categories()
 
             # validate counts (per observation)
             if (N := len(new_col.cat.categories)) > MAXIMUM_NUM_COHORTS:  # More accurate if censor first
@@ -443,6 +444,11 @@ class Seismogram(object, metaclass=Singleton):
                     )
                 resolved_levels.append(source_to_display[level])
 
+            if missing := [level for level in resolved_levels if level not in self.cohort_cols]:
+                logger.warning(
+                    f"Skipping cohort hierarchy '{hierarchy.name}'; cohorts not created: {', '.join(missing)}."
+                )
+                continue
             resolved_hierarchies.append(CohortHierarchy(name=hierarchy.name, column_order=resolved_levels))
 
         self.cohort_hierarchies = resolved_hierarchies
@@ -451,10 +457,9 @@ class Seismogram(object, metaclass=Singleton):
         """Precompute distinct value combinations for each defined cohort hierarchy."""
         source_to_display = {c.source: c.display_name for c in self._cohorts}
         for hierarchy in self.config.cohort_hierarchies:
-            lvls = hierarchy.column_order
-            if not all(k in self.dataframe.columns for k in lvls):
-                continue  # skip invalid ones
-            lvls = [source_to_display[lvl] for lvl in lvls]
+            lvls = [source_to_display.get(lvl) for lvl in hierarchy.column_order]
+            if not all(lvl in self.dataframe.columns for lvl in lvls):
+                continue  # skip hierarchies with a cohort that wasn't created
             combinations_df = self.dataframe[lvls].dropna().drop_duplicates().sort_values(lvls).reset_index(drop=True)
             self.cohort_hierarchy_combinations[tuple(lvls)] = combinations_df
 
