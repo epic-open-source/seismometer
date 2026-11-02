@@ -7,8 +7,7 @@ import pandas as pd
 
 from seismometer.configuration import ConfigurationError
 from seismometer.configuration.model import MergeStrategies
-
-logger = logging.getLogger("seismometer")
+from seismometer.core.logger import logger
 
 MAXIMUM_COUNT_CATS = 15
 

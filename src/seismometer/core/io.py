@@ -1,6 +1,5 @@
 import hashlib
 import json
-import logging
 import os
 import re
 import unicodedata
@@ -11,8 +10,9 @@ from typing import Any, Callable, Optional
 import nbformat
 import yaml
 
+from seismometer.core.logger import logger
+
 Pathlike = str | Path
-logger = logging.getLogger("seismometer")
 
 # region io-accessor functions
 read_ipynb = partial(nbformat.read, as_version=nbformat.current_nbformat)

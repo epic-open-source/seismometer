@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import re
 from abc import ABC
@@ -14,12 +13,12 @@ from seaborn.utils import relative_luminance
 
 import seismometer.report
 from seismometer.core.io import slugify
+from seismometer.core.logger import logger
 from seismometer.data import telemetry
 
 from .alerting import AlertConfigProvider, ParsedAlert, ParsedAlertList
 
 PROFILING_CONFIG_PATH = _files(seismometer.report) / "report_config.yml"
-logger = logging.getLogger("seismometer")
 
 
 def filter_unsupported_columns(df: DataFrame) -> DataFrame:

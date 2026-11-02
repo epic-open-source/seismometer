@@ -4,6 +4,10 @@ from typing import Optional
 
 logging.basicConfig()
 
+# The package logger. Import it from here rather than calling `logging.getLogger("seismometer")`
+# in each module, so every module logs under the same name.
+logger = logging.getLogger("seismometer")
+
 
 def init_logger(name: str = "seismometer") -> None:
     logger = logging.getLogger(name)

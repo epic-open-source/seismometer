@@ -1,12 +1,12 @@
-import logging
 from typing import Any
 
 from IPython.display import HTML, SVG
 from jinja2 import Environment, PackageLoader, TemplateNotFound
 
+from seismometer.core.logger import logger
+
 FULL_WIDTH_STYLE = "width: 100%; max-width: 1200px;"
 
-logger = logging.getLogger("seismometer")
 
 # Initializing Jinja
 package_loader = PackageLoader("seismometer", "html/resources")

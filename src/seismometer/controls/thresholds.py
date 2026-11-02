@@ -1,4 +1,3 @@
-import logging
 import operator
 from collections.abc import Iterable
 from typing import Optional
@@ -9,8 +8,6 @@ from ipywidgets import FloatSlider, Layout, ValueWidget, VBox
 from seismometer.plot.mpl._ux import alert_colors
 
 from .styles import WIDE_LABEL_STYLE
-
-logger = logging.getLogger("seismometer")
 
 
 class ProbabilitySliderListWidget(ValueWidget, VBox):
