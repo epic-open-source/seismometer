@@ -1,4 +1,3 @@
-import logging
 from numbers import Number
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
@@ -7,10 +6,10 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import auc
 
+from seismometer.core.logger import logger
+
 from .confidence import PRConfidenceParam, ROCConfidenceParam, confidence_dict
 from .decorators import export
-
-logger = logging.getLogger("seismometer")
 
 DEFAULT_RHO = 1 / 3
 

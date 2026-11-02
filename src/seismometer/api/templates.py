@@ -1,5 +1,3 @@
-import logging
-
 import pandas as pd
 from IPython.display import HTML
 from pandas.io.formats.style import Styler
@@ -9,8 +7,6 @@ from seismometer.core.decorators import export
 from seismometer.data import default_cohort_summaries, score_target_cohort_summaries
 from seismometer.html import template
 from seismometer.seismogram import Seismogram
-
-logger = logging.getLogger("seismometer")
 
 
 def _get_info_dict(plot_help: bool) -> dict[str, str | list[str]]:

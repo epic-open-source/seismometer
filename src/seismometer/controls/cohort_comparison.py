@@ -1,4 +1,3 @@
-import logging
 from functools import partial
 from typing import Any, Optional
 
@@ -7,12 +6,11 @@ from IPython.display import display
 from ipywidgets import Box, Button, Output, VBox
 
 from seismometer.configuration.model import CohortHierarchy
+from seismometer.core.logger import logger
 from seismometer.data.filter import filter_rule_from_cohort_dictionary
 
 from .selection import MultiSelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_BUTTON_LAYOUT
-
-logger = logging.getLogger("seismometer")
 
 GENERATE_REPORT = "Generate Report"
 GENERATING_REPORT = "Generating Report..."

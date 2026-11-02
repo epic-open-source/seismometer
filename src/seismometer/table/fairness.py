@@ -1,4 +1,3 @@
-import logging
 from enum import Enum
 from typing import Any, Callable, Optional
 
@@ -16,8 +15,6 @@ from seismometer.data import pandas_helpers as pdh
 from seismometer.data import telemetry
 from seismometer.data.filter import FilterRule
 from seismometer.data.performance import BinaryClassifierMetricGenerator, MetricGenerator
-
-logger = logging.getLogger("seismometer")
 
 COUNT = "Count"
 COHORT = "Cohort"

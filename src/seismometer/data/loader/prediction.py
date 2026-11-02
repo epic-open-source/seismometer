@@ -1,5 +1,4 @@
 import csv
-import logging
 import warnings
 
 import numpy as np
@@ -8,10 +7,9 @@ import pyarrow.parquet as pq
 
 import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider, ConfigurationError
+from seismometer.core.logger import logger
 
 from .pipeline import ConfigOnlyHook
-
-logger = logging.getLogger("seismometer")
 
 
 def get_data_loader(config: ConfigProvider) -> ConfigOnlyHook:

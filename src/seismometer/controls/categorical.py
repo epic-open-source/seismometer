@@ -1,4 +1,3 @@
-import logging
 from collections import defaultdict
 from typing import List, Optional, Union
 
@@ -15,14 +14,13 @@ from seismometer.controls.selection import MultiselectDropdownWidget, MultiSelec
 from seismometer.controls.styles import BOX_GRID_LAYOUT, html_title
 from seismometer.core.autometrics import store_call_parameters
 from seismometer.core.decorators import export
+from seismometer.core.logger import logger
 from seismometer.data import telemetry
 from seismometer.data.filter import FilterRule
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
-
-logger = logging.getLogger("seismometer")
 
 """ The maximum number of categories allowed in a categorical column. """
 
