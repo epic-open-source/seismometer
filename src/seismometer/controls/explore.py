@@ -1,4 +1,3 @@
-import logging
 import os
 from functools import wraps
 from typing import Any, Callable, Literal, Optional
@@ -13,8 +12,6 @@ from seismometer.data.performance import MetricGenerator
 from .selection import DisjointSelectionListsWidget, MultiselectDropdownWidget, MultiSelectionListWidget
 from .styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from .thresholds import MonotonicProbabilitySliderListWidget
-
-logger = logging.getLogger("seismometer")
 
 
 # region Model Evaluation Header Controls

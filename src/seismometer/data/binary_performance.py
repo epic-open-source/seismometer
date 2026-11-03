@@ -1,18 +1,16 @@
 import itertools
-import logging
 from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
 
+from seismometer.core.logger import logger
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data.filter import FilterRule
 from seismometer.seismogram import Seismogram
 
 from . import BinaryClassifierMetricGenerator
 from .performance import MONOTONIC_METRICS, THRESHOLD
-
-logger = logging.getLogger("seismometer")
 
 GENERATED_COLUMNS = [
     "Positives",

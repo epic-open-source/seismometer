@@ -1,4 +1,3 @@
-import logging
 from typing import Optional
 
 import traitlets
@@ -12,13 +11,12 @@ from seismometer.controls.selection import DisjointSelectionListsWidget
 from seismometer.controls.styles import BOX_GRID_LAYOUT, WIDE_LABEL_STYLE, html_title
 from seismometer.core.autometrics import store_call_parameters
 from seismometer.core.decorators import export
+from seismometer.core.logger import logger
 from seismometer.data import telemetry
 from seismometer.html import template
 from seismometer.plot.mpl._ux import MAX_CATEGORY_SIZE
 from seismometer.plot.mpl.likert import likert_plot
 from seismometer.seismogram import Seismogram
-
-logger = logging.getLogger("seismometer")
 
 
 class OrdinalCategoricalSinglePlot:

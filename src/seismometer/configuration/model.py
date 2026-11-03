@@ -1,11 +1,10 @@
-import logging
 from collections import Counter
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
-logger = logging.getLogger("seismometer")
+from seismometer.core.logger import logger
 
 FileLike = str | Path
 DirLike = str | Path
