@@ -1,0 +1,1 @@
+Improved type annotations in the public API, core utilities, and configuration helpers.

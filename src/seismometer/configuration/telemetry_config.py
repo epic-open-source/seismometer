@@ -20,7 +20,8 @@ class TelemetryConfig:
             The parsed YAML.
         """
         if "otel_export" not in raw_config:
-            self.otel_ports = self.otel_files = []
+            self.otel_ports = []
+            self.otel_files = []
             self.otel_stdout = False
             self.hostname = ""
             return

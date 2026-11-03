@@ -6,4 +6,4 @@ from .binary_classifier import *
 from .multi_classifier import *
 from .timeseries import *
 
-matplotlib.pyplot.style.use(_files(__package__) / "ux.mplstyle")
+matplotlib.pyplot.style.use(str(_files(__package__) / "ux.mplstyle"))
