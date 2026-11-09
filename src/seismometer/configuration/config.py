@@ -20,8 +20,9 @@ class ConfigProvider:
 
     Parameters
     ----------
-    config_config : str | Path
+    config_config : str | Path | None
         Specifies the path to the primary configuration file with a top level key of "other_info".
+        When None, defaults to ./data relative to the current working directory.
         The primary configuration file is largely focused on describing where to find other pieces and includes several
         file names and paths.
     usage_config : Optional[str] | Path, optional
@@ -45,7 +46,7 @@ class ConfigProvider:
 
     def __init__(
         self,
-        config_config: str | Path,
+        config_config: str | Path | None,
         *,
         usage_config: str | Path = None,
         automation_config: str | Path = None,
@@ -53,7 +54,7 @@ class ConfigProvider:
         data_dir: str | Path = None,
         template_notebook: object = None,
         definitions: dict | None = None,
-        output_path: str | Path = None,
+        output_path: str | Path | None = None,
     ):
         self._config: OtherInfo = None
         self._usage: DataUsage = None
@@ -109,7 +110,7 @@ class ConfigProvider:
     def metric_config(self):
         return self._metric_config
 
-    def _load_config_config(self, config_config: str | Path) -> None:
+    def _load_config_config(self, config_config: str | Path | None) -> None:
         """
         Loads the configuration file containing "other_info".
         """
@@ -134,7 +135,7 @@ class ConfigProvider:
         automation_config: str | Path = None,
         info_dir: str | Path = None,
         data_dir: str | Path = None,
-        output_path: str | Path = None,
+        output_path: str | Path | None = None,
     ) -> None:
         """
         Identifies the paths to all other configuration between primary configuration and specified values.
@@ -477,7 +478,7 @@ class ConfigProvider:
 
     # endregion
     # region Builder
-    def set_output(self, output: Path, nb_prefix: str = ""):
+    def set_output(self, output: str | Path | None, nb_prefix: str = ""):
         """
         Resolves the location of the outputs based on config and specified values.
 
@@ -488,7 +489,7 @@ class ConfigProvider:
 
         Parameters
         ----------
-        output : Path
+        output : str | Path | None
             The path to the output directory.
         nb_prefix : str, optional
             string to prepend to an output notebook, by default ''.

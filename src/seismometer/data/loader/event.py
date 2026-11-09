@@ -267,9 +267,6 @@ def _get_source_type(config: ConfigProvider, event: Event) -> str | None:
             + f"Will use the first source of type {dtype} and ignore others: {','.join(multitypes)}"
         )
 
-    if dtype is None:
-        return None
-
     return dtype
 
 

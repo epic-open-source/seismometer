@@ -5,7 +5,7 @@ import importlib.metadata
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional
 
 import pandas as pd
 
@@ -64,11 +64,7 @@ def run_startup(
     if reset:
         Seismogram.kill()
 
-    config = config_provider or ConfigProvider(
-        cast("str | Path", config_path),
-        output_path=cast("str | Path | None", output_path),
-        definitions=definitions,
-    )
+    config = config_provider or ConfigProvider(config_path, output_path=output_path, definitions=definitions)
     loader = loader_factory(config)
     sg = Seismogram(config, loader)
 

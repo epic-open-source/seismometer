@@ -24,7 +24,7 @@ class ComparisonReportGenerator:
         selections: dict[str, tuple[Any, ...]],
         exclude_cols: Optional[list[str]] = None,
         hierarchies: Optional[list[CohortHierarchy]] = None,
-        hierarchy_combinations: Optional[dict[tuple[str], pd.DataFrame]] = None,
+        hierarchy_combinations: Optional[dict[tuple[str, ...], pd.DataFrame]] = None,
     ):
         self.selectors: list[MultiSelectionListWidget] = []
         self.exclude_cols = exclude_cols or []
