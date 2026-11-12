@@ -47,7 +47,7 @@ def render_cohort_summary_template(dfs: dict[str, list[str]]) -> HTML:
     return render_into_template("cohorts", {"dfs": dfs})
 
 
-def render_into_template(name: str, values: dict = None, display_style=FULL_WIDTH_STYLE) -> HTML:
+def render_into_template(name: str, values: dict | None = None, display_style=FULL_WIDTH_STYLE) -> HTML:
     """
     Uses jinja to render a dictionary of values into a template.
 

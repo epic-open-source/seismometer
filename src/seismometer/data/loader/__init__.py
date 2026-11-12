@@ -8,7 +8,7 @@ from seismometer.configuration import ConfigProvider
 from .pipeline import ConfigFrameHook, ConfigOnlyHook, SeismogramLoader
 
 
-def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook = None) -> SeismogramLoader:
+def loader_factory(config: ConfigProvider, post_load_fn: ConfigFrameHook | None = None) -> SeismogramLoader:
     """
     Construct a SeismogramLoader from the provided configuration.
 

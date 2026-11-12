@@ -20,8 +20,8 @@ logger = logging.getLogger("seismometer")
 
 def run_startup(
     *,
-    config_path: str | Path = None,
-    output_path: str | Path = None,
+    config_path: str | Path | None = None,
+    output_path: str | Path | None = None,
     config_provider: Optional[ConfigProvider] = None,
     predictions_frame: Optional[pd.DataFrame] = None,
     events_frame: Optional[pd.DataFrame] = None,

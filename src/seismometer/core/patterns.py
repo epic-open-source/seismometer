@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------
+from typing import Any
+
+
 class Singleton(type):
     """
     Metaclass for implementing the single instance pattern.
@@ -7,7 +10,7 @@ class Singleton(type):
     look up the unique instance to return, or generate a new instance.
     """
 
-    _instances = {}
+    _instances: dict[type, Any] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:

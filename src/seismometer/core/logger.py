@@ -5,7 +5,7 @@ from typing import Optional
 logging.basicConfig()
 
 
-def init_logger(name: str = "seismometer") -> None:
+def init_logger(name: str = "seismometer") -> logging.Logger:
     logger = logging.getLogger(name)
     add_log_formatter(logger)
 

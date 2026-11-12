@@ -1,6 +1,6 @@
 import abc
 from copy import deepcopy
-from typing import Callable
+from typing import Callable, Optional
 
 from . import calculations as calc
 
@@ -25,12 +25,12 @@ class ConfidenceParam(abc.ABC):
     """
 
     # Method signatures for these depend on the nature of the calculation and may vary with implementation
-    region: Callable
-    interval: Callable
+    region: Optional[Callable]
+    interval: Optional[Callable]
     level: float
 
-    _default_region: Callable = None
-    _default_interval: Callable = None
+    _default_region: Optional[Callable] = None
+    _default_interval: Optional[Callable] = None
     _default_level: float = 0.95
 
     _region_allowed: bool = True
