@@ -96,7 +96,7 @@ def parquet_loader(config: ConfigProvider) -> pd.DataFrame:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FutureWarning)
-            present_columns = set(pq.ParquetDataset(config.prediction_path, use_legacy_dataset=False).schema.names)
+            present_columns = set(pq.ParquetDataset(config.prediction_path).schema.names)
 
         if config.target in present_columns:
             desired_columns.add(config.target)
@@ -137,7 +137,7 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
     Convert the loaded predictions dataframe to the expected types.
 
     Prioritizes the types defined in the configuration dictionary, then falls back to assumed_types.
-
+    Columns holding only strings become arrow-backed strings, even where the dictionary says object.
 
     Parameters
     ----------
@@ -163,6 +163,9 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
 
     for col in dataframe.columns:
         if col in defined_types:
+            if defined_types[col] == "object" and _holds_strings(dataframe[col]):
+                dataframe[col] = dataframe[col].astype(_arrow_string_dtype())
+                continue
             try:
                 pdh.try_casting(dataframe, col, defined_types[col])
             except ConfigurationError:
@@ -178,6 +181,10 @@ def dictionary_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.Data
 
     # Default to assumed types
     dataframe[unspecified_columns] = assumed_types(config, dataframe[unspecified_columns])
+
+    for col in dataframe.columns:
+        if dataframe[col].dtype == object and _holds_strings(dataframe[col]):
+            dataframe[col] = dataframe[col].astype(_arrow_string_dtype())
     return dataframe
 
 
@@ -220,6 +227,23 @@ def assumed_types(config: ConfigProvider, dataframe: pd.DataFrame) -> pd.DataFra
 
 
 # other
+
+
+def _holds_strings(series: pd.Series) -> bool:
+    """Whether every non-missing value is a string."""
+    return pd.api.types.infer_dtype(series, skipna=True) == "string"
+
+
+def _arrow_string_dtype() -> pd.StringDtype:
+    """
+    Arrow-backed strings with NaN for missing values, the default string dtype in pandas 3.
+
+    A fraction of the memory of Python string objects, with the same missing-value behavior.
+    """
+    try:
+        return pd.StringDtype("pyarrow", na_value=np.nan)
+    except TypeError:  # pandas < 2.3
+        return pd.StringDtype("pyarrow_numpy")
 
 
 def _infer_datetime(dataframe, cols=None, override_categories=None):
