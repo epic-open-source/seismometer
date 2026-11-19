@@ -24,6 +24,8 @@ Install the base package with:
 
 `pip install seismometer`
 
+Seismometer supports three Python versions, currently 3.12 to 3.14. We add a new Python version about six months after its release and drop the oldest. The two newest are tested on Linux, macOS and Windows, and the oldest on Linux with the minimum supported dependencies.
+
 ## Getting Help
 
 For general usage questions, refer to our [User Guide](https://epic-open-source.github.io/seismometer/user_guide/index.html#user-guide).
