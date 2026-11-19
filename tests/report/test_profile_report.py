@@ -28,6 +28,51 @@ def plain_text(markup: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", markup))
 
 
+# (text, background) CSS variables that the report's styles use together
+CONTRAST_PAIRS = [
+    ("text", "background"),
+    ("text", "stripe"),
+    ("text-muted", "background"),
+    ("text-strong", "surface"),
+    ("text-strong", "surface-hover"),
+    ("nav-link", "surface"),
+    ("primary", "background"),
+    ("primary", "stripe"),
+    ("danger", "background"),
+    ("danger", "stripe"),
+    ("background", "primary"),
+    ("background", "danger"),
+    ("background", "secondary"),
+    ("text-strong", "info"),
+    ("text-strong", "warning"),
+    ("text-strong", "dataset-0"),
+    ("text-strong", "dataset-1"),
+    ("dataset-0-text", "background"),
+    ("dataset-1-text", "background"),
+]
+
+
+def _rgba(color: str) -> tuple:
+    if color.startswith("rgba("):
+        return tuple(float(value) for value in color[5:-1].split(","))
+    digits = color[1:] if len(color) == 7 else "".join(c * 2 for c in color[1:])
+    return (*bytes.fromhex(digits), 1.0)
+
+
+def _luminance(rgb: list) -> float:
+    r, g, b = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (v / 255 for v in rgb)]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(text: str, background: str) -> float:
+    """WCAG contrast ratio, with a translucent text color blended over the background."""
+    *back, _ = _rgba(background)
+    *front, alpha = _rgba(text)
+    front = [alpha * f + (1 - alpha) * b for f, b in zip(front, back)]
+    light, dark = sorted([_luminance(front), _luminance(back)], reverse=True)
+    return (light + 0.05) / (dark + 0.05)
+
+
 class TestFormatting:
     @pytest.mark.parametrize(
         "value,expected", [(0.0004, "< 0.1%"), (0.9996, "> 99.9%"), (0.5, "50.0%"), (0, "0.0%"), (1, "100.0%")]
@@ -139,6 +184,22 @@ class TestProfileReport:
         alts = re.findall(r'<img class="plot" alt="([^"]+)"', page)
         assert len(alts) == page.count("<img")
         assert set(alts) == {"Histogram", "Mini histogram", "Common values"}
+
+    def test_text_colors_have_enough_contrast(self):
+        left = profile_dataframe(pd.DataFrame({"x": [1.0, 2.0, 3.0]}), "Left")
+        right = profile_dataframe(pd.DataFrame({"x": [4.0, 5.0, 6.0]}), "Right")
+        page = undertest.ProfileReport([left, right], title="Compare").to_html()
+
+        colors = dict(re.findall(r"--([\w-]+): ([^;]+);", re.search(r":root \{(.*?)\}", page, re.S).group(1)))
+
+        ratios = {pair: round(contrast(*(colors[name] for name in pair)), 2) for pair in CONTRAST_PAIRS}
+        assert {pair: ratio for pair, ratio in ratios.items() if ratio < 4.5} == {}
+
+    def test_styles_use_named_colors(self, profile):
+        page = undertest.ProfileReport([profile], title="T").to_html()
+        styles = page.split("<style>")[1].split("</style>")[0]
+        rules = styles.split("}", 1)[1]  # after the :root variables
+        assert re.findall(r"#[0-9a-fA-F]{3,6}\b|rgba?\(", rules) == []
 
     @pytest.mark.parametrize("name", ["$x^$", "_unknown"])
     def test_category_names_are_legend_text(self, name):

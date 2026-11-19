@@ -1,6 +1,6 @@
 {% macro value_header() %}
 {% if labels | length > 1 %}
-<thead><tr><th>&nbsp;</th>{% for label in labels %}<th style="color: {{ colors[loop.index0] }};">{{ label }}</th>{% endfor %}</tr></thead>
+<thead><tr><th>&nbsp;</th>{% for label in labels %}<th style="color: var(--dataset-{{ loop.index0 }}-text);">{{ label }}</th>{% endfor %}</tr></thead>
 {% endif %}
 {% endmacro %}
 {% macro table(item) %}
@@ -41,7 +41,7 @@
   </tbody>
 </table>
 {% endmacro %}
-{% macro dataset_label(idx) %}{% if labels | length > 1 %}<p class="dataset-label" style="color: {{ colors[idx] }};">{{ labels[idx] }}</p>{% endif %}{% endmacro %}
+{% macro dataset_label(idx) %}{% if labels | length > 1 %}<p class="dataset-label" style="color: var(--dataset-{{ idx }}-text);">{{ labels[idx] }}</p>{% endif %}{% endmacro %}
 {% macro item(it) %}
 {% if it.kind == "table" %}
   {{ table(it) }}
@@ -93,65 +93,84 @@
 <meta charset="utf-8">
 <title>{% if labels | length > 1 %}Comparing {{ labels[0] }} and {{ labels[1] }}{% else %}{{ title }}{% endif %}</title>
 <style>
+/* Text colors have at least 4.5:1 contrast on their backgrounds (WCAG AA), as the tests check. */
+:root {
+  --text: #212529;
+  --text-muted: rgba(33, 37, 41, 0.75);
+  --text-strong: #000;
+  --background: #fff;
+  --surface: #f8f9fa;
+  --surface-hover: #d3d4d5;
+  --border: #dee2e6;
+  --border-hover: #c6c7c8;
+  --stripe: #f2f2f2;
+  --nav-link: rgba(0, 0, 0, 0.65);
+  --primary: #0a58ca;
+  --danger: #b02a37;
+  --secondary: #6c757d;
+  --info: #0dcaf0;
+  --warning: #ffc107;
+{% for color in colors %}  --dataset-{{ loop.index0 }}: {{ color }};
+{% endfor %}{% for color in text_colors %}  --dataset-{{ loop.index0 }}-text: {{ color }};
+{% endfor %}}
 html { scroll-padding-top: 56px; }
-body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #212529; margin: 0; background: #fff; }
-a { color: #0d6efd; text-decoration: none; }
-.navbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; box-sizing: border-box; padding: 0 12px; background: #f8f9fa; position: sticky; top: 0; z-index: 10; }
-.navbar .brand { font-size: 20px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif; font-size: 16px; line-height: 1.5; color: var(--text); margin: 0; background: var(--background); }
+a { color: var(--primary); text-decoration: none; }
+.navbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; box-sizing: border-box; padding: 0 12px; background: var(--surface); position: sticky; top: 0; z-index: 10; }
+.navbar .brand { font-size: 20px; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .navbar .links { white-space: nowrap; }
-.navbar .links a { color: rgba(0, 0, 0, 0.65); padding: 8px; }
+.navbar .links a { color: var(--nav-link); padding: 8px; }
 .content { padding: 0 12px 40px; }
 h1.section { font-size: calc(1.375rem + 1.5vw); font-weight: 500; line-height: 1.2; margin: 16px 0; }
 .item-header, .variable .name { font-size: calc(1.275rem + 0.3vw); font-weight: 500; line-height: 1.2; margin: 8px 0; }
 @media (min-width: 1200px) { h1.section { font-size: 40px; } .item-header, .variable .name { font-size: 24px; } }
-.card, .variable { border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+.card, .variable { border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
 .grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .grid > div { flex: 1 1 300px; min-width: 0; }
 .table-block, .image-block { margin-bottom: 16px; }
 table { border-collapse: collapse; width: 100%; }
-table.stats th, table.stats td, table.alerts td, table.freq:not(.mini) td { padding: 8px; border-bottom: 1px solid #dee2e6; vertical-align: middle; }
+table.stats th, table.stats td, table.alerts td, table.freq:not(.mini) td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 table.stats th, table.stats td { text-align: left; white-space: nowrap; }
-table.stats tbody tr:nth-child(odd), table.alerts tbody tr:nth-child(odd), table.freq:not(.mini) tbody tr:nth-child(odd) { background: #f2f2f2; }
-tr.alert-row th, tr.alert-row td { color: #dc3545; }
+table.stats tbody tr:nth-child(odd), table.alerts tbody tr:nth-child(odd), table.freq:not(.mini) tbody tr:nth-child(odd) { background: var(--stripe); }
+tr.alert-row th, tr.alert-row td { color: var(--danger); }
 table.freq td:first-child { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 table.freq:not(.mini) td:nth-child(2), table.freq:not(.mini) td:nth-child(3) { width: 200px; text-align: right; }
-.bar { float: left; color: #fff; min-height: 24px; line-height: 24px; margin-right: 4px; border-radius: 3px; text-align: center; }
-{% for color in colors %}table.freq.table-{{ loop.index0 }} .bar { background-color: {{ color }}; }
+.bar { float: left; color: var(--text-strong); min-height: 24px; line-height: 24px; margin-right: 4px; border-radius: 3px; text-align: center; }
+{% for color in colors %}table.freq.table-{{ loop.index0 }} .bar { background-color: var(--dataset-{{ loop.index0 }}); }
 {% endfor %}
 table.freq.mini { border-collapse: separate; border-spacing: 4px; }
 table.freq.mini th { width: 10%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 5rem; font-weight: 400; text-align: right; padding-right: 8px; }
 table.freq.mini td { width: 50%; }
-.caption { text-align: center; color: rgba(33, 37, 41, 0.75); margin-top: 4px; }
+.caption { text-align: center; color: var(--text-muted); margin-top: 4px; }
 .badge { display: inline-block; padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 6px; margin-right: 4px; }
 .tabs > label .badge { margin-right: 0; }
-.text-bg-primary { background: #0d6efd; color: #fff; } .text-bg-info { background: #0dcaf0; color: #000; }
-.text-bg-warning { background: #ffc107; color: #000; } .text-bg-danger { background: #dc3545; color: #fff; }
-.text-bg-secondary { background: #6c757d; color: #fff; }
-.help { float: right; padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 700; line-height: 1; border-radius: 6px; background: #6c757d; color: #fff; cursor: help; }
-code { font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.875em; color: #d63384; }
-.alerts code { color: #0d6efd; }
-.alerts thead th { text-align: left; padding: 8px; border-bottom: 1px solid #dee2e6; }
+.text-bg-primary { background: var(--primary); color: var(--background); } .text-bg-info { background: var(--info); color: var(--text-strong); }
+.text-bg-warning { background: var(--warning); color: var(--text-strong); } .text-bg-danger { background: var(--danger); color: var(--background); }
+.text-bg-secondary { background: var(--secondary); color: var(--background); }
+.help { float: right; padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 700; line-height: 1; border-radius: 6px; background: var(--secondary); color: var(--background); cursor: help; }
+code { font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.875em; color: var(--primary); }
+.alerts thead th { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
 .variable .name { overflow-wrap: anywhere; }
-.variable .type { display: block; color: rgba(33, 37, 41, 0.75); margin-bottom: 8px; }
+.variable .type { display: block; color: var(--text-muted); margin-bottom: 8px; }
 .variable .header p { margin: 0 0 16px; }
 .variable .header p.name { margin: 8px 0 0; }
 .dataset-alerts td { vertical-align: top; padding-right: 24px; }
 .variable .top { display: grid; gap: 16px; align-items: start; }
-details > summary { display: block; width: max-content; margin: 0 0 16px auto; padding: 6px 12px; border: 1px solid #f8f9fa; border-radius: 6px; background: #f8f9fa; color: #000; cursor: pointer; list-style: none; }
+details > summary { display: block; width: max-content; margin: 0 0 16px auto; padding: 6px 12px; border: 1px solid var(--surface); border-radius: 6px; background: var(--surface); color: var(--text-strong); cursor: pointer; list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
-details > summary:hover { background: #d3d4d5; border-color: #c6c7c8; }
+details > summary:hover { background: var(--surface-hover); border-color: var(--border-hover); }
 .tabs { display: flex; flex-wrap: wrap; }
 .tabs > input { position: absolute; opacity: 0; pointer-events: none; } /* not display: none, so they keep keyboard focus */
-.tabs > input:focus-visible + label { outline: 2px solid #0d6efd; }
-.tabs > label { position: relative; padding: 8px 16px; margin-bottom: -1px; border: 1px solid transparent; border-radius: 6px 6px 0 0; color: #0d6efd; cursor: pointer; }
-.tabs > input:checked + label { border-color: #dee2e6 #dee2e6 #fff; color: #000; background: #fff; }
-.tabs > .panel { display: none; flex: 0 0 100%; min-width: 0; border-top: 1px solid #dee2e6; padding-top: 16px; }
+.tabs > input:focus-visible + label { outline: 2px solid var(--primary); }
+.tabs > label { position: relative; padding: 8px 16px; margin-bottom: -1px; border: 1px solid transparent; border-radius: 6px 6px 0 0; color: var(--primary); cursor: pointer; }
+.tabs > input:checked + label { border-color: var(--border) var(--border) var(--background); color: var(--text-strong); background: var(--background); }
+.tabs > .panel { display: none; flex: 0 0 100%; min-width: 0; border-top: 1px solid var(--border); padding-top: 16px; }
 {% for i in range(1, 7) %}.tabs > input:nth-of-type({{ i }}):checked ~ .panel:nth-of-type({{ i }}) { display: block; }
 {% endfor %}
-#variables-dropdown { display: block; margin: 16px 0; padding: 6px 36px 6px 12px; font: inherit; color: #212529; background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") no-repeat right 12px center / 16px 12px; border: 1px solid #dee2e6; border-radius: 6px; appearance: none; }
+#variables-dropdown { display: block; margin: 16px 0; padding: 6px 36px 6px 12px; font: inherit; color: var(--text); background: var(--background) url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") no-repeat right 12px center / 16px 12px; border: 1px solid var(--border); border-radius: 6px; appearance: none; }
 .dataset-label { font-weight: 600; margin: 4px 0; }
 img.plot { display: block; max-width: 99%; height: auto; margin: 0 auto; }
-.footer { color: rgba(33, 37, 41, 0.75); text-align: center; padding: 16px; }
+.footer { color: var(--text-muted); text-align: center; padding: 16px; }
 .compare .variable .top { grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
 .compare .grid > div { flex-basis: 440px; }
 .compare table.stats thead th, .compare .dataset-label { white-space: normal; overflow-wrap: anywhere; }
@@ -202,12 +221,12 @@ img.plot { display: block; max-width: 99%; height: auto; margin: 0 auto; }
   <div class="header">
     {% if loop.first %}<p class="name"><a href="#pp_var_{{ var.anchor }}">{{ var.name }}</a></p>{% endif %}
     {% if var.sections | length > 1 %}
-      <span class="type" style="color: {{ colors[dataset] }};">{{ labels[dataset] }}: {{ var.types[dataset] }}</span>
+      <span class="type" style="color: var(--dataset-{{ dataset }}-text);">{{ labels[dataset] }}: {{ var.types[dataset] }}</span>
       <p>{% for badge in var.alerts[dataset] %}{{ badge }}{% else %}<em>No alerts</em>{% endfor %}</p>
     {% else %}
       <span class="type">{{ var.types | unique | join(" / ") }}</span>
       {% if labels | length > 1 %}
-      <table class="dataset-alerts"><tbody><tr>{% for badges in var.alerts %}<td><span style="color: {{ colors[loop.index0] }};">{{ labels[loop.index0] }}</span><br>{% for badge in badges %}{{ badge }}{% else %}<em>No alerts</em>{% endfor %}</td>{% endfor %}</tr></tbody></table>
+      <table class="dataset-alerts"><tbody><tr>{% for badges in var.alerts %}<td><span style="color: var(--dataset-{{ loop.index0 }}-text);">{{ labels[loop.index0] }}</span><br>{% for badge in badges %}{{ badge }}{% else %}<em>No alerts</em>{% endfor %}</td>{% endfor %}</tr></tbody></table>
       {% else %}
       <p>{% for badge in var.alerts[0] %}{{ badge }}{% endfor %}</p>
       {% endif %}

@@ -24,6 +24,7 @@ from seismometer.core.io import slugify
 from seismometer.data.profile import Alert, AlertType, DataProfile
 
 COLORS = ["#0085f2", "#dd299d"]  # the first and second dataset
+TEXT_COLORS = ["#0070cc", "#c41e8a"]  # COLORS darkened for text on white, at 4.5:1 contrast
 PRECISION = 2  # significant digits for statistics
 N_FREQUENT = 5  # rows in value frequency tables
 N_EXTREME = 5  # rows in the minimum and maximum value tables
@@ -822,6 +823,7 @@ class ProfileReport:
             title=self.title,
             labels=self.labels,
             colors=COLORS,
+            text_colors=TEXT_COLORS,
             overview=overview,
             alerts=list(alerts.values()),
             reproduction=reproduction,
