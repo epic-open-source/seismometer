@@ -88,7 +88,7 @@ jobs:
           python -m build
           python -m twine check dist/*
   test-min-versions:
-    name: Test minimum versions py3.10
+    name: Test minimum versions py3.12
     runs-on: ubuntu-latest
 
     steps:
@@ -97,7 +97,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install dependencies at their minimum versions
         run: |
           pip install --upgrade pip
@@ -111,7 +111,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        # 3.12 runs in the coverage and minimum-versions jobs
+        python-version: ["3.13", "3.14"]
         os:
           - ubuntu-latest
           - windows-latest
