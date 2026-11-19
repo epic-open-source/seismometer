@@ -246,7 +246,7 @@ class TestProfileReport:
         assert "Right: Unsupported" in page
         # each dataset's rows are under its own section header, not a header naming both datasets
         _, variable = page.split('id="pp_var_x"')
-        assert "<thead><tr><th>&nbsp;</th>" not in variable
+        assert "<thead><tr><td></td>" not in variable
 
     def test_text_lengths_are_not_rounded(self):
         profile = profile_dataframe(pd.DataFrame({"note": ["x" * (1200 + i) for i in range(100)]}))
