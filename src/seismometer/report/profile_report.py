@@ -372,14 +372,13 @@ def _draw_categories(counts: pd.Series) -> Markup:
     for count, color in zip(counts, colors):
         rects = ax.barh(y=1, width=count, height=1, left=start, color=color)
         handles.append(rects)
-        r, g, b, _ = rects[0].get_facecolor()
         percent = count / counts.sum() * 100
         if percent > 8:
             ax.bar_label(
                 rects,
                 labels=[f"{percent:.1f}%\n({count})"],
                 label_type="center",
-                color="white" if r * g * b < 0.5 else "darkgrey",
+                color=_label_color(rects[0].get_facecolor()),
                 fontsize="x-large",
                 fontweight="bold",
             )
@@ -392,6 +391,13 @@ def _draw_categories(counts: pd.Series) -> Markup:
         text.set_text(name)
         text.set_parse_math(False)  # a name with $ signs is not a formula
     return _svg_image(figure, "Common values", bbox_extra_artists=[legend], bbox_inches="tight")
+
+
+def _label_color(background: tuple) -> str:
+    """Black or white, whichever has more WCAG contrast with an RGB(A) background of 0-1 values."""
+    r, g, b = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in background[:3]]
+    luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return "black" if (luminance + 0.05) / 0.05 > 1.05 / (luminance + 0.05) else "white"
 
 
 # endregion

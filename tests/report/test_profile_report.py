@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.colors import to_hex, to_rgba
 
 import seismometer.report.profile_report as undertest
 from seismometer.data.profile import AlertType, profile_dataframe
@@ -194,6 +195,12 @@ class TestProfileReport:
 
         ratios = {pair: round(contrast(*(colors[name] for name in pair)), 2) for pair in CONTRAST_PAIRS}
         assert {pair: ratio for pair, ratio in ratios.items() if ratio < 4.5} == {}
+
+    # seismometer's plot colors, and the extremes
+    @pytest.mark.parametrize("color", ["#006bdf", "#fd00ab", "#229d00", "#00a1c2", "#ec7000", "#ffffff", "#000000"])
+    def test_plot_labels_contrast_with_their_bars(self, color):
+        label = to_hex(undertest._label_color(to_rgba(color)))
+        assert contrast(label, color) >= 4.5
 
     def test_styles_use_named_colors(self, profile):
         page = undertest.ProfileReport([profile], title="T").to_html()
