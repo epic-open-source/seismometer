@@ -238,6 +238,7 @@ def fmt_timespan(seconds: float) -> str:
     str
         The duration in at most three units, e.g. "1.2 seconds" or "1 hour, 3 minutes and 4.5 seconds".
     """
+    seconds = round(seconds, 2)  # before splitting, so 119.9999 is "2 minutes", not "1 minute and 60 seconds"
     if seconds < 60:
         text = re.sub(r"\.?0+$", "", f"{seconds:.2f}")
         return f"{text} second{'' if math.floor(seconds) == 1 else 's'}"

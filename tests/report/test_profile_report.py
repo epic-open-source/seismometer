@@ -66,6 +66,9 @@ class TestFormatting:
             (75, "1 minute and 15 seconds"),
             (120, "2 minutes"),
             (3725, "1 hour, 2 minutes and 5 seconds"),
+            (59.999, "1 minute"),
+            (119.9999, "2 minutes"),
+            (3599.999, "1 hour"),
         ],
     )
     def test_fmt_timespan(self, seconds, expected):
