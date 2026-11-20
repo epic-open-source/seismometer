@@ -257,7 +257,11 @@ class AnalyticsTable:
                 columns=[col for col in data.columns if col.endswith(f"_{THRESHOLD}")],
                 decimals=self.decimals - 2,
             )
-            .fmt_percent(columns=self.columns_show_percentages, decimals=self.percentages_decimals)
+            .fmt_percent(
+                # only the ones this table shows, as great-tables 1.2+ raises on other names
+                columns=[col for col in self.columns_show_percentages if col in data.columns],
+                decimals=self.percentages_decimals,
+            )
             .tab_style(
                 style=[
                     style.text(align="center"),
