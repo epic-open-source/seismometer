@@ -239,6 +239,16 @@ class TestResolveCohorts:
 
         assert result.cat.categories.tolist() == ["<2.5", "2.5-4.0", ">=4.0"]
 
+    @pytest.mark.parametrize("dtype", ["float64", "object"])
+    @pytest.mark.parametrize(
+        "ages,codes", [([10, np.nan, 40, 70, 20], [0, -1, 2, 3, 1]), ([np.nan, 10, 40, 70, 20], [-1, 0, 2, 3, 1])]
+    )
+    def test_resolve_cohorts_leaves_missing_values_unlabeled(self, ages, codes, dtype):
+        result = undertest.resolve_cohorts(pd.Series(ages, dtype=dtype), splits=[18, 35, 65])
+
+        assert result.cat.categories.tolist() == ["<18", "18-35", "35-65", ">=65"]
+        assert result.cat.codes.tolist() == codes
+
 
 class TestHasGoodBinning:
     """Tests for has_good_binning() error checking function - previously untested."""

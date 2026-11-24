@@ -229,13 +229,15 @@ def label_cohorts_numeric(series: SeriesOrArray, splits: Optional[List] = None) 
     pd.Series
         Categorical series with labels.
     """
+    series = pd.to_numeric(series)
+    missing = np.asarray(pd.isna(series))
     bins = find_bin_edges(series, splits)
     bin_ixs = np.digitize(series, bins, right=False)
-    has_good_binning(bin_ixs, bins)
+    has_good_binning(bin_ixs[~missing], bins)
 
     labels = [f"{bins[i]}-{bins[i+1]}" for i in range(len(bins) - 1)] + [f">={bins[-1]}"]
     labels[0] = f"<{bins[1]}"
-    cat = pd.Categorical.from_codes(bin_ixs - 1, labels)
+    cat = pd.Categorical.from_codes(np.where(missing, -1, bin_ixs - 1), labels)
     # Preserve the input series index for proper alignment in pd.concat
     if isinstance(series, pd.Series):
         return pd.Series(cat, index=series.index)
@@ -322,7 +324,7 @@ def find_bin_edges(series: SeriesOrArray, thresholds: Optional[list] = None) -> 
     # Ensure sorted and unique entries
     bins = sorted(set(thresholds))
 
-    ymin = min(series)
+    ymin = np.nanmin(series)
     if bins[0] > ymin:
         bins.insert(0, ymin)
 
