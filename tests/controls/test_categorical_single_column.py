@@ -191,6 +191,13 @@ class TestOrdinalCategoricalSinglePlot:
         assert "strongly agree" in df.columns
         assert df["strongly agree"].eq(0).all()
 
+    def test_count_cohort_group_values_handles_missing_numeric_metric(self, fake_seismo):
+        plot = OrdinalCategoricalSinglePlot(metric_col="Metric1", cohort_dict={"Cohort": ("C1", "C2")})
+        plot.dataframe = pd.DataFrame({"Cohort": ["C1", "C1", "C2"], "Metric1": [1, 2, 3]})
+        plot.values = [1, 2, 3, 4]
+        df = plot._count_cohort_group_values()
+        assert df[4].eq(0).all()
+
     def test_extract_metric_values_falls_back_to_dataframe(self, fake_seismo, caplog):
         fake_seismo.metrics["Metric1"].metric_details.values = None  # trigger fallback
         caplog.set_level("WARNING")
