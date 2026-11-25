@@ -1,4 +1,3 @@
-import logging
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -7,8 +6,6 @@ import pandas as pd
 import seaborn as sns
 
 from .decorators import model_plot
-
-logger = logging.getLogger("seismometer")
 
 
 @model_plot

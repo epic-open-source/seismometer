@@ -3,7 +3,6 @@
 As for all of the utils subpackage, no other custom sub-packages should be referenced.
 """
 import hashlib
-import logging
 import os
 import shutil
 from functools import wraps
@@ -15,8 +14,7 @@ from IPython.display import HTML
 from ipywidgets import Widget
 
 from seismometer.core.decorators import DiskCachedFunction
-
-logger = logging.getLogger("seismometer")
+from seismometer.core.logger import logger
 
 
 def html_load(filepath) -> HTML:

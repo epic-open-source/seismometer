@@ -1,5 +1,4 @@
 import json
-import logging
 from functools import lru_cache
 from typing import Optional
 
@@ -8,6 +7,7 @@ import pandas as pd
 
 from seismometer.configuration import AggregationStrategies, ConfigProvider, MergeStrategies
 from seismometer.configuration.model import CohortHierarchy, Metric
+from seismometer.core.logger import logger
 from seismometer.core.patterns import Singleton
 from seismometer.data import pandas_helpers as pdh
 from seismometer.data import resolve_cohorts
@@ -16,7 +16,6 @@ from seismometer.data.loader import SeismogramLoader
 from seismometer.report.alerting import AlertConfigProvider
 
 MAXIMUM_NUM_COHORTS = 25
-logger = logging.getLogger("seismometer")
 
 
 class Seismogram(object, metaclass=Singleton):

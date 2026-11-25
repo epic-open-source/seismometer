@@ -4,7 +4,6 @@ As for all of the utils subpackage, no other custom sub-packages should be refer
 """
 import builtins
 import hashlib
-import logging
 import os
 import shutil
 import sys
@@ -16,7 +15,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("seismometer")
+from seismometer.core.logger import logger
 
 
 def export(orig_fn):

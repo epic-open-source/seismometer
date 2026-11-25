@@ -29,16 +29,14 @@ alerts:
       show: true
 """
 
-import logging
 from pathlib import Path
 from typing import Optional
 
 import yaml
 from pydantic import BaseModel, Field
 
+from seismometer.core.logger import logger
 from seismometer.plot.mpl._ux import alert_colors
-
-logger = logging.getLogger("seismometer")
 
 
 class ParsedAlert(BaseModel):
