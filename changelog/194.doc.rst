@@ -1,0 +1,1 @@
+Documented which Python versions seismometer supports and how they are tested.

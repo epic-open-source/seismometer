@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
+import pytest
+from matplotlib.collections import PolyCollection
 from matplotlib.figure import Figure
 
 import seismometer.plot.mpl.multi_classifier as multPlots
@@ -80,3 +82,18 @@ class Test_One_Vertical:
         assert kw_args == {"axis": mock_ax, "extra_kw": 0}
 
         mock_ax.set_xlim.assert_called_once_with(0, 1)
+
+
+class Test_Leadtime_Violin:
+    def test_violins_fill_their_rows(self):
+        rng = np.random.default_rng(0)
+        age = pd.Categorical(rng.choice(["[10-20)", "[50-70)", "70+"], 300), categories=["[10-20)", "[50-70)", "70+"])
+        data = pd.DataFrame({"lead": -rng.uniform(0, 700, 300), "age": age})
+        _, axis = plt.subplots()
+
+        multPlots.leadtime_violin(data, "lead", "age", axis=axis)
+
+        violins = [c for c in axis.collections if isinstance(c, PolyCollection)]
+        heights = [np.ptp(violin.get_paths()[0].vertices[:, 1]) for violin in violins]
+        assert heights == pytest.approx([0.8] * 3, abs=0.01)
+        plt.close()

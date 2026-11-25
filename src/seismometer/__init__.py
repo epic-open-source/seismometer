@@ -32,6 +32,10 @@ def run_startup(
     """
     Runs the required startup for instantiating seismometer.
 
+    .. versionchanged:: NEXT_VERSION_PLACEHOLDER
+       String columns load as Arrow-backed strings (``str`` on pandas 3), even where the data dictionary says
+       ``object``; assigning a non-string value into one raises ``TypeError``.
+
     Parameters
     ----------
     config_path : Optional[str | Path], optional

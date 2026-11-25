@@ -10,11 +10,13 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 from conftest import tmp_as_current  # noqa
-from pandas.errors import SettingWithCopyWarning
 
 import seismometer.data.loader.prediction as undertest
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import DictionaryItem
+
+# Removed in pandas 3, where copy-on-write makes the warning obsolete
+SettingWithCopyWarning = getattr(pd.errors, "SettingWithCopyWarning", None)
 
 
 # region Fakes and Data Prep
@@ -297,6 +299,27 @@ class TestAssumedTypes:
 
 
 class TestDictionaryTypes:
+    def test_string_columns_become_arrow_strings(self):
+        config = Mock(spec=ConfigProvider)
+        config.output_list = []
+        config.prediction_types = {"id": "object", "count": "object"}
+        dataframe = pd.DataFrame(
+            {
+                "id": pd.Series(["a", "b", None], dtype=object),
+                "count": [1, 2, 3],
+                "label": pd.Series(["x", None, "y"], dtype=object),
+                "mixed": pd.Series(["x", 1, None], dtype=object),
+            }
+        )
+
+        actual = undertest.dictionary_types(config, dataframe)
+
+        assert actual["id"].dtype == undertest._arrow_string_dtype()
+        assert actual["label"].dtype == undertest._arrow_string_dtype()
+        assert actual["count"].dtype == object  # not strings: cast as defined
+        assert actual["mixed"].dtype == object
+        assert actual["id"].isna().tolist() == [False, False, True]
+
     @pytest.mark.parametrize(
         "defined_types,expected_dtypes",
         [
@@ -379,7 +402,8 @@ class TestDictionaryTypes:
         )
 
         with warnings.catch_warnings():
-            warnings.simplefilter("error", SettingWithCopyWarning)
+            if SettingWithCopyWarning is not None:
+                warnings.simplefilter("error", SettingWithCopyWarning)
             out = undertest.dictionary_types(config, df)
 
         assert pd.api.types.is_datetime64_any_dtype(out["Time"])

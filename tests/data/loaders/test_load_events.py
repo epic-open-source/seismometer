@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
@@ -10,6 +10,7 @@ import pyarrow.parquet as pq
 import pytest
 
 import seismometer.data.loader.event as undertest
+import seismometer.data.pandas_helpers as pdh
 from seismometer.configuration import ConfigProvider
 from seismometer.configuration.model import Event
 
@@ -157,6 +158,7 @@ class TestPredictionLoad:
         # the post_transform_fn will convert the Time column to a datetime64[ns] type,
         # so we need to mock that functionality
         actual["Time"] = actual["Time"].astype("<M8[ns]")
+        expected["Time"] = expected["Time"].astype("<M8[ns]")  # pandas 3 defaults to [us]
 
         pdt.assert_frame_equal(actual, expected)
 
@@ -223,6 +225,52 @@ class TestMergeOntoPredictions:
 
         pdt.assert_frame_equal(actual, expected)
 
+    def test_merge_event_includes_rows_named_display_name(self):
+        config = fake_config("unused_file")
+        config.events = [Event(source="c", display_name="ac")]
+
+        event_df = event_frame(rename=True)
+        event_df["Type"] = ["c", "b", "ac", "c", "b", "c"]
+
+        predictions = pd.DataFrame(
+            {
+                "id": ["0", "1", "2"],
+                # push backwards so all events are in the future
+                "Time": [EVENT_DATES[0] - pd.to_timedelta(10, unit="D")] * 3,
+                "Prediction": [4, 5, 6],
+            }
+        )
+
+        expected = predictions.copy()
+        expected[["ac_Value", "ac_Time"]] = event_df[["Value", "Time"]].values[[0, 2, 5]]
+        expected["ac_Value"] = expected["ac_Value"].astype(float)
+
+        actual = undertest.merge_onto_predictions(config, event_df, predictions)
+
+        pdt.assert_frame_equal(actual, expected)
+
+    def test_merge_returns_fresh_index(self):
+        config = fake_config("unused_file")
+        config.events = [Event(source="a")]
+
+        event_df = event_frame(rename=True)
+        # out of time order, with a non-default index
+        predictions = pd.DataFrame(
+            {
+                "id": ["2", "0", "1"],
+                "Time": EVENT_DATES[0] - pd.to_timedelta([8, 10, 9], unit="D"),
+                "Prediction": [6, 4, 5],
+            },
+            index=[10, 20, 30],
+        )
+
+        actual = undertest.merge_onto_predictions(config, event_df, predictions)
+
+        pdt.assert_index_equal(actual.index, pd.RangeIndex(3))
+        assert actual["id"].tolist() == ["0", "1", "2"]
+        assert actual["Prediction"].tolist() == [4, 5, 6]
+        assert actual["a_Value"].tolist() == [7.0, 9.0, 12.0]
+
     @pytest.mark.parametrize(
         "event,str_inclusions",
         [
@@ -272,3 +320,42 @@ class TestMergeOntoPredictions:
             _ = undertest.merge_onto_predictions(config, event_df, predictions)
 
         assert "Event a specified impute" in caplog.text
+
+
+class TestDropRepeatedPredictions:
+    @pytest.mark.parametrize(
+        "event_ids,with_codes,uses_codes",
+        [
+            pytest.param(["0", "1", None], True, True, id="codes"),
+            pytest.param(["0", "1", None], False, False, id="no codes"),
+            pytest.param([0.0, 1.0, np.nan], True, False, id="key dtypes differ"),
+        ],
+    )
+    def test_matches_drop_duplicates(self, event_ids, with_codes, uses_codes):
+        config = fake_config("unused_file")
+        config.entity_keys = ["id", "ctx"]
+        t0, t1 = EVENT_DATES
+        predictions = pd.DataFrame(
+            {
+                "id": ["0", "0", "1", None, None, "1", "0"],
+                "ctx": [1, 1, 2, 3, 3, 2, 2],
+                "Time": [t0, t0, t1, t0, t0, pd.NaT, t0],
+                "Prediction": range(7),
+            }
+        )
+        events = pd.DataFrame({"id": event_ids, "ctx": [1, 2, 3]})
+        key_codes = pdh.factorize_keys(predictions, events, ["id", "ctx"]) if with_codes else None
+        expected = predictions.drop_duplicates(subset=["id", "ctx", "Time"]).dropna(subset=["Time"])
+        expected = expected.reset_index(drop=True)
+
+        with patch.object(pd.DataFrame, "duplicated", autospec=True, side_effect=pd.DataFrame.duplicated) as dup:
+            actual, codes = undertest._drop_repeated_predictions(config, predictions, events, key_codes)
+
+        pdt.assert_frame_equal(actual, expected)
+        assert ("subset" not in dup.call_args.kwargs) is uses_codes
+        if with_codes:
+            pdt.assert_index_equal(codes.predictions.index, actual.index)
+            assert codes.predictions.tolist() == key_codes.predictions.iloc[[0, 2, 3, 6]].tolist()
+            assert codes.events is key_codes.events
+        else:
+            assert codes is None

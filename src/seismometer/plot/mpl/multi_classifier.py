@@ -117,6 +117,7 @@ def leadtime_violin(
         x=x_col,
         y=data[y_col].cat.remove_unused_categories(),
         hue=data[y_col],
+        dodge=False,  # with pandas 3, seaborn's "auto" splits each row by hue, narrowing the violins
         ax=axis,
         fill=True,
         linewidth=0.1,

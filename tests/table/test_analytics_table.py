@@ -229,6 +229,21 @@ class TestAnalyticsTable:
         gt = table.generate_initial_table(data)
         assert gt is not None
 
+    @pytest.mark.parametrize("shown", [["Prevalence", "AUROC"], ["AUROC"]])
+    def test_initial_table_formats_the_percentages_it_shows(self, fake_seismo, shown):
+        table = AnalyticsTable(
+            score_columns=["score1"],
+            target_columns=["target1"],
+            metric="Sensitivity",
+            censor_threshold=1,
+            cohort_dict={"cohort1": ("A", "B")},
+        )
+        data = pd.DataFrame({"Score": ["score1"], "Target": ["target1"], "Prevalence": [0.25], "AUROC": [0.8]})
+
+        html = table.generate_initial_table(data[["Score", "Target", *shown]]).as_raw_html()
+
+        assert (">25%<" in html) == ("Prevalence" in shown)
+
     def test_generate_initial_table_group_by_target(self, fake_seismo):
         scores = ["score1", "score2"]
         targets = ["target1", "target2", "target3"]

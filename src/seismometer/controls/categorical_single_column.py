@@ -116,7 +116,8 @@ class OrdinalCategoricalSinglePlot:
 
         missing = [v for v in self.values if v not in df.columns]
         if missing:
-            df = df.assign(**{col: 0 for col in missing})
+            for col in missing:
+                df[col] = 0
             logger.warning(f"The following metric values are missing: {missing}")
         available_values = [v for v in self.values if v in df.columns]
         df = df[available_values].astype(int)
